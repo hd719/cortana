@@ -80,9 +80,11 @@ Long-running autonomous agents I spawn for deep work. Named after Halo factions.
 | Agent | Role | When Used |
 |-------|------|-----------|
 | **Huragok** | Deep research, due diligence | Stock analysis, technical decisions, health research |
-| **Monitor** | Pattern detection, anomalies | Weekly health trends, behavioral analysis |
+| **Monitor** | Pattern detection, anomalies | Health trends, behavioral analysis |
 | **Librarian** | Knowledge curation, learning | Maintains second brain, indexes research |
 | **Oracle** | Predictions, forecasting | Pre-event forecasts, risk warnings |
+
+**Operating model:** On-demand, not scheduled. Cortana spawns agents when there's a reason (pre-trip, pre-earnings, concerning patterns, research requests). More surgical, less overhead.
 
 **Location:** `covenant/` — each agent has SOUL.md (identity) + AGENTS.md (operations)
 
@@ -102,12 +104,9 @@ Things that run on schedule without you asking.
 | 7:00 AM | 🏋️ Fitness Brief | Whoop recovery, sleep analysis, training rec |
 | 3:00 AM | 🧹 Session Cleanup | Deletes bloated session files (>400KB) |
 
-### Weekly Crons
+### On-Demand (Covenant)
 
-| Day/Time | Job | What It Does |
-|----------|-----|--------------|
-| Sunday PM | 📊 Weekly Patterns | Monitor analyzes health trends |
-| Sunday PM | 📚 Knowledge Refresh | Librarian updates domain knowledge |
+Covenant agents (Huragok, Monitor, Librarian, Oracle) are spawned by Cortana when needed — not on a schedule. Examples: pre-trip forecasts, earnings research, pattern concerns.
 
 ### Event-Based
 
