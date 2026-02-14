@@ -1,0 +1,65 @@
+{
+  "date": "2026-02-13",
+  "evening": {
+    "strain_summary": {
+      "total_day_strain": 18.5,
+      "total_kilojoules": 2369,
+      "max_heart_rate": 177,
+      "strain_category": "high"
+    },
+    "recovery_metrics": {
+      "recovery_score": 63,
+      "recovery_zone": "yellow",
+      "hrv_rmssd": 115,
+      "resting_hr": 50
+    },
+    "sleep_last_night": {
+      "duration_hours": 6.85,
+      "sleep_performance": 81,
+      "rem_sleep_minutes": 58,
+      "deep_sleep_minutes": 76,
+      "light_sleep_minutes": 232,
+      "sleep_efficiency": 88.8,
+      "bedtime": "2:56 AM",
+      "wake_time": "9:47 AM"
+    },
+    "workouts": [
+      {
+        "type": "weightlifting",
+        "start_time": "10:55 AM",
+        "end_time": "11:27 AM",
+        "duration_minutes": 32,
+        "strain": 9.3,
+        "kilojoules": 649
+      },
+      {
+        "type": "weightlifting", 
+        "start_time": "11:28 AM",
+        "end_time": "12:01 PM",
+        "duration_minutes": 33,
+        "strain": 13.1,
+        "kilojoules": 1484
+      },
+      {
+        "type": "activity",
+        "start_time": "1:09 PM", 
+        "end_time": "1:26 PM",
+        "duration_minutes": 17,
+        "strain": 4.6,
+        "kilojoules": 237
+      }
+    ],
+    "weekly_summary": {
+      "days_trained_this_week": 6,
+      "weekly_strain_average": 12.8,
+      "weekly_sleep_average": 79
+    },
+    "recommendations": {
+      "tomorrow_intensity": "light/recovery",
+      "target_bedtime": "9:30-10:00 PM",
+      "sleep_focus": "REM optimization",
+      "predicted_recovery": "yellow/green"
+    },
+    "notes": "Double strength session day with high total strain. Tonal auth issue - used Whoop data only. REM sleep remains chronically low."
+  }
+}

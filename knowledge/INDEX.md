@@ -8,7 +8,8 @@ Master index of accumulated knowledge. Updated by Librarian.
 
 | Date | Topic | Status | Path |
 |------|-------|--------|------|
-| — | — | — | — |
+| 2026-02-13 | REM Sleep Optimization | Complete | research/2026-02-13-rem-optimization.md |
+| 2026-02-13 | Portfolio Diversification Screener | Complete | research/2026-02-13-portfolio-diversification.md |
 
 ## Patterns (Monitor)
 

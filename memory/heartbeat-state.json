@@ -5,8 +5,8 @@
     "portfolio": null,
     "fitness": 1771066800000,
     "weather": 1771066800000,
-    "budget": null
+    "budget": 1771077600000
   },
-  "lastHeartbeat": 1739480436000,
-  "notes": "Timestamps are Unix epoch ms. null = never checked."
+  "lastHeartbeat": 1771077600000,
+  "notes": "Timestamps are Unix epoch ms. null = never checked. Budget checked 2026-02-14 7am ET - 100% remaining."
 }
