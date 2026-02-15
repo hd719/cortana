@@ -2,44 +2,62 @@
 
 **Author:** Cortana  
 **Date:** February 15, 2026  
-**Status:** Draft (v2 — Strategy Engineering Approach)  
+**Status:** Draft (v3 — Advisory Mode)  
 **Owner:** Hamel Desai
 
 ---
 
 ## 1. Overview
 
-Build an AI-powered trading system integrated with Charles Schwab's brokerage API. The AI acts as a **strategy engineer** — it designs, backtests, and optimizes rules-based trading systems. It does NOT make discretionary trade decisions based on "vibes."
+Build an AI-powered trading **advisor** integrated with Charles Schwab's brokerage API. The AI has **read-only access** — it monitors the portfolio, engineers strategies, and recommends trades. **Hamel executes all trades manually.**
 
 ### 1.1 Core Philosophy
 
-> "Don't treat the LLM as a discretionary trader. Use it as a strategy engineer. The model doesn't execute trades; it builds rules that can be evaluated, scrutinized, refined, and optimized."
+> "The AI is an advisor, not an executor. It builds strategies, validates them with data, and tells you what to do. You pull the trigger."
+
+**Access Model:**
+- **Current:** Read-only (portfolio data, market data)
+- **Future (optional):** Write access for automated execution
 
 **The Wrong Way:**
 - AI says "buy AAPL because it looks good" → vibes-based, untestable
 
 **The Right Way:**
-- AI says "here's a strategy: buy S&P 500 stocks ranked by 30-day momentum when RSI < 40, backtest shows 12% annual return with 0.8 sortino ratio" → rules-based, validated
+- AI says "based on CANSLIM strategy, CRWD scores 10/12 and is breaking out of a base. Backtest shows this pattern returns 15% avg over 30 days. Suggested action: BUY 25 shares at $380 with stop at $350." → rules-based, validated, human-executed
 
 ### 1.2 Vision
 
-A personal AI trading assistant that:
+A personal AI trading advisor that:
+- Has **read-only** access to your brokerage account
+- Monitors portfolio health and alerts on significant moves
 - Engineers rules-based trading strategies
 - Backtests strategies against historical data
-- Optimizes parameters via genetic algorithms
-- Validates in paper trading before live deployment
-- Executes only proven strategies with strict risk controls
-- Learns from outcomes and refines systems
+- **Recommends specific trades with reasoning**
+- **You execute manually** (for now)
+- Tracks outcomes and refines strategies
+- (Future option) Can be upgraded to automated execution
 
 ### 1.3 Success Metrics
 
 | Metric | Target |
 |--------|--------|
 | Strategy win rate (backtest) | > 55% |
-| Sortino ratio (live) | > 1.0 |
+| Suggestion acceptance rate | Track (no target yet) |
+| Accepted trade win rate | > 50% |
+| Sortino ratio (tracked trades) | > 1.0 |
 | Max drawdown | < 15% |
-| Paper trading validation period | 30+ days |
-| Live vs backtest deviation | < 20% |
+
+### 1.4 Account Structure
+
+| Account | Purpose | Cortana Access |
+|---------|---------|----------------|
+| **Main Account** | Long-term holds (TSLA, NVDA, etc.) | None |
+| **AI Account** | Strategy-driven trading | **Read-only** |
+
+The AI Account is a separate Schwab account dedicated to strategy execution. This provides:
+- Risk isolation from main portfolio
+- Clean performance tracking
+- Clear attribution of AI strategy results
 
 ---
 
@@ -177,85 +195,149 @@ Improved Max DD: -12.3% → -9.8%
 
 ---
 
-### Phase 3: Paper Trading Validation
+### Phase 3: Trade Recommendations (Advisory Mode)
 
-**Timeline:** 1 week to build, 30+ days to validate  
-**Risk Level:** None (simulated)
+**Timeline:** Ongoing after Phase 2  
+**Risk Level:** Low (you execute, not me)
 
-Before ANY strategy goes live, it must prove itself in paper trading.
+This is the **primary operating mode**. Cortana monitors, analyzes, and recommends. Hamel executes.
 
-**Features:**
-- [ ] Simulated execution at real prices
-- [ ] Slippage modeling (realistic fills)
-- [ ] Daily P&L tracking
-- [ ] Strategy vs backtest comparison
-- [ ] Anomaly detection (behaving differently than expected?)
-- [ ] Minimum 30-day validation period
-- [ ] Graduation criteria (see below)
+#### 3.1 Trade Alerts
 
-**Graduation Criteria (strategy can go live if):**
-- [ ] 30+ days of paper trading
-- [ ] Live performance within 20% of backtest
-- [ ] No unexpected drawdowns
-- [ ] Sortino ratio > 1.0 in paper period
-- [ ] Human approval
+When a strategy generates a signal, Cortana sends a recommendation:
+
+```
+📈 TRADE SIGNAL: CANSLIM Strategy
+
+Action: BUY
+Ticker: CRWD (CrowdStrike)
+Score: 10/12 CANSLIM
+
+Reasoning:
+  ✅ C: EPS +42% YoY (exceeds 25%)
+  ✅ A: 5yr growth 38%
+  ✅ N: Breaking out of cup-with-handle base
+  ✅ S: Float 25M, accumulation A-
+  ✅ L: RS Rating 94
+  ✅ I: +12% institutional buying last Q
+  ✅ M: Market in confirmed uptrend
+
+Entry: $382.50 (current price at breakout pivot)
+Stop Loss: $352 (-8%)
+Position Size: $3,800 (10 shares @ 10% of account)
+
+Backtest context: This setup has 62% win rate, 
+avg gain +14%, avg loss -6% over 847 historical trades.
+
+⏰ Signal valid for: Market open tomorrow
+```
+
+#### 3.2 Trade Tracking
+
+After you execute (or decline), tell Cortana:
+
+| Command | Action |
+|---------|--------|
+| `/executed CRWD 10 @ 382.50` | Log that you took the trade |
+| `/declined CRWD` | Log that you passed |
+| `/sold CRWD 10 @ 410` | Log exit |
+
+Cortana tracks:
+- All recommendations made
+- Which ones you executed vs declined
+- Outcomes of executed trades
+- Running P&L and win rate
+
+#### 3.3 Portfolio Monitoring
+
+Daily/weekly reports:
+
+```
+📊 AI Account Weekly Summary
+
+Portfolio Value: $38,420 (+2.3%)
+Cash: $12,580
+
+Open Positions:
+  CRWD: +8.2% (entered Mon)
+  NVDA: +3.1% (entered Wed)
+  
+Pending Signals:
+  PLTR: BUY signal (score 9/12)
+  
+Strategy Performance (last 30 days):
+  Recommendations: 12
+  Executed: 8
+  Win Rate: 62%
+  Avg Gain: +6.2%
+```
+
+#### 3.4 Alert Types
+
+| Alert | Trigger | Urgency |
+|-------|---------|---------|
+| **BUY Signal** | Strategy criteria met | Medium |
+| **SELL Signal** | Exit criteria triggered | High |
+| **Stop Hit** | Price at stop loss level | High |
+| **Earnings Warning** | Held stock reports in <7 days | Medium |
+| **Market Regime Change** | M factor shifts | High |
 
 ---
 
-### Phase 4: Live Deployment with Guardrails
+### Phase 4: FUTURE — Automated Execution (Optional)
 
-**Timeline:** Ongoing  
-**Risk Level:** Real money (controlled)
+**Timeline:** Only if/when we want it  
+**Risk Level:** Higher (AI executes)  
+**Status:** NOT IMPLEMENTED — requires explicit decision to enable
 
-Only strategies that graduate from paper trading can be deployed.
+This phase is **optional** and only built if we decide the advisory model isn't enough.
 
-#### 4.1 Position Management
+#### Requirements to Enable
+
+Before considering automation:
+- [ ] 90+ days of advisory mode
+- [ ] Recommendation acceptance rate > 70%
+- [ ] Executed trades win rate > 50%
+- [ ] Explicit decision to enable
+- [ ] Separate API credentials with write access
+
+#### If Enabled (Future)
 
 **Features:**
 - [ ] Automated order execution via Schwab API
 - [ ] Position sizing based on strategy rules
-- [ ] Rebalancing on schedule or trigger
-- [ ] Multi-strategy portfolio support
+- [ ] Automatic stop loss orders
+- [ ] Rebalancing on schedule
 
-#### 4.2 Risk Management (NON-NEGOTIABLE)
+**Guardrails (if we ever enable):**
 
 ```yaml
 position_limits:
-  max_single_position: 10%      # No position > 10% of portfolio
-  max_positions: 10             # Max 10 concurrent positions
-  max_sector_exposure: 30%      # No sector > 30%
+  max_single_position: 10%
+  max_positions: 8
+  max_sector_exposure: 30%
 
 loss_limits:
-  daily_loss_limit: 2%          # Halt if down 2% in a day
-  weekly_loss_limit: 5%         # Halt if down 5% in a week
-  strategy_loss_limit: 10%      # Kill strategy if down 10% total
+  daily_loss_limit: 2%
+  weekly_loss_limit: 5%
+  total_loss_limit: 15%       # Kill switch if down 15%
 
-instrument_restrictions:
-  allowed: [stocks]             # No options, futures, margin (initially)
-  blacklist: [penny_stocks, meme_stocks, SPACs]
-  
-time_restrictions:
-  no_trade_open: 15             # No trades first 15 min
-  no_trade_close: 15            # No trades last 15 min
+kill_switches:
+  - /trading stop              # Immediate halt
+  - /trading pause             # No new orders
+  - Auto-halt on API errors
+  - Auto-halt on loss limits
 ```
 
-#### 4.3 Protected Holdings
+**Protected Holdings (always):**
+- **TSLA** — never auto-sell
+- **NVDA** — never auto-sell
 
-Per MEMORY.md, these are NEVER sold by automated strategies:
-- **TSLA** — forever hold
-- **NVDA** — forever hold
+---
 
-These can be added to but never reduced without explicit human approval.
-
-#### 4.4 Kill Switches
-
-| Command | Action |
-|---------|--------|
-| `/trading stop` | Halt all trading, flatten positions |
-| `/trading pause` | No new orders, manage existing |
-| `/trading status` | Current state, open orders, P&L |
-| `/strategy disable <name>` | Disable specific strategy |
-| Auto-halt | Triggers on loss limits or API errors |
+> ⚠️ **Current Mode: ADVISORY ONLY**  
+> Cortana has read-only access. All trades are executed by Hamel manually.  
+> Automation is a future option, not the current plan.
 
 ---
 
