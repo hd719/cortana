@@ -35,6 +35,13 @@ Track last check times in `memory/heartbeat-state.json`.
 - If >50% before mid-month → alert
 - If >75% any time → alert with recommendation to throttle
 
+### Tech News — Critical Tools (2x daily, afternoon + evening)
+- Quick search for breaking news on: OpenClaw, Anthropic, OpenAI, tools we rely on
+- Sources: TechCrunch, Hacker News front page, web search
+- Alert immediately if: acquisitions, shutdowns, major security issues, breaking changes
+- Morning brief catches AM news; this catches PM breaking news
+- Skip if checked within last 4 hours
+
 ---
 
 ## 🔮 Proactive Intelligence
