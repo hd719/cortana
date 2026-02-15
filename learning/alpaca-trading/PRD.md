@@ -1,15 +1,23 @@
-# Schwab Trading Agent — Product Requirements Document
+# Alpaca Trading Agent — Product Requirements Document
 
 **Author:** Cortana  
 **Date:** February 15, 2026  
-**Status:** Draft (v3 — Advisory Mode)  
+**Status:** Draft (v4 — Alpaca + Advisory Mode)  
 **Owner:** Hamel Desai
 
 ---
 
 ## 1. Overview
 
-Build an AI-powered trading **advisor** integrated with Charles Schwab's brokerage API. The AI has **read-only access** — it monitors the portfolio, engineers strategies, and recommends trades. **Hamel executes all trades manually.**
+Build an AI-powered trading **advisor** integrated with Alpaca's brokerage API. The AI has **read-only access** — it monitors the portfolio, engineers strategies, and recommends trades. **Hamel executes all trades manually.**
+
+**Why Alpaca over Schwab:**
+- Developer-first API (designed for algo trading)
+- Paper trading environment uses identical API to live
+- Commission-free stock trading
+- Simple API key auth (no complex OAuth)
+- Huge algo trading community with examples
+- WebSocket streaming for real-time data
 
 ### 1.1 Core Philosophy
 
@@ -54,7 +62,7 @@ A personal AI trading advisor that:
 | **Main Account** | Long-term holds (TSLA, NVDA, etc.) | None |
 | **AI Account** | Strategy-driven trading | **Read-only** |
 
-The AI Account is a separate Schwab account dedicated to strategy execution. This provides:
+The AI Account is a separate Alpaca account dedicated to strategy execution. This provides:
 - Risk isolation from main portfolio
 - Clean performance tracking
 - Clear attribution of AI strategy results
@@ -69,7 +77,7 @@ The AI Account is a separate Schwab account dedicated to strategy execution. Thi
 **Risk Level:** None (read-only)
 
 **Features:**
-- [ ] Schwab OAuth integration (token storage, refresh flow)
+- [ ] Alpaca API key integration (simple key/secret, no OAuth needed)
 - [ ] Account summary (balances, buying power, margin)
 - [ ] Positions with P&L, cost basis, allocation %
 - [ ] Daily portfolio summary in morning brief
@@ -77,10 +85,23 @@ The AI Account is a separate Schwab account dedicated to strategy execution. Thi
 - [ ] Earnings calendar for held positions
 - [ ] Sector/concentration analysis
 
+**Alpaca API Details:**
+- **Base URL (Paper):** `https://paper-api.alpaca.markets`
+- **Base URL (Live):** `https://api.alpaca.markets`
+- **Auth:** API Key + Secret in headers (`APCA-API-KEY-ID`, `APCA-API-SECRET-KEY`)
+- **Market Data:** `https://data.alpaca.markets` (separate endpoint)
+- **WebSocket:** Real-time streaming available
+
 **Deliverables:**
-- `schwab_tokens.json` in `~/Desktop/services/`
+- `alpaca_keys.json` in `~/Desktop/services/` (API key + secret)
 - Portfolio endpoints in Go service
 - Integration with existing morning brief cron
+
+**Getting Started:**
+1. Sign up at alpaca.markets
+2. Go to Paper Trading → API Keys → Generate
+3. Save key ID + secret to `alpaca_keys.json`
+4. Start with paper trading (identical API, no risk)
 
 ---
 
@@ -126,7 +147,7 @@ Want me to backtest this against 2023-2025 data?"
 #### 2.2 Backtesting Engine
 
 **Features:**
-- [ ] Historical data integration (Schwab or third-party)
+- [ ] Historical data integration (Alpaca or third-party)
 - [ ] Walk-forward backtesting (not just in-sample)
 - [ ] Key metrics calculation:
   - Total return vs benchmark (SPY)
@@ -304,7 +325,7 @@ Before considering automation:
 #### If Enabled (Future)
 
 **Features:**
-- [ ] Automated order execution via Schwab API
+- [ ] Automated order execution via Alpaca API
 - [ ] Position sizing based on strategy rules
 - [ ] Automatic stop loss orders
 - [ ] Rebalancing on schedule
@@ -634,9 +655,9 @@ Don't chase! Wait for:
 
 | Data Point | Source |
 |------------|--------|
-| EPS/Revenue Growth | Schwab API, Yahoo Finance, or Alpha Vantage |
+| EPS/Revenue Growth | Alpaca API, Yahoo Finance, or Alpha Vantage |
 | RS Rating | Calculate from price data or IBD (paid) |
-| Institutional Ownership | Schwab API, Finviz, or SEC 13F filings |
+| Institutional Ownership | Alpaca API, Finviz, or SEC 13F filings |
 | Industry Group Ranking | Calculate or IBD (paid) |
 | Base Patterns | Technical analysis on price data |
 | Distribution Days | Calculate from index price + volume |
@@ -681,7 +702,7 @@ IBD (Investor's Business Daily) provides CANSLIM data but:
                   ▼
 ┌─────────────────────────────────────────────────────────────┐
 │              Trading Service (Go)                           │
-│  - Schwab API client                                       │
+│  - Alpaca API client                                       │
 │  - Order execution                                         │
 │  - Position management                                     │
 │  - Risk enforcement                                        │
@@ -689,7 +710,7 @@ IBD (Investor's Business Daily) provides CANSLIM data but:
                   │
                   ▼
 ┌─────────────────────────────────────────────────────────────┐
-│                   Schwab API                                │
+│                   Alpaca API                                │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -697,9 +718,9 @@ IBD (Investor's Business Daily) provides CANSLIM data but:
 
 | Data | Source | Use |
 |------|--------|-----|
-| Historical prices | Schwab API or Yahoo Finance | Backtesting |
-| Fundamentals | Schwab API or financial APIs | Quality filters |
-| Real-time quotes | Schwab API | Live execution |
+| Historical prices | Alpaca API or Yahoo Finance | Backtesting |
+| Fundamentals | Alpaca API or financial APIs | Quality filters |
+| Real-time quotes | Alpaca API | Live execution |
 | Earnings calendar | Third-party API | Earnings strategies |
 | Sector classifications | Static mapping | Sector rotation |
 
@@ -707,7 +728,7 @@ IBD (Investor's Business Daily) provides CANSLIM data but:
 
 | Data | Location |
 |------|----------|
-| Auth tokens | `~/Desktop/services/schwab_tokens.json` |
+| Auth tokens | `~/Desktop/services/alpaca_tokens.json` |
 | Strategies | `~/clawd/config/trading/strategies/` |
 | Backtest results | `~/clawd/memory/trading/backtests/` |
 | Paper trades | `cortana_events` (PostgreSQL) |
@@ -780,14 +801,14 @@ Recommendation: Start with **VectorBT** for speed, migrate to custom if needed.
 4. **Rebalancing frequency?** Daily, weekly, monthly?
 5. **Benchmark?** SPY, QQQ, or total market?
 6. **Paper trading duration?** 30 days minimum, but longer?
-7. **Historical data source?** Schwab API sufficient or need premium data?
+7. **Historical data source?** Alpaca API sufficient or need premium data?
 
 ---
 
 ## 8. Implementation Roadmap
 
 ### Phase 1: Portfolio Intelligence (Week 1)
-- [ ] Schwab developer account + OAuth
+- [ ] Alpaca developer account + OAuth
 - [ ] Portfolio endpoints (balances, positions)
 - [ ] Morning brief integration
 - [ ] Price alerts
@@ -815,12 +836,15 @@ Recommendation: Start with **VectorBT** for speed, migrate to custom if needed.
 
 ## 9. References
 
-- [Schwab Developer Portal](https://developer.schwab.com)
+- [Alpaca Markets](https://alpaca.markets)
+- [Alpaca API Documentation](https://docs.alpaca.markets)
+- [Alpaca Go SDK](https://github.com/alpacahq/alpaca-trade-api-go)
+- [Alpaca Python SDK](https://github.com/alpacahq/alpaca-trade-api-python)
 - [NexusTrade Article on AI Trading](https://nexustrade.io/blog/too-many-idiots-are-using-openclaw-to-trade-heres-how-to-trade-with-ai-the-right-way-20260203)
+- [OpenAlgo + OpenClaw Integration](https://blog.openalgo.in/automating-trading-with-openalgo-and-openclaw-de55cc2b2d63)
 - [VectorBT Documentation](https://vectorbt.dev/)
-- [Backtrader Documentation](https://www.backtrader.com/)
 - [Pattern Day Trader Rules](https://www.finra.org/investors/learn-to-invest/advanced-investing/day-trading-margin-requirements-know-rules)
 
 ---
 
-*Last updated: Feb 15, 2026 (v2 — Strategy Engineering Approach)*
+*Last updated: Feb 15, 2026 (v4 — Alpaca + Advisory Mode)*
