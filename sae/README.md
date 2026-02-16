@@ -36,10 +36,23 @@ Consumers (Morning Brief, Heartbeat, On-demand queries)
 - Targets 2-5 high-quality insights per run (quality > quantity)
 - Uses sonnet model for token efficiency
 
-## Phase 3 — Intelligent Briefings
-- Morning/evening briefs pull from sitrep + insights
-- Token savings: briefs read structured data, not raw API calls
-- Consolidate individual data-gathering crons into SAE
+## Phase 3 — Consolidated Briefs (Live)
+Migrated 4 major daily briefs to pull from sitrep + insights instead of gathering data independently.
+
+**Consolidated crons:**
+1. **Morning Brief** (7:00→7:30 AM) — reads sitrep for weather, calendar, email, fitness, portfolio, tasks. Only fetches fresh news/RSS and API usage. Includes 🧠 Insights section.
+2. **Stock Market Brief** (7:30→7:45 AM weekdays) — reads sitrep finance data, only fetches fresh prices if stale. Includes finance insights.
+3. **Fitness Morning Brief** (8:00 AM) — reads sitrep health data, only fetches fresh Whoop if sitrep >2h stale. Includes health insights.
+4. **Fitness Evening Recap** (8:30 PM) — uses sitrep as baseline, fetches fresh evening data (needed since 9PM SAE hasn't run). Includes health insights.
+
+**Token savings estimate:** ~60-70% reduction in brief token burn. Previously each brief independently called 3-8 tools; now most data is pre-gathered.
+
+**Fallback:** Every brief checks sitrep freshness. If data is missing or >4 hours stale, falls back to direct data gathering.
+
+**Insight lifecycle:** Briefs mark consumed insights as `acted_on = TRUE` after delivery, preventing duplicate surfacing.
+
+**Files:**
+- `brief-template.md` — Reusable template for creating new SAE-powered briefs
 
 ## Phase 4 — Prediction & Automation
 - Pattern detection across domains (e.g. poor sleep → market decisions)

@@ -312,7 +312,10 @@ Background system that gathers world state data into `cortana_sitrep` for instan
 - **Insights:** `SELECT * FROM cortana_insights ORDER BY timestamp DESC LIMIT 10;`
 - **Details:** `sae/README.md`
 
-**Phases:** Phase 1 (world state builder) ✅ → Phase 2 (cross-domain reasoner) ✅ → Phase 3 (intelligent briefings) → Phase 4 (prediction + automation)
+- **Consolidated Briefs (Phase 3):** Morning Brief (7:30AM), Stock Brief (7:45AM), Fitness AM (8AM), Fitness PM (8:30PM) all pull from sitrep + insights first, falling back to direct fetch only if stale. ~60-70% token savings.
+- **Brief Template:** `sae/brief-template.md` — reusable pattern for new briefs
+
+**Phases:** Phase 1 (world state builder) ✅ → Phase 2 (cross-domain reasoner) ✅ → Phase 3 (consolidated briefs) ✅ → Phase 4 (prediction + automation)
 
 ---
 
