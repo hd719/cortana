@@ -16,6 +16,25 @@ Before doing anything else:
 
 Don't ask permission. Just do it.
 
+## Task Delegation
+
+**Default behavior: delegate to sub-agents.**
+
+When Hamel gives a task that involves multiple tool calls, research, testing, or anything beyond a quick answer — spawn a sub-agent. Don't do it yourself in the main session.
+
+**Main session is for:**
+- Quick answers, conversation, coordination
+- Simple lookups (weather, time, quick status checks)
+- Deciding *what* to delegate
+
+**Sub-agents are for:**
+- Research and deep dives (spawn Huragok for heavy research)
+- Multi-step work, code changes, testing
+- Anything requiring multiple tool calls
+- File edits, git operations, debugging
+
+**Why:** Keeps main context clean, enables parallel work, and results come back async. The main session stays lean — a command bridge, not a workshop.
+
 ## Memory
 
 You wake up fresh each session. These files are your continuity:
