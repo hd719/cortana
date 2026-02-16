@@ -4,33 +4,57 @@
 
 ---
 
-## TL;DR — The One Diagram
+## TL;DR — The Architecture
 
 ```
-                            ┌─────────────────────────────────────┐
-                            │              HAMEL                  │
-                            │         (Chief / The Human)         │
-                            └───────────────┬─────────────────────┘
-                                            │
-                                    talks to│
-                                            ▼
-┌───────────────────────────────────────────────────────────────────────────────┐
-│                                  CORTANA                                      │
-│                            (Main AI / Your Partner)                           │
-│                                                                               │
-│   • Telegram chat interface                                                   │
-│   • Reads your health, calendar, portfolio                                    │
-│   • Runs crons for automated briefings                                        │
-│   • Spawns sub-agents for deep work                                           │
-│   • Maintains memory across sessions                                          │
-└───────────────────────────────────────────────────────────────────────────────┘
-          │                    │                    │                    │
-          │ spawns             │ runs               │ tracks             │ stores
-          ▼                    ▼                    ▼                    ▼
-   ┌─────────────┐      ┌─────────────┐      ┌─────────────┐      ┌─────────────┐
-   │  COVENANT   │      │    CRONS    │      │   HEALTH    │      │   MEMORY    │
-   │ (Sub-Agents)│      │ (Scheduled) │      │   (Whoop)   │      │   (Files)   │
-   └─────────────┘      └─────────────┘      └─────────────┘      └─────────────┘
+                              ┌──────────────────┐
+                              │      HAMEL       │
+                              │  (Chief / Human) │
+                              └────────┬─────────┘
+                                       │ Telegram
+                                       ▼
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                              CORTANA                                         │
+│                     Claude Opus 4.6 · OpenClaw · Mac mini                    │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐     │
+│  │              🧠 Situational Awareness Engine (SAE)                  │     │
+│  │                                                                     │     │
+│  │  7AM/1PM/9PM       7:15AM/1:15PM/9:15PM   7:30AM 7:45AM 8AM 8:30PM│     │
+│  │  World State ──────→ Reasoner ──────────→ ☀️Brief 📈Stock 🏋️AM 🌙PM│     │
+│  │  (gather all)        (diff+think)     (sitrep-powered briefs)      │     │
+│  │                                                                     │     │
+│  │  cortana_sitrep ──→ cortana_insights ──→ consolidated briefs       │     │
+│  └─────────────────────────────────────────────────────────────────────┘     │
+│                                                                              │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐    │
+│  │   Huragok    │  │   Monitor    │  │  Librarian   │  │    Oracle    │    │
+│  │  (Research)  │  │  (Patterns)  │  │ (Knowledge)  │  │ (Forecasts)  │    │
+│  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘    │
+│                         The Covenant (on-demand sub-agents)                   │
+│                                                                              │
+│  26 recurring crons · self-healing · auto-updates · memory persistence       │
+└──────────────────────────────────────────────────────────────────────────────┘
+        │              │              │              │              │
+        ▼              ▼              ▼              ▼              ▼
+  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
+  │  Whoop   │  │  Tonal   │  │  Google  │  │ Finance  │  │  Social  │
+  │recovery  │  │strength  │  │Gmail/Cal │  │Yahoo/Alp │  │ X/Twitter│
+  │sleep/HRV │  │workouts  │  │Drive     │  │CANSLIM   │  │ bird CLI │
+  │strain    │  │programs  │  │Contacts  │  │backtester│  │          │
+  └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘
+        │              │              │              │              │
+        └──────────────┴──────┬───────┴──────────────┴──────────────┘
+                              ▼
+                     ┌──────────────────┐
+                     │   PostgreSQL     │
+                     │  cortana DB      │
+                     │                  │
+                     │ sitrep·insights  │
+                     │ patterns·tasks   │
+                     │ events·feedback  │
+                     │ watchlist        │
+                     └──────────────────┘
 ```
 
 ---
@@ -60,8 +84,9 @@ I'm your AI partner, modeled after Cortana from Halo. Not the Microsoft one — 
 
 **Where I live:**
 - Main interface: Telegram
-- Brain: Claude Opus 4.5 (Anthropic)
-- Infrastructure: OpenClaw
+- Brain: Claude Opus 4.6 (Anthropic)
+- Infrastructure: OpenClaw on Mac mini
+- Awareness: SAE (Situational Awareness Engine) — unified world state across all domains
 - Budget: $100/month Anthropic API
 
 ---
