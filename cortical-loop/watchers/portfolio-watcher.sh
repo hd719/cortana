@@ -17,12 +17,14 @@ STATE_FILE="$HOME/clawd/cortical-loop/state/portfolio-baselines.json"
 mkdir -p "$(dirname "$STATE_FILE")"
 
 for TICKER in TSLA NVDA GOOGL AAPL QQQ; do
-  RESULT=$(cd ~/clawd/skills/stock-analysis && uv run src/stock_analysis/main.py analyze "$TICKER" --json 2>/dev/null)
+  # Fetch quote from Yahoo Finance API
+  RESULT=$(curl -s "https://query1.finance.yahoo.com/v8/finance/chart/${TICKER}?range=1d&interval=1d" 2>/dev/null)
   [ $? -ne 0 ] && continue
-  
-  PRICE=$(echo "$RESULT" | jq -r '.price // empty' 2>/dev/null)
-  CHANGE_PCT=$(echo "$RESULT" | jq -r '.change_percent // empty' 2>/dev/null)
-  [ -z "$PRICE" ] || [ -z "$CHANGE_PCT" ] && continue
+
+  PRICE=$(echo "$RESULT" | jq -r '.chart.result[0].meta.regularMarketPrice // empty' 2>/dev/null)
+  PREV_CLOSE=$(echo "$RESULT" | jq -r '.chart.result[0].meta.chartPreviousClose // empty' 2>/dev/null)
+  [ -z "$PRICE" ] || [ -z "$PREV_CLOSE" ] && continue
+  CHANGE_PCT=$(echo "$PRICE $PREV_CLOSE" | awk '{printf "%.2f", (($1 - $2) / $2) * 100}')
   
   # Check threshold (>3% move)
   ABOVE=$(echo "$CHANGE_PCT" | awk '{print ($1 > 3 || $1 < -3) ? "1" : "0"}')

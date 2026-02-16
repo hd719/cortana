@@ -10,7 +10,7 @@ SENT_FILE="$HOME/clawd/cortical-loop/state/calendar-alerts-sent.txt"
 mkdir -p "$(dirname "$SENT_FILE")"
 touch "$SENT_FILE"
 
-echo "$EVENTS" | jq -c '.[]' 2>/dev/null | while read -r EVENT; do
+echo "$EVENTS" | jq -c '.events[]' 2>/dev/null | while read -r EVENT; do
   START=$(echo "$EVENT" | jq -r '.start.dateTime // .start.date // empty')
   [ -z "$START" ] && continue
   

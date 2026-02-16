@@ -33,7 +33,7 @@ IN_MEETING="false"
 EVENTS=$(gog --account hameldesai3@gmail.com calendar events "60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com" --from today --to tomorrow --json 2>/dev/null)
 if [ -n "$EVENTS" ]; then
   NOW_EPOCH=$(date +%s)
-  IN_MEETING=$(echo "$EVENTS" | jq -c '.[]' 2>/dev/null | while read -r EV; do
+  IN_MEETING=$(echo "$EVENTS" | jq -c '.events[]' 2>/dev/null | while read -r EV; do
     START=$(echo "$EV" | jq -r '.start.dateTime // empty')
     END=$(echo "$EV" | jq -r '.end.dateTime // empty')
     [ -z "$START" ] || [ -z "$END" ] && continue
