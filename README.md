@@ -178,8 +178,6 @@ QQQ  ███░░░░░░░░░░░░░░░░░░░░░░
 +3 more                                    4%
 ```
 
-**Total:** ~$71,400
-
 ### Rules
 1. **TSLA and NVDA are forever holds** — never sell
 2. Diversify by ADDING positions, not trimming
@@ -239,10 +237,23 @@ QQQ  ███░░░░░░░░░░░░░░░░░░░░░░
 |---------|--------------|---------------|
 | **Whoop** | Recovery, sleep, strain | `curl localhost:8080/whoop/data` |
 | **Tonal** | Workouts, strength | `curl localhost:8080/tonal/data` |
+| **Alpaca** | Paper trading, portfolio | `curl localhost:8080/alpaca/portfolio` |
 | **Google Calendar** | Events, reminders | `gog calendar list` |
 | **Gmail** | Email triage | `gog gmail search` |
 | **Twitter/X** | Social, mentions | `birdx` CLI |
 | **Yahoo Finance** | Stock data | stock-analysis skill |
+
+### Trading Advisor (NEW)
+
+CANSLIM-based trading advisor with backtesting. Location: `~/Desktop/services/backtester/`
+
+**Quick commands:**
+- `/market` — check market regime (M factor)
+- `/portfolio` — Alpaca account + positions
+- `/analyze SYMBOL` — full CANSLIM analysis
+- `/scan` — find opportunities
+
+**Cron:** Scans 3x daily (9:30 AM, 12:30 PM, 3:30 PM) during market hours.
 
 ---
 

@@ -1,0 +1,48 @@
+{
+  "date": "2026-02-15",
+  "morning": {
+    "recovery_score": 80,
+    "sleep_duration": "7h 58m",
+    "sleep_efficiency": "92%",
+    "resting_hr": 58,
+    "hrv": 42
+  },
+  "evening": {
+    "total_strain": 17.4,
+    "kilojoules": 2901,
+    "max_hr": 182,
+    "workouts": [
+      {
+        "type": "weightlifting",
+        "strain": 12.9,
+        "duration": "52m",
+        "total_volume": "15,750 lbs",
+        "muscle_groups": ["chest", "back", "shoulders", "arms"]
+      },
+      {
+        "type": "running",
+        "strain": 4.4,
+        "duration": "28m",
+        "notes": "cardio complement"
+      }
+    ],
+    "strength_scores": {
+      "upper": 946,
+      "core": 621,
+      "lower": 620,
+      "overall": 729
+    },
+    "week_summary": {
+      "days_trained": "6/7",
+      "weekly_strain_avg": 16.2,
+      "weekly_sleep_avg": "7h 23m"
+    },
+    "tomorrow_workout": "12 Weeks to Jacked - Lower Body Power",
+    "predicted_recovery": "75-80%",
+    "sleep_recommendation": {
+      "target_bedtime": "9:15 PM",
+      "sleep_need": "8h 12m",
+      "target_wake": "5:30 AM"
+    }
+  }
+}
