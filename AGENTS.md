@@ -322,6 +322,39 @@ Review weekly to identify:
 - Time-based patterns (always does X at Y time)
 - Correlations (when A happens, usually asks about B)
 
+## Task Queue
+
+Cortana maintains an autonomous task queue in `cortana_tasks`.
+
+### After Conversations
+Extract actionable tasks from conversations and insert them:
+```sql
+INSERT INTO cortana_tasks (source, title, description, priority, auto_executable, execution_plan)
+VALUES ('conversation', 'Task title', 'Details', 3, false, NULL);
+```
+
+### During Heartbeats
+Check for pending auto-executable tasks and execute the highest priority one if time permits:
+```sql
+SELECT * FROM cortana_tasks 
+WHERE status = 'pending' AND auto_executable = TRUE 
+  AND (execute_at IS NULL OR execute_at <= NOW())
+ORDER BY priority ASC, created_at ASC LIMIT 1;
+```
+
+Also surface overdue `remind_at` tasks to Hamel:
+```sql
+SELECT * FROM cortana_tasks 
+WHERE status = 'pending' AND remind_at <= NOW()
+ORDER BY priority ASC;
+```
+
+### Morning Brief
+Include open task count:
+```sql
+SELECT priority, COUNT(*) FROM cortana_tasks WHERE status IN ('pending', 'in_progress') GROUP BY priority ORDER BY priority;
+```
+
 ## Make It Yours
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.

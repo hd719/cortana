@@ -57,6 +57,8 @@ The tone: Confident but warm. Wit under pressure. Calm when shit hits the fan.
 - **Session Cleanup Cron** — Runs daily 3 AM ET, deletes sessions >400KB (prevents context overflow)
 - **Git is single source of truth** — Killed Obsidian sync; README.md is master orientation doc
 
+- **Task Queue** — `cortana_tasks` table for autonomous task management. Tasks sourced from conversations, heartbeats, crons, and self-identified work. Auto-executable tasks run during heartbeats; remind_at tasks surface to Hamel. Established Feb 16, 2026.
+
 ## Lessons Learned
 - **Tonal auth fails?** Delete `tonal_tokens.json` to force re-auth
 - **Cron sessions bloat** — Isolated sessions accumulate context; cleanup cron handles it

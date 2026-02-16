@@ -57,6 +57,10 @@ OpenClaw manages its own Chrome instance with CDP access.
 - Schema: id, timestamp, feedback_type, context, lesson, applied
 - Use for: corrections, preferences, approval/rejection reasons
 
+**cortana_tasks** — Autonomous task queue
+- Schema: id, created_at, source, title, description, priority (1-5), status, due_at, remind_at, execute_at, auto_executable, execution_plan, depends_on, completed_at, outcome, metadata (JSONB)
+- Use for: tracking work from conversations, heartbeat auto-execution, reminders
+
 ### Quick Commands
 ```bash
 export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"

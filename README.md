@@ -276,6 +276,7 @@ Cortana uses a local PostgreSQL database for structured data.
 | `cortana_watchlist` | Active monitors |
 | `cortana_events` | System events |
 | `cortana_feedback` | Learning from corrections |
+| `cortana_tasks` | Autonomous task queue (pending/in_progress/done) |
 
 **Access:**
 ```bash
