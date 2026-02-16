@@ -362,6 +362,28 @@ Background system that gathers world state data into `cortana_sitrep` for instan
 
 ---
 
+## Cortical Loop
+
+Event-driven nervous system. SAE is the brain — the Cortical Loop is what keeps it awake between scheduled runs.
+
+```
+Signal Watchers ($0 LLM cost)          Evaluator (every 5 min)        Wake
+├── 📧 Email (2 min)                   ├── Match events vs rules      ├── Spawns LLM with
+├── 📅 Calendar (5 min)        ──→     ├── Check Chief Model state     │   full context
+├── 💚 Whoop/Health (15 min)           ├── Suppress if asleep/busy    ├── Acts on what
+├── 📈 Portfolio (10 min, mkt hrs)     └── Budget guard (10/day cap)   │   matters NOW
+└── 👤 Chief State (5 min)                                            └── Adapts tone to
+                                                                           Chief's state
+```
+
+- **Chief Model** (`cortana_chief_model`): Live state machine — awake/asleep, energy level, focus mode, in-meeting, communication preference. Updated passively from signals, zero LLM cost.
+- **Wake Rules** (`cortana_wake_rules`): Weighted rules that determine what's worth waking the LLM for. Weights adjust from feedback — same correction 3x → rule auto-strengthens.
+- **Kill Switch**: `cortical_loop_enabled` flag. Say "kill the loop" to disable. Auto-disables at 10 wakes/day.
+- **Cost**: ~$15-30/month (watchers + evaluator = $0, only pays for LLM on actual events)
+- **Details:** `cortical-loop/README.md`
+
+---
+
 ## Database (PostgreSQL)
 
 Cortana uses a local PostgreSQL database for structured data.

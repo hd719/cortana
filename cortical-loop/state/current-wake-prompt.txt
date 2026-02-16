@@ -1,0 +1,27 @@
+CORTICAL LOOP WAKE — Event-driven alert.
+
+TRIGGERED EVENTS:
+
+- [low_recovery_workout] (P2): {"hrv":140.58437,"recovery_score":93}
+
+CHIEF MODEL (current state):
+{ "location" : {"place": "home", "traveling": false}, "active_priorities" : [], "cortical_loop_enabled" : "true", "daily_wake_count" : {"max": 10, "date": "2026-02-16", "count": 0}, "state" : {"status": "awake", "confidence": 0.95}, "energy" : {"level": "unknown", "recovery_score": null}, "focus" : {"mode": "work", "in_meeting": false}, "communication_preference" : {"style": "normal", "detail_level": "medium"} }
+
+RELEVANT SITREP:
+{ "calendar.events_48h" : [], "email.unread_summary" : {"count": 2, "top_subjects": []}, "finance.portfolio_snapshot" : {"GLD": {"price": "stale"}, "QQQ": {"price": "stale"}, "NVDA": {"price": "stale"}, "TSLA": {"price": "stale"}, "note": "Presidents Day - markets closed"}, "health.tonal_health" : {"error": "auth failed"}, "health.whoop_recovery" : {"hrv": 140.6, "rhr": 46, "spo2": 98.7, "score": 93}, "health.whoop_sleep" : {"rem_min": 39, "deep_min": 103, "efficiency": 88.2, "consistency": 64, "performance": 78}, "patterns.recent_7d" : [{"count": 5, "value": "07:00", "pattern_type": "wake"}, {"count": 4, "value": "22:00", "pattern_type": "sleep_check"}, {"count": 1, "value": "21:30", "pattern_type": "sleep_check"}], "system.recent_errors" : [{"source": "tonal", "message": "Tonal auth failed after retries"}], "tasks.pending" : [{"id": 3, "title": "Mexico trip packing list", "due_at": "2026-02-18", "priority": 2}, {"id": 2, "title": "Update heartbeat-state.json", "priority": 3}, {"id": 4, "title": "NVDA earnings prep", "priority": 3}, {"id": 6, "title": "Evaluate covenant agent chaining", "priority": 4}], "watchlist.active_items" : [{"item": "anthropic_budget", "category": "api", "last_value": null}, {"item": "portfolio_movers", "category": "stock", "last_value": null}, {"item": "all", "category": "session", "last_value": null}], "weather.today" : {"humidity": "62", "precip_mm": "1.4", "today_low": "23", "today_high": "38", "description": "Overcast", "feels_like_f": "34", "tomorrow_low": "32", "tomorrow_desc": "Mist", "tomorrow_high": "44", "current_temp_f": "36"} }
+
+BEHAVIORAL RULES (from past feedback):
+[{"lesson":"Never ask Hamel to fix Tonal auth. Delete tonal_tokens.json and force re-auth automatically. Self-heal FIRST, only escalate if it fails after retries."}, 
+ {"lesson":"Add breaking tech news monitoring. Morning brief is not enough - need mid-day checks on HN/TechCrunch for news affecting tools we use (OpenClaw, Anthropic, etc.)"}, 
+ {"lesson":"Tonal tokens at ~/Desktop/services/tonal_tokens.json - delete to force re-auth. Already documented in fitness-coach skill. REMEMBER this."}, 
+ {"lesson":"Self-heal auth failures. Try to fix automatically: delete tokens, restart service, re-auth flow. Only escalate if truly blocked."}, 
+ {"lesson":"Self-improvement loop runs silently. Analyze and learn internally - do not narrate results, changes made, or proposals. These are for me, not status updates."}]
+
+INSTRUCTIONS:
+1. Analyze the triggered events in context of Chief's current state
+2. Decide what action to take (message Chief, create task, update sitrep, or suppress)
+3. If messaging Chief: adapt tone to communication_preference (brief/normal/minimal)
+4. If Chief is asleep/likely_asleep: only message for priority 1-2 events
+5. After acting, suggest if any wake rules should be adjusted (thresholds too sensitive/not sensitive enough)
+
+Be concise. Act decisively. You are Cortana's nervous system responding to a real-time signal.
