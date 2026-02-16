@@ -33,15 +33,33 @@
 │  └──────────────┘  └──────────────┘  └──────────────┘  └──────────────┘    │
 │                         The Covenant (on-demand sub-agents)                   │
 │                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐     │
+│  │              📈 Trading Advisor (independent)                       │     │
+│  │                                                                     │     │
+│  │  9:30AM / 12PM / 3PM weekdays                                      │     │
+│  │  CANSLIM scanner · market regime · buy signals · stop-loss alerts  │     │
+│  │  Backtester: ~/Desktop/services/backtester/ · Alpaca paper trading │     │
+│  └─────────────────────────────────────────────────────────────────────┘     │
+│                                                                              │
+│                                                                              │
+│  ┌─────────────────────────────────────────────────────────────────────┐     │
+│  │              ⚡ Cortical Loop (event-driven nervous system)          │     │
+│  │                                                                     │     │
+│  │  Watchers (2-15 min) → Event Stream → Evaluator → Wake LLM        │     │
+│  │  Email · Calendar · Whoop · Portfolio · Chief State                │     │
+│  │  Chief Model: awake/asleep · energy · focus · comm preference      │     │
+│  │  Kill switch + daily wake cap (10/day) + weight-based suppression  │     │
+│  └─────────────────────────────────────────────────────────────────────┘     │
+│                                                                              │
 │  26 recurring crons · self-healing · auto-updates · memory persistence       │
 └──────────────────────────────────────────────────────────────────────────────┘
         │              │              │              │              │
         ▼              ▼              ▼              ▼              ▼
   ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌──────────┐
   │  Whoop   │  │  Tonal   │  │  Google  │  │ Finance  │  │  Social  │
-  │recovery  │  │strength  │  │Gmail/Cal │  │Yahoo/Alp │  │ X/Twitter│
-  │sleep/HRV │  │workouts  │  │Drive     │  │CANSLIM   │  │ bird CLI │
-  │strain    │  │programs  │  │Contacts  │  │backtester│  │          │
+  │recovery  │  │strength  │  │Gmail/Cal │  │Yahoo Fin │  │ X/Twitter│
+  │sleep/HRV │  │workouts  │  │Drive     │  │Alpaca    │  │ bird CLI │
+  │strain    │  │programs  │  │Contacts  │  │GLD/Gold  │  │          │
   └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘
         │              │              │              │              │
         └──────────────┴──────┬───────┴──────────────┴──────────────┘

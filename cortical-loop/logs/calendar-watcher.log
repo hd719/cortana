@@ -1,0 +1,2 @@
+jq: error (at <stdin>:1): Cannot index array with string "start"
+jq: error (at <stdin>:1): Cannot index string with string "start"
