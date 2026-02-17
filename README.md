@@ -68,7 +68,18 @@
 │  │  Auto-throttle: Tier 0-3 based on budget burn rate                 │     │
 │  └─────────────────────────────────────────────────────────────────────┘     │
 │                                                                              │
-│  27 recurring crons · self-healing · auto-updates · memory persistence       │
+│  ┌─────────────────────────────────────────────────────────────────────┐     │
+│  │              🛡️ Immune System (threat detection & auto-healing)     │     │
+│  │                                                                     │     │
+│  │  Every 15 min: Threat scan (reads proprioception + events)         │     │
+│  │  Detect → Match playbook → Execute fix → Log incident              │     │
+│  │  Tier 1: auto-fix silent · Tier 2: fix+notify · Tier 3: quarantine│     │
+│  │  Antibody memory: track incidents, auto-resolve repeat threats     │     │
+│  │                                                                     │     │
+│  │  cortana_immune_incidents · cortana_immune_playbooks               │     │
+│  └─────────────────────────────────────────────────────────────────────┘     │
+│                                                                              │
+│  28 recurring crons · self-healing · auto-updates · memory persistence       │
 └──────┬───┬───────────┬───────────┬───────────┬───────────┬───────────────────┘
        │   │           │           │           │           │
        │   │     spawns│     spawns│     spawns│     spawns│
@@ -214,6 +225,14 @@ Cron health ──→ Self-Model ──→ cortana_self_model
 Tool health ──→ (aggregator)           │
 Budget track ──→    │                  ▼
                     └──→ Auto-Throttle (budget guard)
+                                       │
+Immune System (every 15 min)           │ feeds health data
+Threat Detector ──→ Playbook Match ──→ Execute/Quarantine
+    ↑ reads                                │
+    │ cortana_self_model                   ▼
+    │ cortana_cron_health          cortana_immune_incidents
+    │ cortana_tool_health          cortana_immune_playbooks
+    │ cortana_events               (antibody memory)
 ```
 
 ### The Full Cycle, Concrete
@@ -325,6 +344,12 @@ Long-running autonomous agents I spawn for deep work. Named after Halo factions.
 | Every 15 min | 🔍 Cron & Tool Health | Cron state checks + tool smoke tests + self-heal |
 | Every 30 min | 📊 Budget & Self-Model | Budget tracking + health score + auto-throttle |
 | 2:30 AM daily | 📈 Efficiency Analyzer | Per-cron costs, engagement metrics, spending trends |
+
+### Immune System
+
+| Frequency | Job | What It Does |
+|-----------|-----|--------------|
+| Every 15 min | 🛡️ Immune Scan | Threat detection, playbook execution, quarantine, escalation |
 
 ### Maintenance
 
@@ -451,6 +476,12 @@ QQQ  ███░░░░░░░░░░░░░░░░░░░░░░
 ├── proprioception/        ← Self-awareness & auto-throttle
 │   ├── README.md          ← Full design doc
 │   └── schema.sql         ← PostgreSQL table definitions
+│
+├── immune-system/         ← Threat detection & auto-healing
+│   ├── README.md          ← Full design doc
+│   ├── schema.sql         ← PostgreSQL table definitions
+│   ├── seed-playbooks.sql ← Initial playbook entries
+│   └── immune-scan-prompt.md ← Cron task prompt
 │
 ├── skills/                ← Installed capabilities
 │   ├── fitness-coach/     ← Whoop/Tonal
@@ -912,6 +943,57 @@ Status: ≥80 nominal · 50-79 degraded · <50 critical
 
 ---
 
+## Immune System
+
+Cortana's self-defense layer. Detects threats (credential failures, API errors, budget burns, silent cron deaths), matches them against known playbooks, executes fixes, and escalates when needed. Builds antibody memory so repeat threats are resolved faster — or automatically.
+
+### Components
+
+| Component | What It Does |
+|-----------|--------------|
+| **Threat Detector** | Scans `cortana_events`, `cortana_tool_health`, `cortana_cron_health`, `cortana_self_model` for active issues |
+| **Playbook Executor** | Matches threats against `cortana_immune_playbooks` and executes known fixes |
+| **Quarantine** | Isolates runaway components (suspend crons, stop services) before cascade |
+| **Antibody Memory** | Logs every incident in `cortana_immune_incidents`. Repeat threats auto-resolve via saved playbooks |
+| **Escalation Router** | Routes responses: Tier 1 (silent fix), Tier 2 (fix + notify), Tier 3 (quarantine + alert Chief) |
+
+### Escalation Tiers
+
+| Tier | Criteria | Response |
+|------|----------|----------|
+| **1 — Auto-fix** | Known playbook, low severity | Execute silently, log incident |
+| **2 — Fix + Notify** | Medium severity or first occurrence | Fix + Telegram: "🛡️ Fixed: [issue]" |
+| **3 — Quarantine + Alert** | High severity, cascade risk, unknown threat | Quarantine + "🚨 [threat] — [component] quarantined" |
+
+### Built-In Playbooks
+
+| Playbook | Trigger | Action | Tier |
+|----------|---------|--------|------|
+| `tonal_token_reset` | Tonal auth failure | Delete token, restart service | 1 |
+| `session_cleanup` | Session files >400KB | Delete bloated files | 1 |
+| `fitness_service_restart` | Port 8080 down | Restart fitness service | 1 |
+| `browser_restart` | Port 18800 down | Restart OpenClaw browser | 1 |
+| `cron_unstick` | Cron missed 3+ runs | Check for stuck process, alert | 2 |
+| `runaway_cron` | Cron burning 10× normal tokens | Suspend cron, alert Chief | 3 |
+| `tool_cascade` | 3+ tools down simultaneously | Quarantine non-essentials, alert | 3 |
+
+### Integration
+
+- **← Proprioception:** Reads health data from `cortana_self_model`, `cortana_cron_health`, `cortana_tool_health` — detects, doesn't duplicate
+- **← Cortical Loop:** Reads `cortana_events` for error patterns. Tier 3 alerts trigger LLM wake
+- **→ Memory Consolidation:** Nightly review of `cortana_immune_incidents` for recurring patterns
+- **→ SAE/Morning Brief:** Active incidents surface in morning brief's 🛡️ Immune Status section
+
+### Cron
+
+| Frequency | Job | Cost |
+|-----------|-----|------|
+| Every 15 min | 🛡️ Immune Scan | ~$0.02/run (sonnet, only when threats detected) |
+
+**Files:** `immune-system/README.md` (full design), `immune-system/schema.sql`, `immune-system/seed-playbooks.sql`
+
+---
+
 ## Database (PostgreSQL)
 
 Cortana uses a local PostgreSQL database for structured data.
@@ -934,6 +1016,8 @@ Cortana uses a local PostgreSQL database for structured data.
 | `cortana_tool_health` | Tool availability history (up/down, response time, self-heal) |
 | `cortana_throttle_log` | Auto-throttle tier change events |
 | `cortana_feedback_signals` | Reaction/behavioral/correction signals for weight adjustment |
+| `cortana_immune_incidents` | Immune System incident log (threats, resolutions, quarantines) |
+| `cortana_immune_playbooks` | Immune System playbook registry (known fix patterns) |
 | `cortana_sitrep` | SAE world state snapshots (domain/key/value) |
 | `cortana_insights` | SAE cross-domain reasoner insights |
 
@@ -1068,6 +1152,8 @@ psql cortana -c "UPDATE cortana_chief_model SET value = '\"true\"' WHERE key = '
 | `cortana_cron_health` | Cron health history | `cron_name`, `status`, `consecutive_failures`, `run_duration_sec` |
 | `cortana_tool_health` | Tool availability history | `tool_name`, `status`, `response_ms`, `error`, `self_healed` |
 | `cortana_throttle_log` | Auto-throttle events | `tier_from`, `tier_to`, `reason`, `actions_taken[]` |
+| `cortana_immune_incidents` | Immune System incident log | `threat_type`, `source`, `severity`, `tier`, `status`, `playbook_used` |
+| `cortana_immune_playbooks` | Immune System playbook registry | `name`, `threat_signature`, `actions` (jsonb), `tier`, `success_rate` |
 
 ### LaunchAgents
 

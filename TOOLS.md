@@ -95,6 +95,14 @@ OpenClaw/Node has **Full Disk Access** granted (macOS System Settings → Privac
 **cortana_throttle_log** — Auto-throttle tier change events
 - Schema: id, timestamp, tier_from, tier_to, reason, actions_taken (TEXT[])
 
+**cortana_immune_incidents** — Immune System incident log
+- Schema: id, detected_at, resolved_at, threat_type, source, severity, description, threat_signature, tier, status, playbook_used, resolution, auto_resolved, metadata (JSONB)
+- Use for: tracking detected threats, resolutions, quarantines
+
+**cortana_immune_playbooks** — Immune System playbook registry
+- Schema: id, name (unique), threat_signature, description, actions (JSONB), tier, enabled, times_used, last_used, success_rate, created_at, updated_at
+- Use for: known fix patterns (antibodies)
+
 **cortana_tasks** — Autonomous task queue
 - Schema: id, created_at, source, title, description, priority (1-5), status, due_at, remind_at, execute_at, auto_executable, execution_plan, depends_on, completed_at, outcome, metadata (JSONB)
 - Use for: tracking work from conversations, heartbeat auto-execution, reminders
