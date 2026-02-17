@@ -89,6 +89,12 @@
       "event_title": "Pack for Mexico City",
       "reminder_type": "all_day_9am",
       "sent_at": "2026-02-16T17:29:00Z"
+    },
+    {
+      "event_id": "_6h33ce9k70okcba585344b9k89130ba16kr42ba5850kccpj6d13gd1m6c_20260217",
+      "event_title": "Verizon Bill AutoPay",
+      "reminder_type": "all_day_9am",
+      "sent_at": "2026-02-17T14:00:00Z"
     }
   ]
 }
