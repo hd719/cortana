@@ -406,6 +406,32 @@ Signal Watchers ($0 LLM cost)          Evaluator (every 5 min)        Wake
 
 ---
 
+## Feedback Loop
+
+Closes the learning loop. Cortana adapts behavior based on three signal types:
+
+```
+Reactions (👍👎❤️🔥😒) ──┐
+Behavioral (latency) ────┼──→ cortana_feedback_signals ──→ evaluator ──→ weight adjust ──→ changed behavior
+Corrections ("stop X") ──┘                                    │
+                                                               ▼
+                                                    cortana_feedback ──→ learning-loop ──→ AGENTS.md / MEMORY.md
+```
+
+- **Positive** (👍 ❤️ 🔥): rule weight +0.05 (reinforce)
+- **Negative** (👎 😒): rule weight -0.15 (learn fast from mistakes)
+- **No engagement** (2h+): rule weight -0.02 (slow decay)
+- **3 consecutive negatives**: auto-suppress rule + notify
+- **Direct corrections**: written back to AGENTS.md / MEMORY.md
+- **Weight floor 0.1 / ceiling 2.0**
+- **Repeated lessons** (3+ in 30 days): escalated — the rule isn't sticking
+
+I'll tell you when I've learned something.
+
+**Details:** `cortical-loop/README.md` → Feedback Loop section
+
+---
+
 ## Database (PostgreSQL)
 
 Cortana uses a local PostgreSQL database for structured data.
@@ -421,6 +447,7 @@ Cortana uses a local PostgreSQL database for structured data.
 | `cortana_events` | System events |
 | `cortana_feedback` | Learning from corrections |
 | `cortana_tasks` | Autonomous task queue (pending/in_progress/done) |
+| `cortana_feedback_signals` | Reaction/behavioral/correction signals for weight adjustment |
 | `cortana_sitrep` | SAE world state snapshots (domain/key/value) |
 | `cortana_insights` | SAE cross-domain reasoner insights |
 

@@ -82,6 +82,62 @@ All in `~/clawd/cortical-loop/state/`:
 - `health-last-recovery.txt` — dedup recovery updates
 - `current-wake-prompt.txt` — last wake prompt sent
 
+## Feedback Loop
+
+Closes the learning loop. Cortana adapts behavior based on three signal types:
+
+```
+┌──────────────┐  ┌──────────────┐  ┌──────────────┐
+│  Reactions   │  │  Behavioral  │  │  Corrections │
+│  👍 👎 ❤️ 🔥  │  │  latency,    │  │  "don't",    │
+│  😒          │  │  engagement  │  │  "stop",     │
+└──────┬───────┘  └──────┬───────┘  └──────┬───────┘
+       │                 │                 │
+       └────────┬────────┴────────┬────────┘
+                ▼                 ▼
+     cortana_feedback_signals    cortana_feedback
+                │                 │
+                ▼                 ▼
+          feedback-handler.sh   learning-loop.sh
+                │                 │
+                ▼                 ▼
+        cortana_wake_rules     AGENTS.md / MEMORY.md
+         (weight adjust)        (behavior change)
+```
+
+### Signal Types
+
+| Signal | Source | Weight Delta |
+|--------|--------|-------------|
+| Positive (👍 ❤️ 🔥) | Reaction | +0.05 |
+| Negative (👎 😒) | Reaction | -0.15 |
+| No engagement (2h+) | Behavioral | -0.02 |
+| Quick reply (<5 min) | Behavioral | +0.05 |
+| Direct correction | cortana_feedback | -0.15 |
+
+### Weight Mechanics
+- **Floor:** 0.1 (never fully kills a rule)
+- **Ceiling:** 2.0
+- **Suppress threshold:** weight < 0.3 (evaluator skips the rule)
+- **Auto-suppress:** 3+ negatives AND weight < 0.3 → rule disabled + Hamel notified
+
+### Components
+- `feedback-handler.sh` — processes feedback_signals, adjusts wake rule weights
+- `watchers/behavioral-watcher.sh` — detects implicit signals (latency, engagement) every 30 min
+- `learning-loop.sh` — daily pipeline (11 PM ET): applies corrections to AGENTS.md/MEMORY.md, detects repeated lessons
+
+### Manual Weight Adjustment
+```sql
+-- Boost a rule
+UPDATE cortana_wake_rules SET weight = 1.5 WHERE name = 'rule_name';
+
+-- Re-enable suppressed rule
+UPDATE cortana_wake_rules SET enabled = TRUE, weight = 1.0, negative_feedback = 0 WHERE name = 'rule_name';
+
+-- View feedback signals
+SELECT * FROM cortana_feedback_signals ORDER BY timestamp DESC LIMIT 10;
+```
+
 ## Debugging
 
 ```bash

@@ -129,3 +129,8 @@ Be concise. Act decisively. You are Cortana's nervous system responding to a rea
   # Use openclaw cron wake to trigger main session
   openclaw cron wake --text "$WAKE_PROMPT" --mode now 2>/dev/null
 fi
+
+# ============================================================
+# PROCESS FEEDBACK SIGNALS (runs every cycle, even without wake events)
+# ============================================================
+bash "$HOME/clawd/cortical-loop/feedback-handler.sh" 2>/dev/null
