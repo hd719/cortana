@@ -4,6 +4,10 @@ Cortana's self-defense, threat detection, and auto-healing layer. When something
 
 > "Like a biological immune system: detect threats, neutralize them, and build antibodies so the next encounter is faster."
 
+## Operating Philosophy
+
+**The immune system is never disabled as a fix.** If something in the immune system is misbehaving — a playbook misfiring, false positives, a scan burning tokens — we diagnose it, ask questions, and iterate. Turning it off is not a solution. Break the problem down, narrow the scope, try a different approach. The system exists to protect Cortana; disabling it leaves us blind.
+
 ## Architecture
 
 ```
