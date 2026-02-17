@@ -101,6 +101,18 @@
       "event_title": "2026S SSW 567-A/A-U/WS - Online Lecture",
       "reminder_type": "t60m",
       "sent_at": "2026-02-17T17:00:00Z"
+    },
+    {
+      "event_id": "_clr6arjk5lhm2r35dpi62shdclr6arjk5kq38chj6ksg",
+      "event_title": "2026S EM 605-WS [Elements of Operations Research]",
+      "reminder_type": "t30m",
+      "sent_at": "2026-02-17T23:00:00Z"
+    },
+    {
+      "event_id": "_clr6arjk5lhm2r35dpi62shdclr6arjk5kq38dph70sg",
+      "event_title": "2026S SSW 567-WS [Software Testing, Quality Assurance and Maintenance]",
+      "reminder_type": "t30m",
+      "sent_at": "2026-02-17T23:00:00Z"
     }
   ]
 }
