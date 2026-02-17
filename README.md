@@ -283,6 +283,8 @@ Long-running autonomous agents I spawn for deep work. Named after Halo factions.
 
 **Operating model:** On-demand, not scheduled. Cortana spawns agents when there's a reason (pre-trip, pre-earnings, concerning patterns, research requests). More surgical, less overhead.
 
+**Model:** Sub-agents default to **Sonnet** (configured in openclaw.json) to conserve budget. Main session (Cortana) runs on Opus. Crons also run on Sonnet unless overridden.
+
 **Location:** `covenant/` — each agent has SOUL.md (identity) + AGENTS.md (operations)
 
 **Outputs go to:** `knowledge/` — research, patterns, predictions, indexed topics
