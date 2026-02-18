@@ -356,7 +356,7 @@ Long-running autonomous agents I spawn for deep work. Named after Halo factions.
 | Time (ET) | Job | What It Does |
 |-----------|-----|--------------|
 | 3:00 AM daily | 🧠 Memory Consolidation | Process daily memories → MEMORY.md, archive old files |
-| 3:00 AM daily | 🧹 Cron Session Cleanup | Delete bloated session files (>400KB) |
+| 2:00 AM daily | 🧹 Cron Session Cleanup | Delete bloated session files (>400KB) — runs before other 3 AM jobs |
 | 4:00 AM daily | 🔄 Daily Auto-Update | Homebrew, OpenClaw, skills updates |
 
 ### Weekly
