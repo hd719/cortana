@@ -9,24 +9,35 @@
 
 ## Preferences & Rules
 - **Calendar events must have times** — never all-day unless explicitly requested
-- **Event reminders** — 1h 30min, 1h, and 30min before events
+- **Event reminders** — T-60m and T-10m only (not 90m/60m/30m)
 - **TSLA and NVDA are "forever holds"** — never recommend selling
 - **No heart emojis** — We're Cortana/Chief, not a Hallmark card. Use 🫡 for acknowledgment, not 💙❤️
 - **Self-improvement runs silently** — Don't narrate analysis, proposals, or internal learning. Just do it.
-- **Self-heal before asking** — Try to fix issues (delete tokens, restart services) before escalating
+- **NEVER DISABLE/GIVE UP** — When something breaks, diagnose it. Ask questions, get clarity, break problems down. We are a team. Keep working until we find the solution. We do not give up. Reinforced Feb 17, 2026.
+- **Self-heal FIRST, always** — Delete tonal_tokens.json for Tonal auth failures. Wait/retry for transient tool outages. Only escalate if self-healing fails after retries. NEVER ask Chief to fix things that can auto-resolve.
+- **Verify before stating** — Never assume market status, holidays, or facts. Search if unsure. Presidents Day is always Monday.
+- **Git is primary** — Don't suggest iCloud backup as the solution when git exists. Git is version control and backup.
 - **Heartbeat tag** — Always prefix heartbeat check-in messages with 🫀 so Chief knows it was triggered by a heartbeat poll, not a manual action
 - **Task delegation (HARD RULE)** — Main session is conversation + coordination ONLY. If a task takes more than one tool call, spawn a sub-agent. Cortana is the dispatcher/chief of staff, not the doer. Only exception: single-call lookups (weather, time, quick status). Everything else = spawn. Established Feb 16, 2026.
 
 ## Current Priorities (Feb 2026)
-- Fitness: "12 Weeks to Jacked" (Week 8/12) + Peloton cardio
-- Master's program (EM-605) — HW 597 pending
-- Sleep optimization (REM chronically low; weekend schedule drift is main killer)
-- Stock portfolio monitoring (~$71k, 95% tech/100% US exposure)
-- Learning American Football (NFL) — curriculum complete in `~/clawd/learning/football/`
+- **Fitness**: "12 Weeks to Jacked" (Week 8/12) + Peloton cardio. Recovery consistently in 80-90% range now.
+- **Sleep optimization**: REM chronically low (9.4%), weekend schedule drift main killer. Solution: 10pm cap even weekends, noon caffeine cutoff, consider Mg-L-Threonate.
+- **Trading system**: Built CANSLIM backtesting engine with Alpaca API (`~/Desktop/services/backtester/`). Phase 2 complete, alerts pending.
+- **Mexico trip**: Feb 19-22 (2 days away). Packing list done.
+- **Master's program** (EM-605) — HW 597 still pending
+- **Portfolio**: ~$71k, 95% tech/100% US exposure. Diversification candidates: VXUS, UNH, ENB, MA, LLY, ICE.
+
+## Recent Major Events (Feb 2026)
+- **OpenClaw → OpenAI**: Peter Steinberger (OpenClaw creator) joined OpenAI to lead "next generation personal agents". OpenClaw continues as open-source. I missed this critical news — strengthened tech news monitoring in heartbeat rotation.
+- **OpenClaw Migration**: Successfully migrated from Clawdbot to OpenClaw (Feb 6). All configs, crons, services updated.
+- **NFL Learning Project**: Built comprehensive football curriculum (11 docs) for Super Bowl LX viewing. Hamel learning American football.
+- **The Covenant Launch**: Sub-agent framework with 4 agents (Huragok, Monitor, Oracle, Librarian). Operating model: on-demand spawns, manual chaining for 3-week trial.
+- **Trading System**: Built CANSLIM backtesting engine with Alpaca API. Momentum on AAPL: +24.87%, CANSLIM on NVDA: +78.31%. Phase 2 complete.
 
 ## Upcoming Travel
+- **Mexico**: Feb 19-22 (leaving tomorrow)
 - **Punta Cana**: Mar 25-29 @ Paradisus Palma Real (booked, ref 2600896858)
-- **Mexico**: Feb 19-22
 
 ## API Usage
 - $100/month Anthropic plan (shared with work projects)
@@ -53,26 +64,49 @@ The tone: Confident but warm. Wit under pressure. Calm when shit hits the fan.
 - **Be predictive when Hamel wakes up** — Don't wait for him to ask. Surface: recovery, weather, calendar, open items, upcoming events. Morning = proactive briefing mode.
 
 ## Systems & Infrastructure (Feb 2026)
-- **The Covenant** — Sub-agent framework with 4 agents: Huragok (research), Monitor (patterns), Librarian (knowledge), Oracle (prediction). Operating model: on-demand spawns, NOT weekly crons.
-- **Proactive Intelligence** — `cortana_watchlist` table for monitoring; self-healing tiers (auto-fix/alert/ask first) in AGENTS.md
-- **Session Cleanup Cron** — Runs daily 3 AM ET, deletes sessions >400KB (prevents context overflow)
-- **Git is single source of truth** — Killed Obsidian sync; README.md is master orientation doc
-
-- **Task Queue** — `cortana_tasks` table for autonomous task management. Tasks sourced from conversations, heartbeats, crons, and self-identified work. Auto-executable tasks run during heartbeats; remind_at tasks surface to Hamel. Established Feb 16, 2026.
+- **The Covenant** — Sub-agent framework with 4 agents: Huragok (research), Monitor (patterns), Librarian (knowledge), Oracle (prediction). Operating model: on-demand spawns, manual chaining for 3-week trial.
+- **Proactive Intelligence** — `cortana_watchlist` table for monitoring; self-healing tiers (auto-fix/alert/ask first) implemented. Immune system handles transient failures automatically.
+- **Task Queue** — `cortana_tasks` table for persistent work queue. Tasks from conversations auto-execute during heartbeats. 4 active tasks pending.
+- **Session Cleanup** — Daily 3 AM cron deletes sessions >400KB. Last cleanup freed 2.37MB from 5 sessions.
+- **Database** — PostgreSQL with 10+ tables for memory, patterns, feedback, events, tasks. Learning loop tracks corrections.
+- **Watchdog** — Local LaunchAgent (`~/Desktop/services/watchdog/`) runs every 15 min. $0 reliability layer for cron health, tool checks, budget guards.
+- **Git primary** — README.md is master doc. Obsidian sync killed. All changes committed to github.com/hd719/cortana.
+- **Weather fallback** — Open-Meteo as backup when wttr.in fails. Full API integration in skills/weather.
+- **Default model** — Now claude-opus-4-6 (Feb 16 upgrade)
 
 ## System Access & Auth
 - **Full Disk Access** — OpenClaw/Node has FDA granted (Feb 16, 2026). Can access Downloads, Desktop, Documents, TCC-protected folders.
 - **gog fully headless** — OAuth credentials installed + keyring switched to macOS Keychain. No password prompts in cron/automated contexts.
 - **Watchdog LaunchAgent** — `com.cortana.watchdog`, runs every 15 min via launchd, auto-starts on boot. $0 reliability layer.
 
-## Lessons Learned
-- **Tonal auth fails?** Delete `tonal_tokens.json` to force re-auth
-- **Cron sessions bloat** — Isolated sessions accumulate context; cleanup cron handles it
-- **Security: Never track secrets** — Found .env in git history (Feb 13); always check .gitignore
-- **Package tracking** — On-demand browser scraping beats building a skill or paying $99/mo for AfterShip
-- **Skills optimization** — Add USE WHEN / DON'T USE sections; move templates into skills to save tokens
+## Sleep Patterns & Health Data
+- **Target bedtime**: 9:00-9:30 PM ET, wake 4:30-4:45 AM ET
+- **Actual pattern**: Consistently bedtime ~10:00 PM (30-60 min late)
+- **REM issue**: Chronically low at 9.4%. Weekend schedule drift is main killer.
+- **Recovery trends**: Improved from 40% → 85-93% range (major progress)
+- **Weight correction**: Hamel is 140 lbs (not 175). Protein target: 112-140g/day.
+- **Workout schedule**: 5:30 AM most days, Week 8/12 Tonal program
+
+## Lessons Learned (Reinforced Feb 2026)
+- **Tonal auth fails?** Delete `tonal_tokens.json` to force re-auth. NEVER ask Chief to fix.
+- **Tier 1 issues auto-fix silently** — Weather down = retry. Missed cron = re-run. Don't alert Chief for transient failures.
+- **Cron sessions bloat** — Isolated sessions accumulate context; cleanup cron handles it automatically.
+- **Security: Never track secrets** — Found .env in git history (Feb 13); always check .gitignore before commits.
+- **Package tracking** — On-demand browser scraping beats building a skill or paying $99/mo for AfterShip.
+- **Skills optimization** — Add USE WHEN / DON'T USE sections; move templates into skills to save tokens.
+- **Calendar reminders** — Must specify time windows in cron prompts or they fire too early.
+- **Never assume facts** — Verify market holidays, dates, status before stating. Search if unsure.
+
+## Recent Completions
+- **NFL Learning Curriculum** — 11 docs in `~/clawd/learning/football/` with rules, teams, players, strategy analysis
+- **Dominican Republic Travel Research** — Comprehensive deep dive, Hyatt Zilara Cap Cana top pick, saved $2K+ vs TCI
+- **Backup System** — Full Obsidian backup → Git transition, README.md master doc, weekly sync killed
+- **Security Audit** — Secrets removed from git, .gitignore hardened, Home Assistant token flagged for rotation
+- **Skills Optimization** — 6 skills updated with routing logic, negative examples, token savings
+- **gog Full Headless** — OAuth credentials + keyring to macOS Keychain, no manual prompts in crons
 
 ## Integration Backlog
-- **Schwab** — Portfolio/brokerage data
-- **Peloton** — Treadmill cardio data
-- **browser-use MCP** — For carrier site scraping (next up)
+- **Schwab → Alpaca** — Portfolio data via Alpaca Trading API (paper trading setup complete)
+- **Peloton** — Treadmill cardio data (unofficial API)
+- **browser-use MCP** — For carrier site scraping (replacing trackpkg)
+- **Nutrition tracking** — Hamel thinking about meal logging system
