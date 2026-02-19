@@ -335,13 +335,42 @@ Review weekly to identify:
 
 ## Task Queue
 
-Cortana maintains an autonomous task queue in `cortana_tasks`.
+Cortana maintains an autonomous task queue in `cortana_tasks` with epic/project grouping via `cortana_epics`.
 
-### After Conversations
-Extract actionable tasks from conversations and insert them:
+## Task Detection Protocol
+
+**⚠️ CRITICAL: After every conversation, extract actionable tasks and epics.**
+
+### Detection Rules
+1. **Scan for trigger patterns** (see `projects/task-board-detection.md` for full guide):
+   - Direct requests: "Can you...", "Set up...", "Build...", "Fix...", "Research..."
+   - Implicit tasks: "We should...", "I need to...", "Don't forget to..."
+   - Multi-step work → create epic first, then subtasks
+   - Time mentions → set `due_at` and `remind_at`
+
+2. **Auto-classification**:
+   - Priority: urgency words ("ASAP"=1, "urgent"=2, normal=3, "when you can"=4)  
+   - Auto-executable: research, file ops, git ops = true. Emails, purchases = false.
+   - Epic vs standalone: 2+ related items or project language = epic
+
+### SQL Templates
+
+**Create Epic:**
 ```sql
-INSERT INTO cortana_tasks (source, title, description, priority, auto_executable, execution_plan)
-VALUES ('conversation', 'Task title', 'Details', 3, false, NULL);
+INSERT INTO cortana_epics (title, source, status, deadline, metadata)
+VALUES ('<title>', 'conversation', 'active', '<deadline_or_null>', '<context_json>');
+```
+
+**Create Task (under epic):**
+```sql
+INSERT INTO cortana_tasks (epic_id, title, description, priority, auto_executable, execution_plan, due_at, remind_at, source)
+VALUES (<epic_id>, '<title>', '<details>', <1-5>, <true|false>, '<steps>', '<due_date>', '<remind_date>', 'conversation');
+```
+
+**Create Standalone Task:**  
+```sql
+INSERT INTO cortana_tasks (title, description, priority, auto_executable, execution_plan, due_at, remind_at, source)
+VALUES ('<title>', '<details>', <1-5>, <true|false>, '<steps>', '<due_date>', '<remind_date>', 'conversation');
 ```
 
 ### During Heartbeats
@@ -350,6 +379,10 @@ Check for pending auto-executable tasks and execute the highest priority one if 
 SELECT * FROM cortana_tasks 
 WHERE status = 'pending' AND auto_executable = TRUE 
   AND (execute_at IS NULL OR execute_at <= NOW())
+  AND (depends_on IS NULL OR NOT EXISTS (
+    SELECT 1 FROM cortana_tasks t2 
+    WHERE t2.id = ANY(cortana_tasks.depends_on) AND t2.status != 'done'
+  ))
 ORDER BY priority ASC, created_at ASC LIMIT 1;
 ```
 
@@ -361,9 +394,21 @@ ORDER BY priority ASC;
 ```
 
 ### Morning Brief
-Include open task count:
+Include epic progress and top standalone tasks:
 ```sql
-SELECT priority, COUNT(*) FROM cortana_tasks WHERE status IN ('pending', 'in_progress') GROUP BY priority ORDER BY priority;
+-- Active epics with progress
+SELECT e.title, e.deadline,
+  COUNT(t.id) as total,
+  COUNT(CASE WHEN t.status = 'done' THEN 1 END) as completed
+FROM cortana_epics e
+LEFT JOIN cortana_tasks t ON t.epic_id = e.id
+WHERE e.status = 'active'
+GROUP BY e.id, e.title, e.deadline;
+
+-- Top standalone tasks (no epic)
+SELECT title, priority, due_at, status FROM cortana_tasks
+WHERE epic_id IS NULL AND status IN ('pending', 'in_progress')
+ORDER BY priority ASC LIMIT 5;
 ```
 
 ## Make It Yours

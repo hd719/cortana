@@ -95,6 +95,8 @@ UPDATE cortana_watchlist SET last_checked = NOW(), last_value = '{"price": 450}'
 - Check `cortana_tasks` for dependency-ready auto-executable tasks
 - **Always spawn a sub-agent for task execution** — heartbeats are for checking and dispatching, not doing multi-step work inline
 - Surface overdue `remind_at` tasks to Hamel
+- Alert on approaching deadlines
+
 ```sql
 -- Auto-executable tasks ready to run (dependency-aware)
 SELECT * FROM cortana_tasks 
@@ -113,6 +115,24 @@ LIMIT 1;
 SELECT id, title, priority, remind_at FROM cortana_tasks
 WHERE status = 'pending' AND remind_at <= NOW()
 ORDER BY priority ASC;
+
+-- Tasks with deadlines in next 24h (approaching deadline alert)
+SELECT id, title, due_at, priority, epic_id FROM cortana_tasks
+WHERE status = 'pending' 
+  AND due_at BETWEEN NOW() AND NOW() + INTERVAL '24 hours'
+ORDER BY due_at ASC;
+
+-- Epic deadlines approaching (with incomplete tasks)
+SELECT e.id, e.title, e.deadline,
+  COUNT(t.id) as total_tasks,
+  COUNT(CASE WHEN t.status = 'done' THEN 1 END) as completed_tasks
+FROM cortana_epics e
+LEFT JOIN cortana_tasks t ON t.epic_id = e.id
+WHERE e.status = 'active' 
+  AND e.deadline BETWEEN NOW() AND NOW() + INTERVAL '48 hours'
+  AND EXISTS (SELECT 1 FROM cortana_tasks WHERE epic_id = e.id AND status != 'done')
+GROUP BY e.id, e.title, e.deadline
+ORDER BY e.deadline ASC;
 ```
 
 ---
