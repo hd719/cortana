@@ -104,8 +104,12 @@ OpenClaw/Node has **Full Disk Access** granted (macOS System Settings → Privac
 - Use for: known fix patterns (antibodies)
 
 **cortana_tasks** — Autonomous task queue
-- Schema: id, created_at, source, title, description, priority (1-5), status, due_at, remind_at, execute_at, auto_executable, execution_plan, depends_on, completed_at, outcome, metadata (JSONB)
-- Use for: tracking work from conversations, heartbeat auto-execution, reminders
+- Schema: id, created_at, source, title, description, priority (1-5), status, due_at, remind_at, execute_at, auto_executable, execution_plan, depends_on, completed_at, outcome, metadata (JSONB), epic_id (FK to cortana_epics), parent_id (FK to self), assigned_to (text)
+- Use for: tracking work from conversations, heartbeat auto-execution, reminders, epic/subtask hierarchy
+
+**cortana_epics** — Task board epic/project grouping
+- Schema: id, title, source, status (active/completed/cancelled), deadline, created_at, completed_at, metadata (JSONB)
+- Use for: grouping related tasks into projects/goals with deadlines
 
 ### Quick Commands
 ```bash

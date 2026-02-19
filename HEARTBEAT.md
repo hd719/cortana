@@ -92,15 +92,22 @@ UPDATE cortana_watchlist SET last_checked = NOW(), last_value = '{"price": 450}'
 ---
 
 ### Task Queue Execution (every heartbeat)
-- Check `cortana_tasks` for pending auto-executable tasks where `execute_at <= NOW()` or `execute_at IS NULL`
+- Check `cortana_tasks` for dependency-ready auto-executable tasks
 - **Always spawn a sub-agent for task execution** — heartbeats are for checking and dispatching, not doing multi-step work inline
 - Surface overdue `remind_at` tasks to Hamel
 ```sql
--- Auto-executable tasks ready to run
-SELECT id, title, priority, execution_plan FROM cortana_tasks
-WHERE status = 'pending' AND auto_executable = TRUE
+-- Auto-executable tasks ready to run (dependency-aware)
+SELECT * FROM cortana_tasks 
+WHERE status = 'pending' 
+  AND auto_executable = TRUE
+  AND (depends_on IS NULL OR NOT EXISTS (
+    SELECT 1 FROM cortana_tasks t2 
+    WHERE t2.id = ANY(cortana_tasks.depends_on) 
+    AND t2.status != 'done'
+  ))
   AND (execute_at IS NULL OR execute_at <= NOW())
-ORDER BY priority ASC, created_at ASC LIMIT 1;
+ORDER BY priority ASC, created_at ASC 
+LIMIT 1;
 
 -- Overdue reminders to surface
 SELECT id, title, priority, remind_at FROM cortana_tasks

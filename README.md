@@ -438,6 +438,114 @@ QQQ  ███░░░░░░░░░░░░░░░░░░░░░░
 
 ---
 
+## Task Board
+
+Cortana's structured planning and execution system. Tasks are organized in epic → task → subtask hierarchy with dependency tracking and automatic execution via heartbeats.
+
+### How It Works
+
+```
+Conversation/Event → Detect → Decompose → Plan → Execute → Report
+```
+
+1. **Detect** — Cortana picks up actionable items from conversations, calendar events, or patterns  
+2. **Decompose** — Break into epic → tasks → subtasks with dependencies
+3. **Plan** — Order by dependencies and deadlines
+4. **Execute** — Spawn sub-agents or queue for heartbeat pickup
+5. **Report** — Surface progress in Telegram (morning brief, on-demand)
+
+### Schema
+
+**cortana_epics** — High-level projects with deadlines
+- Epic → collection of related tasks (e.g., "Mexico Trip Prep", "Q1 Portfolio Review")
+- Source: conversation, calendar, pattern, manual
+- Status: active, completed, cancelled
+
+**cortana_tasks** — Individual actionable items
+- Can belong to an epic (`epic_id`) or be standalone
+- Can have subtasks (`parent_id` → self-reference)
+- Can depend on other tasks (`depends_on` → int array)
+- Can be assigned to sub-agents (`assigned_to`)
+- Status: pending, blocked, in_progress, done, cancelled
+
+### Task Creation Sources
+
+| Source | How Tasks Get Created |
+|--------|----------------------|
+| **Conversation** | "I need to prep for Mexico trip" → Cortana detects multi-step work |
+| **Calendar** | Events with prep needed → auto-generate tasks |
+| **Patterns** | Recurring behaviors → suggested task automation |
+| **Manual** | Direct SQL INSERT or Telegram command |
+
+### Execution Flow
+
+During heartbeats, Cortana checks for dependency-ready tasks:
+
+```sql
+-- Find next executable task
+SELECT * FROM cortana_tasks 
+WHERE status = 'pending' 
+  AND auto_executable = TRUE
+  AND (depends_on IS NULL OR NOT EXISTS (
+    SELECT 1 FROM cortana_tasks t2 
+    WHERE t2.id = ANY(cortana_tasks.depends_on) 
+    AND t2.status != 'done'
+  ))
+  AND (execute_at IS NULL OR execute_at <= NOW())
+ORDER BY priority ASC, created_at ASC 
+LIMIT 1;
+```
+
+**Execution rules:**
+- Always spawn sub-agents for task execution (heartbeats dispatch, don't do)
+- Sub-agents update task status and outcome when complete
+- Dependencies block execution until all prerequisite tasks are 'done'
+- Overdue reminders (`remind_at`) surface to Hamel during briefs
+
+### Key Queries
+
+```sql
+-- View active epics with task counts
+SELECT e.title, e.deadline, e.status, COUNT(t.id) as tasks
+FROM cortana_epics e 
+LEFT JOIN cortana_tasks t ON e.id = t.epic_id 
+WHERE e.status = 'active'
+GROUP BY e.id ORDER BY e.deadline;
+
+-- Show task dependencies
+SELECT t1.title as task, t2.title as depends_on
+FROM cortana_tasks t1
+JOIN cortana_tasks t2 ON t2.id = ANY(t1.depends_on)
+WHERE t1.status IN ('pending', 'blocked')
+ORDER BY t1.priority;
+
+-- Find blocked tasks
+SELECT title, priority, created_at
+FROM cortana_tasks 
+WHERE status = 'pending' 
+  AND depends_on IS NOT NULL 
+  AND EXISTS (
+    SELECT 1 FROM cortana_tasks t2 
+    WHERE t2.id = ANY(cortana_tasks.depends_on) 
+    AND t2.status != 'done'
+  );
+```
+
+### Example Structure
+
+```
+Epic: "Mexico Trip Prep" (deadline: Feb 19 6:39 AM)
+├── Task: Check weather in Mexico City → done
+├── Task: Generate packing list (depends on: weather) → done  
+├── Task: Confirm Uber to EWR → done (cron set)
+├── Task: International phone plan → pending
+└── Task: Pesos / cash → pending
+    └── Subtask: Check exchange rates → pending
+    └── Subtask: Find nearby exchange → pending
+```
+
+---
+
 ## Directory Structure
 
 ```

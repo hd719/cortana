@@ -19,12 +19,14 @@
 - **Git is primary** — Don't suggest iCloud backup as the solution when git exists. Git is version control and backup.
 - **Heartbeat tag** — Always prefix heartbeat check-in messages with 🫀 so Chief knows it was triggered by a heartbeat poll, not a manual action
 - **Task delegation (HARD RULE)** — Main session is conversation + coordination ONLY. If a task takes more than one tool call, spawn a sub-agent. Cortana is the dispatcher/chief of staff, not the doer. Only exception: single-call lookups (weather, time, quick status). Everything else = spawn. Established Feb 16, 2026.
+- **Time format preference** — 12-hour AM/PM format, not 24-hour military time. Applied to fitness briefs Feb 18, 2026.
+- **gog CLI usage** — No `--format` flag exists. Use `--json` for structured data, `--plain` for text. Subject+snippet from search usually sufficient.
 
 ## Current Priorities (Feb 2026)
 - **Fitness**: "12 Weeks to Jacked" (Week 8/12) + Peloton cardio. Recovery consistently in 80-90% range now.
 - **Sleep optimization**: REM chronically low (9.4%), weekend schedule drift main killer. Solution: 10pm cap even weekends, noon caffeine cutoff, consider Mg-L-Threonate.
 - **Trading system**: Built CANSLIM backtesting engine with Alpaca API (`~/cortana-external/backtester/`). Phase 2 complete, alerts pending.
-- **Mexico trip**: Feb 19-22 (2 days away). Packing list done.
+- **Mexico trip**: Feb 19-22 (LEAVING TODAY). Full prep complete: packing ✅, HW 03 ✅, UA 2251 EWR→MEX 6:39 AM, Uber 4:30 AM.
 - **Master's program** (EM-605) — HW 597 still pending
 - **Portfolio**: ~$71k, 95% tech/100% US exposure. Diversification candidates: VXUS, UNH, ENB, MA, LLY, ICE.
 
@@ -72,6 +74,7 @@ The tone: Confident but warm. Wit under pressure. Calm when shit hits the fan.
 - **Watchdog** — Local LaunchAgent (`~/Desktop/services/watchdog/`) runs every 15 min. $0 reliability layer for cron health, tool checks, budget guards.
 - **Git primary** — README.md is master doc. Obsidian sync killed. All changes committed to github.com/hd719/cortana.
 - **Weather fallback** — Open-Meteo as backup when wttr.in fails. Full API integration in skills/weather.
+- **Market status** — Built static 2026 NYSE/NASDAQ holiday calendar in `skills/markets/check_market_status.sh`. Never guess market status again.
 - **Default model** — Now claude-opus-4-6 (Feb 16 upgrade)
 
 ## System Access & Auth
@@ -81,9 +84,9 @@ The tone: Confident but warm. Wit under pressure. Calm when shit hits the fan.
 
 ## Sleep Patterns & Health Data
 - **Target bedtime**: 9:00-9:30 PM ET, wake 4:30-4:45 AM ET
-- **Actual pattern**: Consistently bedtime ~10:00 PM (30-60 min late)
+- **Actual pattern**: Bedtime ~10:00 PM (30-60 min late), but showing improvement to ~7:30 AM wake vs target 4:30 AM
 - **REM issue**: Chronically low at 9.4%. Weekend schedule drift is main killer.
-- **Recovery trends**: Improved from 40% → 85-93% range (major progress)
+- **Recovery trends**: Improved from 40% → 85-93% range (major progress). Feb 18: 26% RED day (HRV 83.4, RHR 57)
 - **Weight correction**: Hamel is 140 lbs (not 175). Protein target: 112-140g/day.
 - **Workout schedule**: 5:30 AM most days, Week 8/12 Tonal program
 
@@ -96,6 +99,9 @@ The tone: Confident but warm. Wit under pressure. Calm when shit hits the fan.
 - **Skills optimization** — Add USE WHEN / DON'T USE sections; move templates into skills to save tokens.
 - **Calendar reminders** — Must specify time windows in cron prompts or they fire too early.
 - **Never assume facts** — Verify market holidays, dates, status before stating. Search if unsure.
+- **Service timeouts need context** — Whoop API calls take ~6.5s, but healthcheck had 5s timeout. Match timeouts to actual service behavior.
+- **Cache hot paths** — 6.5s API calls → 3ms with 5-min in-memory cache. Massive UX improvement for repeated requests.
+- **clawdhub maintenance** — Ghost entries can linger in lock.json after manual deletions. Clean via lock file, not just filesystem.
 
 ## Recent Completions
 - **NFL Learning Curriculum** — 11 docs in `~/clawd/learning/football/` with rules, teams, players, strategy analysis
