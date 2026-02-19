@@ -1,0 +1,31 @@
+{
+  "morning": null,
+  "evening": {
+    "strain_summary": {
+      "total_strain": 17.0,
+      "kilojoules": 3104,
+      "max_hr": 182,
+      "activities": ["High strain day - significant cardiovascular stress"]
+    },
+    "workout_details": {
+      "status": "No Tonal workout today",
+      "last_workout": "Feb 10th (8 days ago)",
+      "program": "12 Weeks to Jacked",
+      "note": "Extended break from strength training"
+    },
+    "recovery_outlook": {
+      "current_recovery": 26,
+      "status": "Critical - Severely compromised",
+      "predicted_tomorrow": "Poor (15-25 range likely)",
+      "factors": ["High strain (17.0)", "Sleep debt (2.2h)", "Academic stress"]
+    },
+    "sleep_recommendation": {
+      "target_bedtime": "9:30 PM",
+      "sleep_need": "9+ hours (due to debt + high strain)",
+      "priority": "URGENT - Recovery critical"
+    },
+    "insights_delivered": [
+      "Recovery deficit meets deadline pressure: 26 recovery + 3 HW due + evening classes = cognitive overload"
+    ]
+  }
+}
