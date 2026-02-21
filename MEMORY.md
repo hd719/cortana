@@ -23,8 +23,8 @@
 - **gog CLI usage** — No `--format` flag exists. Use `--json` for structured data, `--plain` for text. Subject+snippet from search usually sufficient.
 
 ## Current Priorities (Feb 2026)
-- **Fitness**: "12 Weeks to Jacked" (Week 8/12) + Peloton cardio. Recovery consistently in 80-90% range now.
-- **Sleep optimization**: REM chronically low (9.4%), weekend schedule drift main killer. Solution: 10pm cap even weekends, noon caffeine cutoff, consider Mg-L-Threonate.
+- **Fitness**: "12 Weeks to Jacked" (Week 8/12) + Peloton cardio. Recovery consistently in 80-90% range now. **Note**: Tonal service experiencing persistent HTTP 503 errors despite self-healing attempts.
+- **Sleep optimization**: REM chronically low (9.4%), weekend schedule drift main killer. Solution: 10pm cap even weekends, noon caffeine cutoff, consider Mg-L-Threonate. **New task**: Build weekend bedtime enforcement cron (9:30 PM reminder).
 - **Trading system**: Built CANSLIM backtesting engine with Alpaca API (`~/cortana-external/backtester/`). Phase 2 complete, alerts pending.
 - **Mexico trip**: Feb 19-22 (IN PROGRESS). Full prep complete: packing ✅, HW 03 ✅, UA 2251 EWR→MEX 6:39 AM, Uber 4:30 AM.
 - **Master's program** (EM-605) — HW 597 still pending
@@ -85,13 +85,16 @@ The tone: Confident but warm. Wit under pressure. Calm when shit hits the fan.
 
 ## Sleep Patterns & Health Data
 - **Target bedtime**: 9:00-9:30 PM ET, wake 4:30-4:45 AM ET
-- **Actual pattern**: Bedtime ~10:00 PM (30-60 min late), stabilizing around 7:30 AM wake vs target 4:30 AM
+- **Actual pattern**: Bedtime ~10:00 PM (30-60 min late), **wake time stabilized at 7:30 AM** (consistent Feb 20-21 pattern) vs target 4:30 AM
 - **REM issue**: Chronically low at 9.4%. Weekend schedule drift is main killer.
 - **Recovery trends**: Improved from 40% → 85-93% range (major progress). Feb 18: 26% RED day (HRV 83.4, RHR 57)
 - **Weight correction**: Hamel is 140 lbs (not 175). Protein target: 112-140g/day.
 - **Workout schedule**: 5:30 AM most days, Week 8/12 Tonal program
 
 ## Lessons Learned (Reinforced Feb 2026)
+- **Self-healing must be FULLY AUTOMATED with ZERO human intervention** — Tonal auth fixes, immune scans, and healthchecks should catch and resolve issues proactively. If human intervention is required, the self-healing failed. (Feb 20, 2026)
+- **ALWAYS verify file paths in self-healing playbooks** — Wrong paths = silent failures = no actual healing. Path verification is mandatory before execution. (Feb 20, 2026)  
+- **Fitness crons MUST filter workouts by date** — Compare workout beginTime to current date before reporting. Never assume most recent workout = today's workout. (Feb 20, 2026)
 - **Self-healing must be IN SERVICE CODE** — Documentation and playbooks aren't enough. Auto-fixes like token deletion on auth failure must be implemented in the service itself, not just as manual Cortana playbooks. (Feb 19, 2026)
 - **Tonal auth fails?** Delete `tonal_tokens.json` to force re-auth. NEVER ask Chief to fix.
 - **Tier 1 issues auto-fix silently** — Weather down = retry. Missed cron = re-run. Don't alert Chief for transient failures.
