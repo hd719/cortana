@@ -331,7 +331,7 @@ Long-running autonomous agents I spawn for deep work. Named after Halo factions.
 | 7:00 AM daily | ☀️ Morning Brief | News, weather, calendar, API usage |
 | 7:30 AM weekdays | 📈 Stock Market Brief | Portfolio snapshot, material events |
 | 8:00 AM daily | 🏋️ Fitness Morning Brief | Whoop recovery, sleep, readiness |
-| 9:30 AM / 12:30 PM / 3:30 PM wkdy | 📈 Trading Advisor | Market scan for buy setups (350+ stocks, sector-categorized with company names) |
+| 9:30 AM / 12:30 PM / 3:30 PM wkdy | 📈 CANSLIM Alert Scan | CANSLIM market scan with status summary + BUY/WATCH/NO_BUY candidate signals (Telegram) |
 | 10:00 AM daily | 🔧 Daily Upgrade Protocol | Git auto-commit + self-improvement proposal |
 | Every 30 min, 6AM–4PM | 📰 Newsletter Alert | Real-time newsletter detection |
 | Hourly, 6AM–11PM | ⏰ Calendar Reminders | 60-min and 30-min event reminders (silent when nothing due) |
@@ -665,7 +665,7 @@ CANSLIM-based trading advisor with backtesting. Location: `~/Developer/cortana-e
 - `/analyze SYMBOL` — full CANSLIM analysis
 - `/scan` — find opportunities
 
-**Cron:** Scans 3x daily (9:30 AM, 12:30 PM, 3:30 PM) during market hours.
+**Cron:** `📈 CANSLIM Alert Scan (market sessions)` (ID: `9d2f7f92-b9e9-48bc-87b0-a5859bb83927`) runs 3x daily on weekdays (9:30 AM, 12:30 PM, 3:30 PM ET) and sends Telegram alerts with market status + buy/no-buy decisions.
 
 ---
 
