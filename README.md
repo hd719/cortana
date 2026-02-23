@@ -15,7 +15,7 @@
                                        ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │                              CORTANA                                         │
-│              GPT-5.1 Codex Max (OpenAI) · OpenClaw · Mac mini                │
+│              gpt-5.3-codex (OpenAI) · OpenClaw · Mac mini                │
 │                                                                              │
 │  ┌─────────────────────────────────────────────────────────────────────┐     │
 │  │              🧠 Situational Awareness Engine (SAE)                  │     │
@@ -167,7 +167,7 @@ I'm your AI partner, modeled after Cortana from Halo. Not the Microsoft one — 
 
 **Where I live:**
 - Main interface: Telegram
-- Brain: GPT-5.1 Codex Max (OpenAI primary; Claude Opus 4.6 fallback)
+- Brain: gpt-5.3-codex (OpenAI primary; Claude Opus 4.6 fallback)
 - Infrastructure: OpenClaw on Mac mini
 - Awareness: SAE (Situational Awareness Engine) — unified world state across all domains
 - Budget: $200/month OpenAI Pro (Anthropic fallback only)
@@ -264,7 +264,7 @@ Threat Detector ──→ Playbook Match ──→ Execute/Quarantine
 
 **11:00 PM — Learning Loop runs.** It processes all unapplied `cortana_feedback` entries (direct corrections like "don't ping me about bedtime"). If a correction maps to a wake rule name, it generates a feedback signal with -0.15 delta. It checks for repeated lessons: same correction 3+ times in 30 days? That means the rule isn't sticking — it escalates, alerts you, and asks if it should write it into `SOUL.md` for permanent reinforcement. Finally, it applies weight decay (-0.02) to any rule that triggered today but got zero engagement (no 👍, no 👎, nothing — you didn't care enough to react).
 
-**Meanwhile, 24/7 — Proprioception monitors Cortana herself.** Every 15 minutes, shell-based probes check cron health (are all 27+ crons running? any silent failures?) and tool availability (PostgreSQL, Whoop, Tonal, Gmail, weather — all smoke-tested with timeouts). Every 30 minutes, the budget tracker computes spend-to-date, burn rate, and projected monthly cost, then the self-model writer aggregates everything into `cortana_self_model` — a single-row health dashboard. Health score: 100 minus penalties for down tools (-10 each), failing crons (-5), missed crons (-15), throttle tier, and budget overrun. If projected spend crosses 50%/75%/90% of the $100 budget, auto-throttle kicks in: Tier 1 (conservative) reduces non-essential cron frequency and switches Covenant to haiku. Tier 2 (austere) pauses informational crons entirely. Tier 3 (survival) kills everything except critical crons and forces all models to haiku. Throttle can only escalate automatically — de-escalation requires a new billing cycle or Hamel's manual override. At 2:30 AM daily, the efficiency analyzer computes per-cron token costs, sub-agent spawn rates, and brief engagement metrics. Total LLM cost of proprioception: $0. Everything is pure shell + SQL.
+**Meanwhile, 24/7 — Proprioception monitors Cortana herself.** Every 15 minutes, shell-based probes check cron health (are all 27+ crons running? any silent failures?) and tool availability (PostgreSQL, Whoop, Tonal, Gmail, weather — all smoke-tested with timeouts). Every 30 minutes, the budget tracker computes spend-to-date, burn rate, and projected monthly cost, then the self-model writer aggregates everything into `cortana_self_model` — a single-row health dashboard. Health score: 100 minus penalties for down tools (-10 each), failing crons (-5), missed crons (-15), throttle tier, and budget overrun. If projected spend crosses 50%/75%/90% of the $200 budget, auto-throttle kicks in: Tier 1 (conservative) reduces non-essential cron frequency and switches Covenant to haiku. Tier 2 (austere) pauses informational crons entirely. Tier 3 (survival) kills everything except critical crons and forces all models to haiku. Throttle can only escalate automatically — de-escalation requires a new billing cycle or Hamel's manual override. At 2:30 AM daily, the efficiency analyzer computes per-cron token costs, sub-agent spawn rates, and brief engagement metrics. Total LLM cost of proprioception: $0. Everything is pure shell + SQL.
 
 **3:00 AM — Memory Consolidation runs.** Cortana's sleep cycle. It scans the last 1-3 days of `memory/YYYY-MM-DD.md` files, cross-references `cortana_feedback`, `cortana_patterns`, and `cortana_tasks`, and distills the raw logs into long-term knowledge. A decision you made on Tuesday, a preference correction from Thursday, a behavioral pattern detected over the week — all extracted, strengthened in `MEMORY.md`, and the originals archived to `memory/archive/`. Stale entries get pruned — that completed task from 3 weeks ago, the flight that already happened. Then the Dream phase: creative cross-domain associations, the REM sleep equivalent. "You check your portfolio faster on high-recovery mornings." 0-3 dream insights per night, inserted into `cortana_insights` for the morning brief. The raw daily files move to archive; MEMORY.md gets sharper. Every night, Cortana wakes up knowing more and carrying less noise.
 
@@ -298,7 +298,7 @@ Long-running autonomous agents I spawn for deep work. Named after Halo factions.
 
 **Operating model:** On-demand, not scheduled. Cortana spawns agents when there's a reason (pre-trip, pre-earnings, concerning patterns, research requests). More surgical, less overhead.
 
-**Model:** Sub-agents default to **GPT-5.1 Codex Mini** (OpenAI, per openclaw.json) to conserve budget. Main session (Cortana) runs on **GPT-5.1 Codex Max** (OpenAI primary) with **Claude Opus 4.6** as fallback. Crons also run on Codex Mini unless overridden.
+**Model:** Main session and automation use **gpt-5.3-codex** (OpenAI primary) with **Claude Opus 4.6** as fallback where configured.
 
 **Location:** `covenant/` — each agent has SOUL.md (identity) + AGENTS.md (operations)
 
@@ -322,7 +322,7 @@ Long-running autonomous agents I spawn for deep work. Named after Halo factions.
   │    │    │    │    │    │              │              │         │         │    │    │    │
   🖥️   │   ☀️   🏋️   │   🔧            🖥️             │         📰        🌙   🖥️  🔍   🌙
   │    │    │    │  📈│    │             📈             📈         │        🌙    │    │    │
-  │    │    │    │ 9:30    │            12PM           3PM        │       8:30   │    │    │
+  │    │    │    │ 9:30    │            12:30PM        3:30PM        │       8:30   │    │    │
   │    │    │    │ (wkdy)  │           (wkdy)         (wkdy)    (wkdy)   │      │    │    │
 ```
 
@@ -331,7 +331,7 @@ Long-running autonomous agents I spawn for deep work. Named after Halo factions.
 | 7:00 AM daily | ☀️ Morning Brief | News, weather, calendar, API usage |
 | 7:30 AM weekdays | 📈 Stock Market Brief | Portfolio snapshot, material events |
 | 8:00 AM daily | 🏋️ Fitness Morning Brief | Whoop recovery, sleep, readiness |
-| 9:30 AM / 12 PM / 3 PM wkdy | 📈 Trading Advisor | Market scan for buy setups (350+ stocks, sector-categorized with company names) |
+| 9:30 AM / 12:30 PM / 3:30 PM wkdy | 📈 Trading Advisor | Market scan for buy setups (350+ stocks, sector-categorized with company names) |
 | 10:00 AM daily | 🔧 Daily Upgrade Protocol | Git auto-commit + self-improvement proposal |
 | Every 30 min, 6AM–4PM | 📰 Newsletter Alert | Real-time newsletter detection |
 | Hourly, 6AM–11PM | ⏰ Calendar Reminders | 60-min and 30-min event reminders (silent when nothing due) |
@@ -1046,10 +1046,10 @@ Cortana's self-awareness system. Maintains a real-time model of her own health, 
 
 | Tier | Trigger | Actions |
 |------|---------|---------|
-| **0 — Normal** | Budget < 50%, projected < $90 | All systems nominal |
-| **1 — Conservative** | Budget > 50% OR projected > $90 | Covenant → haiku. Non-essential crons reduce frequency |
-| **2 — Austere** | Budget > 75% OR projected > $95 | Disable Covenant (except Monitor). Informational crons pause |
-| **3 — Survival** | Budget > 90% OR projected > $99 | Only critical crons run. All models → haiku. No sub-agent spawns |
+| **0 — Normal** | Budget < 50%, projected < $180 | All systems nominal |
+| **1 — Conservative** | Budget > 50% OR projected > $180 | Covenant → haiku. Non-essential crons reduce frequency |
+| **2 — Austere** | Budget > 75% OR projected > $190 | Disable Covenant (except Monitor). Informational crons pause |
+| **3 — Survival** | Budget > 90% OR projected > $198 | Only critical crons run. All models → haiku. No sub-agent spawns |
 
 Throttle can only **increase** automatically. Decrease requires next billing cycle or manual override.
 
@@ -1071,7 +1071,7 @@ Status: ≥80 nominal · 50-79 degraded · <50 critical
 - **→ SAE:** Self-model feeds into sitrep's "system" domain. Morning brief gains ⚙️ System Health section when status ≠ nominal
 - **→ Cortical Loop:** Health degradation events can trigger LLM wake for intelligent response
 - **→ Memory Consolidation:** Reviews throttle and cron health logs for patterns worth remembering
-- **← Watchdog:** Fully absorbed — cron checks, tool probes, budget guard all migrated here
+- **← Watchdog:** Active external service at `~/Developer/cortana-external/watchdog` (launchd `com.cortana.watchdog`)
 
 **Files:** `proprioception/README.md` (full design), `proprioception/schema.sql` (table definitions)
 
