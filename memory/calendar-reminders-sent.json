@@ -13,7 +13,7 @@
       "sent_at": "2026-02-12T15:20:00Z"
     },
     {
-      "event_id": "_d1gmisj3elq2qrbfchgiqsr1dhnmsb9i60p3cc1i64pk0rrgcln66r31es",
+      "event_id": "_d1gmisj3elq2qrbfchgiqsr1dhnmsb9i64pk0rrgcln66r31es",
       "event_title": "Haircut - Moda Salon",
       "reminder_type": "t60m",
       "sent_at": "2026-02-12T18:00:00Z"
@@ -113,6 +113,12 @@
       "event_title": "2026S SSW 567-WS [Software Testing, Quality Assurance and Maintenance]",
       "reminder_type": "t30m",
       "sent_at": "2026-02-17T23:00:00Z"
+    },
+    {
+      "event_id": "0bpvbvk0n9mdrvpge7p196kos2_20260219T233000Z",
+      "event_title": "2026S SSW 567-A/A-U/WS - Online Lecture",
+      "reminder_type": "t30m",
+      "sent_at": "2026-02-19T23:00:00Z"
     }
   ]
 }

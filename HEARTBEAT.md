@@ -42,6 +42,13 @@ Track last check times in `memory/heartbeat-state.json`.
 - Morning brief catches AM news; this catches PM breaking news
 - Skip if checked within last 4 hours
 
+### Mission Advancement (1x daily, evening)
+- Reverse-prompt: "What is 1 task we can do right now to get closer to our mission statement?"
+- Consider all four pillars: Time, Health, Wealth, Career
+- If the task is auto-executable, add it to cortana_tasks
+- If it needs approval, surface it to Hamel in the next check-in
+- Skip if already proposed a mission task today
+
 ---
 
 ## 🔮 Proactive Intelligence

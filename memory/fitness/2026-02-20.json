@@ -1,0 +1,39 @@
+{
+  "date": "2026-02-20",
+  "morning": {
+    "whoop_recovery": 23,
+    "hrv": 27,
+    "rhr": 59,
+    "sleep_need": "9h 31m",
+    "sleep_debt": "2h 54m",
+    "strain_coach": "2.0 - 10.9"
+  },
+  "evening": {
+    "total_strain": 8.4,
+    "kilojoules": 1247,
+    "max_hr": 142,
+    "activities": [
+      {
+        "type": "workout",
+        "strain": 7.9,
+        "duration": "31m",
+        "activity": "Tonal - 12 Weeks to Jacked"
+      }
+    ],
+    "tonal_workout": {
+      "program": "12 Weeks to Jacked",
+      "total_volume": 16527,
+      "total_reps": 323,
+      "muscle_groups": ["Chest", "Back", "Triceps", "Legs", "Shoulders"],
+      "prs": ["Block Volume", "Strength", "Power"],
+      "duration": "31m 39s",
+      "notes": "Strong performance - multiple PRs across different movements"
+    },
+    "strength_scores": {
+      "overall": 743,
+      "upper": 983,
+      "core": 619,
+      "lower": 628
+    }
+  }
+}

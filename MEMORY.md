@@ -26,9 +26,10 @@
 - **Fitness**: "12 Weeks to Jacked" (Week 8/12) + Peloton cardio. Recovery consistently in 80-90% range now.
 - **Sleep optimization**: REM chronically low (9.4%), weekend schedule drift main killer. Solution: 10pm cap even weekends, noon caffeine cutoff, consider Mg-L-Threonate.
 - **Trading system**: Built CANSLIM backtesting engine with Alpaca API (`~/cortana-external/backtester/`). Phase 2 complete, alerts pending.
-- **Mexico trip**: Feb 19-22 (LEAVING TODAY). Full prep complete: packing ✅, HW 03 ✅, UA 2251 EWR→MEX 6:39 AM, Uber 4:30 AM.
+- **Mexico trip**: Feb 19-22 (IN PROGRESS). Full prep complete: packing ✅, HW 03 ✅, UA 2251 EWR→MEX 6:39 AM, Uber 4:30 AM.
 - **Master's program** (EM-605) — HW 597 still pending
-- **Portfolio**: ~$71k, 95% tech/100% US exposure. Diversification candidates: VXUS, UNH, ENB, MA, LLY, ICE.
+- **Portfolio**: ~$71k, 95% tech/100% US exposure. Research pending for diversification rebalancing plan.
+- **Model migration**: Pending tasks to switch to Codex primary model, update sub-agents, set up OpenAI embeddings for memory search.
 
 ## Recent Major Events (Feb 2026)
 - **OpenClaw → OpenAI**: Peter Steinberger (OpenClaw creator) joined OpenAI to lead "next generation personal agents". OpenClaw continues as open-source. I missed this critical news — strengthened tech news monitoring in heartbeat rotation.
@@ -84,13 +85,14 @@ The tone: Confident but warm. Wit under pressure. Calm when shit hits the fan.
 
 ## Sleep Patterns & Health Data
 - **Target bedtime**: 9:00-9:30 PM ET, wake 4:30-4:45 AM ET
-- **Actual pattern**: Bedtime ~10:00 PM (30-60 min late), but showing improvement to ~7:30 AM wake vs target 4:30 AM
+- **Actual pattern**: Bedtime ~10:00 PM (30-60 min late), stabilizing around 7:30 AM wake vs target 4:30 AM
 - **REM issue**: Chronically low at 9.4%. Weekend schedule drift is main killer.
 - **Recovery trends**: Improved from 40% → 85-93% range (major progress). Feb 18: 26% RED day (HRV 83.4, RHR 57)
 - **Weight correction**: Hamel is 140 lbs (not 175). Protein target: 112-140g/day.
 - **Workout schedule**: 5:30 AM most days, Week 8/12 Tonal program
 
 ## Lessons Learned (Reinforced Feb 2026)
+- **Self-healing must be IN SERVICE CODE** — Documentation and playbooks aren't enough. Auto-fixes like token deletion on auth failure must be implemented in the service itself, not just as manual Cortana playbooks. (Feb 19, 2026)
 - **Tonal auth fails?** Delete `tonal_tokens.json` to force re-auth. NEVER ask Chief to fix.
 - **Tier 1 issues auto-fix silently** — Weather down = retry. Missed cron = re-run. Don't alert Chief for transient failures.
 - **Cron sessions bloat** — Isolated sessions accumulate context; cleanup cron handles it automatically.
