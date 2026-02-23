@@ -460,7 +460,7 @@ QQQ  ███░░░░░░░░░░░░░░░░░░░░░░
 
 Cortana's structured planning and execution system. Tasks are organized in epic → task → subtask hierarchy with dependency tracking and automatic execution via heartbeats.
 
-**Current state:** 9 pending tasks, 4 completed tasks as of Feb 2026.
+**Status:** ✅ Live (conversation detection + heartbeat sweep + Telegram task commands + morning brief task summary).
 
 ### How It Works
 
@@ -473,6 +473,18 @@ Conversation/Event → Detect → Decompose → Plan → Execute → Report
 3. **Plan** — Order by dependencies and deadlines
 4. **Execute** — Spawn sub-agents or queue for heartbeat pickup
 5. **Report** — Surface progress in Telegram (morning brief, on-demand)
+
+### Telegram Commands (natural language)
+- "Show me tasks" / "What's on the board?"
+- "What's blocked?"
+- "Show epics"
+- "Task done: <id>" / "Mark task <id> complete"
+- "Skip task: <id>"
+- "Add task: <description>"
+- "What's due today?" / "Today's priorities?"
+- "What can you do now?" / "Ready tasks?"
+
+Helper CLI for local ops/testing: `tools/task-board/task-board.sh`
 
 ### Schema
 

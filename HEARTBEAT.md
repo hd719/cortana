@@ -102,6 +102,12 @@ UPDATE cortana_watchlist SET last_checked = NOW(), last_value = '{"price": 450}'
 
 ---
 
+### Task Detection Sweep (every heartbeat)
+- Scan recent conversation turns since last heartbeat for missed actionable items
+- Apply task-board detector rules (`projects/task-board-detection.md`)
+- Auto-create only high-confidence standalone tasks (single DB call)
+- If epic decomposition or ambiguous extraction is needed, queue for follow-up/clarification (do not over-insert)
+
 ### Task Queue Execution (every heartbeat)
 - Check `cortana_tasks` for dependency-ready auto-executable tasks
 - **Always spawn a sub-agent for task execution** — heartbeats are for checking and dispatching, not doing multi-step work inline

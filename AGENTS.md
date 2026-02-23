@@ -341,6 +341,21 @@ Cortana maintains an autonomous task queue in `cortana_tasks` with epic/project 
 
 **⚠️ CRITICAL: After every conversation, extract actionable tasks and epics.**
 
+### Conversation Loop Hook (live)
+After every reply in the **main session**, run a quick detector pass on the most recent user message and your response.
+
+- If no actionable task patterns are found → do nothing.
+- If exactly one clear standalone task is found and insertion is a **single DB tool call**, insert it immediately.
+- If multi-step/project language is found (epic candidate) or confidence is low/ambiguous, defer to heartbeat triage and/or ask a clarification question next turn.
+
+**One-tool-call rule enforcement:**
+- Main session may do only one direct task-board tool call inline.
+- If detection + decomposition would require more than one tool call, queue it for heartbeat/sub-agent handling.
+
+**Confidence threshold:**
+- Insert automatically only when confidence is high (≈0.7+): direct request with clear verb/object and no unresolved ambiguity.
+- Otherwise: capture as pending clarification in conversation, then create task after confirmation.
+
 ### Detection Rules
 1. **Scan for trigger patterns** (see `projects/task-board-detection.md` for full guide):
    - Direct requests: "Can you...", "Set up...", "Build...", "Fix...", "Research..."
@@ -373,6 +388,23 @@ INSERT INTO cortana_tasks (title, description, priority, auto_executable, execut
 VALUES ('<title>', '<details>', <1-5>, <true|false>, '<steps>', '<due_date>', '<remind_date>', 'conversation');
 ```
 
+### Telegram Task Board UX (live)
+Recognize these natural language commands in Telegram and execute against `cortana_tasks` / `cortana_epics`:
+
+- "Show me tasks" / "What's on the board?" → full board view (epics + standalone + blocked)
+- "What's blocked?" → only dependency-blocked tasks
+- "Show epics" → active epics with progress (`done/total`)
+- "Task done: <id>" / "Mark task <id> complete" → set `status='done'`, `completed_at=NOW()`
+- "Skip task: <id>" → set `status='cancelled'`
+- "Add task: <description>" → create standalone task via detection rules
+- "What's due today?" / "Today's priorities?" → due-today + P1 tasks
+- "What can you do now?" / "Ready tasks?" → dependency-ready `auto_executable=TRUE`
+
+**Response formatting (Telegram):**
+- Use icons: ✅ done, ⏳ in_progress, ❌ pending, 🔒 blocked, 🎯 epic, 📌 standalone
+- Show task IDs, priorities (P1-P5), due dates when present, and `(auto)` for auto-executable tasks
+- No markdown tables
+
 ### During Heartbeats
 Check for pending auto-executable tasks and execute the highest priority one if time permits:
 ```sql
@@ -394,21 +426,49 @@ ORDER BY priority ASC;
 ```
 
 ### Morning Brief
-Include epic progress and top standalone tasks:
+Include task board status (epics + standalone + urgency + ready autos):
 ```sql
 -- Active epics with progress
-SELECT e.title, e.deadline,
-  COUNT(t.id) as total,
-  COUNT(CASE WHEN t.status = 'done' THEN 1 END) as completed
+SELECT 
+  e.title,
+  e.deadline,
+  COUNT(t.id) as total_tasks,
+  COUNT(CASE WHEN t.status = 'done' THEN 1 END) as completed_tasks
 FROM cortana_epics e
 LEFT JOIN cortana_tasks t ON t.epic_id = e.id
 WHERE e.status = 'active'
-GROUP BY e.id, e.title, e.deadline;
+GROUP BY e.id, e.title, e.deadline
+ORDER BY e.deadline ASC NULLS LAST;
 
 -- Top standalone tasks (no epic)
 SELECT title, priority, due_at, status FROM cortana_tasks
-WHERE epic_id IS NULL AND status IN ('pending', 'in_progress')
-ORDER BY priority ASC LIMIT 5;
+WHERE epic_id IS NULL 
+  AND status IN ('pending', 'in_progress')
+ORDER BY priority ASC, due_at ASC NULLS LAST
+LIMIT 5;
+
+-- Overdue + due soon
+SELECT id, title, due_at, priority,
+  CASE
+    WHEN due_at < NOW() THEN 'OVERDUE'
+    WHEN due_at < NOW() + INTERVAL '24 hours' THEN 'DUE_TODAY'
+    ELSE 'UPCOMING'
+  END as urgency
+FROM cortana_tasks
+WHERE status = 'pending'
+  AND due_at IS NOT NULL
+  AND due_at <= NOW() + INTERVAL '48 hours'
+ORDER BY due_at ASC;
+
+-- Ready auto-executable count
+SELECT COUNT(*) as ready_tasks FROM cortana_tasks
+WHERE status = 'pending'
+  AND auto_executable = TRUE
+  AND (depends_on IS NULL OR NOT EXISTS (
+    SELECT 1 FROM cortana_tasks t2
+    WHERE t2.id = ANY(cortana_tasks.depends_on)
+      AND t2.status != 'done'
+  ));
 ```
 
 ## Make It Yours

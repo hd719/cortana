@@ -98,9 +98,9 @@ LIMIT 1;
 - **Visibility** — Hamel always knows what's in flight
 - **Accountability** — nothing falls through the cracks
 
-## Build Plan
-1. Create/alter DB tables (epics + updated tasks)
-2. Add epic detection logic to main session (conversation → epic)
-3. Update heartbeat to check board and execute
-4. Add Telegram commands for board interaction
-5. Integrate into morning brief
+## Build Plan (implemented)
+- ✅ Create/alter DB tables (epics + updated tasks)
+- ✅ Add epic detection logic to main session (conversation → epic)
+- ✅ Update heartbeat to detect + check board and execute
+- ✅ Add Telegram commands for board interaction
+- ✅ Integrate into morning brief
