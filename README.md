@@ -484,8 +484,11 @@ Conversation/Event → Detect → Decompose → Plan → Execute → Report
 - "Add task: <description>"
 - "What's due today?" / "Today's priorities?"
 - "What can you do now?" / "Ready tasks?"
+- "Show task counts" / "Task board counts" (status + priority breakdown)
+- "Task summary" / "Quick task summary" (active count + top tasks)
 
-Helper CLI for local ops/testing: `tools/task-board/task-board.sh`
+Helper CLI for local ops/testing: `tools/task-board/task-board.sh`  
+Examples: `task-board.sh counts` (status/priority totals), `task-board.sh summary` (active count + top 5 active tasks).
 
 ### Schema
 

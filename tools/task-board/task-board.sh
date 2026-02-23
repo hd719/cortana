@@ -14,6 +14,8 @@ Usage:
   task-board.sh epics
   task-board.sh ready
   task-board.sh due-today
+  task-board.sh counts
+  task-board.sh summary
   task-board.sh view <id>
   task-board.sh done <id>
   task-board.sh skip <id>
@@ -41,6 +43,12 @@ case "$cmd" in
     ;;
   due-today)
     query "SELECT id, title, priority, due_at FROM cortana_tasks WHERE status='pending' AND (due_at::date=CURRENT_DATE OR priority=1) ORDER BY priority ASC, due_at ASC NULLS LAST;"
+    ;;
+  counts)
+    query "SELECT 'active' AS metric, COUNT(*) AS count FROM cortana_tasks WHERE status IN ('pending','in_progress','blocked'); SELECT status, COUNT(*) AS count FROM cortana_tasks GROUP BY status ORDER BY CASE status WHEN 'pending' THEN 1 WHEN 'in_progress' THEN 2 WHEN 'blocked' THEN 3 WHEN 'done' THEN 4 ELSE 5 END, status; SELECT priority, COUNT(*) AS count FROM cortana_tasks WHERE status IN ('pending','in_progress','blocked') GROUP BY priority ORDER BY priority ASC;"
+    ;;
+  summary)
+    query "SELECT COUNT(*) AS active_tasks FROM cortana_tasks WHERE status IN ('pending','in_progress','blocked'); SELECT id, title, status, priority, due_at FROM cortana_tasks WHERE status IN ('pending','in_progress','blocked') ORDER BY priority ASC, due_at ASC NULLS LAST, created_at ASC LIMIT 5;"
     ;;
   view)
     id="${2:-}"; [[ -n "$id" ]] || { usage; exit 1; }
