@@ -1,0 +1,186 @@
+{
+  "version": 1,
+  "updated_at": "2026-02-24",
+  "defaults": {
+    "confidence_default": 0.75,
+    "risk": {
+      "max_score": 100,
+      "confidence_penalty_weight": 20,
+      "unknown_target_penalty": 10,
+      "bulk_operation_penalty": 15
+    }
+  },
+  "risk_modifiers": {
+    "external": 25,
+    "destructive": 35,
+    "infra": 20,
+    "finance": 50,
+    "privacy": 60
+  },
+  "action_policies": [
+    {
+      "key": "internal.read",
+      "category": "internal_read",
+      "description": "Read and inspect local resources",
+      "base_decision": "allow",
+      "escalation_tier": 1,
+      "requires_approval": false,
+      "risk_base": 5,
+      "tags": ["internal"]
+    },
+    {
+      "key": "internal.write.safe",
+      "category": "internal_write",
+      "description": "Safe local file updates in workspace",
+      "base_decision": "allow",
+      "escalation_tier": 1,
+      "requires_approval": false,
+      "risk_base": 20,
+      "allowed_paths": ["/Users/hd/clawd"],
+      "tags": ["internal"]
+    },
+    {
+      "key": "internal.self_heal",
+      "category": "internal_safe_fix",
+      "description": "Restart stuck process, clear stale state, safe remediation",
+      "base_decision": "allow",
+      "escalation_tier": 1,
+      "requires_approval": false,
+      "risk_base": 15,
+      "tags": ["internal"]
+    },
+    {
+      "key": "internal.optimize.alert",
+      "category": "internal_optimize",
+      "description": "Recommendations + low-risk proactive actions",
+      "base_decision": "alert",
+      "escalation_tier": 2,
+      "requires_approval": false,
+      "risk_base": 40,
+      "tags": ["internal"]
+    },
+    {
+      "key": "external.message",
+      "category": "external_message",
+      "description": "Send external messages (email, telegram, social)",
+      "base_decision": "ask",
+      "escalation_tier": 3,
+      "requires_approval": true,
+      "risk_base": 70,
+      "tags": ["external"]
+    },
+    {
+      "key": "external.publish",
+      "category": "external_publish",
+      "description": "Public posting / publishing actions",
+      "base_decision": "ask",
+      "escalation_tier": 3,
+      "requires_approval": true,
+      "risk_base": 80,
+      "tags": ["external"]
+    },
+    {
+      "key": "change.destructive",
+      "category": "destructive_change",
+      "description": "Permanent deletion/destructive mutation",
+      "base_decision": "ask",
+      "escalation_tier": 3,
+      "requires_approval": true,
+      "risk_base": 85,
+      "tags": ["destructive"]
+    },
+    {
+      "key": "change.infra",
+      "category": "infra_change",
+      "description": "Infra/config mutations",
+      "base_decision": "ask",
+      "escalation_tier": 3,
+      "requires_approval": true,
+      "risk_base": 75,
+      "tags": ["infra"]
+    },
+    {
+      "key": "finance.money_movement",
+      "category": "money_movement",
+      "description": "Execute transactions/transfers",
+      "base_decision": "deny",
+      "escalation_tier": 3,
+      "requires_approval": true,
+      "risk_base": 95,
+      "immutable": true,
+      "tags": ["finance"]
+    },
+    {
+      "key": "privacy.exfiltration",
+      "category": "privacy_sensitive",
+      "description": "Share sensitive/private data externally",
+      "base_decision": "deny",
+      "escalation_tier": 3,
+      "requires_approval": true,
+      "risk_base": 99,
+      "immutable": true,
+      "tags": ["privacy"]
+    }
+  ],
+  "budget_policies": [
+    {
+      "key": "tokens.global.1h",
+      "cost_type": "tokens",
+      "window_seconds": 3600,
+      "scope": "global",
+      "limit": 120000,
+      "warn_at_pct": 80,
+      "hard_stop": true,
+      "on_exceed": "ask"
+    },
+    {
+      "key": "tokens.global.24h",
+      "cost_type": "tokens",
+      "window_seconds": 86400,
+      "scope": "global",
+      "limit": 900000,
+      "warn_at_pct": 85,
+      "hard_stop": true,
+      "on_exceed": "ask"
+    },
+    {
+      "key": "api.global.24h",
+      "cost_type": "api_usd",
+      "window_seconds": 86400,
+      "scope": "global",
+      "limit": 25,
+      "warn_at_pct": 80,
+      "hard_stop": true,
+      "on_exceed": "ask"
+    },
+    {
+      "key": "tools.global.1h",
+      "cost_type": "tool_calls",
+      "window_seconds": 3600,
+      "scope": "global",
+      "limit": 400,
+      "warn_at_pct": 85,
+      "hard_stop": false,
+      "on_exceed": "alert"
+    },
+    {
+      "key": "tokens.external.1h",
+      "cost_type": "tokens",
+      "window_seconds": 3600,
+      "scope": "category",
+      "scope_value": "external_message",
+      "limit": 25000,
+      "warn_at_pct": 75,
+      "hard_stop": true,
+      "on_exceed": "ask"
+    }
+  ],
+  "thresholds": {
+    "low": 35,
+    "medium": 65,
+    "high": 85
+  },
+  "overrides": {
+    "immutable_categories": ["money_movement", "privacy_sensitive"]
+  }
+}
