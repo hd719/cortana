@@ -107,4 +107,18 @@ if [ -n "$DECAYABLE" ]; then
   done
 fi
 
+# ============================================================
+# 4. Reflection sweep (task reflections + rule extraction + policy updates)
+# ============================================================
+if [ -x "$HOME/clawd/tools/reflection/reflect.py" ]; then
+  REFLECTION_OUT=$(python3 "$HOME/clawd/tools/reflection/reflect.py" --mode sweep --trigger-source cron --window-days 30 2>&1)
+  if [ $? -eq 0 ]; then
+    log "Reflection sweep completed: $REFLECTION_OUT"
+  else
+    log "Reflection sweep failed: $REFLECTION_OUT"
+  fi
+else
+  log "Reflection sweep skipped: tools/reflection/reflect.py not executable"
+fi
+
 log "=== Learning Loop complete ==="

@@ -272,14 +272,18 @@ Hamel: "Don't use heart emojis, we're not like that"
 → Confirm: "Got it. Logged and updated MEMORY.md — no hearts, 🫡 only."
 
 ### Review Cycle
-During weekly memory consolidation, review `cortana_feedback` for patterns:
-```sql
-SELECT feedback_type, COUNT(*) FROM cortana_feedback 
-WHERE timestamp > NOW() - INTERVAL '7 days' 
-GROUP BY feedback_type;
+Automated reflection loop now runs daily (heartbeat + cortical-loop):
+```bash
+python3 /Users/hd/clawd/tools/reflection/reflect.py --mode sweep --trigger-source heartbeat --window-days 30
 ```
 
-If same type of correction repeats → the rule isn't strong enough → strengthen it.
+It writes:
+- `cortana_task_reflections` (post-task failures/near-misses)
+- `cortana_reflection_rules` (confidence-scored rule extraction)
+- `cortana_reflection_runs` (includes repeated correction rate KPI)
+- `cortana_reflection_journal` (structured learning log)
+
+If repeated correction rate rises, treat it as a broken-rule alert and strengthen policy language in AGENTS/SOUL/MEMORY.
 
 ## 🔮 Proactive Intelligence & Self-Healing
 
