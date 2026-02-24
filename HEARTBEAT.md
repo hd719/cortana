@@ -54,6 +54,11 @@ Track last check times in `memory/heartbeat-state.json`.
 - If it needs approval, surface it to Hamel in the next check-in
 - Skip if already proposed a mission task today
 
+### Unified Memory Ingestion (1-2x daily)
+- Run: `python3 /Users/hd/clawd/tools/memory/ingest_unified_memory.py --since-hours 24`
+- Purpose: keep episodic/semantic/procedural memory tables fresh
+- Skip if run in past 12h and no major new corrections/events
+
 ---
 
 ## 🔮 Proactive Intelligence
