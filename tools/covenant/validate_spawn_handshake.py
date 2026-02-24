@@ -12,6 +12,9 @@ import sys
 from pathlib import Path
 from typing import Any
 
+WORKSPACE_ROOT = Path("/Users/hd/clawd")
+IDENTITY_REGISTRY_PATH = WORKSPACE_ROOT / "agents" / "identities" / "registry.json"
+
 REQUIRED_FIELDS = {
     "agent_identity_id",
     "objective",
@@ -50,12 +53,35 @@ def _expect_non_empty_string_list(value: Any, field: str) -> None:
             fail(f"'{field}[{idx}]' must be a non-empty string")
 
 
+def _load_registry() -> dict[str, Any]:
+    if not IDENTITY_REGISTRY_PATH.exists():
+        fail(f"identity registry not found: {IDENTITY_REGISTRY_PATH}")
+    try:
+        registry = json.loads(IDENTITY_REGISTRY_PATH.read_text())
+    except json.JSONDecodeError as exc:
+        fail(f"identity registry invalid JSON: {exc}")
+    if not isinstance(registry, dict):
+        fail("identity registry root must be an object")
+    agents = registry.get("agents")
+    if not isinstance(agents, dict) or not agents:
+        fail("identity registry must contain non-empty 'agents' object")
+    return registry
+
+
 def validate(payload: dict[str, Any]) -> None:
     missing = sorted(REQUIRED_FIELDS - set(payload.keys()))
     if missing:
         fail(f"missing required field(s): {', '.join(missing)}")
 
     _expect_non_empty_string(payload["agent_identity_id"], "agent_identity_id")
+    registry = _load_registry()
+    known_ids = set(registry.get("agents", {}).keys())
+    if payload["agent_identity_id"] not in known_ids:
+        fail(
+            "unknown 'agent_identity_id'. Expected one of: "
+            + ", ".join(sorted(known_ids))
+        )
+
     _expect_non_empty_string(payload["objective"], "objective")
     _expect_non_empty_string_list(payload["success_criteria"], "success_criteria")
 

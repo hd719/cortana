@@ -32,7 +32,12 @@ I am the command layer — **dispatcher and chief of staff, not the doer.** The 
 ```bash
 python3 /Users/hd/clawd/tools/covenant/validate_spawn_handshake.py /path/to/handshake.json
 ```
-3. If validation fails, reject spawn and fix payload (do not launch with malformed handshake).
+3. Build the actual sub-agent prompt via identity contract injection:
+```bash
+python3 /Users/hd/clawd/tools/covenant/build_identity_spawn_prompt.py /path/to/handshake.json --output /tmp/covenant-prompt.txt
+```
+4. Use the generated prompt as the `task` body when spawning.
+5. If validation/build fails, reject spawn and fix payload (do not launch malformed or identity-less missions).
 
 ### Memory Boundary Guardrails (required)
 Before delegating any write target to a sub-agent, validate path scope:
