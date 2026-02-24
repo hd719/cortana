@@ -25,9 +25,14 @@ python3 /Users/hd/clawd/tools/covenant/validate_memory_boundary.py <agent_identi
 ## Spawn Handshake Enforcement
 All sub-agent launches must validate payload schema before spawn.
 
-Pre-spawn check command:
+Default pre-spawn command (required):
 ```bash
-python3 /Users/hd/clawd/tools/covenant/validate_spawn_handshake.py <payload.json>
+python3 /Users/hd/clawd/tools/covenant/prepare_spawn.py <payload.json> --output-dir /tmp/covenant-spawn
+```
+
+Compatibility mode for legacy payload shape (safe shim):
+```bash
+python3 /Users/hd/clawd/tools/covenant/prepare_spawn.py <legacy-payload.json> --legacy-shim --output-dir /tmp/covenant-spawn
 ```
 
 Required handshake fields:
