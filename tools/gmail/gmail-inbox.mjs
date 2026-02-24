@@ -1,19 +1,4 @@
-import fs from 'node:fs';
-import os from 'node:os';
-import path from 'node:path';
-import { google } from 'googleapis';
-
-const OAUTH_PATH = process.env.GMAIL_OAUTH_PATH || path.join(os.homedir(), '.config', 'clawdbot', 'google-oauth.json');
-const TOKEN_PATH = process.env.GMAIL_TOKEN_PATH || path.join(os.homedir(), '.config', 'clawdbot', 'google-token.json');
-
-function readJson(p) {
-  return JSON.parse(fs.readFileSync(p, 'utf8'));
-}
-
-function hdr(headers, name) {
-  const h = (headers || []).find((x) => (x.name || '').toLowerCase() === name.toLowerCase());
-  return h?.value || '';
-}
+import { execFileSync } from 'node:child_process';
 
 function extractUrls(text) {
   if (!text) return [];
@@ -24,61 +9,52 @@ function extractUrls(text) {
   return [...new Set(out)];
 }
 
-async function main() {
-  if (!fs.existsSync(OAUTH_PATH) || !fs.existsSync(TOKEN_PATH)) {
-    console.error('Missing oauth/token. Run gmail-auth.mjs first.');
-    process.exit(1);
-  }
-
-  const { client_id, client_secret } = readJson(OAUTH_PATH);
-  const tokens = readJson(TOKEN_PATH);
-
-  const oAuth2Client = new google.auth.OAuth2({
-    clientId: client_id,
-    clientSecret: client_secret,
-  });
-  oAuth2Client.setCredentials(tokens);
-
-  const gmail = google.gmail({ version: 'v1', auth: oAuth2Client });
-
-  // Defaults: all unread (user request). Can override via env.
-  const q = process.env.GMAIL_QUERY || 'is:unread';
-  const max = Number(process.env.GMAIL_MAX || 25);
-
-  const list = await gmail.users.messages.list({ userId: 'me', q, maxResults: max });
-  const ids = (list.data.messages || []).map((m) => m.id).filter(Boolean);
-
-  const out = [];
-  for (const id of ids) {
-    const msg = await gmail.users.messages.get({
-      userId: 'me',
-      id,
-      format: 'metadata',
-      metadataHeaders: ['From', 'To', 'Subject', 'Date', 'List-Id', 'List-Unsubscribe'],
-    });
-
-    const payload = msg.data.payload;
-    const snippet = msg.data.snippet || '';
-    const urls = extractUrls(snippet);
-
-    out.push({
-      id,
-      threadId: msg.data.threadId,
-      from: hdr(payload?.headers, 'From'),
-      subject: hdr(payload?.headers, 'Subject'),
-      date: hdr(payload?.headers, 'Date'),
-      listId: hdr(payload?.headers, 'List-Id'),
-      listUnsubscribe: hdr(payload?.headers, 'List-Unsubscribe'),
-      snippet,
-      urls,
-      gmailUrl: `https://mail.google.com/mail/u/0/#inbox/${id}`,
-    });
-  }
-
-  console.log(JSON.stringify({ query: q, count: out.length, messages: out }, null, 2));
+function looksNewsletter(t = {}) {
+  const from = (t.from || '').toLowerCase();
+  const labels = (t.labels || []).map((x) => String(x).toUpperCase());
+  return (
+    labels.includes('CATEGORY_UPDATES') ||
+    from.includes('substack') ||
+    from.includes('newsletter') ||
+    from.includes('morningbrew') ||
+    from.includes('tldr') ||
+    from.includes('cooperpress')
+  );
 }
 
-main().catch((e) => {
-  console.error(e);
+function main() {
+  const q = process.env.GMAIL_QUERY || 'is:unread';
+  const max = Number(process.env.GMAIL_MAX || 25);
+  const account = process.env.GOG_ACCOUNT || 'hameldesai3@gmail.com';
+
+  const raw = execFileSync(
+    'gog',
+    ['--account', account, 'gmail', 'search', q, '--max', String(max), '--json'],
+    { encoding: 'utf8' }
+  );
+
+  const parsed = JSON.parse(raw);
+  const threads = parsed.threads || [];
+
+  const messages = threads.map((t) => ({
+    id: t.id,
+    threadId: t.id,
+    from: t.from || '',
+    subject: t.subject || '',
+    date: t.date || '',
+    listId: looksNewsletter(t) ? 'newsletter-like' : '',
+    listUnsubscribe: '',
+    snippet: '',
+    urls: extractUrls(`${t.subject || ''} ${t.from || ''}`),
+    gmailUrl: `https://mail.google.com/mail/u/0/#inbox/${t.id}`,
+  }));
+
+  console.log(JSON.stringify({ query: q, count: messages.length, messages }, null, 2));
+}
+
+try {
+  main();
+} catch (e) {
+  console.error(e?.stderr || e?.message || e);
   process.exit(1);
-});
+}
