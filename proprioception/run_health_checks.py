@@ -4,6 +4,7 @@ import json
 import os
 import subprocess
 import time
+from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
 
@@ -139,7 +140,22 @@ def collect_cron_health(jobs: List[Dict[str, Any]], now_ms: int) -> List[Dict[st
         interval_ms = estimate_interval_ms(job, state, sched)
 
         if not last_run:
-            status = "missed"
+            # One-time jobs that are scheduled for the future should not be marked missed.
+            if sched.get("kind") == "at":
+                at_iso = sched.get("at")
+                next_run = state.get("nextRunAtMs")
+                if next_run and int(next_run) > now_ms:
+                    status = "ok"
+                elif at_iso:
+                    try:
+                        at_epoch_ms = int(datetime.fromisoformat(at_iso.replace("Z", "+00:00")).timestamp() * 1000)
+                        status = "ok" if at_epoch_ms > now_ms else "missed"
+                    except Exception:
+                        status = "missed"
+                else:
+                    status = "missed"
+            else:
+                status = "missed"
         elif last_status and last_status not in {"ok", "skipped"}:
             status = "failed"
         elif interval_ms > 0 and (now_ms - int(last_run)) > interval_ms * 2:

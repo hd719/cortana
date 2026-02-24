@@ -2,7 +2,16 @@
   "services": {
     "tonal": {
       "endpoint": "http://localhost:8080/tonal/health",
-      "healthCheck": "curl -s http://localhost:8080/tonal/health",
+      "fallbackEndpoint": "http://localhost:3033/tonal/health",
+      "healthCheck": "tools/alerting/tonal-health-check.sh",
+      "assignee": "monitor@local",
+      "timeoutRetry": {
+        "connectTimeoutSeconds": 3,
+        "readTimeoutSeconds": 8,
+        "maxAttempts": 3,
+        "retrySleepSeconds": 2
+      },
+      "checkpointSeconds": 300,
       "dependents": ["fitness-morning-brief", "fitness-evening-recap", "weekly-fitness-insights"]
     },
     "whoop": {
