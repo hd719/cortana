@@ -1,0 +1,154 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://clawd.local/tools/covenant/protocol_schema.json",
+  "title": "Covenant Planner-Critic-Executor Protocol v2",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "request": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "request_id": {"type": "string", "minLength": 1},
+        "objective": {"type": "string", "minLength": 1},
+        "intents": {"type": "array", "items": {"type": "string"}},
+        "workflow_type": {"type": "string"},
+        "handoff_pattern": {"type": "string"},
+        "max_steps": {"type": "integer", "minimum": 1},
+        "resource_budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "max_total_timeout_seconds": {"type": "integer", "minimum": 1},
+            "max_total_retries": {"type": "integer", "minimum": 0}
+          }
+        }
+      },
+      "required": ["objective"]
+    },
+    "plan": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "version": {"type": "string", "const": "covenant-pce-v2"},
+        "mode": {"type": "string", "enum": ["single_agent", "handoff_chain"]},
+        "selected_pattern": {"type": ["string", "null"]},
+        "routing_reason": {"type": "string"},
+        "steps": {
+          "type": "array",
+          "minItems": 1,
+          "items": {"$ref": "#/$defs/step"}
+        },
+        "quality_gates": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "pre_execution": {"$ref": "#/$defs/quality_gate"},
+            "pre_completion": {"$ref": "#/$defs/quality_gate"}
+          },
+          "required": ["pre_execution", "pre_completion"]
+        }
+      },
+      "required": ["version", "mode", "routing_reason", "steps", "quality_gates"]
+    },
+    "critique": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "approved": {"type": "boolean"},
+        "requires_human_review": {"type": "boolean"},
+        "issues": {"type": "array", "items": {"type": "string"}},
+        "warnings": {"type": "array", "items": {"type": "string"}},
+        "resource_budget": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "total_timeout_seconds": {"type": "integer", "minimum": 0},
+            "total_retries": {"type": "integer", "minimum": 0}
+          },
+          "required": ["total_timeout_seconds", "total_retries"]
+        }
+      },
+      "required": ["approved", "requires_human_review", "issues", "warnings", "resource_budget"]
+    },
+    "execution": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "state": {"type": "string", "enum": ["queued", "running", "blocked", "completed"]},
+        "current_step_id": {"type": ["string", "null"]},
+        "next_action": {"type": "string"},
+        "retry_decision": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "action": {"type": "string", "enum": ["retry_same_agent", "escalate_immediately", "escalate_with_route_suggestion", "mark_failed", "none"]},
+            "route_to": {"type": ["string", "null"]},
+            "reason": {"type": "string"}
+          },
+          "required": ["action", "route_to", "reason"]
+        }
+      },
+      "required": ["state", "current_step_id", "next_action", "retry_decision"]
+    }
+  },
+  "$defs": {
+    "quality_gate": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {"type": "string", "minLength": 1},
+        "required": {"type": "boolean"},
+        "checks": {"type": "array", "minItems": 1, "items": {"type": "string"}}
+      },
+      "required": ["name", "required", "checks"]
+    },
+    "retry_policy": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "max_retries": {"type": "integer", "minimum": 0},
+        "retry_on": {"type": "array", "items": {"type": "string"}},
+        "escalate_on": {"type": "array", "items": {"type": "string"}},
+        "timeout_seconds": {"type": "integer", "minimum": 1}
+      },
+      "required": ["max_retries", "retry_on", "escalate_on", "timeout_seconds"]
+    },
+    "handoff": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "input_contract": {"type": "array", "items": {"type": "string"}},
+        "output_contract": {"type": "array", "items": {"type": "string"}},
+        "deliver_to_step_id": {"type": ["string", "null"]}
+      },
+      "required": ["input_contract", "output_contract", "deliver_to_step_id"]
+    },
+    "step": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "step_id": {"type": "string", "minLength": 1},
+        "agent_identity_id": {"type": "string", "minLength": 1},
+        "objective": {"type": "string", "minLength": 1},
+        "depends_on": {"type": "array", "items": {"type": "string"}},
+        "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+        "confidence_threshold": {"type": "number", "minimum": 0, "maximum": 1},
+        "retry_policy": {"$ref": "#/$defs/retry_policy"},
+        "quality_gate": {"$ref": "#/$defs/quality_gate"},
+        "handoff": {"$ref": "#/$defs/handoff"}
+      },
+      "required": [
+        "step_id",
+        "agent_identity_id",
+        "objective",
+        "depends_on",
+        "confidence",
+        "confidence_threshold",
+        "retry_policy",
+        "quality_gate",
+        "handoff"
+      ]
+    }
+  }
+}
