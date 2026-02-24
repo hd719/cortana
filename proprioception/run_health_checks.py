@@ -409,7 +409,6 @@ def collect_memory_health_summary() -> Dict[str, Any]:
     except Exception:
         return {}
 
-
 def build_sql(tool_rows: List[Dict[str, Any]], cron_rows: List[Dict[str, Any]], events: List[Dict[str, Any]]) -> str:
     stmts = []
     for row in tool_rows:
