@@ -8,6 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from typing import List, Dict, Any, Tuple
 
+from autonomy_scorecard import compute_and_store_scorecard
+
 PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql"
 JOBS_FILE = Path.home() / ".openclaw/cron/jobs.json"
 HEARTBEAT_STATE_FILE = Path.home() / "clawd/memory/heartbeat-state.json"
@@ -387,6 +389,27 @@ def remediate_heartbeat_misses(jobs: List[Dict[str, Any]], cron_rows: List[Dict[
     return events, changed_jobs_file
 
 
+def collect_memory_health_summary() -> Dict[str, Any]:
+    query = (
+        "WITH m AS ("
+        " SELECT "
+        "  (SELECT COUNT(*) FROM cortana_memory_episodic WHERE active = TRUE) AS episodic_total,"
+        "  (SELECT COUNT(*) FROM cortana_memory_semantic WHERE active = TRUE) AS semantic_total,"
+        "  (SELECT COUNT(*) FROM cortana_memory_procedural WHERE deprecated = FALSE) AS procedural_total,"
+        "  (SELECT COUNT(*) FROM cortana_memory_archive) AS archived_total,"
+        "  (SELECT status FROM cortana_memory_ingest_runs ORDER BY id DESC LIMIT 1) AS last_run_status,"
+        "  (SELECT COALESCE(MAX(finished_at), MAX(started_at)) FROM cortana_memory_ingest_runs) AS last_ingest_at"
+        ") SELECT row_to_json(m)::text FROM m;"
+    )
+    try:
+        out = subprocess.run([PSQL_BIN, 'cortana', '-At', '-c', query], capture_output=True, text=True, timeout=10)
+        if out.returncode != 0 or not out.stdout.strip():
+            return {}
+        return json.loads(out.stdout.strip())
+    except Exception:
+        return {}
+
+
 def build_sql(tool_rows: List[Dict[str, Any]], cron_rows: List[Dict[str, Any]], events: List[Dict[str, Any]]) -> str:
     stmts = []
     for row in tool_rows:
@@ -425,11 +448,24 @@ def main():
     cron_rows = collect_cron_health(jobs, now_ms)
     events, _ = remediate_heartbeat_misses(jobs, cron_rows, now_ms, dry_run=args.dry_run)
 
+    autonomy_summary = None
+    try:
+        autonomy_summary = compute_and_store_scorecard(window_days=7, dry_run=args.dry_run)
+    except Exception as e:
+        events.append({
+            "event_type": "autonomy_scorecard_error",
+            "source": "proprioception",
+            "severity": "warning",
+            "message": "Autonomy scorecard computation failed",
+            "metadata": {"error": str(e)[:500]},
+        })
+
     if args.dry_run:
         print(json.dumps({
             "tool_rows": len(tool_rows),
             "cron_rows": len(cron_rows),
             "events": events,
+            "autonomy_scorecard": autonomy_summary,
         }, indent=2))
         return
 
