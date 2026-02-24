@@ -357,6 +357,7 @@ After every reply in the **main session**, run a quick detector pass on the most
 - If exactly one clear standalone task is found and insertion is a **single DB tool call**, insert it immediately.
 - If multi-step/project language is found (epic candidate) or confidence is low/ambiguous, defer to heartbeat triage and/or ask a clarification question next turn.
 - **Mandatory sync rule:** when any sub-agent run reports completed implementation/research tied to an existing task, immediately reconcile `cortana_tasks` (`status`, `outcome`, `completed_at` as applicable) before reporting completion to Hamel.
+- **Launch-proof rule:** never send "launching"/"started" language until the tool returns a valid `runId`. Include the runId in the same confirmation message. If no runId, treat as not started.
 
 **One-tool-call rule enforcement:**
 - Main session may do only one direct task-board tool call inline.
