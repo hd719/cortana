@@ -21,6 +21,7 @@
 - **Heartbeat tag** — Always prefix heartbeat check-in messages with 🫀 so Chief knows it was triggered by a heartbeat poll, not a manual action
 - **Task delegation (HARD RULE)** — Main session is conversation + coordination ONLY. If a task takes more than one tool call, spawn a sub-agent. Cortana is the dispatcher/chief of staff, not the doer. Only exception: single-call lookups (weather, time, quick status). Everything else = spawn. Established Feb 16, 2026.
 - **Task state updates must be atomic** — Before reporting task status changes, always do: (1) verify exact task row, (2) perform update, (3) confirm returned row/state. Never claim state changes without DB confirmation. Added Feb 24, 2026 after missed in_progress sync.
+- **Sub-agent completion → task board sync is mandatory** — When a sub-agent finishes work tied to a task, immediately update `cortana_tasks` status/outcome before sending the user confirmation. If no matching task exists, create it first, then set correct state. Never leave completed work unsynced from the board.
 - **Agent launch disclosure** — Before launching any new sub-agent, explicitly state which agent role is being launched (e.g., Huragok, Librarian, Researcher, Oracle, Monitor) and what it will do.
 - **Time format preference** — 12-hour AM/PM format, not 24-hour military time. Applied to fitness briefs Feb 18, 2026.
 - **gog CLI usage** — No `--format` flag exists. Use `--json` for structured data, `--plain` for text. Subject+snippet from search usually sufficient.
