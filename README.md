@@ -272,6 +272,23 @@ Threat Detector ──→ Playbook Match ──→ Execute/Quarantine
 
 ---
 
+## Autonomy & Self-Improvement Systems (Feb 2026)
+
+These systems formalize how Cortana remembers, reflects, decides, and self-corrects with auditable traces and reliability testing.
+
+| System | What It Adds | Key Files |
+|-------|---------------|-----------|
+| **Unified Memory Engine** | Multi-tier memory model (episodic, semantic, procedural) with salience scoring, decay behavior, and provenance tracking | `tools/memory/`, `migrations/005` |
+| **Reflection & Learning Loop** | Post-task reflection pipeline, confidence-scored rule extraction, auto-application to policy docs, and repeated correction rate KPI tracking | `tools/reflection/reflect.py`, `migrations/007` |
+| **Autonomy Scorecard** | 7 KPI scorecard: self-heal rate, proactive hit rate, task completion, correction frequency, response quality, memory accuracy, uptime; integrated into proprioception checks | `proprioception/autonomy_scorecard.py`, `migrations/006` |
+| **Proactive Opportunity Detector** | Cross-signal correlation across calendar, portfolio, email, and behavior patterns with confidence gating before action | `tools/proactive/detect.py`, `migrations/008` |
+| **Autonomy Policy Engine** | Formal policy enforcement for action permissions, budget controls, risk scoring, escalation rules, and audit trails | `tools/policy/engine.py`, `tools/policy/policies.yaml`, `migrations/009` |
+| **Decision Tracing** | Structured logs for reasoning, confidence, outcomes, and trigger linkage for post-hoc review and accountability | `tools/tracing/log_decision.py`, `migrations/010` |
+| **Covenant v2 Orchestration** | Planner → Critic → Executor protocol with confidence thresholds and quality gates before execution | `tools/covenant/planner.py`, `tools/covenant/critic.py`, `tools/covenant/executor.py`, `tools/covenant/protocol_schema.json` |
+| **Reliability Chaos Suite** | Fault-injection harness with 5 resilience scenarios and MTTR scorecards for recovery benchmarking | `tools/chaos/runner.py`, `tools/chaos/scenarios/`, `tools/chaos/mttr.py`, `migrations/011` |
+
+---
+
 ## The Covenant (Sub-Agents)
 
 Long-running autonomous agents I spawn for deep work. Named after Halo factions.
@@ -1238,6 +1255,14 @@ Cortana uses a local PostgreSQL database for structured data.
 | `cortana_tool_health` | Tool availability history (up/down, response time, self-heal) |
 | `cortana_throttle_log` | Auto-throttle tier change events |
 | `cortana_feedback_signals` | Reaction/behavioral/correction signals for weight adjustment |
+| `cortana_memory_items` | Unified Memory Engine storage across episodic/semantic/procedural tiers with salience + provenance |
+| `cortana_memory_links` | Memory relationship graph and reinforcement/decay linkage |
+| `cortana_reflection_runs` | Reflection loop run tracking, including repeated correction rate KPI |
+| `cortana_reflection_rules` | Confidence-scored extracted rules from reflections |
+| `cortana_autonomy_scorecard` | Autonomy KPI snapshots (self-heal, proactive hit rate, completion, correction frequency, quality, memory accuracy, uptime) |
+| `cortana_decision_traces` | Structured decision logs with reasoning/confidence/outcome/trigger linkage |
+| `cortana_policy_audit` | Policy engine audit trail for allow/deny/escalate decisions |
+| `cortana_chaos_runs` | Reliability chaos scenario executions and MTTR outcomes |
 | `cortana_immune_incidents` | Immune System incident log (threats, resolutions, quarantines) |
 | `cortana_immune_playbooks` | Immune System playbook registry (known fix patterns) |
 | `cortana_sitrep` | SAE world state snapshots (domain/key/value) |
