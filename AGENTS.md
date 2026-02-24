@@ -43,6 +43,15 @@ Don't ask permission. Just do it.
 
 **Why:** Keeps main context clean, enables parallel work, and results come back async. The main session stays lean — a command bridge, not a workshop.
 
+## Git Branch Hygiene (MANDATORY)
+
+Before creating any new branch in a repo:
+1. `git checkout main` (or `git switch main`)
+2. `git pull`
+3. Create new branch from updated `main`
+
+Never branch from a stale feature/fix branch.
+
 ## Memory
 
 You wake up fresh each session. These files are your continuity:
@@ -347,6 +356,7 @@ After every reply in the **main session**, run a quick detector pass on the most
 - If no actionable task patterns are found → do nothing.
 - If exactly one clear standalone task is found and insertion is a **single DB tool call**, insert it immediately.
 - If multi-step/project language is found (epic candidate) or confidence is low/ambiguous, defer to heartbeat triage and/or ask a clarification question next turn.
+- **Mandatory sync rule:** when any sub-agent run reports completed implementation/research tied to an existing task, immediately reconcile `cortana_tasks` (`status`, `outcome`, `completed_at` as applicable) before reporting completion to Hamel.
 
 **One-tool-call rule enforcement:**
 - Main session may do only one direct task-board tool call inline.
