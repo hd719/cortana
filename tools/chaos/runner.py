@@ -26,6 +26,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--no-regression", action="store_true", help="Skip baseline/post regression checks")
     parser.add_argument("--no-db", action="store_true", help="Do not persist chaos run/events")
     parser.add_argument("--json", action="store_true", help="Print json output")
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Simulation-only run: execute scenarios/regression but skip DB persistence",
+    )
     return parser.parse_args()
 
 
@@ -48,6 +53,8 @@ def run_regression_probe(label: str) -> dict:
 
 def main() -> int:
     args = parse_args()
+    if args.dry_run:
+        args.no_db = True
     run_id = str(uuid.uuid4())
 
     unknown = [s for s in args.scenarios if s not in SCENARIO_REGISTRY]
