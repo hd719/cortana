@@ -457,7 +457,6 @@ def main():
             "message": "Unified memory health snapshot",
             "metadata": memory_health,
         })
-
     autonomy_summary = None
     try:
         autonomy_summary = compute_and_store_scorecard(window_days=7, dry_run=args.dry_run)
