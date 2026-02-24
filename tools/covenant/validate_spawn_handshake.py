@@ -15,6 +15,18 @@ from typing import Any
 WORKSPACE_ROOT = Path("/Users/hd/clawd")
 IDENTITY_REGISTRY_PATH = WORKSPACE_ROOT / "agents" / "identities" / "registry.json"
 
+ALLOWED_FIELDS = {
+    "request_id",
+    "spawned_by",
+    "agent_identity_id",
+    "objective",
+    "success_criteria",
+    "output_format",
+    "timeout_retry_policy",
+    "callback",
+    "constraints",
+}
+
 REQUIRED_FIELDS = {
     "agent_identity_id",
     "objective",
@@ -24,9 +36,13 @@ REQUIRED_FIELDS = {
     "callback",
 }
 
+ALLOWED_CALLBACK_FIELDS = {"update_channel", "final_channel", "heartbeat_interval_seconds", "on_blocked"}
 REQUIRED_CALLBACK_FIELDS = {"update_channel"}
+ALLOWED_OUTPUT_FORMAT_FIELDS = {"type", "sections"}
 REQUIRED_OUTPUT_FORMAT_FIELDS = {"type", "sections"}
+ALLOWED_TIMEOUT_FIELDS = {"timeout_seconds", "max_retries", "retry_on", "escalate_on"}
 REQUIRED_TIMEOUT_FIELDS = {"timeout_seconds", "max_retries", "retry_on", "escalate_on"}
+ALLOWED_CONSTRAINT_FIELDS = {"workspace_root", "allowed_paths", "forbidden_actions"}
 
 
 def fail(msg: str) -> None:
@@ -69,9 +85,18 @@ def _load_registry() -> dict[str, Any]:
 
 
 def validate(payload: dict[str, Any]) -> None:
+    extra = sorted(set(payload.keys()) - ALLOWED_FIELDS)
+    if extra:
+        fail(f"unsupported field(s): {', '.join(extra)}")
+
     missing = sorted(REQUIRED_FIELDS - set(payload.keys()))
     if missing:
         fail(f"missing required field(s): {', '.join(missing)}")
+
+    if "request_id" in payload:
+        _expect_non_empty_string(payload["request_id"], "request_id")
+    if "spawned_by" in payload:
+        _expect_non_empty_string(payload["spawned_by"], "spawned_by")
 
     _expect_non_empty_string(payload["agent_identity_id"], "agent_identity_id")
     registry = _load_registry()
@@ -86,6 +111,9 @@ def validate(payload: dict[str, Any]) -> None:
     _expect_non_empty_string_list(payload["success_criteria"], "success_criteria")
 
     output_format = _expect_object(payload["output_format"], "output_format")
+    extra_output = sorted(set(output_format.keys()) - ALLOWED_OUTPUT_FORMAT_FIELDS)
+    if extra_output:
+        fail(f"output_format contains unsupported field(s): {', '.join(extra_output)}")
     missing_output = sorted(REQUIRED_OUTPUT_FORMAT_FIELDS - set(output_format.keys()))
     if missing_output:
         fail(f"output_format missing required field(s): {', '.join(missing_output)}")
@@ -93,6 +121,9 @@ def validate(payload: dict[str, Any]) -> None:
     _expect_non_empty_string_list(output_format["sections"], "output_format.sections")
 
     timeout_retry = _expect_object(payload["timeout_retry_policy"], "timeout_retry_policy")
+    extra_timeout = sorted(set(timeout_retry.keys()) - ALLOWED_TIMEOUT_FIELDS)
+    if extra_timeout:
+        fail(f"timeout_retry_policy contains unsupported field(s): {', '.join(extra_timeout)}")
     missing_timeout = sorted(REQUIRED_TIMEOUT_FIELDS - set(timeout_retry.keys()))
     if missing_timeout:
         fail(f"timeout_retry_policy missing required field(s): {', '.join(missing_timeout)}")
@@ -109,6 +140,9 @@ def validate(payload: dict[str, Any]) -> None:
     _expect_non_empty_string_list(timeout_retry["escalate_on"], "timeout_retry_policy.escalate_on")
 
     callback = _expect_object(payload["callback"], "callback")
+    extra_callback = sorted(set(callback.keys()) - ALLOWED_CALLBACK_FIELDS)
+    if extra_callback:
+        fail(f"callback contains unsupported field(s): {', '.join(extra_callback)}")
     missing_callback = sorted(REQUIRED_CALLBACK_FIELDS - set(callback.keys()))
     if missing_callback:
         fail(f"callback missing required field(s): {', '.join(missing_callback)}")
@@ -118,9 +152,17 @@ def validate(payload: dict[str, Any]) -> None:
     constraints = payload.get("constraints")
     if constraints is not None:
         constraints = _expect_object(constraints, "constraints")
+        extra_constraints = sorted(set(constraints.keys()) - ALLOWED_CONSTRAINT_FIELDS)
+        if extra_constraints:
+            fail(f"constraints contains unsupported field(s): {', '.join(extra_constraints)}")
+        if "workspace_root" in constraints:
+            _expect_non_empty_string(constraints["workspace_root"], "constraints.workspace_root")
         allowed_paths = constraints.get("allowed_paths")
         if allowed_paths is not None:
             _expect_non_empty_string_list(allowed_paths, "constraints.allowed_paths")
+        forbidden_actions = constraints.get("forbidden_actions")
+        if forbidden_actions is not None:
+            _expect_non_empty_string_list(forbidden_actions, "constraints.forbidden_actions")
 
 
 

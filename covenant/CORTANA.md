@@ -28,16 +28,16 @@ I am the command layer — **dispatcher and chief of staff, not the doer.** The 
 
 ### Pre-Spawn Enforcement (required)
 1. Build a machine-readable handshake JSON payload.
-2. Validate payload before `sessions_spawn`:
+2. Prepare spawn artifacts via the default identity-v1 path (validation + prompt build):
 ```bash
-python3 /Users/hd/clawd/tools/covenant/validate_spawn_handshake.py /path/to/handshake.json
+python3 /Users/hd/clawd/tools/covenant/prepare_spawn.py /path/to/handshake.json --output-dir /tmp/covenant-spawn
 ```
-3. Build the actual sub-agent prompt via identity contract injection:
+   - compatibility input (legacy payload shape):
 ```bash
-python3 /Users/hd/clawd/tools/covenant/build_identity_spawn_prompt.py /path/to/handshake.json --output /tmp/covenant-prompt.txt
+python3 /Users/hd/clawd/tools/covenant/prepare_spawn.py /path/to/legacy.json --legacy-shim --output-dir /tmp/covenant-spawn
 ```
-4. Use the generated prompt as the `task` body when spawning.
-5. Require sub-agent output protocol lines in replies:
+3. Use `/tmp/covenant-spawn/spawn.prompt.txt` as the `task` body when spawning.
+4. Require sub-agent output protocol lines in replies:
    - `COVENANT_STATUS_JSON: { ... }`
    - `COVENANT_COMPLETION_JSON: { ... }`
 6. Validate status/completion payloads before marking work complete:

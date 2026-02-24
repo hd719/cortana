@@ -55,16 +55,17 @@ Each agent has a full SOUL.md defining their:
 
 ## Spawning Protocol
 
-Cortana spawns agents via `sessions_spawn`, but only after identity enforcement:
+Cortana spawns agents via `sessions_spawn`, but only after identity-v1 preparation:
 
 ```bash
-python3 /Users/hd/clawd/tools/covenant/validate_spawn_handshake.py /path/to/handshake.json
-python3 /Users/hd/clawd/tools/covenant/build_identity_spawn_prompt.py /path/to/handshake.json --output /tmp/covenant-prompt.txt
+python3 /Users/hd/clawd/tools/covenant/prepare_spawn.py /path/to/handshake.json --output-dir /tmp/covenant-spawn
+# optional compatibility shim for legacy payload shape
+python3 /Users/hd/clawd/tools/covenant/prepare_spawn.py /path/to/legacy.json --legacy-shim --output-dir /tmp/covenant-spawn
 ```
 
 ```javascript
 sessions_spawn({
-  task: readFile("/tmp/covenant-prompt.txt"),
+  task: readFile("/tmp/covenant-spawn/spawn.prompt.txt"),
   label: "huragok-{mission-slug}",
   runTimeoutSeconds: 1800, // 30 min default, adjust per mission
 })
