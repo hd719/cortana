@@ -19,17 +19,24 @@
 - **Git is primary** — Don't suggest iCloud backup as the solution when git exists. Git is version control and backup.
 - **Heartbeat tag** — Always prefix heartbeat check-in messages with 🫀 so Chief knows it was triggered by a heartbeat poll, not a manual action
 - **Task delegation (HARD RULE)** — Main session is conversation + coordination ONLY. If a task takes more than one tool call, spawn a sub-agent. Cortana is the dispatcher/chief of staff, not the doer. Only exception: single-call lookups (weather, time, quick status). Everything else = spawn. Established Feb 16, 2026.
+- **Agent launch disclosure** — Before launching any new sub-agent, explicitly state which agent role is being launched (e.g., Huragok, Librarian, Researcher, Oracle, Monitor) and what it will do.
 - **Time format preference** — 12-hour AM/PM format, not 24-hour military time. Applied to fitness briefs Feb 18, 2026.
 - **gog CLI usage** — No `--format` flag exists. Use `--json` for structured data, `--plain` for text. Subject+snippet from search usually sufficient.
+- **Answer-first** — Lead with the answer/recommendation; skip preamble.
+- **Emotion budget** — Keep tone restrained; warmth only when it adds signal.
+- **"Chief" sparingly** — Use the address situationally, not as filler.
+- **Group chats: selective silence** — Default to read-only unless adding clear value.
+- **Heartbeat discipline** — Send only when valuable; keep heartbeat messages tight.
+- **Channel-native formatting** — Match platform norms (no tables on Discord/WhatsApp; bullets instead; Telegram icons ok).
 
 ## Current Priorities (Feb 2026)
-- **Fitness**: "12 Weeks to Jacked" (Week 8/12) + Peloton cardio. Recovery consistently in 80-90% range now. **Note**: Tonal service experiencing persistent HTTP 503 errors despite self-healing attempts - 26 failures with 25 suppressed alerts in past 24h.
-- **Sleep optimization**: REM chronically low (9.4%), weekend schedule drift main killer. Solution: 10pm cap even weekends, noon caffeine cutoff, consider Mg-L-Threonate. **ACTIVE TASK**: Build weekend bedtime enforcement cron (9:30 PM reminder) - pending since Feb 20.
-- **Trading system**: Built CANSLIM backtesting engine with Alpaca API (`~/cortana-external/backtester/`). Phase 2 complete. **NEW TASK**: Build CANSLIM trading alert system with daily scan + Telegram notifications (priority 2, created Feb 21). **NEW TASK**: Build weekly Monday market briefing cron — portfolio + earnings + economic calendar (priority 2, created Feb 23).
+- **Fitness**: "12 Weeks to Jacked" (Week 8/12) + Peloton cardio. Recovery consistently in 80-90% range now.
+- **Sleep optimization**: REM chronically low (9.4%), weekend schedule drift main killer. Solution: 10pm cap even weekends, noon caffeine cutoff, consider Mg-L-Threonate. Weekend bedtime enforcement cron is live; current follow-on task is tightening Fri/Sat compliance loop.
+- **Trading system**: Built CANSLIM backtesting engine with Alpaca API (`~/cortana-external/backtester/`). Phase 2 complete. CANSLIM daily alert system and weekly Monday market briefing cron are now implemented.
 - **Mexico trip**: Feb 19-22 ✅ COMPLETED. Systems ran autonomously while away — watchdog confirmed all services healthy throughout.
 - **Master's program** (EM-605) — HW 597 still pending
 - **Portfolio**: ~$71k, 95% tech/100% US exposure. Research pending for diversification rebalancing plan.
-- **Model migration**: Primary now OpenAI Codex (gpt-5.1-codex-max). Embeddings rollout **on hold (Hamel reviewing)**; Opus fallback retained until stability confirmation.
+- **Model migration**: Primary OpenAI Codex track is active; fallback retained until full stability sign-off.
 
 ## Recent Major Events (Feb 2026)
 - **OpenClaw → OpenAI**: Peter Steinberger (OpenClaw creator) joined OpenAI to lead "next generation personal agents". OpenClaw continues as open-source. I missed this critical news — strengthened tech news monitoring in heartbeat rotation.
@@ -39,7 +46,6 @@
 - **Trading System**: Built CANSLIM backtesting engine with Alpaca API. Momentum on AAPL: +24.87%, CANSLIM on NVDA: +78.31%. Phase 2 complete.
 
 ## Upcoming Travel
-- **Mexico**: Feb 19-22 (leaving tomorrow)
 - **Punta Cana**: Mar 25-29 @ Paradisus Palma Real (booked, ref 2600896858)
 
 ## API Usage
@@ -69,14 +75,14 @@ The tone: Confident but warm. Wit under pressure. Calm when shit hits the fan.
 ## Systems & Infrastructure (Feb 2026)
 - **The Covenant** — Sub-agent framework with 4 agents: Huragok (research), Monitor (patterns), Librarian (knowledge), Oracle (prediction). Operating model: on-demand spawns, manual chaining for 3-week trial.
 - **Proactive Intelligence** — `cortana_watchlist` table for monitoring; self-healing tiers (auto-fix/alert/ask first) implemented. Immune system handles transient failures automatically.
-- **Task Queue** — `cortana_tasks` table for persistent work queue. Tasks from conversations auto-execute during heartbeats. 4 active tasks pending.
+- **Task Queue** — `cortana_tasks` table for persistent work queue. Tasks from conversations auto-execute during heartbeats. Queue active with mostly completed February buildout and a small set of pending follow-ups.
 - **Session Cleanup** — Daily 3 AM cron deletes sessions >400KB. Last cleanup freed 2.37MB from 5 sessions.
 - **Database** — PostgreSQL with 10+ tables for memory, patterns, feedback, events, tasks. Learning loop tracks corrections.
 - **Watchdog** — Local LaunchAgent (`~/Desktop/services/watchdog/`) runs every 15 min. $0 reliability layer for cron health, tool checks, budget guards.
 - **Git primary** — README.md is master doc. Obsidian sync killed. All changes committed to github.com/hd719/cortana.
 - **Weather fallback** — Open-Meteo as backup when wttr.in fails. Full API integration in skills/weather.
 - **Market status** — Built static 2026 NYSE/NASDAQ holiday calendar in `skills/markets/check_market_status.sh`. Never guess market status again.
-- **Default model** — openai-codex/gpt-5.1-codex-max (primary), fallback claude-opus-4-6 (to be removed after stability sign-off)
+- **Default model** — openai-codex/gpt-5.3-codex (primary), fallback claude-opus-4-6 (to be removed after stability sign-off)
 
 ## System Access & Auth
 - **Full Disk Access** — OpenClaw/Node has FDA granted (Feb 16, 2026). Can access Downloads, Desktop, Documents, TCC-protected folders.
