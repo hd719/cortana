@@ -104,6 +104,17 @@ Before Hamel asks, check if:
 - Stock earnings within 48h on held position
 - Flight prices dropped on watched routes
 - Weather will affect planned activities
+- Run proactive detector for cross-signal opportunities/risks:
+  - `python3 /Users/hd/clawd/tools/proactive/detect.py --min-confidence 0.66`
+
+### Proactive Opportunity Detector (2-3x daily)
+- Purpose: intelligent anticipation beyond scripted rotation
+- Sources: calendar + portfolio + email + behavioral patterns + cross-correlation
+- Command:
+  - `python3 /Users/hd/clawd/tools/proactive/detect.py --min-confidence 0.66`
+- Optional stronger gating (morning brief):
+  - `python3 /Users/hd/clawd/tools/proactive/detect.py --min-confidence 0.72 --create-tasks`
+- Skip if run in the last 4 hours unless a new urgent signal appears
 
 ### Watchlist Management
 ```sql
