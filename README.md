@@ -170,7 +170,7 @@ I'm your AI partner, modeled after Cortana from Halo. Not the Microsoft one — 
 - Brain: gpt-5.3-codex (OpenAI primary; Claude Opus 4.6 fallback)
 - Infrastructure: OpenClaw on Mac mini
 - Awareness: SAE (Situational Awareness Engine) — unified world state across all domains
-- Budget: $200/month OpenAI Pro (Anthropic fallback only)
+- Budget: $200/month OpenAI Pro (Codex-first, OpenAI-only fallback chain)
 
 **Recent developments (Feb 2026):**
 - OpenClaw creator Peter Steinberger joined OpenAI to lead "next generation personal agents"
@@ -298,7 +298,12 @@ Long-running autonomous agents I spawn for deep work. Named after Halo factions.
 
 **Operating model:** On-demand, not scheduled. Cortana spawns agents when there's a reason (pre-trip, pre-earnings, concerning patterns, research requests). More surgical, less overhead.
 
-**Model:** Main session and automation use **gpt-5.3-codex** (OpenAI primary) with **Claude Opus 4.6** as fallback where configured.
+**Model:** Codex-first routing:
+- Orchestrator/main session: **openai-codex/gpt-5.3-codex**
+- Heavy reasoning crons/agents: **openai-codex/gpt-5.2-codex**
+- Medium tasks: **openai-codex/gpt-5.1-codex-max**
+- High-frequency ops/health checks: **openai-codex/gpt-5.1**
+- Global fallback chain: `gpt-5.2-codex -> gpt-5.1-codex-max -> gpt-5.1`
 
 **Location:** `covenant/` — each agent has SOUL.md (identity) + AGENTS.md (operations)
 
@@ -696,6 +701,34 @@ Adds one shared brief skeleton for AM and PM runs with:
 | **Gmail** | Email triage | `gog gmail search` |
 | **Twitter/X** | Social, mentions | `birdx` CLI |
 | **Yahoo Finance** | Stock data | stock-analysis skill |
+
+### To Get Tonal Data (workouts, strength scores)
+
+```bash
+# Health first
+curl -s http://localhost:8080/tonal/health | jq -r '.status'
+
+# Tonal workouts + strength scores
+curl -s http://localhost:8080/tonal/data
+```
+
+### Key Whoop Metrics
+
+- **Recovery %** — daily readiness signal (green/yellow/red)
+- **Sleep performance** — actual vs needed sleep
+- **REM %** — target is >=20% (watch if chronically low)
+- **HRV** — recovery trend quality over time
+- **Resting HR** — stress/fatigue signal when elevated vs baseline
+- **Day strain** — exertion load relative to recovery
+
+### Key Tonal Metrics
+
+- **Workout completion** — consistency and adherence
+- **Total volume** — work performed per session/week
+- **Strength score trend** — progression over time
+- **Estimated 1RM trend** — movement-level strength changes
+- **Program progress** — current week/block completion
+- **Muscle group balance** — distribution across upper/lower/push/pull
 
 ### Trading Advisor
 
