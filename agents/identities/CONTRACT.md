@@ -1,4 +1,14 @@
-# Covenant Identity Contract — Enforcement Addendum (v1 tranche 1)
+# Covenant Identity Contract — Enforcement Addendum (v1)
+
+## Identity Registry (authoritative)
+- Registry JSON: `/Users/hd/clawd/agents/identities/registry.json`
+- Per-agent contracts:
+  - `/Users/hd/clawd/agents/identities/monitor.md`
+  - `/Users/hd/clawd/agents/identities/huragok.md`
+  - `/Users/hd/clawd/agents/identities/oracle.md`
+  - `/Users/hd/clawd/agents/identities/librarian.md`
+
+Spawn payloads must use a known `agent_identity_id` from the registry.
 
 ## Memory Boundary Enforcement
 - Agent-local scratch: `/Users/hd/clawd/.covenant/agents/<agent_identity_id>/scratch/`
@@ -29,3 +39,19 @@ Required handshake fields:
 - `callback.update_channel`
 
 Malformed payloads must be rejected and surfaced with `HANDSHAKE_INVALID: ...` errors.
+
+## Spawn Prompt Injection (required)
+Build the sub-agent prompt from validated handshake + identity contract:
+
+```bash
+python3 /Users/hd/clawd/tools/covenant/build_identity_spawn_prompt.py <payload.json> --output <prompt.txt>
+```
+
+This injects into the sub-agent prompt:
+- identity metadata (`id/name/role/mission_scope/tone_voice`)
+- strict tool allowlist
+- hard boundaries
+- escalation triggers
+- machine-readable handshake JSON footer
+
+Do not launch sub-agents with free-form prompts that skip this step.

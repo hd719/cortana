@@ -55,21 +55,16 @@ Each agent has a full SOUL.md defining their:
 
 ## Spawning Protocol
 
-Cortana spawns agents via `sessions_spawn`:
+Cortana spawns agents via `sessions_spawn`, but only after identity enforcement:
+
+```bash
+python3 /Users/hd/clawd/tools/covenant/validate_spawn_handshake.py /path/to/handshake.json
+python3 /Users/hd/clawd/tools/covenant/build_identity_spawn_prompt.py /path/to/handshake.json --output /tmp/covenant-prompt.txt
+```
 
 ```javascript
 sessions_spawn({
-  task: `
-    You are Huragok, the Research Agent. 
-    Read your SOUL.md: /Users/hd/clawd/covenant/huragok/SOUL.md
-    
-    MISSION: {specific research task}
-    BUDGET: ${X.XX} max
-    DEADLINE: {timeframe}
-    OUTPUT: Write findings to knowledge/research/{filename}
-    
-    Follow your operational procedures. Report summary when complete.
-  `,
+  task: readFile("/tmp/covenant-prompt.txt"),
   label: "huragok-{mission-slug}",
   runTimeoutSeconds: 1800, // 30 min default, adjust per mission
 })
