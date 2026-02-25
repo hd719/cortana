@@ -1,80 +1,78 @@
 # Memory Freshness Decay + Supersession Chains
 
-This adds time-aware ranking and fact lineage tracking so stale memories fade and replaced facts stop polluting default recall.
+Task 132 implementation: decay-aware retrieval + supersession lineage with active filtering.
 
-## What shipped
+## 1) Decay scoring (`tools/memory/decay.py`)
 
-### 1) Decay scoring (`tools/memory/decay.py`)
+Half-life by memory type:
 
-Decay model:
-
-- `fact`: half-life 365 days
-- `preference`: half-life 180 days
-- `decision`: half-life 90 days
-- `event` / `episodic`: half-life 14 days
+- `fact`: 365 days
+- `preference`: 180 days
+- `event` / `episodic`: 14 days
 - `system_rule` (`rule` alias): never decays
 
-Scoring formula:
+Formula used by retrieval:
 
 - `relevance = (0.5 * similarity) + (0.3 * recency_score) + (0.2 * utility_score)`
 - `recency_score = 2^(-(days_old / half_life))`
 - `utility_score = log10(access_count + 1)`
 
-Schema enforcement in script startup:
+Schema safeguards in `ensure_schema()`:
 
-- `cortana_memory_semantic.access_count INT DEFAULT 0`
-- `cortana_memory_semantic.supersedes_id BIGINT`
-- `cortana_memory_semantic.superseded_at TIMESTAMPTZ`
+- `access_count INT NOT NULL DEFAULT 0`
+- `supersedes_id BIGINT`
+- `superseded_by BIGINT`
+- `superseded_at TIMESTAMPTZ`
 
-### 2) Supersession chain tracking
+It also backfills `superseded_by` from existing `supersedes_id` links.
 
-`tools/memory/decay.py` includes:
+## 2) Supersession logic (`tools/memory/supersession.py`)
 
-- `mark_superseded(old_id, new_id)`
-  - sets `superseded_at=NOW()` on old fact
-  - sets `supersedes_id=old_id` on new fact
-- `get_chain(fact_id)`
-  - recursive history traversal following `supersedes_id`
+CLI commands:
 
-Default query behavior is now to exclude superseded semantic facts:
+```bash
+python3 tools/memory/supersession.py chain <memory_id>
+python3 tools/memory/supersession.py prune --max-depth 3
+python3 tools/memory/supersession.py prune --max-depth 3 --dry-run
+```
 
-- `WHERE active = TRUE AND superseded_at IS NULL`
+Behavior:
 
-### 3) Memory injector now uses decay scoring
+- `chain`: walks to oldest ancestor, then prints full lineage oldest → newest.
+- `prune`: deactivates deeply superseded entries beyond max depth (`>3` by default).
+  - superseded records remain in DB (audit trail preserved)
+  - active retrieval still excludes them
 
-`tools/covenant/memory_injector.py` was upgraded from simple recency weighting to decay-aware scoring:
+## 3) Retrieval filtering + access tracking
 
-- similarity from role keyword match ratio
-- recency from type-aware half-life decay
-- utility from `log10(access_count + 1)`
-- ranks by computed relevance formula
-- excludes superseded semantic memories
+`tools/covenant/memory_injector.py` now filters semantic memories with:
 
-It also increments `access_count` for semantic memories that were actually injected.
+- `active = TRUE`
+- `superseded_by IS NULL`
+- `superseded_at IS NULL`
 
-### 4) Maintenance commands
+and increments `access_count` for semantic memories that are actually injected.
+
+## 4) Migration
+
+Added `migrations/018_memory_superseded_by.sql`:
+
+- adds `superseded_by` + `access_count` if missing
+- backfills supersession links
+- adds FK + indexes for supersession lookups
+
+## 5) Validation flow used
 
 ```bash
 python3 tools/memory/decay.py stats
-python3 tools/memory/decay.py prune --older-than 730
-python3 tools/memory/decay.py chain <fact_id>
+python3 tools/memory/supersession.py prune --max-depth 3 --dry-run
+python3 tools/memory/supersession.py chain <sample_id>
+python3 tools/covenant/memory_injector.py inject huragok --limit 3
 ```
 
-- `stats`: distribution by memory type, age, recency/utility summaries
-- `prune`: archives old, unused facts (`fact`, older than threshold, `access_count=0`) into `cortana_memory_archive`, then deactivates them
-- `chain`: prints full supersession history for a fact
+Expected outcomes:
 
-### 5) Migration
-
-`migrations/017_memory_decay_supersession.sql`:
-
-- adds `access_count`, `supersedes_id`, `superseded_at`
-- backfills `supersedes_id` from legacy `supersedes_memory_id` when present
-- expands `fact_type` check constraint to include `decision` and `system_rule`
-- adds supersession/active indexes
-
-## Operational notes
-
-- New helper is idempotent: safe to run repeatedly.
-- Access count updates only for semantic memories actually included in prompt context.
-- Superseded records are preserved for lineage/auditing and reachable through `chain`.
+- decay scores include recency + utility terms
+- superseded memories are absent from default retrieval
+- `chain` returns lineage including superseded records
+- retrieval increments `access_count`

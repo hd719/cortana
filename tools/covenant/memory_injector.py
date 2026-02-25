@@ -127,6 +127,7 @@ WITH base AS (
     END AS memory_type
   FROM cortana_memory_semantic
   WHERE active = TRUE
+    AND superseded_by IS NULL
     AND superseded_at IS NULL
     AND COALESCE(last_seen_at, first_seen_at) >= NOW() - INTERVAL '{int(since_hours)} hours'
     AND ({sem_filter})

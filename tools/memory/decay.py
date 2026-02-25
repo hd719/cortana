@@ -1,11 +1,5 @@
 #!/usr/bin/env python3
-"""Memory freshness decay + supersession chain utilities for PostgreSQL memory tables.
-
-Commands:
-  python3 tools/memory/decay.py stats
-  python3 tools/memory/decay.py prune --older-than 730
-  python3 tools/memory/decay.py chain <fact_id>
-"""
+"""Memory freshness decay + supersession utilities for PostgreSQL memory tables."""
 
 from __future__ import annotations
 
@@ -22,7 +16,6 @@ DB_BIN = "/opt/homebrew/opt/postgresql@17/bin"
 HALF_LIVES_DAYS: dict[str, float] = {
     "fact": 365.0,
     "preference": 180.0,
-    "decision": 90.0,
     "event": 14.0,
     "episodic": 14.0,
     "system_rule": float("inf"),
@@ -61,13 +54,42 @@ ALTER TABLE cortana_memory_semantic
   ADD COLUMN IF NOT EXISTS supersedes_id BIGINT;
 
 ALTER TABLE cortana_memory_semantic
+  ADD COLUMN IF NOT EXISTS superseded_by BIGINT;
+
+ALTER TABLE cortana_memory_semantic
   ADD COLUMN IF NOT EXISTS superseded_at TIMESTAMPTZ;
 
+DO $$
+BEGIN
+  IF EXISTS (
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_name = 'cortana_memory_semantic'
+      AND column_name = 'supersedes_memory_id'
+  ) THEN
+    UPDATE cortana_memory_semantic
+    SET supersedes_id = supersedes_memory_id
+    WHERE supersedes_id IS NULL
+      AND supersedes_memory_id IS NOT NULL;
+  END IF;
+END $$;
+
+-- Backfill superseded_by from supersedes_id links.
+UPDATE cortana_memory_semantic older
+SET superseded_by = newer.id,
+    superseded_at = COALESCE(older.superseded_at, NOW())
+FROM cortana_memory_semantic newer
+WHERE newer.supersedes_id = older.id
+  AND (older.superseded_by IS NULL OR older.superseded_by != newer.id);
+
 CREATE INDEX IF NOT EXISTS idx_memory_semantic_active_not_superseded
-  ON cortana_memory_semantic(active, superseded_at);
+  ON cortana_memory_semantic(active, superseded_by);
 
 CREATE INDEX IF NOT EXISTS idx_memory_semantic_supersedes_id
   ON cortana_memory_semantic(supersedes_id);
+
+CREATE INDEX IF NOT EXISTS idx_memory_semantic_superseded_by
+  ON cortana_memory_semantic(superseded_by);
 """
     )
 
@@ -87,8 +109,8 @@ def _safe_int(value: Any, default: int = 0) -> int:
 
 
 def recency_score(days_old: float, memory_type: str) -> float:
-    t = (memory_type or "fact").lower().strip()
-    half_life = HALF_LIVES_DAYS.get(t, HALF_LIVES_DAYS["fact"])
+    mtype = (memory_type or "fact").lower().strip()
+    half_life = HALF_LIVES_DAYS.get(mtype, HALF_LIVES_DAYS["fact"])
     if math.isinf(half_life):
         return 1.0
     days = max(0.0, _safe_float(days_old, 0.0))
@@ -117,52 +139,56 @@ def increment_access_count(memory_ids: list[int]) -> int:
     return len(ids)
 
 
+def active_semantic_filter_sql(alias: str = "s") -> str:
+    a = alias.strip() or "s"
+    return f"{a}.active = TRUE AND {a}.superseded_by IS NULL AND {a}.superseded_at IS NULL"
+
+
 def mark_superseded(old_id: int, new_id: int) -> None:
     ensure_schema()
     old = int(old_id)
     new = int(new_id)
     run_psql(
-        f"UPDATE cortana_memory_semantic SET superseded_at = NOW() WHERE id = {old};"
-    )
-    run_psql(
-        f"UPDATE cortana_memory_semantic SET supersedes_id = {old}, superseded_at = NULL WHERE id = {new};"
+        f"""
+UPDATE cortana_memory_semantic
+SET superseded_by = {new}, superseded_at = NOW(), active = FALSE
+WHERE id = {old};
+
+UPDATE cortana_memory_semantic
+SET supersedes_id = {old}, superseded_by = NULL
+WHERE id = {new};
+"""
     )
 
 
-def get_chain(fact_id: int) -> list[dict[str, Any]]:
+def get_chain(memory_id: int) -> list[dict[str, Any]]:
     ensure_schema()
-    fid = int(fact_id)
+    mid = int(memory_id)
     sql = f"""
-WITH RECURSIVE chain AS (
-  SELECT
-    s.id,
-    s.supersedes_id,
-    s.superseded_at,
-    s.first_seen_at,
-    s.last_seen_at,
-    s.fact_type,
-    s.subject,
-    s.predicate,
-    s.object_value,
-    0::int AS depth
-  FROM cortana_memory_semantic s
-  WHERE s.id = {fid}
+WITH RECURSIVE walk AS (
+  SELECT id, supersedes_id, superseded_by, 0::int AS depth_back
+  FROM cortana_memory_semantic
+  WHERE id = {mid}
 
   UNION ALL
 
-  SELECT
-    prev.id,
-    prev.supersedes_id,
-    prev.superseded_at,
-    prev.first_seen_at,
-    prev.last_seen_at,
-    prev.fact_type,
-    prev.subject,
-    prev.predicate,
-    prev.object_value,
-    chain.depth + 1
-  FROM cortana_memory_semantic prev
-  JOIN chain ON prev.id = chain.supersedes_id
+  SELECT p.id, p.supersedes_id, p.superseded_by, walk.depth_back + 1
+  FROM cortana_memory_semantic p
+  JOIN walk ON walk.supersedes_id = p.id
+), oldest AS (
+  SELECT id FROM walk ORDER BY depth_back DESC LIMIT 1
+), chain AS (
+  SELECT s.id, s.supersedes_id, s.superseded_by, s.superseded_at, s.first_seen_at, s.last_seen_at,
+         s.fact_type, s.subject, s.predicate, s.object_value, 0::int AS depth
+  FROM cortana_memory_semantic s
+  JOIN oldest o ON o.id = s.id
+
+  UNION ALL
+
+  SELECT n.id, n.supersedes_id, n.superseded_by, n.superseded_at, n.first_seen_at, n.last_seen_at,
+         n.fact_type, n.subject, n.predicate, n.object_value, chain.depth + 1
+  FROM cortana_memory_semantic n
+  JOIN chain ON n.supersedes_id = chain.id
 )
 SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.depth ASC), '[]'::json)::text
 FROM chain t;
@@ -171,11 +197,8 @@ FROM chain t;
 
 
 def cmd_chain(args: argparse.Namespace) -> int:
-    rows = get_chain(args.fact_id)
-    if not rows:
-        print(f"No chain found for fact_id={args.fact_id}")
-        return 0
-    print(json.dumps({"fact_id": args.fact_id, "chain": rows}, indent=2))
+    rows = get_chain(args.memory_id)
+    print(json.dumps({"memory_id": args.memory_id, "chain": rows}, indent=2))
     return 0
 
 
@@ -186,9 +209,8 @@ WITH sem AS (
   SELECT
     fact_type AS memory_type,
     COUNT(*) AS total,
-    COUNT(*) FILTER (WHERE superseded_at IS NOT NULL) AS superseded,
+    COUNT(*) FILTER (WHERE superseded_by IS NOT NULL OR superseded_at IS NOT NULL) AS superseded,
     AVG(GREATEST(EXTRACT(EPOCH FROM (NOW() - COALESCE(last_seen_at, first_seen_at))) / 86400.0, 0.0)) AS avg_days_old,
-    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY GREATEST(EXTRACT(EPOCH FROM (NOW() - COALESCE(last_seen_at, first_seen_at))) / 86400.0, 0.0)) AS p50_days_old,
     AVG(access_count)::float AS avg_access
   FROM cortana_memory_semantic
   WHERE active = TRUE
@@ -199,7 +221,6 @@ WITH sem AS (
     COUNT(*) AS total,
     0::bigint AS superseded,
     AVG(GREATEST(EXTRACT(EPOCH FROM (NOW() - happened_at)) / 86400.0, 0.0)) AS avg_days_old,
-    PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY GREATEST(EXTRACT(EPOCH FROM (NOW() - happened_at)) / 86400.0, 0.0)) AS p50_days_old,
     0.0::float AS avg_access
   FROM cortana_memory_episodic
   WHERE active = TRUE
@@ -229,64 +250,6 @@ FROM (
     return 0
 
 
-def cmd_prune(args: argparse.Namespace) -> int:
-    ensure_schema()
-    older_than = int(args.older_than)
-    sql_candidates = f"""
-SELECT COALESCE(json_agg(row_to_json(t) ORDER BY t.id), '[]'::json)::text
-FROM (
-  SELECT
-    id,
-    fact_type,
-    subject,
-    predicate,
-    object_value,
-    first_seen_at,
-    last_seen_at,
-    source_type,
-    source_ref,
-    access_count,
-    metadata
-  FROM cortana_memory_semantic
-  WHERE active = TRUE
-    AND superseded_at IS NULL
-    AND fact_type = 'fact'
-    AND access_count = 0
-    AND COALESCE(last_seen_at, first_seen_at) < NOW() - INTERVAL '{older_than} days'
-) t;
-"""
-    rows = parse_json_rows(run_psql(sql_candidates))
-    if not rows:
-        print(json.dumps({"pruned": 0, "older_than_days": older_than}, indent=2))
-        return 0
-
-    ids = [int(r["id"]) for r in rows if r.get("id")]
-    ids_array = "{" + ",".join(str(i) for i in ids) + "}"
-
-    run_psql(
-        f"""
-INSERT INTO cortana_memory_archive (memory_tier, memory_id, reason, snapshot, metadata)
-SELECT
-  'semantic',
-  s.id,
-  'decay_prune_older_than_{older_than}_days_access_count_zero',
-  to_jsonb(s),
-  jsonb_build_object('archiver', 'tools/memory/decay.py')
-FROM cortana_memory_semantic s
-WHERE s.id = ANY('{ids_array}'::bigint[])
-ON CONFLICT (memory_tier, memory_id) DO NOTHING;
-
-UPDATE cortana_memory_semantic
-SET active = FALSE,
-    metadata = COALESCE(metadata, '{{}}'::jsonb) || jsonb_build_object('archived_by_decay_prune', NOW()::text)
-WHERE id = ANY('{ids_array}'::bigint[]);
-"""
-    )
-
-    print(json.dumps({"pruned": len(ids), "ids": ids, "older_than_days": older_than}, indent=2))
-    return 0
-
-
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(description="Memory decay + supersession utilities")
     sub = p.add_subparsers(dest="command", required=True)
@@ -294,12 +257,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp_stats = sub.add_parser("stats", help="Show decay distribution across memory types")
     sp_stats.set_defaults(func=cmd_stats)
 
-    sp_prune = sub.add_parser("prune", help="Archive fully decayed old facts")
-    sp_prune.add_argument("--older-than", type=int, default=730)
-    sp_prune.set_defaults(func=cmd_prune)
-
-    sp_chain = sub.add_parser("chain", help="Show full supersession history for a fact")
-    sp_chain.add_argument("fact_id", type=int)
+    sp_chain = sub.add_parser("chain", help="Show supersession history")
+    sp_chain.add_argument("memory_id", type=int)
     sp_chain.set_defaults(func=cmd_chain)
 
     return p
