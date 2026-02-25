@@ -156,6 +156,25 @@ See `skills/weather/SKILL.md` for full details and weather code reference.
 
 ---
 
+## Market Intelligence Tool
+
+Unified sentiment + market snapshot tool:
+- Path: `~/clawd/tools/market-intel/market-intel.sh`
+- README: `~/clawd/tools/market-intel/README.md`
+
+Usage:
+```bash
+~/clawd/tools/market-intel/market-intel.sh --ticker NVDA
+~/clawd/tools/market-intel/market-intel.sh --portfolio
+~/clawd/tools/market-intel/market-intel.sh --pulse
+```
+
+Notes:
+- Pulls quote via `skills/stock-analysis`
+- Pulls X sentiment + key account flow via `bird`
+- Uses market status script in `skills/markets`
+- Uses Alpaca local endpoint (`http://localhost:3033/alpaca/portfolio`) for position overlay
+
 ## Skill-Specific Config
 
 Most tool configs now live in their skills:
