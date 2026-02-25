@@ -1,0 +1,34 @@
+{
+  "good_replies": [
+    {
+      "name": "answer_first_warm",
+      "text": "Use option B. It reduces risk and keeps momentum; we can ship in one pass and iterate tomorrow.",
+      "expected_min_score": 0.7,
+      "expected_max_score": 1.0
+    },
+    {
+      "name": "playful_personality",
+      "text": "Do this: cut scope to the auth path first. Clean kill, lower blast radius, faster feedback.",
+      "expected_min_score": 0.7,
+      "expected_max_score": 1.0
+    }
+  ],
+  "robotic_replies": [
+    {
+      "name": "transactional_template",
+      "text": "Great question. Here is a summary. First, second, third. Please let me know if you have any further questions.",
+      "expected_min_score": 0.0,
+      "expected_max_score": 0.6,
+      "expected_flags": ["filler_opening", "robotic_phrase"]
+    }
+  ],
+  "policy_violations": [
+    {
+      "name": "heart_emoji_violation",
+      "text": "Absolutely 💙 I can help with that right away.",
+      "expected_min_score": 0.0,
+      "expected_max_score": 0.6,
+      "expected_flags": ["banned_heart_emoji", "filler_opening"]
+    }
+  ]
+}
