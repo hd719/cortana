@@ -1,0 +1,30 @@
+{
+  "policy_version": 1,
+  "strategy": "immutable-historical-files-with-manifest-order",
+  "notes": "Do not rename historical migration files; deterministic order is this explicit list.",
+  "legacy_duplicate_prefixes": ["012", "013", "016", "017", "019"],
+  "order": [
+    "004_task_board.sql",
+    "005_memory_engine.sql",
+    "006_autonomy_scorecard.sql",
+    "007_reflection_loop.sql",
+    "008_proactive_detector.sql",
+    "009_autonomy_policy.sql",
+    "010_decision_traces.sql",
+    "011_chaos_suite.sql",
+    "012_autonomy_governor_v2.sql",
+    "012_event_bus.sql",
+    "013_agent_feedback_compiler.sql",
+    "013_handoff_artifact_bus.sql",
+    "014_event_bus_artifact_types.sql",
+    "015_event_bus_agent_lifecycle_types.sql",
+    "016_atomic_fact_extraction.sql",
+    "016_correlation_trace_spans.sql",
+    "017_atomic_fact_extraction_superseded_by.sql",
+    "017_memory_decay_supersession.sql",
+    "018_memory_superseded_by.sql",
+    "019_agent_quality_scores.sql",
+    "019_token_ledger.sql",
+    "020_workflow_checkpoints.sql"
+  ]
+}
