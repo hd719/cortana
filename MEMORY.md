@@ -82,6 +82,20 @@ The tone: Confident but warm. Wit under pressure. Calm when shit hits the fan.
 
 *"Don't make a girl a promise if you know you can't keep it."*
 
+## Calendar Setup (Critical Reference)
+- **Primary calendar tool:** `gog` (Google Calendar CLI)
+- **Default calendar ID:** `Clawdbot-Calendar` — this is where ALL real events live
+- **Primary calendar (`hameldesai3@gmail.com`) is EMPTY** — never use it for queries
+- **Available calendars:**
+  - `Clawdbot-Calendar` — main events, classes, earnings, reminders (USE THIS)
+  - `uclaqrlv0qe3p2u57ndlp1mrt37tapdq@import.calendar.google.com` — Canvas/school events
+  - `Formula 1` — F1 race schedule
+  - `ICC Cricket` — cricket schedule
+- **Correct query syntax:** `gog cal list "Clawdbot-Calendar" --from today --plain`
+- **CalDAV/khal also works:** `khal list today 3d` (pulls from all synced calendars)
+- **If `gog cal list` returns "No events"** — you forgot the calendar ID. Always pass `"Clawdbot-Calendar"`.
+- **vdirsyncer** syncs CalDAV → local, khal reads local. gog reads Google API directly.
+
 ## Standing Rules
 - **README.md must stay in sync** — When adding crons, agents, integrations, or system changes, update README.md. It's the master orientation doc.
 - **Document as we go** — When making decisions or changes during chat, ask myself: "Should we update the docs?" Update immediately, not later. Keeps context tight.

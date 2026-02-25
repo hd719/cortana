@@ -33,6 +33,11 @@ OpenClaw/Node has **Full Disk Access** granted (macOS System Settings → Privac
 
 **Keyring:** Switched to macOS Keychain (`gog auth keyring keychain`) — no password prompts in headless/cron contexts.
 
+**Default calendar:** Always use `Clawdbot-Calendar` as the calendar ID for event queries. Primary calendar is empty — all real events live on Clawdbot-Calendar.
+```bash
+gog cal list "Clawdbot-Calendar" --from today --plain
+```
+
 ---
 
 ## Watchdog (LaunchAgent)

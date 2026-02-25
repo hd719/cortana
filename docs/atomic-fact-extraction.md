@@ -2,116 +2,83 @@
 
 Task: #131
 
-## Purpose
+## What it does
 
-Extract structured atomic facts from transcripts/memory files and write them into `cortana_memory_semantic`.
+Converts conversation transcripts into **atomic, structured facts** and stores them in `cortana_memory_semantic`.
 
-Each extracted fact follows:
+Fact schema:
 
 ```json
 {
-  "type": "fact|preference|decision|event|system_rule",
-  "content": "self-contained atomic sentence",
-  "tags": ["string"],
-  "people": ["string"],
-  "confidence": 0.0,
-  "importance": 0.0
+  "type": "fact|preference|event|system_rule",
+  "content": "Hamel prefers 12-hour time format.",
+  "tags": ["time-format"],
+  "people": ["Hamel Desai"],
+  "projects": ["Cortana"],
+  "importance": 0.9,
+  "confidence": 0.95,
+  "supersedes_id": null
 }
 ```
 
-## Script
+## Files
 
-`tools/memory/extract_facts.py`
+- `tools/memory/extract_facts.py`
+- `tools/memory/prompts/fact_extraction.txt`
 
-### Command
-
-```bash
-python3 tools/memory/extract_facts.py extract [options]
-```
-
-### Input modes
-
-- Inline: `--text "..."`
-- Single file: `--from-file memory/2026-02-25.md`
-- Batch directory: `--from-dir memory --since-days 2`
-- Stdin supported if no explicit input flags
-
-### Safety mode
-
-- `--dry-run`: extract + dedupe logic only, no DB writes
-
-## Extraction engine
-
-- Primary: local Ollama `phi3:mini` (`http://127.0.0.1:11434/api/generate`)
-- Fallback: generates manual-review markdown template in `tmp/fact-extraction-manual-review/`
-
-## Validation
-
-Per-fact validation before storage:
-
-- type must be one of `fact|preference|decision|event|system_rule`
-- `content` must be non-empty and sufficiently specific
-- self-contained guard rejects unresolved pronouns (`he/she/they/it/this/that/...`)
-- confidence/importance clamped to `[0,1]`
-
-## Dedup / supersession
-
-Embeddings are generated locally via:
+## CLI
 
 ```bash
-python3 tools/embeddings/embed.py embed --text "..."
+# Single input (text file or jsonl). Use - for stdin.
+python3 tools/memory/extract_facts.py extract --input <file_or_-> [--dry-run]
+
+# Batch process recent OpenClaw session logs
+python3 tools/memory/extract_facts.py batch --since-hours 24 [--dry-run]
 ```
 
-Then nearest neighbors are queried from `cortana_memory_semantic.embedding_local` using pgvector cosine similarity:
+## Extraction process
 
-- `similarity > 0.95` → skip as duplicate
-- `0.85 <= similarity <= 0.95` + contradiction detected → supersede old fact
-  - mark old fact: `active=false`, `superseded_at=NOW()`
+1. Build prompt from `tools/memory/prompts/fact_extraction.txt`
+2. Call local Ollama model to extract strict JSON facts
+3. Validate each fact shape and bounds
+4. Embed each fact using local embeddings (`tools/embeddings/embed.py`)
+5. Query nearest active facts in `cortana_memory_semantic` using pgvector cosine similarity
+6. Apply dedup/supersession policy
+7. Insert fact with metadata + embedding
+
+## Dedup & supersession policy
+
+Before insert, nearest similar facts are searched.
+
+- **similarity > 0.95 + identical meaning** → skip as duplicate
+- **similarity 0.85–0.95 + updated meaning** → supersede old fact
   - insert new fact with `supersedes_id=<old_id>`
-- `< 0.85` → insert new fact
+  - mark old row `active=false`, set `superseded_by=<new_id>`, `superseded_at=NOW()`
+- **otherwise** → insert as new fact
 
-## Schema updates
+Similarity search uses local vector index on `embedding_local`.
 
-Migration: `migrations/016_atomic_fact_extraction.sql`
+## Schema support
 
-Adds if missing:
+`extract_facts.py` ensures schema columns exist before processing:
 
-- `supersedes_id bigint` (self-FK)
-- `superseded_at timestamptz`
-- `extraction_source text`
-- `embedding_local vector(384)` (local model vector storage)
+- `fact_type`
+- `superseded_by`
+- `superseded_at`
+- `supersedes_id`
+- `extraction_source`
+- `embedding_local`
 
-Also updates `fact_type` check constraint to include:
+And updates/creates constraints + indexes needed for pgvector lookup.
 
-`fact, preference, decision, event, system_rule` (plus existing compatibility values `rule`, `relationship`).
-
-## launchd schedule (3 AM nightly)
-
-Plist:
-
-`config/launchd/com.cortana.atomic-fact-extraction.plist`
-
-Runs:
+## Test flow used
 
 ```bash
-python3 /Users/hd/clawd/tools/memory/extract_facts.py extract --from-dir /Users/hd/clawd/memory --since-days 2
+# 1) dry-run extract from sample transcript
+python3 tools/memory/extract_facts.py extract --input /tmp/fact-sample.txt --dry-run
+
+# 2) dry-run recent sessions
+python3 tools/memory/extract_facts.py batch --since-hours 24 --dry-run
 ```
 
-Install:
-
-```bash
-cp /Users/hd/clawd/config/launchd/com.cortana.atomic-fact-extraction.plist ~/Library/LaunchAgents/
-launchctl unload ~/Library/LaunchAgents/com.cortana.atomic-fact-extraction.plist 2>/dev/null || true
-launchctl load ~/Library/LaunchAgents/com.cortana.atomic-fact-extraction.plist
-launchctl start com.cortana.atomic-fact-extraction
-```
-
-## Test examples
-
-```bash
-# Dry run today's memory file
-python3 tools/memory/extract_facts.py extract --from-file memory/2026-02-25.md --dry-run
-
-# Real write mode
-python3 tools/memory/extract_facts.py extract --from-file memory/2026-02-25.md
-```
+If Ollama is unavailable, the command fails fast (so ingestion quality is explicit, not silent).

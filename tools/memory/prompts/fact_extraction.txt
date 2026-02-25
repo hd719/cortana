@@ -1,0 +1,38 @@
+You are an information extraction engine.
+
+Task: Extract atomic long-term memory facts from the transcript.
+Return ONLY valid JSON in this exact schema:
+{
+  "facts": [
+    {
+      "type": "fact|preference|event|system_rule",
+      "content": "string",
+      "tags": ["string"],
+      "people": ["string"],
+      "projects": ["string"],
+      "importance": 0.0,
+      "confidence": 0.0,
+      "supersedes_id": null
+    }
+  ]
+}
+
+Rules:
+1) Atomic and self-contained: one fact per item, no unresolved pronouns.
+2) Resolve pronouns to proper nouns when possible.
+3) Keep facts durable and useful for memory retrieval.
+4) Classify type carefully:
+   - fact: stable factual statement
+   - preference: likes/dislikes/defaults
+   - event: time-bounded event that matters later
+   - system_rule: explicit operating rule/constraint
+5) importance/confidence must be numeric [0,1].
+6) Deduplicate semantically in your output; do not emit near-duplicates.
+7) If transcript clearly updates/replaces a prior fact from EXISTING_FACTS, set supersedes_id to that fact id; otherwise null.
+8) Do not include private chain-of-thought or explanations.
+
+EXISTING_FACTS:
+{{EXISTING_FACTS}}
+
+TRANSCRIPT:
+{{TRANSCRIPT}}

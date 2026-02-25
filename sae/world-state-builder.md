@@ -10,6 +10,8 @@ RUN_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
 
 For EACH source below, gather data and INSERT into cortana_sitrep with the same `$RUN_ID`. If any source fails, insert an error row and continue.
 
+**JSON handling rule (critical):** when pulling JSON from `psql`, always use `-t -A` and `COALESCE(..., '[]'::json)::text` so output is raw JSON only (no headers/formatting noise).
+
 Error row format:
 ```sql
 INSERT INTO cortana_sitrep (run_id, domain, key, value) VALUES ('$RUN_ID', '<domain>', 'error', '{"message": "<what failed>"}');
@@ -48,21 +50,30 @@ Insert: domain=`finance`, key=`stock_TSLA`, `stock_NVDA`, `stock_QQQ`, `stock_GL
 
 ### F) Tasks
 ```bash
-psql cortana -c "SELECT json_agg(t) FROM (SELECT id, title, priority, due_at, remind_at FROM cortana_tasks WHERE status='pending' ORDER BY priority ASC LIMIT 10) t;"
+TASKS_JSON=$(psql cortana -t -A -c "SELECT COALESCE(json_agg(t), '[]'::json)::text FROM (SELECT id, title, priority, due_at, remind_at FROM cortana_tasks WHERE status='pending' ORDER BY priority ASC LIMIT 10) t;")
+TASKS_COUNT=$(python3 -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$TASKS_JSON" 2>/dev/null || echo 0)
 ```
-Insert: domain=`tasks`, key=`pending`.
+Insert:
+- domain=`tasks`, key=`pending`, value=`$TASKS_JSON`
+- domain=`tasks`, key=`pending_summary`, value=`{"count": <TASKS_COUNT>}`
 
 ### G) Patterns
 ```bash
-psql cortana -c "SELECT json_agg(t) FROM (SELECT pattern_type, value, count(*) FROM cortana_patterns WHERE timestamp > NOW()-INTERVAL '7 days' GROUP BY pattern_type, value ORDER BY count DESC LIMIT 10) t;"
+PATTERNS_JSON=$(psql cortana -t -A -c "SELECT COALESCE(json_agg(t), '[]'::json)::text FROM (SELECT pattern_type, value, count(*) FROM cortana_patterns WHERE timestamp > NOW()-INTERVAL '7 days' GROUP BY pattern_type, value ORDER BY count DESC LIMIT 10) t;")
+PATTERNS_COUNT=$(python3 -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$PATTERNS_JSON" 2>/dev/null || echo 0)
 ```
-Insert: domain=`patterns`, key=`recent_7d`.
+Insert:
+- domain=`patterns`, key=`recent_7d`, value=`$PATTERNS_JSON`
+- domain=`patterns`, key=`recent_7d_summary`, value=`{"count": <PATTERNS_COUNT>}`
 
 ### H) Watchlist
 ```bash
-psql cortana -c "SELECT json_agg(t) FROM (SELECT category, item, last_value FROM cortana_watchlist WHERE enabled=TRUE) t;"
+WATCHLIST_JSON=$(psql cortana -t -A -c "SELECT COALESCE(json_agg(t), '[]'::json)::text FROM (SELECT category, item, last_value FROM cortana_watchlist WHERE enabled=TRUE) t;")
+WATCHLIST_COUNT=$(python3 -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$WATCHLIST_JSON" 2>/dev/null || echo 0)
 ```
-Insert: domain=`watchlist`, key=`active_items`.
+Insert:
+- domain=`watchlist`, key=`active_items`, value=`$WATCHLIST_JSON`
+- domain=`watchlist`, key=`active_items_summary`, value=`{"count": <WATCHLIST_COUNT>}`
 
 ### I) System Health
 ```bash
