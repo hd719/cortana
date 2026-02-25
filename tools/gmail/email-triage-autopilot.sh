@@ -14,6 +14,7 @@ DB="${CORTANA_DB:-cortana}"
 MAX_EMAILS="${TRIAGE_MAX_EMAILS:-15}"
 LOOKBACK_QUERY="${TRIAGE_QUERY:-is:unread newer_than:3d}"
 SEND_TELEGRAM="${TRIAGE_SEND_TELEGRAM:-0}"   # 1=send via openclaw cron wake, 0=print only
+RUN_INBOX_EXECUTION="${TRIAGE_RUN_INBOX_EXECUTION:-1}" # 1=run Python inbox->execution pipeline
 
 sql_escape() {
   echo "$1" | sed "s/'/''/g"
@@ -147,6 +148,16 @@ fi
 DIGEST+="\n(Guardrail: no outbound email actions performed.)"
 
 echo -e "$DIGEST"
+
+if [[ "$RUN_INBOX_EXECUTION" == "1" && -f "tools/email/inbox_to_execution.py" ]]; then
+  INBOX_JSON="$(python3 tools/email/inbox_to_execution.py --output-json 2>/dev/null || true)"
+  if [[ -n "$INBOX_JSON" ]]; then
+    ORPHAN_COUNT="$(echo "$INBOX_JSON" | jq -r '.stats.orphan // 0' 2>/dev/null || echo 0)"
+    STALE_COUNT="$(echo "$INBOX_JSON" | jq -r '.stats.stale // 0' 2>/dev/null || echo 0)"
+    DIGEST+="\n\nInbox→Execution:\n• Stale commitments: ${STALE_COUNT}\n• Orphan risk: ${ORPHAN_COUNT}"
+    echo -e "\nInbox→Execution:\n• Stale commitments: ${STALE_COUNT}\n• Orphan risk: ${ORPHAN_COUNT}"
+  fi
+fi
 
 if [[ "$SEND_TELEGRAM" == "1" ]]; then
   openclaw cron wake --mode now --text "$DIGEST" >/dev/null 2>&1 || true
