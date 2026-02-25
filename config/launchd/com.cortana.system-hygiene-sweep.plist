@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>Label</key>
+    <string>com.cortana.system-hygiene-sweep</string>
+
+    <key>ProgramArguments</key>
+    <array>
+      <string>/usr/bin/env</string>
+      <string>python3</string>
+      <string>/Users/hd/clawd/tools/hygiene/sweep.py</string>
+      <string>audit</string>
+    </array>
+
+    <key>StartCalendarInterval</key>
+    <dict>
+      <key>Hour</key>
+      <integer>2</integer>
+      <key>Minute</key>
+      <integer>45</integer>
+    </dict>
+
+    <key>WorkingDirectory</key>
+    <string>/Users/hd/clawd</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+      <key>PATH</key>
+      <string>/opt/homebrew/bin:/opt/homebrew/opt/postgresql@17/bin:/usr/local/bin:/usr/bin:/bin</string>
+    </dict>
+
+    <key>RunAtLoad</key>
+    <false/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/hd/clawd/tmp/system-hygiene-sweep.stdout.log</string>
+    <key>StandardErrorPath</key>
+    <string>/Users/hd/clawd/tmp/system-hygiene-sweep.stderr.log</string>
+  </dict>
+</plist>
