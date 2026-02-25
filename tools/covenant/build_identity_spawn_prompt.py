@@ -18,6 +18,7 @@ WORKSPACE_ROOT = Path("/Users/hd/clawd")
 REGISTRY_PATH = WORKSPACE_ROOT / "agents" / "identities" / "registry.json"
 HANDSHAKE_VALIDATOR = WORKSPACE_ROOT / "tools" / "covenant" / "validate_spawn_handshake.py"
 FEEDBACK_COMPILER = WORKSPACE_ROOT / "tools" / "covenant" / "feedback_compiler.py"
+MEMORY_INJECTOR = WORKSPACE_ROOT / "tools" / "covenant" / "memory_injector.py"
 
 IDENTITY_PROMPT_TEMPLATES = {
     "agent.monitor.v1": "Focus on signal quality, anomaly detection, and actionable triage paths.",
@@ -67,6 +68,30 @@ def _feedback_injection_block(agent_role: str, limit: int = 5) -> str:
         return ""
 
     cmd = ["python3", str(FEEDBACK_COMPILER), "inject", agent_role, "--limit", str(limit)]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        return ""
+
+    out = result.stdout.strip()
+    return out
+
+
+def _memory_injection_block(agent_role: str, limit: int = 5, max_chars: int = 2000, since_hours: int = 168) -> str:
+    if not MEMORY_INJECTOR.exists():
+        return ""
+
+    cmd = [
+        "python3",
+        str(MEMORY_INJECTOR),
+        "inject",
+        agent_role,
+        "--limit",
+        str(limit),
+        "--max-chars",
+        str(max_chars),
+        "--since-hours",
+        str(since_hours),
+    ]
     result = subprocess.run(cmd, capture_output=True, text=True)
     if result.returncode != 0:
         return ""
@@ -159,7 +184,13 @@ def _handoff_artifact_block(payload: dict[str, Any], agent_role: str) -> str:
     )
 
 
-def build_prompt(payload: dict[str, Any], contract: dict[str, Any], feedback_block: str = "", handoff_block: str = "") -> str:
+def build_prompt(
+    payload: dict[str, Any],
+    contract: dict[str, Any],
+    feedback_block: str = "",
+    memory_block: str = "",
+    handoff_block: str = "",
+) -> str:
     success_criteria = payload["success_criteria"]
     output_format = payload["output_format"]
     timeout_retry = payload["timeout_retry_policy"]
@@ -191,6 +222,8 @@ def build_prompt(payload: dict[str, Any], contract: dict[str, Any], feedback_blo
 {_format_bullets(escalation_triggers)}
 
 {feedback_block if feedback_block else '## Agent Feedback Lessons\n- No role-specific lessons injected for this spawn.'}
+
+{memory_block if memory_block else '## Identity-Scoped Memory Context\n- No role-scoped memories injected for this spawn.'}
 
 {handoff_block if handoff_block else '## Handoff Artifacts (HAB)\n- No unconsumed artifacts injected for this spawn.'}
 
@@ -292,9 +325,16 @@ def main() -> None:
 
     agent_role = _agent_role_from_identity(identity_id, contract)
     feedback_block = _feedback_injection_block(agent_role, limit=5)
+    memory_block = _memory_injection_block(agent_role, limit=5, max_chars=2000, since_hours=168)
     handoff_block = _handoff_artifact_block(payload, agent_role)
 
-    prompt = build_prompt(payload, contract, feedback_block=feedback_block, handoff_block=handoff_block)
+    prompt = build_prompt(
+        payload,
+        contract,
+        feedback_block=feedback_block,
+        memory_block=memory_block,
+        handoff_block=handoff_block,
+    )
 
     if output_path:
         output_path.write_text(prompt)
