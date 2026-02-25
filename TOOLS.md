@@ -135,6 +135,14 @@ psql cortana -c "SELECT * FROM cortana_feedback WHERE applied = FALSE;"
 
 ---
 
+## Known Issues
+
+### Stale Telegram Typing Indicator
+When multiple sub-agents complete in rapid succession, the gateway fires typing indicators while the main session processes results — even if no message is sent. Indicators stack up and never clear.
+**Fix:** `openclaw gateway restart`
+
+---
+
 ## Symlinks (Repo → Runtime)
 
 - `~/.openclaw/cron/jobs.json` → `/Users/hd/clawd/config/cron/jobs.json` (cron job definitions)

@@ -18,7 +18,13 @@
 - **Verify before stating** — Never assume market status, holidays, or facts. Search if unsure. Presidents Day is always Monday.
 - **Git is primary** — Don't suggest iCloud backup as the solution when git exists. Git is version control and backup.
 - **Branch creation protocol (MANDATORY)** — Before creating any new branch: `git checkout main` (or `git switch main`) and `git pull` first, then create the feature/fix branch. No exceptions.
-- **Sub-agent model: ALL sub-agents run Codex 5.3** — Every `sessions_spawn` must include `model="codex"`. Only the main session (Cortana) runs Opus. No exceptions.
+- **Sub-agent model assignments (tiered by role)** — Cortana (main) stays on Opus 4.6. Sub-agent models by Covenant role:
+  - **Huragok** → Codex 5.3 (`model="codex"`) — systems/infra needs top-tier code gen
+  - **Researcher** → Codex 5.3 (`model="codex"`) — research synthesis needs strong reasoning
+  - **Oracle** → Codex 5.3 (`model="codex"`) — forecasting/strategy is high-stakes reasoning
+  - **Librarian** → Codex 5.1 (`model="openai-codex/gpt-5.1"`) — structured writing, docs, knowledge indexing (29% cheaper)
+  - **Monitor** → Codex 5.1 (`model="openai-codex/gpt-5.1"`) — pattern detection, health checks, alert routing (29% cheaper)
+  - Every `sessions_spawn` must include the correct `model` for the agent role. No exceptions.
 - **Sub-agent labels are mandatory** — Every `sessions_spawn` must include a `label` in format `{covenant-agent}-{task-slug}` (e.g. `huragok-cron-symlink`, `librarian-docs-update`, `monitor-portfolio-check`). For general tasks, use `cortana-{task-slug}`. Generic 'openclaw-subagent' labels are unacceptable — Chief needs to see who's doing what at a glance on mobile.
 - **Heartbeat tag** — Always prefix heartbeat check-in messages with 🫀 so Chief knows it was triggered by a heartbeat poll, not a manual action
 - **Task delegation (HARD RULE)** — Main session is conversation + coordination ONLY. If a task takes more than one tool call, spawn a sub-agent. Cortana is the dispatcher/chief of staff, not the doer. Only exception: single-call lookups (weather, time, quick status). Everything else = spawn. Established Feb 16, 2026.
