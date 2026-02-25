@@ -19,12 +19,92 @@ ROUTE_SUGGESTION = {
 }
 
 
-def next_ready_step(plan: dict[str, Any], completed_steps: set[str]) -> dict[str, Any] | None:
+def _step_index(plan: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    return {s.get("step_id"): s for s in plan.get("steps", []) if isinstance(s, dict) and isinstance(s.get("step_id"), str)}
+
+
+def _parallel_groups(plan: dict[str, Any]) -> dict[str, set[str]]:
+    groups: dict[str, set[str]] = {}
     for step in plan.get("steps", []):
-        deps = set(step.get("depends_on", []))
-        if deps.issubset(completed_steps) and step.get("step_id") not in completed_steps:
-            return step
-    return None
+        if not isinstance(step, dict):
+            continue
+        sid = step.get("step_id")
+        grp = step.get("parallel_group")
+        if isinstance(sid, str) and isinstance(grp, str) and grp.strip():
+            groups.setdefault(grp.strip(), set()).add(sid)
+    return groups
+
+
+def group_for_step(plan: dict[str, Any], step_id: str) -> str | None:
+    step = _step_index(plan).get(step_id)
+    grp = step.get("parallel_group") if step else None
+    return grp.strip() if isinstance(grp, str) and grp.strip() else None
+
+
+def group_is_complete(plan: dict[str, Any], parallel_group: str, completed_steps: set[str]) -> bool:
+    groups = _parallel_groups(plan)
+    members = groups.get(parallel_group, set())
+    return bool(members) and members.issubset(completed_steps)
+
+
+def _expanded_dependencies(plan: dict[str, Any], step: dict[str, Any]) -> set[str]:
+    """Expand dependencies so any dependency on one member of a parallel group gates on the full group."""
+    deps = set(step.get("depends_on", []))
+    idx = _step_index(plan)
+    groups = _parallel_groups(plan)
+    expanded = set(deps)
+
+    for dep in deps:
+        dep_step = idx.get(dep)
+        grp = dep_step.get("parallel_group") if dep_step else None
+        if isinstance(grp, str) and grp.strip() and grp.strip() in groups:
+            expanded.update(groups[grp.strip()])
+
+    return expanded
+
+
+def next_ready_steps(plan: dict[str, Any], completed_steps: set[str]) -> list[dict[str, Any]]:
+    """Return dispatch-ready steps.
+
+    - Standard chain: returns one step.
+    - Parallel group: when first ready step is in a group, return all ready members in that group.
+    """
+    steps = [s for s in plan.get("steps", []) if isinstance(s, dict)]
+    idx = _step_index(plan)
+
+    for step in steps:
+        sid = step.get("step_id")
+        if not isinstance(sid, str) or sid in completed_steps:
+            continue
+
+        deps = _expanded_dependencies(plan, step)
+        if not deps.issubset(completed_steps):
+            continue
+
+        grp = step.get("parallel_group")
+        if isinstance(grp, str) and grp.strip():
+            group_name = grp.strip()
+            ready: list[dict[str, Any]] = []
+            for member_id, member in idx.items():
+                member_group = member.get("parallel_group")
+                if member_id in completed_steps:
+                    continue
+                if not (isinstance(member_group, str) and member_group.strip() == group_name):
+                    continue
+                member_deps = _expanded_dependencies(plan, member)
+                if member_deps.issubset(completed_steps):
+                    ready.append(member)
+            if ready:
+                return ready
+
+        return [step]
+
+    return []
+
+
+def next_ready_step(plan: dict[str, Any], completed_steps: set[str]) -> dict[str, Any] | None:
+    ready = next_ready_steps(plan, completed_steps)
+    return ready[0] if ready else None
 
 
 def decide_retry(agent_identity_id: str, failure_type: str, attempt: int, max_retries: int) -> dict[str, Any]:
@@ -63,6 +143,7 @@ def build_execution_state(
         return {
             "state": "blocked",
             "current_step_id": None,
+            "dispatch_step_ids": [],
             "next_action": "replan_or_human_review",
             "retry_decision": {
                 "action": "none",
@@ -81,22 +162,26 @@ def build_execution_state(
         return {
             "state": "blocked" if retry["action"].startswith("escalate") else "running",
             "current_step_id": failure_event.get("step_id"),
+            "dispatch_step_ids": [failure_event.get("step_id")] if failure_event.get("step_id") else [],
             "next_action": retry["action"],
             "retry_decision": retry,
         }
 
-    nxt = next_ready_step(plan, completed_steps)
-    if not nxt:
+    ready_steps = next_ready_steps(plan, completed_steps)
+    if not ready_steps:
         return {
             "state": "completed",
             "current_step_id": None,
+            "dispatch_step_ids": [],
             "next_action": "final_quality_gate",
             "retry_decision": {"action": "none", "route_to": None, "reason": "All steps complete."},
         }
 
+    dispatch_ids = [s["step_id"] for s in ready_steps if isinstance(s.get("step_id"), str)]
     return {
         "state": "running",
-        "current_step_id": nxt["step_id"],
+        "current_step_id": dispatch_ids[0] if dispatch_ids else None,
+        "dispatch_step_ids": dispatch_ids,
         "next_action": "dispatch_step",
         "retry_decision": {"action": "none", "route_to": None, "reason": "No failure event."},
     }

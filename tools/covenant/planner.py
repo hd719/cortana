@@ -26,6 +26,10 @@ HANDOFF_PATTERNS: dict[str, tuple[str, list[str]]] = {
         "Research options, choose strategy, then implement execution changes.",
         [AGENT_RESEARCHER, AGENT_ORACLE, AGENT_HURAGOK],
     ),
+    "parallel_research": (
+        "Fan-out research across multiple Researchers in parallel, then fan-in to Oracle synthesis.",
+        [AGENT_RESEARCHER, AGENT_RESEARCHER, AGENT_RESEARCHER, AGENT_ORACLE],
+    ),
     "monitor_to_huragok": (
         "Detect/triage issue patterns, then implement the corrective fix.",
         [AGENT_MONITOR, AGENT_HURAGOK],
@@ -170,6 +174,10 @@ def normalize_tokens(payload: dict[str, Any]) -> set[str]:
             "what are the options": "what_are_the_options",
             "health check": "health_check",
             "should we": "should_we",
+            "parallel research": "parallel_research",
+            "fan out": "fan_out",
+            "fan-out": "fan_out",
+            "parallel": "parallel",
         }
         for phrase, token in phrase_signals.items():
             if phrase in objective_lc:
@@ -202,7 +210,11 @@ def choose_pattern(tokens: set[str], explicit: str | None = None) -> tuple[str |
     has_spec = bool(tokens.intersection(KEYWORDS[AGENT_LIBRARIAN]))
     has_impl = bool(tokens.intersection(KEYWORDS[AGENT_HURAGOK]))
     has_monitor = bool(tokens.intersection(KEYWORDS[AGENT_MONITOR]))
+    has_parallel = bool(tokens.intersection({"parallel", "fan_out", "parallel_research"}))
 
+    if has_parallel and has_research:
+        reason, chain = HANDOFF_PATTERNS["parallel_research"]
+        return "parallel_research", chain, reason
     if has_research and has_oracle and has_impl:
         reason, chain = HANDOFF_PATTERNS["researcher_to_oracle_to_huragok"]
         return "researcher_to_oracle_to_huragok", chain, reason
@@ -239,27 +251,71 @@ def _step_confidence(agent: str, tokens: set[str]) -> float:
     return round(min(0.95, 0.55 + (matched * 0.08)), 2)
 
 
+def _research_angles(payload: dict[str, Any]) -> list[str]:
+    angles = payload.get("parallel_research_angles")
+    if isinstance(angles, list):
+        normalized = [str(x).strip() for x in angles if str(x).strip()]
+        if normalized:
+            return normalized
+    return ["angle_1", "angle_2", "angle_3"]
+
+
 def build_plan(payload: dict[str, Any]) -> dict[str, Any]:
     tokens = normalize_tokens(payload)
     pattern, chain, reason = choose_pattern(tokens, payload.get("handoff_pattern"))
 
     objective = payload.get("objective", "Execute routed task")
     steps: list[dict[str, Any]] = []
-    for i, agent in enumerate(chain, start=1):
-        step_id = f"step_{i}"
-        deps = [f"step_{i-1}"] if i > 1 else []
-        next_step = f"step_{i+1}" if i < len(chain) else None
+
+    if pattern == "parallel_research":
+        angles = _research_angles(payload)
+        parallel_group = payload.get("parallel_group") or "research_fanout_1"
+        confidence_threshold = payload.get("confidence_threshold", DEFAULT_STEP_THRESHOLD)
+
+        # Fan-out researchers
+        for i, angle in enumerate(angles, start=1):
+            step_id = f"step_{i}"
+            steps.append(
+                {
+                    "step_id": step_id,
+                    "agent_identity_id": AGENT_RESEARCHER,
+                    "objective": f"{objective} :: Research angle [{angle}]",
+                    "depends_on": [],
+                    "parallel_group": parallel_group,
+                    "confidence": _step_confidence(AGENT_RESEARCHER, tokens),
+                    "confidence_threshold": confidence_threshold,
+                    "retry_policy": dict(DEFAULT_RETRY),
+                    "quality_gate": {
+                        "name": f"gate_{step_id}",
+                        "required": True,
+                        "checks": [
+                            "outputs_match_contract",
+                            "no_boundary_violations",
+                            "confidence_meets_threshold",
+                        ],
+                    },
+                    "handoff": {
+                        "input_contract": ["objective", "upstream_artifacts", "constraints"],
+                        "output_contract": ["summary", "artifacts", "risks", "confidence"],
+                        "deliver_to_step_id": f"step_{len(angles)+1}",
+                    },
+                }
+            )
+
+        # Fan-in synthesizer depends on one parallel step; executor barrier expands to full group.
+        final_step_id = f"step_{len(angles)+1}"
         steps.append(
             {
-                "step_id": step_id,
-                "agent_identity_id": agent,
-                "objective": objective if i == 1 else f"Continue objective after {deps[0]} outputs",
-                "depends_on": deps,
-                "confidence": _step_confidence(agent, tokens),
-                "confidence_threshold": payload.get("confidence_threshold", DEFAULT_STEP_THRESHOLD),
+                "step_id": final_step_id,
+                "agent_identity_id": AGENT_ORACLE,
+                "objective": f"Synthesize parallel findings for objective: {objective}",
+                "depends_on": ["step_1"],
+                "parallel_group": None,
+                "confidence": _step_confidence(AGENT_ORACLE, tokens),
+                "confidence_threshold": confidence_threshold,
                 "retry_policy": dict(DEFAULT_RETRY),
                 "quality_gate": {
-                    "name": f"gate_{step_id}",
+                    "name": f"gate_{final_step_id}",
                     "required": True,
                     "checks": [
                         "outputs_match_contract",
@@ -270,10 +326,43 @@ def build_plan(payload: dict[str, Any]) -> dict[str, Any]:
                 "handoff": {
                     "input_contract": ["objective", "upstream_artifacts", "constraints"],
                     "output_contract": ["summary", "artifacts", "risks", "confidence"],
-                    "deliver_to_step_id": next_step,
+                    "deliver_to_step_id": None,
                 },
             }
         )
+
+        chain = [AGENT_RESEARCHER for _ in angles] + [AGENT_ORACLE]
+    else:
+        for i, agent in enumerate(chain, start=1):
+            step_id = f"step_{i}"
+            deps = [f"step_{i-1}"] if i > 1 else []
+            next_step = f"step_{i+1}" if i < len(chain) else None
+            steps.append(
+                {
+                    "step_id": step_id,
+                    "agent_identity_id": agent,
+                    "objective": objective if i == 1 else f"Continue objective after {deps[0]} outputs",
+                    "depends_on": deps,
+                    "parallel_group": None,
+                    "confidence": _step_confidence(agent, tokens),
+                    "confidence_threshold": payload.get("confidence_threshold", DEFAULT_STEP_THRESHOLD),
+                    "retry_policy": dict(DEFAULT_RETRY),
+                    "quality_gate": {
+                        "name": f"gate_{step_id}",
+                        "required": True,
+                        "checks": [
+                            "outputs_match_contract",
+                            "no_boundary_violations",
+                            "confidence_meets_threshold",
+                        ],
+                    },
+                    "handoff": {
+                        "input_contract": ["objective", "upstream_artifacts", "constraints"],
+                        "output_contract": ["summary", "artifacts", "risks", "confidence"],
+                        "deliver_to_step_id": next_step,
+                    },
+                }
+            )
 
     return {
         "version": "covenant-pce-v2",

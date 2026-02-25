@@ -77,6 +77,7 @@
       "properties": {
         "state": {"type": "string", "enum": ["queued", "running", "blocked", "completed"]},
         "current_step_id": {"type": ["string", "null"]},
+        "dispatch_step_ids": {"type": "array", "items": {"type": "string"}},
         "next_action": {"type": "string"},
         "retry_decision": {
           "type": "object",
@@ -94,7 +95,7 @@
           "required": ["action", "route_to", "reason"]
         }
       },
-      "required": ["state", "current_step_id", "next_action", "retry_decision"]
+      "required": ["state", "current_step_id", "dispatch_step_ids", "next_action", "retry_decision"]
     }
   },
   "$defs": {
@@ -147,6 +148,7 @@
         "agent_identity_id": {"$ref": "#/$defs/agent_identity_id"},
         "objective": {"type": "string", "minLength": 1},
         "depends_on": {"type": "array", "items": {"type": "string"}},
+        "parallel_group": {"type": ["string", "null"]},
         "confidence": {"type": "number", "minimum": 0, "maximum": 1},
         "confidence_threshold": {"type": "number", "minimum": 0, "maximum": 1},
         "retry_policy": {"$ref": "#/$defs/retry_policy"},
