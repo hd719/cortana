@@ -34,15 +34,18 @@ If you’re onboarding fresh: start with **`AGENTS.md` → `SOUL.md` → `USER.m
 ├── HEARTBEAT.md               # Heartbeat checklist/protocol
 │
 ├── skills/                    # Installed local skills (see section 5)
-├── tools/                     # Scripts/automation (task board, policy, reflection, etc.)
+├── tools/                     # Scripts/automation (task board, policy, reflection, guardrails, memory)
 ├── cortical-loop/             # Event watchers/evaluator state + logs
 ├── sae/                       # Situational Awareness Engine prompts/templates
 ├── immune-system/             # Threat detection docs + schema/playbooks
 ├── proprioception/            # Self-health/budget monitoring docs + scripts
 ├── memory-consolidation/      # Sleep-cycle memory pipeline docs
 │
+├── agents/                    # Agent notes/operational assets
+├── canvas/                    # Canvas UI assets/workflows
 ├── covenant/                  # Subagent identities and orchestration notes
 ├── knowledge/                 # Research/pattern/prediction outputs
+├── learning/                  # Learning artifacts/experiments
 ├── memory/                    # Daily logs + archives
 ├── migrations/                # SQL migrations for Cortana DB features
 ├── docs/                      # Runbooks and architecture docs
@@ -80,6 +83,16 @@ If you’re onboarding fresh: start with **`AGENTS.md` → `SOUL.md` → `USER.m
 - `tools/task-board/` — task board automation + safe auto-executor
 - `tools/reflection/reflect.py` — reflection & rule extraction loop
 - `tools/policy/engine.py` + `tools/policy/policies.yaml` — policy/risk guardrails
+
+### Tooling updates (2026-02-25)
+- `tools/guardrails/tone_drift_sentinel.py` — scores response tone quality against `SOUL.md` alignment targets.
+- `tools/task-board/auto_sync_enforcer.py` — forces task-board sync when sub-agents complete work.
+- `tools/task-board/state-audit.sql` — PostgreSQL triggers enforcing task lifecycle invariants.
+- `tools/task-board/state_integrity.py` — heartbeat-side audit for task state drift and mismatch detection.
+- `tools/reflection/recurrence_radar.py` — semantic clustering of repeated corrections for recurrence detection.
+- `tools/memory/memory_quality_gate.py` — quality scoring gate for memory entries during ingest.
+- `tools/proactive/evaluate_accuracy.py` — tracks precision/accuracy of proactive signals over time.
+- `tools/immune_scan.sh` — expanded to include flap detection, quarantine hooks, and path verification.
 
 ---
 
