@@ -4,6 +4,95 @@ Operational home for Cortana (main orchestrator session + memory + policies + cr
 
 This repo is the **brain + playbook** side of the system. Runtime services (Go APIs, mission-control UI, watchdog) live in `~/Developer/cortana-external`.
 
+## 🧬 TLDR — Cortana's Architecture
+
+**At a glance:** 50+ PostgreSQL tables • 5 specialized agents • 15+ autonomous tools • 10+ scheduled services (launchd + cron) • Local inference fallback • Zero-API embedding at ~1,400 texts/sec.
+
+### 🧠 The Brain (Memory & Cognition)
+Cortana thinks in layers: immediate context for now, session logs for continuity, and vector-backed long-term memory for recall. The memory loop is compressed daily, embedded locally, and prewarmed before the day starts.
+
+```mermaid
+graph LR
+    W[🧠 Working Memory<br/>LLM Context] --> S[📜 Session Memory<br/>JSONL Logs]
+    S --> L[🗄️ Long-Term Memory<br/>PostgreSQL + pgvector]
+
+    E[🏭 Local Embedding Factory<br/>fastembed (on-device)] --> L
+    L --> C[🧬 Semantic Compression Engine<br/>Daily Distillation]
+    C --> L
+
+    O[🔮 Precompute Oracle<br/>5:30 AM Prefetch] --> W
+    L --> O
+```
+
+### 💪 The Nervous System (Communication & Coordination)
+Cortana sits at command-and-control center, routing signals between agents and systems. Events flow through a durable bus, while parallel workflows fan out and converge with structured handoffs.
+
+```mermaid
+graph TD
+    C0[🎯 Cortana<br/>Chief of Staff / C2] --> EB[⚡ Event Bus<br/>PostgreSQL LISTEN/NOTIFY]
+    C0 --> HAB[📦 Handoff Artifact Bus<br/>Inter-agent Context Relay]
+    C0 --> FX[🪃 Fan-out / Fan-in Executor]
+
+    FX --> A1[🤖 Agent A]
+    FX --> A2[🤖 Agent B]
+    FX --> A3[🤖 Agent C]
+    A1 --> HAB
+    A2 --> HAB
+    A3 --> HAB
+    HAB --> C0
+
+    EB --> L1[📡 Lifecycle Events<br/>spawn / complete / fail / timeout]
+    L1 --> C0
+```
+
+### 🛡️ The Immune System (Self-Healing & Safety)
+When things drift, Cortana doesn't panic—she triages. Risk gates, watchdogs, local fallback inference, and recovery playbooks enforce a tiered response: auto-fix first, then alert, then escalate for approval.
+
+```mermaid
+graph LR
+    G[🚦 Autonomy Governor v2<br/>Risk-Scored Approval Gates] --> T[🧭 Triage Engine]
+    WDG[🐶 Watchdog<br/>15-min launchd checks] --> T
+    F[🧠 Local Inference Failsafe<br/>Ollama + phi3:mini] --> T
+    R[🛠️ Resilience Drillbook<br/>6-service recovery / ~2s RTO] --> T
+
+    T --> A[🟢 Tier 1: Auto-Fix]
+    T --> B[🟡 Tier 2: Alert]
+    T --> C1[🔴 Tier 3: Ask Chief]
+```
+
+### 👁️ The Senses (Awareness & Perception)
+Cortana continuously senses both machine state and human context. Vision, pattern models, proactive watchlists, and internal self-health telemetry combine into situational awareness.
+
+```mermaid
+graph TD
+    O[📷 Multimodal Ops Eye<br/>Screenshot + OCR] --> SA[🧭 Situational Awareness Core]
+    B[🧍 Behavioral Twin<br/>Chief-State Prediction] --> SA
+    P[🛰️ Proactive Intelligence<br/>Watchlist + Pattern Detection] --> SA
+    PR[🫀 Proprioception<br/>Budget + Cron Health + Self-Model] --> SA
+
+    SA --> D[📣 Decisions / Alerts / Timing]
+```
+
+### ⚔️ The Covenant (Agent Team)
+Five specialized agents execute as a coordinated strike team. Cortana orchestrates a Planner → Critic → Executor loop, injects role-scoped memory, and continuously compiles lessons back into future runs.
+
+```mermaid
+graph LR
+    C2[🎯 Cortana<br/>Command & Control] --> P0[🧠 Planner]
+    P0 --> C1[🧐 Critic]
+    C1 --> E0[⚙️ Executor]
+
+    E0 --> H[🔧 Huragok<br/>Systems Engineer]
+    E0 --> R[🛰️ Researcher<br/>Scout]
+    E0 --> M[🛡️ Monitor<br/>Guardian]
+    E0 --> O0[🔮 Oracle<br/>Forecaster]
+    E0 --> L[📚 Librarian<br/>Knowledge Base]
+
+    ISM[🧷 Identity-Scoped Memory Injection] --> E0
+    AFC[🧬 Agent Feedback Compiler<br/>Per-agent Lessons] --> P0
+    AFC --> C1
+```
+
 ---
 
 ## 1) What this repo is
