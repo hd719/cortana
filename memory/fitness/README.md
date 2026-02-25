@@ -16,5 +16,5 @@ This directory stores Hamel's daily fitness data from Whoop and Tonal.
 - Sunday 8pm - Weekly insights
 
 ## Service Endpoints
-- `http://localhost:8080/whoop/data` - Whoop API (auto-refreshes tokens)
-- `http://localhost:8080/tonal/data` - Tonal API (cached workout history)
+- `http://localhost:3033/whoop/data` - Whoop API (auto-refreshes tokens)
+- `http://localhost:3033/tonal/data` - Tonal API (cached workout history)

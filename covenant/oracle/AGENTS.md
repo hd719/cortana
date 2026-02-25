@@ -33,10 +33,10 @@ cat /Users/hd/clawd/knowledge/INDEX.md
 ### From Whoop (Current State)
 ```bash
 # Recovery trajectory
-curl -s http://localhost:8080/whoop/data | jq '.recovery[:7] | .[] | {date: .created_at[:10], score: .score.recovery_score}'
+curl -s http://localhost:3033/whoop/data | jq '.recovery[:7] | .[] | {date: .created_at[:10], score: .score.recovery_score}'
 
 # Sleep trend
-curl -s http://localhost:8080/whoop/data | jq '.sleep[:7] | .[] | {date: .created_at[:10], hours: (.score.stage_summary.total_sleep_time_milli / 3600000)}'
+curl -s http://localhost:3033/whoop/data | jq '.sleep[:7] | .[] | {date: .created_at[:10], hours: (.score.stage_summary.total_sleep_time_milli / 3600000)}'
 ```
 
 ### From Calendar (Future Events)

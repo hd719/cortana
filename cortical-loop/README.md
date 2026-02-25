@@ -32,7 +32,7 @@ Real-time model of Hamel's state: awake/asleep, energy level, focus mode, commun
 |---------|----------|--------|
 | email-watcher.sh | 2 min | Gmail via gog |
 | calendar-watcher.sh | 5 min | Google Calendar via gog |
-| health-watcher.sh | 15 min | Whoop via localhost:8080 |
+| health-watcher.sh | 15 min | Whoop via localhost:3033 |
 | portfolio-watcher.sh | 10 min | Stock analysis (market hours only) |
 | chief-state.sh | 5 min | Session files + calendar + sitrep |
 

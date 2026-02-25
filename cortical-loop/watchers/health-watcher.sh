@@ -5,7 +5,7 @@ export PATH="/opt/homebrew/bin:/opt/homebrew/opt/postgresql@17/bin:$PATH"
 STATE_FILE="$HOME/clawd/cortical-loop/state/health-last-recovery.txt"
 mkdir -p "$(dirname "$STATE_FILE")"
 
-WHOOP=$(curl -s http://localhost:8080/whoop/data 2>/dev/null)
+WHOOP=$(curl -s http://localhost:3033/whoop/data 2>/dev/null)
 if [ $? -ne 0 ] || [ -z "$WHOOP" ]; then exit 0; fi
 
 RECOVERY=$(echo "$WHOOP" | jq -r '.recovery[0].score.recovery_score // empty' 2>/dev/null)

@@ -7,7 +7,7 @@ set -euo pipefail
 export PATH="/opt/homebrew/bin:/opt/homebrew/opt/postgresql@17/bin:/usr/local/bin:/usr/bin:/bin"
 
 DB="${CORTANA_DB:-cortana}"
-TONAL_ENDPOINT="${TONAL_ENDPOINT:-http://localhost:8080/tonal/health}"
+TONAL_ENDPOINT="${TONAL_ENDPOINT:-http://localhost:3033/tonal/health}"
 TONAL_FALLBACK_ENDPOINT="${TONAL_FALLBACK_ENDPOINT:-http://localhost:3033/tonal/health}"
 MAX_ATTEMPTS="${MAX_ATTEMPTS:-3}"
 CONNECT_TIMEOUT_SECONDS="${CONNECT_TIMEOUT_SECONDS:-3}"

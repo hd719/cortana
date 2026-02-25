@@ -52,6 +52,6 @@ Commands I recognize in our conversation for the trading advisor.
 
 ## Service Endpoints (for reference)
 
-- Portfolio: `curl http://localhost:8080/alpaca/portfolio`
-- Trades: `curl http://localhost:8080/alpaca/trades`
-- Stats: `curl http://localhost:8080/alpaca/stats`
+- Portfolio: `curl http://localhost:3033/alpaca/portfolio`
+- Trades: `curl http://localhost:3033/alpaca/trades`
+- Stats: `curl http://localhost:3033/alpaca/stats`

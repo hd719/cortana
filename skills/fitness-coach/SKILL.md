@@ -24,14 +24,14 @@ Coach-style fitness insights from Whoop + Tonal data. Analysis and actionable ad
 
 ```bash
 # Check if Tonal auth is valid
-curl -s http://localhost:8080/tonal/health | jq -r '.status'
+curl -s http://localhost:3033/tonal/health | jq -r '.status'
 # Returns: "healthy" or "unhealthy"
 
 # Whoop data (30 days cached)
-curl -s http://localhost:8080/whoop/data
+curl -s http://localhost:3033/whoop/data
 
 # Tonal data (workouts + strength scores)
-curl -s http://localhost:8080/tonal/data
+curl -s http://localhost:3033/tonal/data
 ```
 
 **If Tonal unhealthy:** Auto-heal first, then retry:
@@ -47,7 +47,7 @@ psql cortana -c "INSERT INTO cortana_events (event_type, source, severity, messa
 sleep 2
 
 # Retry health check
-curl -s http://localhost:8080/tonal/health | jq -r '.status'
+curl -s http://localhost:3033/tonal/health | jq -r '.status'
 ```
 If still unhealthy after self-heal: skip Tonal data gracefully, report Whoop-only insights, and alert user that manual intervention may be needed.
 
@@ -172,10 +172,10 @@ These are already set up:
 **Location:** `~/Desktop/services/`
 
 **Endpoints:**
-- `http://localhost:8080/whoop/data` — All Whoop data (30 days cached)
-- `http://localhost:8080/tonal/data` — All Tonal workouts + strength scores
-- `http://localhost:8080/tonal/health` — Auth health check
-- `http://localhost:8080/auth/url` — Whoop OAuth URL (re-auth if needed)
+- `http://localhost:3033/whoop/data` — All Whoop data (30 days cached)
+- `http://localhost:3033/tonal/data` — All Tonal workouts + strength scores
+- `http://localhost:3033/tonal/health` — Auth health check
+- `http://localhost:3033/auth/url` — Whoop OAuth URL (re-auth if needed)
 
 **Rate Limits:**
 - Whoop: 100/min, 10k/day (each `/whoop/data` call uses ~6 API requests)

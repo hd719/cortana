@@ -128,7 +128,7 @@
   │recovery  │  │strength  │  │Gmail/Cal │  │ X/Twitter│  │          │
   │sleep/HRV │  │workouts  │  │Drive     │  │ bird CLI │  │ CANSLIM  │
   │strain    │  │programs  │  │Contacts  │  │          │  │ Alpaca   │
-  │:8080     │  │:8080     │  │gog CLI   │  │          │  │backtester│
+  │:3033     │  │:3033     │  │gog CLI   │  │          │  │backtester│
   └──────────┘  └──────────┘  └──────────┘  └──────────┘  └──────────┘
 
   ┌──────────┐  ┌──────────┐  ┌──────────┐
@@ -421,7 +421,7 @@ Long-running autonomous agents I spawn for deep work. Named after Halo factions.
        └─────────┬─────────┘
                  ▼
        ┌─────────────────┐
-       │ localhost:8080  │  ← Local service
+       │ localhost:3033  │  ← Local service
        │ /whoop/data     │
        │ /tonal/data     │
        └────────┬────────┘
@@ -711,9 +711,9 @@ Adds one shared brief skeleton for AM and PM runs with:
 
 | Service | What It Does | How To Access |
 |---------|--------------|---------------|
-| **Whoop** | Recovery, sleep, strain | `curl localhost:8080/whoop/data` |
-| **Tonal** | Workouts, strength | `curl localhost:8080/tonal/data` |
-| **Alpaca** | Paper trading, portfolio | `curl localhost:8080/alpaca/portfolio` |
+| **Whoop** | Recovery, sleep, strain | `curl localhost:3033/whoop/data` |
+| **Tonal** | Workouts, strength | `curl localhost:3033/tonal/data` |
+| **Alpaca** | Paper trading, portfolio | `curl localhost:3033/alpaca/portfolio` |
 | **Google Calendar** | Events, reminders | `gog calendar list` |
 | **Gmail** | Email triage | `gog gmail search` |
 | **Twitter/X** | Social, mentions | `birdx` CLI |
@@ -723,10 +723,10 @@ Adds one shared brief skeleton for AM and PM runs with:
 
 ```bash
 # Health first
-curl -s http://localhost:8080/tonal/health | jq -r '.status'
+curl -s http://localhost:3033/tonal/health | jq -r '.status'
 
 # Tonal workouts + strength scores
-curl -s http://localhost:8080/tonal/data
+curl -s http://localhost:3033/tonal/data
 ```
 
 ### Key Whoop Metrics
@@ -774,7 +774,7 @@ Cortana's world-state system. Gathers data from every source into a unified sitr
 | A | `calendar` | `events_48h`, `next_event` | `gog --account hameldesai3@gmail.com calendar events <cal_id> --from today --to +2d --json` |
 | B | `email` | `unread_summary` | `gog --account hameldesai3@gmail.com gmail search 'is:unread' --max 10 --json` |
 | C | `weather` | `today`, `tomorrow` | Web search for Warren, NJ conditions + forecast |
-| D | `health` | `whoop_recovery`, `whoop_sleep`, `tonal_health` | `curl -s localhost:8080/whoop/data \| jq` + `curl -s localhost:8080/tonal/health` |
+| D | `health` | `whoop_recovery`, `whoop_sleep`, `tonal_health` | `curl -s localhost:3033/whoop/data \| jq` + `curl -s localhost:3033/tonal/health` |
 | E | `finance` | `stock_TSLA`, `stock_NVDA`, `stock_QQQ`, `stock_GLD` | `curl -s http://localhost:3033/alpaca/portfolio` + finance pipeline in `~/Developer/cortana-external/backtester/` |
 | F | `tasks` | `pending` | `SELECT json_agg(t) FROM cortana_tasks WHERE status='pending' ORDER BY priority LIMIT 10` |
 | G | `patterns` | `recent_7d` | `SELECT json_agg(t) FROM cortana_patterns WHERE timestamp > NOW()-'7 days'` |
@@ -880,7 +880,7 @@ All run as launchd LaunchAgents (`~/Library/LaunchAgents/com.cortana.watcher.*.p
 |---------|-------------|----------|------------------|------------------|
 | 📧 `email-watcher.sh` | `com.cortana.watcher.email` | 2 min | Gmail unread via `gog` | `{source: "email", event_type: "new_unread"}` |
 | 📅 `calendar-watcher.sh` | `com.cortana.watcher.calendar` | 5 min | Google Calendar via `gog` | `{source: "calendar", event_type: "event_approaching"}` |
-| 💚 `health-watcher.sh` | `com.cortana.watcher.health` | 15 min | Whoop via localhost:8080 | `{source: "health", event_type: "recovery_update"}` |
+| 💚 `health-watcher.sh` | `com.cortana.watcher.health` | 15 min | Whoop via localhost:3033 | `{source: "health", event_type: "recovery_update"}` |
 | 📈 `portfolio-watcher.sh` | `com.cortana.watcher.portfolio` | 10 min | Stock prices (market hours only) | `{source: "finance", event_type: "price_alert"}` |
 | 👤 `chief-state.sh` | `com.cortana.watcher.chief-state` | 5 min | Session files + calendar + sitrep | Updates `cortana_chief_model` directly |
 | 🔍 `behavioral-watcher.sh` | `com.cortana.watcher.behavioral` | 30 min | Message latency, engagement | `cortana_feedback_signals` (implicit) |

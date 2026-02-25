@@ -19,13 +19,13 @@
 ### Whoop Data
 ```bash
 # Full data dump (30 days cached)
-curl -s http://localhost:8080/whoop/data | jq '.'
+curl -s http://localhost:3033/whoop/data | jq '.'
 
 # Recovery scores (last 14 days)
-curl -s http://localhost:8080/whoop/data | jq '.recovery[:14] | .[] | {date: .created_at[:10], score: .score.recovery_score, hrv: .score.hrv_rmssd_milli}'
+curl -s http://localhost:3033/whoop/data | jq '.recovery[:14] | .[] | {date: .created_at[:10], score: .score.recovery_score, hrv: .score.hrv_rmssd_milli}'
 
 # Sleep data (last 7 days)
-curl -s http://localhost:8080/whoop/data | jq '.sleep[:7] | .[] | {
+curl -s http://localhost:3033/whoop/data | jq '.sleep[:7] | .[] | {
   date: .created_at[:10],
   total_hours: (.score.stage_summary.total_in_bed_time_milli / 3600000),
   sleep_hours: (.score.stage_summary.total_sleep_time_milli / 3600000),
@@ -35,10 +35,10 @@ curl -s http://localhost:8080/whoop/data | jq '.sleep[:7] | .[] | {
 }'
 
 # Strain data (last 7 days)
-curl -s http://localhost:8080/whoop/data | jq '.strain[:7] | .[] | {date: .created_at[:10], strain: .score.strain, calories: .score.kilojoule}'
+curl -s http://localhost:3033/whoop/data | jq '.strain[:7] | .[] | {date: .created_at[:10], strain: .score.strain, calories: .score.kilojoule}'
 
 # Recovery zone distribution (last 14 days)
-curl -s http://localhost:8080/whoop/data | jq '[.recovery[:14] | .[].score.recovery_score] | {
+curl -s http://localhost:3033/whoop/data | jq '[.recovery[:14] | .[].score.recovery_score] | {
   green: (map(select(. >= 67)) | length),
   yellow: (map(select(. >= 34 and . < 67)) | length),
   red: (map(select(. < 34)) | length),
@@ -49,10 +49,10 @@ curl -s http://localhost:8080/whoop/data | jq '[.recovery[:14] | .[].score.recov
 ### Tonal Data
 ```bash
 # Check health first
-curl -s http://localhost:8080/tonal/health | jq '.status'
+curl -s http://localhost:3033/tonal/health | jq '.status'
 
 # Get workout data (if healthy)
-curl -s http://localhost:8080/tonal/data | jq '.'
+curl -s http://localhost:3033/tonal/data | jq '.'
 ```
 
 ### Calendar Data

@@ -1,7 +1,7 @@
 {
   "services": {
     "tonal": {
-      "endpoint": "http://localhost:8080/tonal/health",
+      "endpoint": "http://localhost:3033/tonal/health",
       "fallbackEndpoint": "http://localhost:3033/tonal/health",
       "healthCheck": "tools/alerting/tonal-health-check.sh",
       "assignee": "monitor@local",
@@ -15,8 +15,8 @@
       "dependents": ["fitness-morning-brief", "fitness-evening-recap", "weekly-fitness-insights"]
     },
     "whoop": {
-      "endpoint": "http://localhost:8080/whoop/data",
-      "healthCheck": "curl -s http://localhost:8080/whoop/data | head -c 100",
+      "endpoint": "http://localhost:3033/whoop/data",
+      "healthCheck": "curl -s http://localhost:3033/whoop/data | head -c 100",
       "dependents": ["fitness-morning-brief", "fitness-evening-recap", "weekly-fitness-insights"]
     },
     "postgres": {

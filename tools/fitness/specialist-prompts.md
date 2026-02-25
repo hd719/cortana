@@ -11,7 +11,7 @@ Use these to spawn deep fitness analysis on demand. Just tell Cortana what you w
 ```
 Analyze Hamel's sleep-recovery correlation over the last 30 days.
 
-Fetch: curl -s http://localhost:8080/whoop/data
+Fetch: curl -s http://localhost:3033/whoop/data
 
 Analyze:
 - Which sleep metrics most strongly predict green recovery?
@@ -28,7 +28,7 @@ Create: ~/clawd/memory/fitness/analysis/sleep-recovery-correlation.md
 ```
 Analyze Hamel's strength progression through his Tonal program.
 
-Fetch: curl -s http://localhost:8080/tonal/data
+Fetch: curl -s http://localhost:3033/tonal/data
 
 Analyze:
 - Volume trends week over week
@@ -45,7 +45,7 @@ Create: ~/clawd/memory/fitness/analysis/strength-progression.md
 ```
 Analyze the relationship between daily strain and next-day recovery.
 
-Fetch: curl -s http://localhost:8080/whoop/data
+Fetch: curl -s http://localhost:3033/whoop/data
 
 Analyze:
 - Strain levels that lead to green vs yellow vs red recovery
@@ -62,8 +62,8 @@ Create: ~/clawd/memory/fitness/analysis/optimal-strain.md
 Comprehensive weekly fitness analysis.
 
 Fetch both:
-- curl -s http://localhost:8080/whoop/data
-- curl -s http://localhost:8080/tonal/data
+- curl -s http://localhost:3033/whoop/data
+- curl -s http://localhost:3033/tonal/data
 
 Report:
 - Days trained, volume lifted, cardio minutes
@@ -81,7 +81,7 @@ Create: ~/clawd/memory/fitness/weekly/YYYY-WXX-deep-analysis.md
 ```
 Analyze progress through 12 Weeks to Jacked program.
 
-Fetch: curl -s http://localhost:8080/tonal/data
+Fetch: curl -s http://localhost:3033/tonal/data
 
 Analyze:
 - Current week/day in program
@@ -98,7 +98,7 @@ Create: ~/clawd/memory/fitness/analysis/program-forecast.md
 ```
 Deep dive into HRV patterns.
 
-Fetch: curl -s http://localhost:8080/whoop/data
+Fetch: curl -s http://localhost:3033/whoop/data
 
 Analyze:
 - 7-day, 14-day, 30-day HRV averages

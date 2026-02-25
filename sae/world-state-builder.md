@@ -35,8 +35,8 @@ Insert: domain=`weather`, key=`today` (high/low/precip/summary), key=`tomorrow`.
 
 ### D) Fitness
 ```bash
-curl -s http://localhost:8080/whoop/data | jq '{recovery: .recovery[0].score, sleep: .sleep[0].score}'
-curl -s http://localhost:8080/tonal/health
+curl -s http://localhost:3033/whoop/data | jq '{recovery: .recovery[0].score, sleep: .sleep[0].score}'
+curl -s http://localhost:3033/tonal/health
 ```
 Insert: domain=`health`, key=`whoop_recovery`, key=`whoop_sleep`, key=`tonal_health`.
 

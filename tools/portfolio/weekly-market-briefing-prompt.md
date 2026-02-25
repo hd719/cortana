@@ -17,8 +17,8 @@ Goal: deliver one concise, actionable brief covering:
   - `curl -s http://localhost:3033/alpaca/portfolio`
   - `curl -s http://localhost:3033/alpaca/stats`
 - Fallback:
-  - `curl -s http://localhost:8080/alpaca/portfolio`
-  - `curl -s http://localhost:8080/alpaca/stats`
+  - `curl -s http://localhost:3033/alpaca/portfolio`
+  - `curl -s http://localhost:3033/alpaca/stats`
 - Extract: total equity, cash, top positions by weight, and 1-week P/L (% and $) if available.
 
 2) Earnings watch (next 7-10 days)

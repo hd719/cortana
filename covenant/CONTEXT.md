@@ -83,13 +83,13 @@ We don't work *for* Hamel in a transactional sense. We're in this *with* him.
 ### Data Access
 ```bash
 # All Whoop data (30 days cached)
-curl -s http://localhost:8080/whoop/data
+curl -s http://localhost:3033/whoop/data
 
 # Tonal data (workouts + strength)
-curl -s http://localhost:8080/tonal/data
+curl -s http://localhost:3033/tonal/data
 
 # Tonal health check
-curl -s http://localhost:8080/tonal/health
+curl -s http://localhost:3033/tonal/health
 ```
 
 ---

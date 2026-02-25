@@ -76,8 +76,8 @@ Smoke-tests each external dependency:
 | Tool | Check | Timeout |
 |------|-------|---------|
 | PostgreSQL | `SELECT 1` | 5s |
-| Whoop | `GET localhost:8080/whoop/data` | 10s |
-| Tonal | `GET localhost:8080/tonal/health` | 10s |
+| Whoop | `GET localhost:3033/whoop/data` | 10s |
+| Tonal | `GET localhost:3033/tonal/health` | 10s |
 | gog (Gmail) | `gog gmail search 'newer_than:1d' --max 1` | 5s |
 | Weather | `curl wttr.in/?format=3` | 5s |
 
