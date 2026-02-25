@@ -250,6 +250,16 @@ Current repo-local skills:
 
 ## 6) Active cron landscape (OpenClaw)
 
+### Cron config source of truth (version-controlled)
+Cron job definitions are tracked in **`config/cron/jobs.json`** in this repo.
+
+- This file is a checked-in copy of the runtime file at `~/.openclaw/cron/jobs.json`.
+- After editing cron prompts/definitions, copy repo → runtime:
+  ```bash
+  cp config/cron/jobs.json ~/.openclaw/cron/jobs.json
+  ```
+- After any cron edit, commit the updated `config/cron/jobs.json` to git.
+
 Snapshot from `openclaw cron list` on **2026-02-25 09:xx ET**.
 
 ### Daily/weekday briefs and core ops
