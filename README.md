@@ -116,6 +116,15 @@ If you’re onboarding fresh: start with **`AGENTS.md` → `SOUL.md` → `USER.m
 - **Behavioral Twin** — predictive Chief-state model for timing, tone calibration, and alert gating. Doc: `docs/behavioral-twin.md`
 - **Proprioception model/prompt upgrade** — proprioception crons now run on `gpt-5.3-codex` with slimmed prompts for lower token load and tighter signal.
 
+### Covenant communication infrastructure (2026-02-25)
+- **Covenant Agent Routing** — intent-based routing now uses a Planner → Critic → Executor pipeline across the 5-agent roster: **Huragok, Researcher, Monitor, Oracle, Librarian**. Researcher identity is now first-class, intent→agent signal mapping was corrected, and handoff chain patterns are explicit (`Researcher→Librarian`, `Researcher→Oracle→Huragok`, `Monitor→Huragok`).
+- **Handoff Artifact Bus (HAB)** — Cortana-controlled persistent artifact store for passing structured context between chained spawns; PostgreSQL-backed and integrated with the event bus for durable cross-agent context flow. Doc: `docs/handoff-artifact-bus.md`
+- **Agent Feedback Compiler (AFC)** — compiles `cortana_feedback` into per-agent lesson blocks and auto-injects role-specific corrections at spawn time. Doc: `docs/agent-feedback-compiler.md`
+- **Event Lifecycle Integration** — sub-agent lifecycle events (`spawn`, `complete`, `fail`, `timeout`) now publish to the PostgreSQL event bus, enabling real-time monitoring and health analytics for the Covenant runtime. Doc: `docs/agent-lifecycle-events.md`
+- **Identity-Scoped Memory Injection** — role-filtered, recency-weighted memory injection from `cortana_memory_semantic` + `cortana_memory_episodic` into spawn prompts so each agent receives domain-relevant context only. Doc: `docs/identity-scoped-memory.md`
+- **Parallel Fan-Out/Fan-In Executor** — concurrent multi-agent execution with barrier synchronization and HAB-backed result aggregation for coordinated parallel workflows. Doc: `docs/parallel-executor.md`
+- **Gap-analysis driver** — the Researcher-led communication gap report that motivated AFC + lifecycle + memory + parallel proposals is documented in `docs/inter-agent-communication-gaps.md`.
+
 ---
 
 ## 5) Installed local skills (from `skills/`)
