@@ -103,6 +103,19 @@ If you’re onboarding fresh: start with **`AGENTS.md` → `SOUL.md` → `USER.m
 - `tools/email/inbox_to_execution.py` — email commitment extraction and execution pipeline.
 - `tools/immune_scan.sh` — expanded with flap detection, quarantine hooks, and path verification.
 
+### Wave 2 autonomy systems (2026-02-25)
+- **Cortex Vector Spine** — `pgvector 0.8.1` installed with HNSW indexes on `cortana_memory_semantic` + `cortana_memory_episodic` for fast similarity search. Doc: `docs/vector-spine.md`
+- **Local Embedding Factory** — `fastembed` (ONNX) local embeddings at **1,381 texts/sec** with zero API cost, exposed via CLI + HTTP service. Doc: `docs/local-embeddings.md`
+- **Nervous System Bus** — PostgreSQL `LISTEN/NOTIFY` event backbone with durable event log; publisher/listener + PoC triggers on `task_created`, email, calendar, portfolio, and health events. Doc: `docs/event-bus.md`
+- **Autonomy Governor v2** — risk-scored approval gates (`0.0–1.0`), fail-closed behavior for unknowns, integrated into task executor flow. Doc: `docs/autonomy-governor.md`
+- **Semantic Compression Engine** — daily `2:00 AM` memory distillation with fidelity checks, scheduled via launchd. Doc: `docs/memory-compression.md`
+- **Local Inference Failsafe** — Ollama + `phi3:mini` fallback path for API outages with automatic failover and event logging. Doc: `docs/local-inference-failsafe.md`
+- **Resilience Drillbook** — six-service recovery runbook (`inventory` / `recover` / `drill`) targeting 15-minute SLO; latest drill achieved ~2s RTO. Doc: `docs/resilience-drillbook.md`
+- **Precompute Oracle** — daily `5:30 AM` prefetch (weather, calendar, portfolio, recovery, email) with TTL cache support for morning brief generation. Doc: `docs/precompute-oracle.md`
+- **Multimodal Ops Eye** — screenshot capture + Tesseract OCR + UI state detection for operational monitoring. Doc: `docs/multimodal-ops-eye.md`
+- **Behavioral Twin** — predictive Chief-state model for timing, tone calibration, and alert gating. Doc: `docs/behavioral-twin.md`
+- **Proprioception model/prompt upgrade** — proprioception crons now run on `gpt-5.3-codex` with slimmed prompts for lower token load and tighter signal.
+
 ---
 
 ## 5) Installed local skills (from `skills/`)
