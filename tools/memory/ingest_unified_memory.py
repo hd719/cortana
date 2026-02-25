@@ -33,6 +33,22 @@ def fp(*parts):
     return h.hexdigest()[:32]
 
 
+def quality_gate(text, enabled, dry):
+    if not enabled:
+        return {'verdict': 'promote'}
+    gate = WORKSPACE / 'tools' / 'memory' / 'memory_quality_gate.py'
+    if not gate.exists():
+        return {'verdict': 'promote', 'reason': 'gate_missing'}
+    try:
+        proc = subprocess.run(['python3', str(gate), '--text', text, '--dry-run'], capture_output=True, text=True)
+        if proc.returncode != 0:
+            return {'verdict': 'hold', 'reason': 'gate_error'}
+        data = json.loads((proc.stdout or '{}').strip() or '{}')
+        return data if isinstance(data, dict) else {'verdict': 'hold'}
+    except Exception:
+        return {'verdict': 'hold', 'reason': 'gate_exception'}
+
+
 def start_run(source, since_hours, dry):
     if dry:
         return -1
@@ -54,7 +70,7 @@ def prov(run_id, tier, memory_id, stype, sref, shash, dry):
     return bool(psql(sql, True))
 
 
-def ingest_daily(run_id, since, c, dry):
+def ingest_daily(run_id, since, c, dry, use_quality_gate=False):
     for path in sorted(MEMORY_DIR.glob('*.md')):
         if path.name == 'README.md':
             continue
@@ -65,6 +81,9 @@ def ingest_daily(run_id, since, c, dry):
         lines = [x.strip() for x in text.splitlines() if x.strip()]
         summary = f'Daily memory snapshot from {path.name}'
         details = '\\n'.join(lines[:40])[:6000]
+        gate = quality_gate((summary + '\n' + details)[:2000], use_quality_gate, dry)
+        if gate.get('verdict') == 'archive':
+            continue
         sref = str(path)
         hashv = fp(sref, summary, details)
         sql = f"INSERT INTO cortana_memory_episodic (happened_at, summary, details, tags, salience, trust, recency_weight, source_type, source_ref, fingerprint, metadata) VALUES ({q(mtime.isoformat())}, {q(summary)}, {q(details)}, ARRAY['daily_memory','heartbeat_ingest'], 0.65, 0.75, 1.0, 'daily_markdown', {q(sref)}, {q(hashv)}, {q(json.dumps({'line_count': len(lines)}))}::jsonb) ON CONFLICT (source_type, source_ref, fingerprint) DO NOTHING RETURNING id;"
@@ -77,13 +96,16 @@ def ingest_daily(run_id, since, c, dry):
                 c['v'] += 1
 
 
-def ingest_feedback(run_id, since, c, dry):
+def ingest_feedback(run_id, since, c, dry, use_quality_gate=False):
     rows = psql(f"SELECT id, timestamp::text, COALESCE(feedback_type,''), COALESCE(context,''), COALESCE(lesson,'') FROM cortana_feedback WHERE timestamp >= {q(since.isoformat())} ORDER BY timestamp ASC;", True).splitlines()
     for row in rows:
         if not row: continue
         i, ts, t, ctx, lesson = row.split('|', 4)
         sref = f'cortana_feedback:{i}'
         epi_fp = fp(sref, t, ctx, lesson)
+        gate = quality_gate((lesson or ctx or t)[:2000], use_quality_gate, dry)
+        if gate.get('verdict') == 'archive':
+            continue
         if dry:
             c['e'] += 1; c['s'] += 1; c['p'] += 1; c['v'] += 3; continue
 
@@ -139,6 +161,7 @@ def main():
     ap.add_argument('--since-hours', type=int, default=24)
     ap.add_argument('--source', default='heartbeat')
     ap.add_argument('--dry-run', action='store_true')
+    ap.add_argument('--quality-gate', action='store_true', help='run memory_quality_gate before ingesting')
     a = ap.parse_args()
 
     since = datetime.now(timezone.utc) - timedelta(hours=a.since_hours)
@@ -147,8 +170,8 @@ def main():
     run_id = -1
     try:
         run_id = start_run(a.source, a.since_hours, a.dry_run)
-        ingest_daily(run_id, since, c, a.dry_run)
-        ingest_feedback(run_id, since, c, a.dry_run)
+        ingest_daily(run_id, since, c, a.dry_run, a.quality_gate)
+        ingest_feedback(run_id, since, c, a.dry_run, a.quality_gate)
     except Exception as ex:
         errs.append(str(ex))
     finally:
