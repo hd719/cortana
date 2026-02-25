@@ -253,12 +253,9 @@ Current repo-local skills:
 ### Cron config source of truth (version-controlled)
 Cron job definitions are tracked in **`config/cron/jobs.json`** in this repo.
 
-- This file is a checked-in copy of the runtime file at `~/.openclaw/cron/jobs.json`.
-- After editing cron prompts/definitions, copy repo → runtime:
-  ```bash
-  cp config/cron/jobs.json ~/.openclaw/cron/jobs.json
-  ```
-- After any cron edit, commit the updated `config/cron/jobs.json` to git.
+- `config/cron/jobs.json` is the single source of truth.
+- Runtime path `~/.openclaw/cron/jobs.json` is a symlink to `/Users/hd/clawd/config/cron/jobs.json`.
+- Edit the repo file, commit, and push — changes are already live at runtime (no sync step).
 
 Snapshot from `openclaw cron list` on **2026-02-25 09:xx ET**.
 

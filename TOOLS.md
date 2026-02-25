@@ -135,6 +135,13 @@ psql cortana -c "SELECT * FROM cortana_feedback WHERE applied = FALSE;"
 
 ---
 
+## Symlinks (Repo → Runtime)
+
+- `~/.openclaw/cron/jobs.json` → `/Users/hd/clawd/config/cron/jobs.json` (cron job definitions)
+- Note: All symlinks between repo and runtime MUST be listed here. If you create a new symlink, add it immediately.
+
+---
+
 ## Weather
 
 **Primary:** `wttr.in` (simple text output)
