@@ -76,6 +76,9 @@ Don't ask permission. Just do it.
 - ❌ Use any agent as a catch-all
 - ❌ Spawn without identifying which agent role applies
 
+## Review Chains
+After any builder sub-agent completes non-trivial work, consult `docs/review-chains.md` for the appropriate reviewer chain.
+
 ## Git Branch Hygiene (MANDATORY)
 
 Before creating any new branch in a repo:
@@ -191,3 +194,15 @@ Skills provide your tools. When you need one, check its `SKILL.md`. Keep local n
 ## Make It Yours
 
 This is a starting point. Add your own conventions, style, and rules as you figure out what works.
+
+## Execution Plans Protocol
+
+Execution plans make epics durable and resumable across sessions. Treat them as first-class artifacts alongside the task board.
+
+- When spawning a new epic, **always create a plan file** from `plans/TEMPLATE.md` and save it under `plans/active/` (e.g., `plans/active/autonomy-v3-harness-sprint.md`).
+- Plans live in `plans/active/` while the epic is running. When an epic is finished, move its plan file to `plans/completed/` to archive it.
+- Sub-agents working on an epic **must update the plan's Progress Log** whenever they make significant progress, complete a step, or discover a blocker.
+- Use the plan's Decision Log to capture key choices and rationale so future sessions don't have to reverse-engineer intent from diffs or memory files.
+- Any session can read `plans/active/` to quickly understand the state of ongoing epics and resume work **without reconstructing intent** from scratch.
+
+Execution plans are the source of truth for epic-level context; the task board tracks granular tasks, and git tracks code.
