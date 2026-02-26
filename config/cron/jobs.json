@@ -1305,7 +1305,7 @@
     {
       "id": "8f3c8b8a-3c2a-4f5e-bf30-6e0a9a1b9c42",
       "agentId": "main",
-      "name": "📚 Weekly Doc Gardener",
+      "name": "\ud83d\udcda Weekly Doc Gardener",
       "enabled": true,
       "createdAtMs": 1772109600000,
       "updatedAtMs": 1772109600000,
@@ -1321,6 +1321,60 @@
         "message": "You are the Librarian agent responsible for documentation hygiene. Run the weekly doc-gardener sweep and report findings.\\n\\nSteps (from repo root /Users/hd/clawd):\\n1) Read tools/doc-gardener/README.md for context.\\n2) Run: ./tools/doc-gardener/doc-gardener.sh\\n3) Review the stdout report and summarize key issues for Hamel.\\n\\nImportant:\\n- Do NOT edit files directly in this cron run; just execute the script and summarize the results.\\n- Keep your final response brief and structured (bullets by section).\\n- If the script fails, include the failing command and stderr in one short paragraph.",
         "model": "openai-codex/gpt-5.1"
       },
+      "delivery": {
+        "mode": "announce",
+        "channel": "telegram",
+        "to": "8171372724",
+        "bestEffort": true
+      }
+    },
+    {
+      "id": "d1a8b3f4-8f8f-4cfe-ab20-b25077fe5578",
+      "agentId": "main",
+      "name": "Meta-monitor health rotation",
+      "enabled": true,
+      "createdAtMs": 1772123433300,
+      "updatedAtMs": 1772123433300,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 */6 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Run /Users/hd/clawd/tools/meta-monitor/meta-monitor.sh --json and handle output.",
+        "model": "openai-codex/gpt-5.1"
+      },
+      "state": {},
+      "delivery": {
+        "mode": "announce",
+        "channel": "telegram",
+        "to": "8171372724",
+        "bestEffort": true
+      }
+    },
+    {
+      "id": "a7b2c3d4-e5f6-4a1b-8c9d-0e1f2a3b4c5d",
+      "agentId": "main",
+      "name": "Earnings calendar weekday alert",
+      "enabled": true,
+      "createdAtMs": 1772123433300,
+      "updatedAtMs": 1772123433300,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 8 * * 1-5",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Run /Users/hd/clawd/tools/earnings-alert/earnings-alert.sh --json and alert if any held positions have earnings this week.",
+        "model": "openai-codex/gpt-5.1"
+      },
+      "state": {},
       "delivery": {
         "mode": "announce",
         "channel": "telegram",

@@ -1,32 +1,47 @@
 # earnings-alert
 
-Automated earnings checks/alerts for held positions (plus forever-hold watch: `NVDA`, `TSLA`).
+Earnings calendar alerting for held positions.
 
 ## Files
-- `earnings-check.sh` — shell entrypoint (cron-friendly)
-- `earnings-check.py` — implementation
-- `cache/earnings-calendar.json` — Nasdaq earnings calendar cache
+- `earnings-alert.sh` — cron-friendly alert engine (JSON output)
+- `earnings-calendar.json` — local symbol → next earnings date map (`YYYY-MM-DD`)
+- `earnings-check.sh` / `earnings-check.py` — legacy checker utilities (kept intact)
 
-## Data Sources
-1. Alpaca local endpoint: `http://localhost:3033/alpaca/portfolio`
-2. Nasdaq earnings calendar API (free): `https://api.nasdaq.com/api/calendar/earnings?date=YYYY-MM-DD`
-3. Nasdaq earnings-surprise + quote info for post-earnings brief
-4. Optional fallback support: Alpha Vantage earnings calendar via `ALPHAVANTAGE_API_KEY`
+## Data source for positions
+- Alpaca local API: `http://localhost:3033/alpaca/portfolio`
+  - Symbols are read from `.positions[].symbol`
+  - If no positions are returned, the script falls back to symbols present in `earnings-calendar.json`
+
+## Alert logic implemented
+For each symbol in scope:
+- **t-24h** (earnings date is tomorrow):
+  - `Heads up — {SYMBOL} reports earnings tomorrow after close`
+- **today** (earnings date is today):
+  - flags earnings day
+- **t-1h** (earnings date is today and runtime hour is 3 PM ET):
+  - `Final reminder — {SYMBOL} earnings dropping after close today`
+
+## Output contract
+The script prints JSON only:
+
+```json
+{
+  "alerts": [
+    {
+      "symbol": "NVDA",
+      "alert_type": "t-24h",
+      "earnings_date": "2026-03-05",
+      "message": "Heads up — NVDA reports earnings tomorrow after close"
+    }
+  ]
+}
+```
 
 ## Usage
 ```bash
-# Morning scan (today/tomorrow)
-~/clawd/tools/earnings-alert/earnings-check.sh --mode scan
-
-# T-minus actionable alert text
-~/clawd/tools/earnings-alert/earnings-check.sh --mode tminus
-
-# Post-earnings beat/miss summary + AH/PM move
-~/clawd/tools/earnings-alert/earnings-check.sh --mode post
-
-# Debug one symbol
-~/clawd/tools/earnings-alert/earnings-check.sh --mode check-symbol --symbol NVDA
+~/clawd/tools/earnings-alert/earnings-alert.sh
 ```
 
-## Output contract
-Script prints clean Telegram-ready message text. If no alert is due, output is empty.
+## Notes
+- `earnings-calendar.json` is intentionally local/manual for now (seeded baseline).
+- Update dates periodically as companies publish/adjust earnings schedules.

@@ -117,3 +117,6 @@ Generated: 2026-02-26
 | `tools/tracing/log_decision.py` | yes | none found | keep |
 | `tools/trade-alerts/alert.sh` | yes | none found | remove |
 | `tools/trading/trade_guardrails.py` | yes | none found | keep |
+
+## Actions Taken (2026-02-26)
+- Removed: approval-gate.sh, enrich.sh, dedup-check.sh, task-board.sh, alert.sh (confirmed unused)
