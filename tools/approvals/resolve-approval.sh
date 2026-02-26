@@ -13,7 +13,7 @@ if [[ $# -lt 2 ]]; then
 fi
 
 approval_id="$1"
-action="${2,,}"
+action="$(echo "$2" | tr '[:upper:]' '[:lower:]')"
 reason="${3:-}"
 
 is_uuid() {

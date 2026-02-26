@@ -14,7 +14,7 @@ fi
 category="$1"
 severity="$2"
 summary="$3"
-details_json="${4:-{}}"
+details_json="${4:-"{}"}"
 agent_id="${5:-}"
 task_id="${6:-}"
 source="user"
@@ -93,7 +93,7 @@ case "$category" in
   *) feedback_type="correction" ;;
 esac
 
-safe_details="$(json_escape "$details_json")"
+safe_details="${details_json//\'/\'\'}"
 safe_summary="${summary//\'/\'\'}"
 safe_agent_id="${agent_id//\'/\'\'}"
 safe_recurrence="${recurrence_key//\'/\'\'}"
@@ -117,28 +117,28 @@ else
   recurrence_sql="NULL"
 fi
 
-psql cortana <<SQL >/dev/null
+psql cortana -q -c "
 INSERT INTO mc_feedback_items (id, task_id, agent_id, source, category, severity, summary, details, recurrence_key, status)
 VALUES (
-  '$feedback_id'::uuid,
-  $task_sql,
-  $agent_sql,
-  '$source',
-  '$category',
-  '$severity',
-  '$safe_summary',
-  ${safe_details}::jsonb,
-  $recurrence_sql,
-  '$status'
+  '${feedback_id}'::uuid,
+  ${task_sql},
+  ${agent_sql},
+  '${source}',
+  '${category}',
+  '${severity}',
+  '${safe_summary}',
+  '${safe_details}'::jsonb,
+  ${recurrence_sql},
+  '${status}'
 );
-
+" -q -c "
 INSERT INTO cortana_feedback (feedback_type, context, lesson, applied)
 VALUES (
-  '$feedback_type',
-  '$safe_summary',
+  '${feedback_type}',
+  '${safe_summary}',
   '${safe_lesson}',
   FALSE
 );
-SQL
+"
 
 echo "$feedback_id"

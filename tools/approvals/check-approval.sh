@@ -19,9 +19,9 @@ fi
 
 action_type="$1"
 agent_id="$2"
-risk_level="${3,,}"
+risk_level="$(echo "$3" | tr '[:upper:]' '[:lower:]')"
 rationale="$4"
-proposal_json="${5:-{}}"
+proposal_json="${5:-"{}"}"
 policy_file="/Users/hd/Developer/cortana-external/apps/mission-control/config/approval-policies.json"
 
 case "$risk_level" in
