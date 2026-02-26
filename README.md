@@ -53,13 +53,16 @@ Core mission: compound **Time, Health, Wealth, Career**.
 ### Required core tool families
 - `tools/market-intel/` — unified market + sentiment snapshot pipeline
 - `tools/gmail/` — email triage/autopilot scripts
-- `tools/task-board/` — task queue, auto-executor, integrity/audit
+- `tools/task-board/` — task queue, auto-executor, stale detection cleanup, and state enforcement tooling
 - `tools/memory/` — ingestion + quality gates + consolidation helpers
 - `tools/reflection/` — reflection and repeated-correction analysis
 - `tools/proactive/` — cross-signal proactive detection/calibration
-- `tools/alerting/` — cron preflight + alert playbooks
+- `tools/alerting/` — cron preflight + alert playbooks (includes `cost-breaker` runaway-session circuit breaker)
 - `tools/trade-alerts/` — Alpaca-backed trade alert pipeline and execution wiring
-- `tools/earnings-alert/` — earnings calendar capture and alert scheduling
+- `tools/earnings-alert/` — earnings checker/calendar scripts wired into morning brief + cron
+- `tools/auto-chain/` — automatic follow-up task chaining rules engine
+- `tools/health/` — self-diagnostic and platform health scripts (`self-diagnostic.sh`)
+- `tools/spawn/` — sub-agent spawn pre-flight validator
 
 ### Additional major tool groups present
 `behavioral-twin`, `briefing`, `covenant`, `email`, `embeddings`, `event-bus`, `failsafe`, `fitness`, `governor`, `guardrails`, `health`, `market-intel`, `mortgage`, `ops-eye`, `policy`, `portfolio`, `resilience`, `self-upgrade`, `tracing`, `trading`, `travel`, and others under `tools/`.
@@ -168,6 +171,7 @@ From this repo’s perspective, key local services are:
 - `USER.md` — Hamel context/preferences
 - `MEMORY.md` — curated long-term memory
 - `HEARTBEAT.md` — heartbeat rotation and proactive checks
+- `docs/heartbeat-sql-reference.md` — canonical heartbeat SQL templates/reference
 - `TOOLS.md` — machine-specific runtime notes and symlink registry
 - `config/cron/jobs.json` — cron definitions
 - `memory/` — daily memory logs
@@ -202,6 +206,23 @@ Rules:
 
 ## 13) Recent major additions
 
+- **Auto-chain rules engine** (`tools/auto-chain/`) for automatic task follow-up chaining (**#40**)
+- **Cost breaker** (`tools/alerting/cost-breaker`) runaway session circuit breaker (**#38**)
+- **gog OAuth health** cron-safe refresh health script (**#37**)
+- **Task board stale detector** with auto-cleanup + audit events (**#36**)
+- **Tools audit** inventory of tool scripts and references (**#35**)
+- **Heartbeat SQL reference** moved to `docs/heartbeat-sql-reference.md` (**#34**)
+- **Meta-monitor + earnings-alert merge** completed (PRs **#31, #33, #39**)
+- **Spawn pre-flight validator** for sub-agent launch safety (**#30**)
+- **Doc gardener** automated documentation maintenance workflow (**#29**)
+- **Self-diagnostic** script at `tools/health/self-diagnostic.sh` for Cortana health (**#28**)
+- **Task board state enforcer** CLI for atomic state transitions (**#32**)
+- **Pytest suite** for critical Python tool coverage
+- **Earnings alert system** (checker + calendar scripts) integrated with morning brief and cron
+- **Cron optimization** via precompute scripts and leaner prompts for slow jobs
+- **Research recommendations** added to task importer outputs
+- **Agent review chain** protocol for sub-agent output review and quality gate
+- **AGENTS.md refactor** to slim pointer/harness pattern
 - **Market-intel pipeline** (`tools/market-intel`) integrating quote + X sentiment + portfolio overlay
 - **X/Twitter integration hardening** (`bird`, auth health checks, watchdog coverage)
 - **Task board system** (`cortana_tasks`/`cortana_epics`, auto-executor, integrity audits)
@@ -230,4 +251,4 @@ launchctl list | grep com.cortana.watchdog
 
 ---
 
-Last refreshed: **2026-02-25** (filesystem + DB cross-check)
+Last refreshed: **2026-02-26** (README + tooling/test cross-check)
