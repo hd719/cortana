@@ -81,6 +81,25 @@ Touches them back to `pending` and appends a staleness note into `metadata.stale
 
 Logs `task_stale_reset` and returns all touched task rows in JSON.
 
+### 6) stale-detector (auto-cleanup)
+
+```bash
+tools/task-board/stale-detector.sh
+```
+
+Single-run detector + auto-cleaner that:
+
+- Flags stale `pending` tasks older than 7 days with no activity by setting:
+  - `metadata.stale_flagged = true`
+  - `metadata.stale_flagged_at = <timestamp>`
+- Resets orphaned `in_progress` tasks older than 2 hours (no matching active sub-agent label) back to `pending` and writes `metadata.orphan_reset`
+- Emits per-task action events plus a run summary event in `cortana_events`
+- Prints a JSON report of all actions taken
+
+Idempotency:
+- Already-flagged pending tasks are skipped
+- Already-reset orphaned tasks become `pending`, so they are naturally skipped on reruns
+
 ## Output format
 
 Every command prints JSON to stdout:
