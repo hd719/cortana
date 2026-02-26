@@ -135,11 +135,16 @@ psql cortana -c "SELECT * FROM cortana_feedback WHERE applied = FALSE;"
 
 ---
 
-## Known Issues
+## OpenClaw Update Procedure
 
-### Stale Telegram Typing Indicator
-When multiple sub-agents complete in rapid succession, the gateway fires typing indicators while the main session processes results — even if no message is sent. Indicators stack up and never clear.
-**Fix:** `openclaw gateway restart`
+After any `npm update -g openclaw`:
+1. `openclaw gateway install --force` — regenerates the LaunchAgent plist with the new version string
+2. `openclaw gateway restart` — picks up the new binary
+3. Verify: `openclaw status | grep "app"` — CLI and gateway versions must match
+
+**Why:** The LaunchAgent plist hardcodes `OPENCLAW_SERVICE_VERSION`. Without `--force` reinstall, the gateway self-reports the old version even though the binary updated.
+
+## Known Issues
 
 ---
 
