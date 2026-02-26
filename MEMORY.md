@@ -60,6 +60,7 @@
 - **Model migration**: Primary OpenAI Codex track is active; fallback retained until full stability sign-off.
 
 ## Recent Major Events (Feb 2026)
+- **Feb 25 autonomy v2 sprint day**: LanceDB memory plugin went live (25 seeded memories) with OpenAI embeddings (`text-embedding-3-small`), correction strengthener + dedup shipped, Mission Control assignment/backfill fixes landed (96 runs reconciled), and a large autonomy epic closed with most tasks completed.
 - **Feb 24 reliability + protocol hardening sprint**: Shipped identity-v1 spawn contract enforcement, machine-parseable status/completion validators, workflow router/failure playbooks, and heartbeat miss auto-remediation guardrails in `clawd`; in `cortana-external`, launched Mission Control app upgrades (SSE live updates, run/assignment mapping, health scoring fixes, DB reconciliation, and post-merge task autoclose with verification gate).
 - **Feb 23 autonomy bundle integration**: Implemented email triage autopilot, task auto-executor, cron preflight, Brief 2.0 template, live task-board Telegram UX, gog-backed Gmail auth fix, quota parsing fix, plus watchdog/fitness hardening (port 3033 enforcement, loopback bind, CANSLIM alert runner).
 - **Feb 19-21 task board + fitness reliability phase**: Added SQL-backed epic/task/subtask dependency model and morning brief integration design; reinforced mission/heartbeat execution model; fixed Tonal auth/JWT expiry paths and reduced alert noise with watchdog suppression.
@@ -114,7 +115,7 @@ The tone: Confident but warm. Wit under pressure. Calm when shit hits the fan.
 - **Be predictive when Hamel wakes up** — Don't wait for him to ask. Surface: recovery, weather, calendar, open items, upcoming events. Morning = proactive briefing mode.
 
 ## Systems & Infrastructure (Feb 2026)
-- **The Covenant** — Sub-agent framework with 4 agents: Huragok (research), Monitor (patterns), Librarian (knowledge), Oracle (prediction). Operating model: on-demand spawns, manual chaining for 3-week trial.
+- **The Covenant** — Sub-agent framework with 5 role-routed agents: Huragok (systems/infra), Researcher (deep research), Monitor (patterns/health), Librarian (docs/knowledge), Oracle (forecasting/strategy). Operating model has shifted to strict role routing + auto-chain execution.
 - **Proactive Intelligence** — `cortana_watchlist` table for monitoring; self-healing tiers (auto-fix/alert/ask first) implemented. Immune system handles transient failures automatically.
 - **Task Queue** — `cortana_tasks` table for persistent work queue. Tasks from conversations auto-execute during heartbeats. Queue active with mostly completed February buildout and a small set of pending follow-ups.
 - **Session Cleanup** — Daily 3 AM cron deletes sessions >400KB. Last cleanup freed 2.37MB from 5 sessions.

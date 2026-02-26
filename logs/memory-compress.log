@@ -1,0 +1,84 @@
+{
+  "ok": true,
+  "dry_run": false,
+  "since_hours": 36,
+  "episodic_entries": 10,
+  "clusters_total": 8,
+  "clusters_written": 8,
+  "results": [
+    {
+      "cluster_id": 1,
+      "entry_ids": [
+        21,
+        7
+      ],
+      "entry_count": 2,
+      "topic": "user, context, response, preference",
+      "fidelity": 0.8
+    },
+    {
+      "cluster_id": 2,
+      "entry_ids": [
+        1
+      ],
+      "entry_count": 1,
+      "topic": "cortana-external, watchdog, moved, developer",
+      "fidelity": 0.4667
+    },
+    {
+      "cluster_id": 3,
+      "entry_ids": [
+        2
+      ],
+      "entry_count": 1,
+      "topic": "phase, added, mission, docs",
+      "fidelity": 0.7083
+    },
+    {
+      "cluster_id": 4,
+      "entry_ids": [
+        3
+      ],
+      "entry_count": 1,
+      "topic": "verification, data, workout, self-healing",
+      "fidelity": 0.4737
+    },
+    {
+      "cluster_id": 5,
+      "entry_ids": [
+        4
+      ],
+      "entry_count": 1,
+      "topic": "operational, added, alerts, fitness",
+      "fidelity": 0.6667
+    },
+    {
+      "cluster_id": 6,
+      "entry_ids": [
+        5
+      ],
+      "entry_count": 1,
+      "topic": "watchdog, port, service, cron",
+      "fidelity": 0.3929
+    },
+    {
+      "cluster_id": 7,
+      "entry_ids": [
+        6
+      ],
+      "entry_count": 1,
+      "topic": "verification, added, protocol, completion",
+      "fidelity": 0.4074
+    },
+    {
+      "cluster_id": 8,
+      "entry_ids": [
+        22,
+        23
+      ],
+      "entry_count": 2,
+      "topic": "event, row, semantic, vector-test",
+      "fidelity": 1.0
+    }
+  ]
+}
