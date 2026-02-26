@@ -11,6 +11,37 @@ Path: `tools/task-board/state-enforcer.sh`
 
 ## Commands
 
+### 0) research-to-tasks
+
+```bash
+tools/task-board/research-to-tasks.sh [--input recommendations.json] [--dry-run]
+# or cat recommendations.json | tools/task-board/research-to-tasks.sh --dry-run
+```
+
+Converts research recommendations into `cortana_tasks`.
+
+Input JSON format:
+
+```json
+[
+  {
+    "title": "Task title",
+    "description": "Task details",
+    "priority": 3,
+    "agent_role": "huragok",
+    "auto_executable": true
+  }
+]
+```
+
+Behavior:
+- creates one task per recommendation with `source = 'research-pipeline'`
+- clamps priority to range 1..5
+- if `auto_executable=true`, task is marked ready via `execute_at = CURRENT_TIMESTAMP`
+- logs run + per-task events to `cortana_events`
+- `--dry-run` prints what would be created without inserting tasks
+
+
 ### 1) spawn-start
 
 ```bash
