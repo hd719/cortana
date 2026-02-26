@@ -6,6 +6,17 @@ This file captures the task board SQL, detection rules, epic/task management, an
 
 Cortana maintains an autonomous task queue in `cortana_tasks` with epic/project grouping via `cortana_epics`.
 
+## Task Lifecycle
+
+Task Lifecycle:
+  backlog → ready → in_progress → completed/failed
+  scheduled (execute_at future) → ready (when execute_at <= NOW()) → in_progress → completed/failed
+
+- "Do all tasks" = `status='ready'` only
+- Auto-executor picks up: `status='ready' AND auto_executable=TRUE`, plus promotes `status='scheduled' AND execute_at <= NOW()` to `ready`
+- Backlog items require explicit promotion
+- `pending` is legacy alias and should be migrated to `ready`/`scheduled`
+
 ## Task Detection Protocol
 
 **⚠️ CRITICAL: After every conversation, extract actionable tasks and epics.**
@@ -73,20 +84,27 @@ Recognize these natural language commands in Telegram and execute against `corta
 - "What can you do now?" / "Ready tasks?" → dependency-ready `auto_executable=TRUE`
 
 **Response formatting (Telegram):**
-- Use icons: ✅ done, ⏳ in_progress, ❌ pending, 🔒 blocked, 🎯 epic, 📌 standalone
+- Use icons: ✅ done/completed, ⏳ in_progress, 🟢 ready, 🗓️ scheduled, 💤 backlog, 🔒 blocked, 🎯 epic, 📌 standalone
 - Show task IDs, priorities (P1-P5), due dates when present, and `(auto)` for auto-executable tasks
 - No markdown tables
 
 ## Task Board During Heartbeats
 
-Check for pending auto-executable tasks and execute the highest priority one if time permits:
+Check for ready auto-executable tasks and execute the highest priority one if time permits:
 ```sql
+-- 1) Promote scheduled tasks that have reached execute time
+UPDATE cortana_tasks
+SET status = 'ready'
+WHERE status = 'scheduled'
+  AND execute_at IS NOT NULL
+  AND execute_at <= NOW();
+
+-- 2) Execute actionable tasks only
 SELECT * FROM cortana_tasks 
-WHERE status = 'pending' AND auto_executable = TRUE 
-  AND (execute_at IS NULL OR execute_at <= NOW())
+WHERE status = 'ready' AND auto_executable = TRUE 
   AND (depends_on IS NULL OR NOT EXISTS (
     SELECT 1 FROM cortana_tasks t2 
-    WHERE t2.id = ANY(cortana_tasks.depends_on) AND t2.status != 'done'
+    WHERE t2.id = ANY(cortana_tasks.depends_on) AND t2.status NOT IN ('done', 'completed')
   ))
 ORDER BY priority ASC, created_at ASC LIMIT 1;
 ```
@@ -94,9 +112,11 @@ ORDER BY priority ASC, created_at ASC LIMIT 1;
 Also surface overdue `remind_at` tasks to Hamel:
 ```sql
 SELECT * FROM cortana_tasks 
-WHERE status = 'pending' AND remind_at <= NOW()
+WHERE status = 'ready' AND remind_at <= NOW()
 ORDER BY priority ASC;
 ```
+
+Backlog policy: `status='backlog'` tasks are never auto-executed. Promote to `ready` only by explicit user request or Cortana judgment.
 
 ## Morning Brief Task View
 
@@ -117,7 +137,7 @@ ORDER BY e.deadline ASC NULLS LAST;
 -- Top standalone tasks (no epic)
 SELECT title, priority, due_at, status FROM cortana_tasks
 WHERE epic_id IS NULL 
-  AND status IN ('pending', 'in_progress')
+  AND status IN ('ready', 'scheduled', 'in_progress')
 ORDER BY priority ASC, due_at ASC NULLS LAST
 LIMIT 5;
 
@@ -129,18 +149,18 @@ SELECT id, title, due_at, priority,
     ELSE 'UPCOMING'
   END as urgency
 FROM cortana_tasks
-WHERE status = 'pending'
+WHERE status IN ('ready', 'scheduled')
   AND due_at IS NOT NULL
   AND due_at <= NOW() + INTERVAL '48 hours'
 ORDER BY due_at ASC;
 
 -- Ready auto-executable count
 SELECT COUNT(*) as ready_tasks FROM cortana_tasks
-WHERE status = 'pending'
+WHERE status = 'ready'
   AND auto_executable = TRUE
   AND (depends_on IS NULL OR NOT EXISTS (
     SELECT 1 FROM cortana_tasks t2
     WHERE t2.id = ANY(cortana_tasks.depends_on)
-      AND t2.status != 'done'
+      AND t2.status NOT IN ('done', 'completed')
   ));
 ```
