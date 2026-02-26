@@ -1,0 +1,6 @@
+{
+  "kind": "agentTurn",
+  "message": "PREFIX: Always prefix your output with: 📈 Trading Advisor - CANSLIM Snapshot\n\nUse precomputed CANSLIM cache only (do NOT run the scanner script).\n\nRead:\n- ~/clawd/tools/trade-alerts/cache/canslim-latest.txt\n- ~/clawd/tools/trade-alerts/cache/canslim-latest.meta.json\n\nFreshness gate (required):\n- Parse meta.timestamp (UTC ISO8601).\n- Compute cache age in minutes from now.\n- If age >= 10 minutes OR meta missing/invalid, first line must include: ⚠️ STALE CACHE.\n\nThen provide concise interpretation in 5-8 lines total:\n1) Cache status line: fresh/stale + age + last exit_code + run duration\n2) Market condition read (risk-on/risk-off/choppy) from cached scan text\n3) Top CANSLIM signals that matter right now\n4) BUY candidates worth watching now (if any)\n5) Key risks / invalidation cues\n6) Portfolio context: Hamel is heavy tech with large NVDA/TSLA exposure; prioritize diversification-aware adds\n\nIf cache file starts with 'ERROR:' or exit_code != 0, output a concise failure summary and no trade recommendations.",
+  "model": "openai-codex/gpt-5.3-codex",
+  "timeoutSeconds": 90
+}
