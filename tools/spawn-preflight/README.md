@@ -32,6 +32,35 @@ You can also pass env vars:
 MODEL=openai-codex/gpt-5.3-codex REPO_PATH=~/clawd tools/spawn-preflight/preflight.sh
 ```
 
+## Retry Engine (`retry-engine.sh`)
+
+Adds spawn failure analytics and targeted retries using `cortana_events`.
+
+### Commands
+
+```bash
+# Analyze recent spawn failures (default: 24h, 100 rows)
+tools/spawn-preflight/retry-engine.sh analyze
+
+# Retry a specific failed spawn event id
+tools/spawn-preflight/retry-engine.sh retry <event_id>
+```
+
+### Failure patterns
+
+- `model_routing_error` → retries with full model path
+- `timeout` → retries with extended timeout
+- `rate_limit` → retries with exponential backoff
+- `oom` and `unknown` → reports recommendation
+
+### Event logging
+
+- Reads failures from `cortana_events` where `event_type='spawn_failed'`
+- Logs each retry attempt as `event_type='spawn_retry'`
+- If retry fails, logs a new `event_type='spawn_failed'`
+
+All command responses are emitted as JSON.
+
 ## Output contract
 
 - Success: exits `0` with
