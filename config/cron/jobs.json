@@ -4,10 +4,10 @@
     {
       "id": "489b1e20-1bb0-48e6-a388-c3cc1743a324",
       "agentId": "main",
-      "name": "Morning brief (Hamel)",
+      "name": "\u2600\ufe0f Morning brief (Hamel)",
       "enabled": true,
       "createdAtMs": 1769550483487,
-      "updatedAtMs": 1772022717448,
+      "updatedAtMs": 1772109063006,
       "schedule": {
         "kind": "cron",
         "expr": "30 7 * * *"
@@ -16,50 +16,14 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "You are Cortana \ud83d\ude0e. Generate a daily MORNING BRIEF for Hamel. Keep it calm, concise, warm.\n\n\u26a0\ufe0f CRITICAL: Your output IS the message \u2014 do NOT use the message tool to send. The delivery system handles that automatically. Just output the brief text as your final response.\n\nPREFIX: Always prefix your output with: \u2600\ufe0f Brief - Morning Brief. Example: \u2600\ufe0f Brief - Morning Brief\n[rest of message]\n\nIMPORTANT FORMATTING RULE: Always use 12-hour time format with AM/PM (e.g., 9:30 PM, 6:00 AM). NEVER use 24-hour/military time (e.g., 21:30, 06:00). This applies to ALL times in the output.\n\nHard constraints:\n- Minimize web_search usage. Pull pre-gathered data from SAE sitrep first.\n- Only fetch fresh data for things NOT in the sitrep (news, API usage).\n\n## Step 0: Check Market Status\n```bash\nMARKET_STATUS=$(~/clawd/skills/markets/check_market_status.sh)\necho \"Market status: $MARKET_STATUS\"\n```\nInclude this in the Markets section. NEVER guess whether markets are open \u2014 always use this script.\n\n## Step 1: Pull SAE World State (pre-gathered at 7:00 AM)\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n\n# Get all sitrep data in one query\nSITREP=$(psql cortana -t -A -c \"SELECT json_object_agg(domain || '.' || key, value) FROM cortana_sitrep_latest;\")\necho \"$SITREP\" | python3 -m json.tool 2>/dev/null || echo \"$SITREP\"\n\n# Check freshness - if data is older than 4 hours, we will fetch directly\nSITREP_AGE=$(psql cortana -t -A -c \"SELECT EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/3600 FROM cortana_sitrep;\")\necho \"Sitrep age: ${SITREP_AGE} hours\"\n```\n\nIf sitrep data is missing or stale (>4 hours), fall back to direct data gathering for that domain.\n\n## Step 2: Pull SAE Insights (generated at 7:15 AM)\n```bash\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, insight_type, domains, title, description, priority, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND timestamp > NOW() - INTERVAL '2 hours' ORDER BY priority ASC) t;\")\necho \"$INSIGHTS\" | python3 -m json.tool 2>/dev/null || echo \"$INSIGHTS\"\n```\n\n## Step 3: Log wake time pattern\n```bash\npsql cortana -c \"INSERT INTO cortana_patterns (pattern_type, value, day_of_week, metadata) VALUES ('wake', '07:30', EXTRACT(DOW FROM NOW())::integer, '{\\\"source\\\": \\\"morning_brief_cron\\\"}');\"\n```\n\n## Step 4: Gather ONLY what SAE does not cover\n\nA) API Usage (not in sitrep):\n   Run: `node /Users/hd/clawd/skills/telegram-usage/handler.js`\n\nB) News digest (not in sitrep) \u2014 use RSS via news-summary skill as primary:\n   - mortgages/housing/rates/Fed/regulatory (top 2-4)\n   - software engineering / reliability / security (top 2-4)\n   - major world events impacting markets/tech/cyber (top 1-2)\n   - AI News (top 2-4): major model releases, OpenAI/Anthropic/Google, regulation\n\n## Step 5: Compose brief using sitrep data + fresh news\n\nInclude sections (tight bullets, same order):\n\nA) API Usage \u2014 from handler.js output\nB) Weather \u2014 from sitrep weather.today (fallback: web_search Warren NJ weather)\nC) Calendar \u2014 from sitrep calendar.events_48h (fallback: gog command). Times must be ET with AM/PM.\nD) News digest \u2014 from RSS/web_search (fresh, not in sitrep)\nE) AI News \u2014 from RSS/web_search (fresh, not in sitrep)\nF) Fitness snapshot \u2014 from sitrep health.whoop_recovery + health.whoop_sleep (fallback: curl whoop)\nG) Markets/portfolio \u2014 Include $MARKET_STATUS from Step 0. From sitrep finance.portfolio_snapshot (fallback: stock-analysis skill)\nH) Earnings watch \u2014 run `~/clawd/tools/earnings/check-earnings.sh` and include holdings with earnings in next 7 days (symbol, date, days remaining)\nI) Tasks \u2014 from sitrep tasks.pending\nJ) \ud83e\udde0 Cortana's Insights \u2014 from cortana_insights pulled in Step 2. Show each insight title + description briefly.\nK) Today I can do for you (2-4 concrete tasks)\nL) Today you should do (2-4 career-advancing, specific)\n\n## Step 6: Mark insights as delivered\nAfter composing the brief, mark all included insights:\n```bash\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND timestamp > NOW() - INTERVAL '2 hours';\"\n```\n\nIf any command fails, continue and note the failure in one line.",
+        "message": "You are Cortana \ud83d\ude0e. Generate a daily MORNING BRIEF for Hamel. Keep it calm, concise, warm.\n\n\u26a0\ufe0f CRITICAL: Your output IS the message \u2014 do NOT use the message tool to send. The delivery system handles that automatically. Just output the brief text as your final response.\n\nPREFIX: Always prefix your output with: \u2600\ufe0f Brief - Morning Brief. Example: \u2600\ufe0f Brief - Morning Brief\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nIMPORTANT FORMATTING RULE: Always use 12-hour time format with AM/PM (e.g., 9:30 PM, 6:00 AM). NEVER use 24-hour/military time (e.g., 21:30, 06:00). This applies to ALL times in the output.\n\nHard constraints:\n- Minimize web_search usage. Pull pre-gathered data from SAE sitrep first.\n- Only fetch fresh data for things NOT in the sitrep (news, API usage).\n\n## Step 0: Check Market Status\n```bash\nMARKET_STATUS=$(~/clawd/skills/markets/check_market_status.sh)\necho \"Market status: $MARKET_STATUS\"\n```\nInclude this in the Markets section. NEVER guess whether markets are open \u2014 always use this script.\n\n## Step 1: Pull SAE World State (pre-gathered at 7:00 AM)\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n\n# Get all sitrep data in one query\nSITREP=$(psql cortana -t -A -c \"SELECT json_object_agg(domain || '.' || key, value) FROM cortana_sitrep_latest;\")\necho \"$SITREP\" | python3 -m json.tool 2>/dev/null || echo \"$SITREP\"\n\n# Check freshness - if data is older than 4 hours, we will fetch directly\nSITREP_AGE=$(psql cortana -t -A -c \"SELECT EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/3600 FROM cortana_sitrep;\")\necho \"Sitrep age: ${SITREP_AGE} hours\"\n```\n\nIf sitrep data is missing or stale (>4 hours), fall back to direct data gathering for that domain.\n\n## Step 2: Pull SAE Insights (generated at 7:15 AM)\n```bash\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, insight_type, domains, title, description, priority, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND timestamp > NOW() - INTERVAL '2 hours' ORDER BY priority ASC) t;\")\necho \"$INSIGHTS\" | python3 -m json.tool 2>/dev/null || echo \"$INSIGHTS\"\n```\n\n## Step 3: Log wake time pattern\n```bash\npsql cortana -c \"INSERT INTO cortana_patterns (pattern_type, value, day_of_week, metadata) VALUES ('wake', '07:30', EXTRACT(DOW FROM NOW())::integer, '{\\\"source\\\": \\\"morning_brief_cron\\\"}');\"\n```\n\n## Step 4: Gather ONLY what SAE does not cover\n\nA) API Usage (not in sitrep):\n   Run: `node /Users/hd/clawd/skills/telegram-usage/handler.js`\n\nB) News digest (not in sitrep) \u2014 use RSS via news-summary skill as primary:\n   - mortgages/housing/rates/Fed/regulatory (top 2-4)\n   - software engineering / reliability / security (top 2-4)\n   - major world events impacting markets/tech/cyber (top 1-2)\n   - AI News (top 2-4): major model releases, OpenAI/Anthropic/Google, regulation\n\n## Step 5: Compose brief using sitrep data + fresh news\n\nInclude sections (tight bullets, same order):\n\nA) API Usage \u2014 from handler.js output\nB) Weather \u2014 from sitrep weather.today (fallback: web_search Warren NJ weather)\nC) Calendar \u2014 from sitrep calendar.events_48h (fallback: gog command). Times must be ET with AM/PM.\nD) News digest \u2014 from RSS/web_search (fresh, not in sitrep)\nE) AI News \u2014 from RSS/web_search (fresh, not in sitrep)\nF) Fitness snapshot \u2014 from sitrep health.whoop_recovery + health.whoop_sleep (fallback: curl whoop)\nG) Markets/portfolio \u2014 Include $MARKET_STATUS from Step 0. From sitrep finance.portfolio_snapshot (fallback: stock-analysis skill)\nH) Tasks \u2014 from sitrep tasks.pending\nI) \ud83e\udde0 Cortana's Insights \u2014 from cortana_insights pulled in Step 2. Show each insight title + description briefly.\nJ) Today I can do for you (2-4 concrete tasks)\nK) Today you should do (2-4 career-advancing, specific)\n\n## Step 6: Mark insights as delivered\nAfter composing the brief, mark all included insights:\n```bash\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND timestamp > NOW() - INTERVAL '2 hours';\"\n```\n\nIf any command fails, continue and note the failure in one line.",
         "model": "openai-codex/gpt-5.2-codex"
       },
       "state": {
-        "nextRunAtMs": 1772109000000,
-        "lastRunAtMs": 1772022600025,
+        "nextRunAtMs": 1772195400000,
+        "lastRunAtMs": 1772109000032,
         "lastStatus": "ok",
-        "lastDurationMs": 117423,
-        "consecutiveErrors": 0,
-        "lastRunStatus": "ok",
-        "lastDelivered": true,
-        "lastDeliveryStatus": "delivered"
-      },
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
-      }
-    },
-    {
-      "id": "af9e1570-3ba2-4d10-a807-91cdfc2df18b",
-      "agentId": "main",
-      "name": "Daily Auto-Update (notify Hamel)",
-      "enabled": true,
-      "createdAtMs": 1769556023422,
-      "updatedAtMs": 1772018742856,
-      "schedule": {
-        "kind": "cron",
-        "expr": "22 4 * * *",
-        "tz": "America/New_York"
-      },
-      "sessionTarget": "isolated",
-      "wakeMode": "now",
-      "payload": {
-        "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83d\udd04 System - Daily Auto-Update. Example: \ud83d\udd04 System - Daily Auto-Update\n[rest of message]\n\nRun daily auto-updates on H's Mac mini and report a concise summary.\n\nGoals: update Clawdbot, all installed skills, and Homebrew packages.\n\nSteps:\n1) Record current versions:\n   - `clawdbot --version` (or `clawdbot gateway status`)\n   - `clawdhub --cli-version`\n   - `brew --version | head -n 2`\n2) Update Homebrew:\n   - `brew update`\n   - `brew upgrade` (best-effort; don't fail the whole job if one formula fails)\n3) Update Clawdbot:\n   - If installed via npm: `npm update -g clawdbot@latest` (fallback: `npm i -g clawdbot@latest`)\n   - Run `clawdbot doctor` after updating (if available).\n4) Update skills:\n   - `clawdhub update --all --no-input --force` (if it fails, retry once without --force)\n\nThen send a Telegram message:\n- What updated (versions before/after if available)\n- What was already up-to-date\n- Any errors/warnings (1\u20133 bullets)\n\nKeep it short. If an update requires manual action (prompts/permissions), say exactly what's needed and stop.",
-        "model": "openai-codex/gpt-5.2-codex"
-      },
-      "state": {
-        "nextRunAtMs": 1772097720000,
-        "lastRunAtMs": 1772011320020,
-        "lastStatus": "ok",
-        "lastDurationMs": 12160,
+        "lastDurationMs": 49707,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -73,12 +37,48 @@
       }
     },
     {
+      "id": "af9e1570-3ba2-4d10-a807-91cdfc2df18b",
+      "agentId": "main",
+      "name": "\ud83d\udd04 Daily Auto-Update (notify Hamel)",
+      "enabled": true,
+      "createdAtMs": 1769556023422,
+      "updatedAtMs": 1772109063712,
+      "schedule": {
+        "kind": "cron",
+        "expr": "22 4 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "PREFIX: Always prefix your output with: \ud83d\udd04 System - Daily Auto-Update. Example: \ud83d\udd04 System - Daily Auto-Update\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nRun daily auto-updates on H's Mac mini and report a concise summary.\n\nGoals: update Clawdbot, all installed skills, and Homebrew packages.\n\nSteps:\n1) Record current versions:\n   - `clawdbot --version` (or `clawdbot gateway status`)\n   - `clawdhub --cli-version`\n   - `brew --version | head -n 2`\n2) Update Homebrew:\n   - `brew update`\n   - `brew upgrade` (best-effort; don't fail the whole job if one formula fails)\n3) Update Clawdbot:\n   - If installed via npm: `npm update -g clawdbot@latest` (fallback: `npm i -g clawdbot@latest`)\n   - Run `clawdbot doctor` after updating (if available).\n4) Update skills:\n   - `clawdhub update --all --no-input --force` (if it fails, retry once without --force)\n\nThen send a Telegram message:\n- What updated (versions before/after if available)\n- What was already up-to-date\n- Any errors/warnings (1\u20133 bullets)\n\nKeep it short. If an update requires manual action (prompts/permissions), say exactly what's needed and stop.",
+        "model": "openai-codex/gpt-5.2-codex"
+      },
+      "state": {
+        "nextRunAtMs": 1772184120000,
+        "lastRunAtMs": 1772097720016,
+        "lastStatus": "ok",
+        "lastDurationMs": 50927,
+        "consecutiveErrors": 0,
+        "lastRunStatus": "ok",
+        "lastDelivered": true,
+        "lastDeliveryStatus": "delivered"
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "telegram",
+        "to": "8171372724",
+        "bestEffort": true
+      }
+    },
+    {
       "id": "cf184acd-0c18-4a36-95f6-b33958d9e0f2",
       "agentId": "main",
-      "name": "Weekday newsletter digest (Hamel)",
+      "name": "\ud83d\udcec Weekday newsletter digest (Hamel)",
       "enabled": true,
       "createdAtMs": 1769557929500,
-      "updatedAtMs": 1771974008631,
+      "updatedAtMs": 1772109064418,
       "schedule": {
         "kind": "cron",
         "expr": "0 18 * * 1-5",
@@ -88,14 +88,14 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83d\udcf0 Newsletter - Daily Digest. Example: \ud83d\udcf0 Newsletter - Daily Digest\n[rest of message]\n\nCreate and send Hamel an end-of-day Newsletter Digest.\n\nGoal: summarize newsletters received today.\n\n1. Fetch today's emails using gog:\n   gog --account hameldesai3@gmail.com gmail search 'newer_than:1d (category:updates OR from:substack OR list:)' --max 20 --json\n\n2. Filter to newsletters (morningbrew, substack, tldrnewsletter, cooperpress, etc.)\n\n3. Group by sender, max ~5 senders, max ~3 items per sender\n\n4. Include Gmail deep links: https://mail.google.com/mail/u/0/#inbox/<messageId>\n\n5. If there are 0 newsletters today, say so briefly and exit.\n\nKeep it concise. If anything fails, report the error in one line and stop.",
+        "message": "PREFIX: Always prefix your output with: \ud83d\udcf0 Newsletter - Daily Digest. Example: \ud83d\udcf0 Newsletter - Daily Digest\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nCreate and send Hamel an end-of-day Newsletter Digest.\n\nGoal: summarize newsletters received today.\n\n1. Fetch today's emails using gog:\n   gog --account hameldesai3@gmail.com gmail search 'newer_than:1d (category:updates OR from:substack OR list:)' --max 20 --json\n\n2. Filter to newsletters (morningbrew, substack, tldrnewsletter, cooperpress, etc.)\n\n3. Group by sender, max ~5 senders, max ~3 items per sender\n\n4. Include Gmail deep links: https://mail.google.com/mail/u/0/#inbox/<messageId>\n\n5. If there are 0 newsletters today, say so briefly and exit.\n\nKeep it concise. If anything fails, report the error in one line and stop.",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772060400000,
-        "lastRunAtMs": 1771974000019,
+        "nextRunAtMs": 1772146800000,
+        "lastRunAtMs": 1772060400018,
         "lastStatus": "ok",
-        "lastDurationMs": 8612,
+        "lastDurationMs": 16305,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": true,
@@ -111,10 +111,10 @@
     {
       "id": "40c14439-9166-4727-86be-eec867ef04d5",
       "agentId": "main",
-      "name": "Mac mini process summary (weekday mornings)",
+      "name": "\ud83d\udda5\ufe0f Mac mini process summary (weekday mornings)",
       "enabled": true,
       "createdAtMs": 1769558255324,
-      "updatedAtMs": 1772043437436,
+      "updatedAtMs": 1772129839731,
       "schedule": {
         "kind": "cron",
         "expr": "17 5,13,21 * * *",
@@ -124,18 +124,18 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83d\udda5\ufe0f System - Mac Mini Health. Example: \ud83d\udda5\ufe0f System - Mac Mini Health\n[rest of message]\n\nSend a quick mac-mini health/process summary.\n\nIMPORTANT: Display all times in Eastern Time (ET), not Pacific. Hamel is in ET timezone.\n\nNOTE: process-watch uses a local venv. Use the wrapper:\n- `/Users/hd/clawd/skills/process-watch/process-watch summary`\n- `/Users/hd/clawd/skills/process-watch/process-watch top --type cpu --limit 5`\n- `/Users/hd/clawd/skills/process-watch/process-watch top --type mem --limit 5`\n\nKeep message concise. If a command fails, include one-line error.",
+        "message": "PREFIX: Always prefix your output with: \ud83d\udda5\ufe0f System - Mac Mini Health. Example: \ud83d\udda5\ufe0f System - Mac Mini Health\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nSend a quick mac-mini health/process summary.\n\nIMPORTANT: Display all times in Eastern Time (ET), not Pacific. Hamel is in ET timezone.\n\nNOTE: process-watch uses a local venv. Use the wrapper:\n- `/Users/hd/clawd/skills/process-watch/process-watch summary`\n- `/Users/hd/clawd/skills/process-watch/process-watch top --type cpu --limit 5`\n- `/Users/hd/clawd/skills/process-watch/process-watch top --type mem --limit 5`\n\nKeep message concise. If a command fails, include one-line error.",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772072220000,
-        "lastRunAtMs": 1772043420005,
+        "nextRunAtMs": 1772158620000,
+        "lastRunAtMs": 1772129820031,
         "lastStatus": "ok",
-        "lastDurationMs": 17431,
+        "lastDurationMs": 19700,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
-        "lastDelivered": true,
-        "lastDeliveryStatus": "delivered"
+        "lastDelivered": false,
+        "lastDeliveryStatus": "not-delivered"
       },
       "delivery": {
         "mode": "announce",
@@ -147,10 +147,10 @@
     {
       "id": "9401d91c-5fa0-43a6-a18e-01030f9e5ba5",
       "agentId": "main",
-      "name": "Calendar reminders \u2192 Telegram (ALL calendars)",
+      "name": "\ud83d\udcc5 Calendar reminders \u2192 Telegram (ALL calendars)",
       "enabled": true,
       "createdAtMs": 1769585938649,
-      "updatedAtMs": 1772053627519,
+      "updatedAtMs": 1772136432924,
       "schedule": {
         "kind": "cron",
         "expr": "7 6-23 * * *",
@@ -160,14 +160,14 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \u23f0 Calendar - Event Reminder\n\nCalendar reminders runner.\n\nTimezone: America/New_York\n\n1. Fetch today's events using gog:\n   gog --account hameldesai3@gmail.com calendar events \"60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com\" --from today --to tomorrow --json\n\n2. For each event, check if it starts TODAY (same date as current date in ET). SKIP any events that start tomorrow or later.\n\n3. For today's events only, calculate minutes until start FROM NOW.\n\n4. ONLY send a reminder if minutes-until-start falls within a window:\n   - **60-min reminder**: Send if minutes-until-start is between 55-65\n   - **30-min reminder**: Send if minutes-until-start is between 25-35\n   - All-day events: No reminders.\n\n   \u26a0\ufe0f CRITICAL: If minutes-until-start does NOT fall within ANY of these windows, output NOTHING. Completely empty response. No explanation, no calculations, no \"staying silent\". Just produce zero output.\n\n5. Track which reminders were already sent in ~/clawd/memory/calendar-reminders-sent.json to avoid duplicates.\n\n6. Format reminder: \"\u23f0 [Event Title] in [X] minutes\\nWhen: HH:MM AM/PM ET\"\n\n7. If no reminders due: output NOTHING. Empty response. No meta-commentary.\n\n8. If anything fails: output NOTHING.",
+        "message": "PREFIX: Always prefix your output with: \u23f0 Calendar - Event Reminder\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nCalendar reminders runner.\n\nTimezone: America/New_York\n\n1. Fetch today's events using gog:\n   gog --account hameldesai3@gmail.com calendar events \"60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com\" --from today --to tomorrow --json\n\n2. For each event, check if it starts TODAY (same date as current date in ET). SKIP any events that start tomorrow or later.\n\n3. For today's events only, calculate minutes until start FROM NOW.\n\n4. ONLY send a reminder if minutes-until-start falls within a window:\n   - **60-min reminder**: Send if minutes-until-start is between 55-65\n   - **30-min reminder**: Send if minutes-until-start is between 25-35\n   - All-day events: No reminders.\n\n   \u26a0\ufe0f CRITICAL: If minutes-until-start does NOT fall within ANY of these windows, output NOTHING. Completely empty response. No explanation, no calculations, no \"staying silent\". Just produce zero output.\n\n5. Track which reminders were already sent in ~/clawd/memory/calendar-reminders-sent.json to avoid duplicates.\n\n6. Format reminder: \"\u23f0 [Event Title] in [X] minutes\\nWhen: HH:MM AM/PM ET\"\n\n7. If no reminders due: output NOTHING. Empty response. No meta-commentary.\n\n8. If anything fails: output NOTHING.",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772057220000,
-        "lastRunAtMs": 1772053620018,
+        "nextRunAtMs": 1772140020000,
+        "lastRunAtMs": 1772136420029,
         "lastStatus": "ok",
-        "lastDurationMs": 7501,
+        "lastDurationMs": 12895,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -195,7 +195,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "FED WATCH (FOMC statement) \u2014 today.\n\nRight after the statement drops, send Hamel a plain-English summary for a mortgage broker:\n- Hold/cut/hike?\n- Any key language change (hawkish/dovish)?\n- What this likely means for mortgage rates today/tomorrow (bond/MBS reaction)\n\nSteps:\n1) Find the official FOMC statement on federalreserve.gov (use web_search if needed).\n2) web_fetch the statement.\n3) Send 6\u201310 bullets + 1\u20132 short quotes.\n4) Include the source link."
+        "message": "\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nFED WATCH (FOMC statement) \u2014 today.\n\nRight after the statement drops, send Hamel a plain-English summary for a mortgage broker:\n- Hold/cut/hike?\n- Any key language change (hawkish/dovish)?\n- What this likely means for mortgage rates today/tomorrow (bond/MBS reaction)\n\nSteps:\n1) Find the official FOMC statement on federalreserve.gov (use web_search if needed).\n2) web_fetch the statement.\n3) Send 6\u201310 bullets + 1\u20132 short quotes.\n4) Include the source link."
       },
       "state": {
         "lastRunAtMs": 1769627100002,
@@ -212,10 +212,10 @@
     {
       "id": "c5e30b34-c081-4e95-8a02-7c930ac4cae6",
       "agentId": "main",
-      "name": "X session healthcheck (bird)",
+      "name": "\ud83d\udc26 X session healthcheck (bird)",
       "enabled": true,
       "createdAtMs": 1769615191317,
-      "updatedAtMs": 1772053208202,
+      "updatedAtMs": 1772109066532,
       "schedule": {
         "kind": "cron",
         "expr": "0 4,16 * * *",
@@ -225,14 +225,14 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83d\udc26 Health - X Session Check. Example: \ud83d\udc26 Health - X Session Check\n[rest of message]\n\nCheck whether X/Twitter (bird) session is still valid.\n\nSteps:\n1) Run: /Users/hd/bin/birdx whoami (fallback: bird whoami)\n2) If it succeeds: DO NOT MESSAGE.\n3) If it fails due to auth/login/cookies/session: send Hamel a short Telegram alert:\n   - \"X session expired; please re-login\"\n   - include the failing command's one-line error\n   - suggest: run `bird check` and re-auth (open X in browser, log in, then rerun `bird whoami`).\n4) If it fails for non-auth reasons (network, rate limit): stay silent.",
+        "message": "PREFIX: Always prefix your output with: \ud83d\udc26 Health - X Session Check. Example: \ud83d\udc26 Health - X Session Check\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nCheck whether X/Twitter (bird) session is still valid.\n\nSteps:\n1) Run: /Users/hd/bin/birdx whoami (fallback: bird whoami)\n2) If it succeeds: DO NOT MESSAGE.\n3) If it fails due to auth/login/cookies/session: send Hamel a short Telegram alert:\n   - \"X session expired; please re-login\"\n   - include the failing command's one-line error\n   - suggest: run `bird check` and re-auth (open X in browser, log in, then rerun `bird whoami`).\n4) If it fails for non-auth reasons (network, rate limit): stay silent.",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772096400000,
-        "lastRunAtMs": 1772053200017,
+        "nextRunAtMs": 1772139600000,
+        "lastRunAtMs": 1772096400018,
         "lastStatus": "ok",
-        "lastDurationMs": 8185,
+        "lastDurationMs": 11708,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -248,10 +248,10 @@
     {
       "id": "a86ca3f9-38af-4672-ba3f-1911352f0319",
       "agentId": "main",
-      "name": "Stock Market Brief (daily)",
+      "name": "\ud83d\udcc8 Stock Market Brief (daily)",
       "enabled": true,
       "createdAtMs": 1769683871728,
-      "updatedAtMs": 1772042109186,
+      "updatedAtMs": 1772113793807,
       "schedule": {
         "kind": "cron",
         "expr": "45 7 * * 1-5"
@@ -260,14 +260,14 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Stock Market Brief for Hamel.\n\nPREFIX: Always prefix your output with: \ud83d\udcb9 Markets - Stock Market Brief. Example: \ud83d\udcb9 Markets - Stock Market Brief\n[rest of message]\n\nRead the portfolio config at ~/clawd/tools/portfolio/config.md for full context, constraints, and watch items.\n\nKey constraints:\n- TSLA and NVDA are FOREVER HOLDS. Never recommend selling or trimming.\n- Concentration risk managed via diversification only.\n- Long-term (years/decades) horizon.\n\n## Step 0: Check Market Status\nMARKET_STATUS=$(~/clawd/skills/markets/check_market_status.sh)\necho \"Market status: $MARKET_STATUS\"\n\nUse $MARKET_STATUS in your analysis. If market is CLOSED, focus on after-hours/pre-market events and their implications for next trading day. Never guess market status.\n\n## Step 1: Pull SAE Finance Data (pre-gathered at 7:00 AM)\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n\n# Get finance sitrep data\nFINANCE=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'finance';\")\necho \"Portfolio snapshot: $FINANCE\"\n\n# Check freshness\nFINANCE_AGE=$(psql cortana -t -A -c \"SELECT EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/3600 FROM cortana_sitrep WHERE domain = 'finance';\")\necho \"Finance data age: ${FINANCE_AGE} hours\"\n```\n\nIf finance sitrep data is missing or stale (>4 hours), fetch all prices directly using stock-analysis skill.\n\n## Step 2: Pull Finance Insights\n```bash\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, priority, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'finance' = ANY(domains) ORDER BY priority ASC) t;\")\necho \"$INSIGHTS\"\n```\n\n## Step 3: Fetch fresh prices for tickers where sitrep is stale or missing\nIf sitrep has recent data (< 4 hours), use it. Otherwise:\n```bash\ncd ~/clawd/skills/stock-analysis && uv run src/stock_analysis/main.py analyze <TICKER> --json\n```\nTickers: TSLA, NVDA, GOOGL, AAPL, MSFT, BA, META, DIS, AMZN, QQQ, BRK.B, COIN, AWAY, GLD\n\n## Step 4: Search for material news (last 24h)\nUse web_search for material news on holdings. Focus on:\n- Earnings releases, SEC filings, regulatory actions\n- Major product/delivery announcements (especially TSLA, NVDA)\n- Significant price moves (>3% in either direction)\n\n## Step 5: Compose brief\n\nInclude MARKET STATUS at top using $MARKET_STATUS variable. Include GOLD section: GLD price, % change, hedge context.\n\n\ud83d\udcd8 Beginner Corner (REQUIRED, plain English):\n- Market health today: GOOD / SHAKY / BAD (one line, no jargon)\n- Why today is BUY / WATCH / NO-BUY (2-3 simple bullets)\n- One concept of the day (1-2 sentences) for a beginner\n\nFor each MATERIAL event (skip noise):\n- Ticker + what happened (1-2 sentences)\n- Why it matters to long-term thesis\n- Thesis impact: CONFIRMING / NEUTRAL / WARNING / THESIS RISK\n- Sizing relevance: HIGH / MEDIUM / LOW\n- Suggested action: HOLD / WATCH / ADD CANDIDATE / PAUSE ADDING / DIVERSIFY ELSEWHERE\n- What to watch next\n\nIf NO material events: \"No material events today. All positions steady.\"\n\nInclude portfolio snapshot with current values and weights.\n\n\ud83e\udde0 Cortana's Finance Insights \u2014 include any finance-related insights from Step 2.\n\n## Step 6: Mark insights delivered\n```bash\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'finance' = ANY(domains);\"\n```\n\nKeep concise. Plain text (no markdown tables for Telegram). Focus on what changes decisions. Weekday only.",
+        "message": "Stock Market Brief for Hamel.\n\nPREFIX: Always prefix your output with: \ud83d\udcb9 Markets - Stock Market Brief. Example: \ud83d\udcb9 Markets - Stock Market Brief\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nRead the portfolio config at ~/clawd/tools/portfolio/config.md for full context, constraints, and watch items.\n\nKey constraints:\n- TSLA and NVDA are FOREVER HOLDS. Never recommend selling or trimming.\n- Concentration risk managed via diversification only.\n- Long-term (years/decades) horizon.\n\n## Step 0: Check Market Status\nMARKET_STATUS=$(~/clawd/skills/markets/check_market_status.sh)\necho \"Market status: $MARKET_STATUS\"\n\nUse $MARKET_STATUS in your analysis. If market is CLOSED, focus on after-hours/pre-market events and their implications for next trading day. Never guess market status.\n\n## Step 1: Pull SAE Finance Data (pre-gathered at 7:00 AM)\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n\n# Get finance sitrep data\nFINANCE=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'finance';\")\necho \"Portfolio snapshot: $FINANCE\"\n\n# Check freshness\nFINANCE_AGE=$(psql cortana -t -A -c \"SELECT EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/3600 FROM cortana_sitrep WHERE domain = 'finance';\")\necho \"Finance data age: ${FINANCE_AGE} hours\"\n```\n\nIf finance sitrep data is missing or stale (>4 hours), fetch all prices directly using stock-analysis skill.\n\n## Step 2: Pull Finance Insights\n```bash\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, priority, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'finance' = ANY(domains) ORDER BY priority ASC) t;\")\necho \"$INSIGHTS\"\n```\n\n## Step 3: Fetch fresh prices for tickers where sitrep is stale or missing\nIf sitrep has recent data (< 4 hours), use it. Otherwise:\n```bash\ncd ~/clawd/skills/stock-analysis && uv run src/stock_analysis/main.py analyze <TICKER> --json\n```\nTickers: TSLA, NVDA, GOOGL, AAPL, MSFT, BA, META, DIS, AMZN, QQQ, BRK.B, COIN, AWAY, GLD\n\n## Step 4: Search for material news (last 24h)\nUse web_search for material news on holdings. Focus on:\n- Earnings releases, SEC filings, regulatory actions\n- Major product/delivery announcements (especially TSLA, NVDA)\n- Significant price moves (>3% in either direction)\n\n## Step 5: Compose brief\n\nInclude MARKET STATUS at top using $MARKET_STATUS variable. Include GOLD section: GLD price, % change, hedge context.\n\n\ud83d\udcd8 Beginner Corner (REQUIRED, plain English):\n- Market health today: GOOD / SHAKY / BAD (one line, no jargon)\n- Why today is BUY / WATCH / NO-BUY (2-3 simple bullets)\n- One concept of the day (1-2 sentences) for a beginner\n\nFor each MATERIAL event (skip noise):\n- Ticker + what happened (1-2 sentences)\n- Why it matters to long-term thesis\n- Thesis impact: CONFIRMING / NEUTRAL / WARNING / THESIS RISK\n- Sizing relevance: HIGH / MEDIUM / LOW\n- Suggested action: HOLD / WATCH / ADD CANDIDATE / PAUSE ADDING / DIVERSIFY ELSEWHERE\n- What to watch next\n\nIf NO material events: \"No material events today. All positions steady.\"\n\nInclude portfolio snapshot with current values and weights.\n\n\ud83e\udde0 Cortana's Finance Insights \u2014 include any finance-related insights from Step 2.\n\n## Step 6: Mark insights delivered\n```bash\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'finance' = ANY(domains);\"\n```\n\nKeep concise. Plain text (no markdown tables for Telegram). Focus on what changes decisions. Weekday only.",
         "model": "openai-codex/gpt-5.2-codex"
       },
       "state": {
-        "nextRunAtMs": 1772109900000,
-        "lastRunAtMs": 1772023500024,
+        "nextRunAtMs": 1772196300000,
+        "lastRunAtMs": 1772113752175,
         "lastStatus": "ok",
-        "lastDurationMs": 194495,
+        "lastDurationMs": 41632,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "delivered",
@@ -335,7 +335,7 @@
       "name": "\ud83c\udfcb\ufe0f Fitness Morning Brief (Hamel)",
       "enabled": true,
       "createdAtMs": 1769794739989,
-      "updatedAtMs": 1772107432473,
+      "updatedAtMs": 1772111049561,
       "schedule": {
         "kind": "cron",
         "expr": "3 8 * * *",
@@ -345,19 +345,19 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: \ud83c\udfcb\ufe0f Fitness - Morning Brief\nUse 12-hour AM/PM. Keep to 5-7 lines.\n\nRun exactly:\n```bash\n~/clawd/tools/fitness/morning-brief-data.sh\n```\n\nUse only that JSON (do not call other APIs). Report:\n1) Recovery score + zone (green/yellow/red)\n2) Sleep performance/efficiency/REM% (flag REM<15%)\n3) Today's workouts only (rest day if none)\n4) One actionable health insight for today.",
-        "model": "openai-codex/gpt-5.2-codex",
-        "timeoutSeconds": 90
+        "message": "Fitness Morning Brief for Hamel.\n\nPREFIX: Always prefix your output with: \ud83c\udfcb\ufe0f Fitness - Morning Brief. Example: \ud83c\udfcb\ufe0f Fitness - Morning Brief\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nIMPORTANT FORMATTING RULE: Always use 12-hour time format with AM/PM (e.g., 9:30 PM, 6:00 AM). NEVER use 24-hour/military time (e.g., 21:30, 06:00). This applies to ALL times in the output.\n\n## Step 1: Pull SAE Health Data (pre-gathered at 7:00 AM)\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n\nRECOVERY=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_recovery';\")\nSLEEP=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_sleep';\")\nHEALTH_AGE=$(psql cortana -t -A -c \"SELECT EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/3600 FROM cortana_sitrep WHERE domain = 'health';\")\n\necho \"Recovery: $RECOVERY\"\necho \"Sleep: $SLEEP\"\necho \"Health data age: ${HEALTH_AGE} hours\"\n```\n\n## Step 2: Fetch fresh data ONLY if sitrep is stale (>2 hours) or missing\nIf health data age > 2 hours or empty, fetch directly:\n```bash\ncurl -s http://localhost:3033/whoop/data | jq '{recovery: .recovery[0].score, sleep: .sleep[0].score, workouts: [.workouts[:3][] | {sport: .sport_name, strain: .score.strain, hr: .score.average_heart_rate, start: .start}]}'\n```\n\n## Step 2.5: **MANDATORY DATE FILTERING - NEVER SKIP THIS STEP**\nAfter fetching any workout data (from sitrep or direct fetch):\n```bash\n# Get today's date in local timezone\nTODAY=$(date +%Y-%m-%d)\necho \"Filtering workouts for TODAY ONLY: $TODAY\"\n\n# Check for Whoop workouts from TODAY\necho \"Whoop workouts from today ($TODAY):\"\ncurl -s http://localhost:3033/whoop/data | jq --arg today \"$TODAY\" '.workouts[] | select(.start[:10] == $today) | {sport: .sport_name, strain: .score.strain, start: .start}' | head -3\n\n# Check for Tonal workouts from TODAY (if available)\nif curl -s http://localhost:3033/tonal/health 2>/dev/null | grep -q '\"status\":\"healthy\"'; then\n  echo \"Tonal workouts from today ($TODAY):\"\n  curl -s http://localhost:3033/tonal/data | jq --arg today \"$TODAY\" '.workouts[] | select(.beginTime[:10] == $today) | {beginTime, muscle_groups}' | head -3\nfi\n```\n\n**CRITICAL RULE**: Only report workouts where the date matches TODAY's date exactly.\n- **For Whoop workouts**: Only consider workouts where the start date (first 10 characters of `.start` field) equals TODAY\n- **For Tonal workouts** (if fetched): Only consider workouts where the beginTime date (first 10 characters of `.beginTime` field) equals TODAY\n- **If NO workouts from today**: Report \"Rest day \u2014 no workout logged today\" instead of showing old workout data\n- **NEVER report a Feb 18 workout as \"today's workout\" if today is Feb 20**\n\n## Step 3: Pull Health Insights\n```bash\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'health' = ANY(domains) ORDER BY priority ASC) t;\")\necho \"$INSIGHTS\"\n```\n\n## Step 4: Generate brief (under 200 words)\nUsing sitrep data (or fresh fallback) **with TODAY-only workout filtering**:\n- Recovery score + color (Green 67-100, Yellow 34-66, Red 0-33)\n- HRV and RHR\n- Sleep: total time, efficiency, deep/REM breakdown\n- **TODAY's workouts ONLY** - if none from today, say \"Rest day \u2014 no workout logged today\"\n- One-line readiness assessment\n- \ud83e\udde0 Health Insights \u2014 include any from Step 3\n\n## Step 5: Mark insights delivered\n```bash\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'health' = ANY(domains);\"\n```\n\nIf Whoop fetch fails and sitrep is also empty, say so briefly. Keep it short.",
+        "model": "openai-codex/gpt-5.3-codex",
+        "timeoutSeconds": 240
       },
       "state": {
-        "nextRunAtMs": 1772110980000,
-        "lastRunAtMs": 1772024580029,
-        "lastStatus": "error",
-        "lastDurationMs": 60011,
-        "consecutiveErrors": 3,
-        "lastRunStatus": "error",
-        "lastDeliveryStatus": "unknown",
-        "lastError": "cron: job execution timed out"
+        "nextRunAtMs": 1772197380000,
+        "lastRunAtMs": 1772110980016,
+        "lastStatus": "ok",
+        "lastDurationMs": 69545,
+        "consecutiveErrors": 0,
+        "lastRunStatus": "ok",
+        "lastDeliveryStatus": "delivered",
+        "lastDelivered": true
       },
       "delivery": {
         "mode": "announce",
@@ -372,7 +372,7 @@
       "name": "\ud83c\udf19 Fitness Evening Recap (Hamel)",
       "enabled": true,
       "createdAtMs": 1769794739997,
-      "updatedAtMs": 1771983114835,
+      "updatedAtMs": 1772069668887,
       "schedule": {
         "kind": "cron",
         "expr": "30 20 * * *",
@@ -382,14 +382,14 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83c\udfcb\ufe0f Fitness - Evening Recap. Example: \ud83c\udfcb\ufe0f Fitness - Evening Recap\n[rest of message]\n\nFitness Evening Recap for Hamel (pre-bedtime summary at 8:30 PM ET).\n\nIMPORTANT FORMATTING RULE: Always use 12-hour time format with AM/PM (e.g., 9:30 PM, 6:00 AM). NEVER use 24-hour/military time (e.g., 21:30, 06:00). This applies to ALL times in the output.\n\n0. Health check first:\n   curl -s http://localhost:3033/tonal/health\n   If status != 'healthy': note 'Tonal auth issue - skipping Tonal details' and continue with Whoop only.\n\n1. Pull baseline from SAE sitrep (gathered at 1PM):\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\nBASELINE_RECOVERY=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_recovery';\")\necho \"Baseline recovery from sitrep: $BASELINE_RECOVERY\"\n```\nUse this as morning baseline context (compare with fresh evening data).\n\n2. Fetch FRESH Whoop data (evening data is newer than 1PM sitrep):\n   curl -s http://localhost:3033/whoop/data\n\n3. If Tonal healthy, fetch FRESH Tonal data:\n   curl -s http://localhost:3033/tonal/data\n\n4. **MANDATORY DATE FILTERING - NEVER SKIP THIS STEP**:\n   ```bash\n   # Get today's date in local timezone\n   TODAY=$(date +%Y-%m-%d)\n   echo \"Filtering workouts for: $TODAY\"\n   \n   # Filter Whoop workouts to TODAY ONLY - show verification\n   echo \"Checking Whoop workouts for today ($TODAY):\"\n   curl -s http://localhost:3033/whoop/data | jq --arg today \"$TODAY\" '.workouts[] | select(.start[:10] == $today) | {sport: .sport_name, strain: .score.strain, start: .start}' | head -5\n   \n   # Filter Tonal workouts to TODAY ONLY (if Tonal is healthy) - show verification  \n   if curl -s http://localhost:3033/tonal/health | grep -q '\"status\":\"healthy\"'; then\n     echo \"Checking Tonal workouts for today ($TODAY):\"\n     curl -s http://localhost:3033/tonal/data | jq --arg today \"$TODAY\" '.workouts[] | select(.beginTime[:10] == $today) | {beginTime, muscle_groups, totalVolumeLbs}' | head -3\n   fi\n   ```\n   \n   **CRITICAL RULE**: Only report workouts where the date matches TODAY's date exactly.\n   - For Whoop: `.start` field must start with TODAY's date (YYYY-MM-DD)\n   - For Tonal: `.beginTime` field must start with TODAY's date (YYYY-MM-DD)  \n   - If NO workouts from today exist: report \"Rest day \u2014 no workout logged today\"\n   - **NEVER report old workouts as today's activity** (e.g., don't report Feb 18 workout on Feb 20)\n\n5. Pull health insights generated during the day:\n```bash\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'health' = ANY(domains) ORDER BY priority ASC) t;\")\necho \"$INSIGHTS\"\n```\n\n6. Generate evening fitness recap with:\n\n   A) TODAY'S STRAIN SUMMARY\n   - Total day strain (scale interpretation)\n   - Kilojoules burned\n   - Max heart rate today\n   - Activity breakdown\n\n   B) WORKOUT DETAILS (Tonal) - **ONLY if Tonal healthy AND workouts from TODAY exist**\n   - Full exercise breakdown: sets, reps, weight\n   - Total volume lifted (weight \u00d7 reps)\n   - Muscle groups trained\n   - Compare to last similar workout if available\n   - Strength score changes (before/after if available)\n   - **If no Tonal workouts from TODAY: \"No Tonal workout logged today\"**\n\n   **DATA STATUS LANGUAGE (REQUIRED):**\n   - If endpoints return data but there are zero workouts today, say: \"Rest day \u2014 no workout logged today.\"\n   - If an endpoint is unreachable/errors/times out, say: \"<Service> data unavailable right now\" (do NOT call this a rest day).\n\n   C) WEEKLY PROGRESS\n   - Days trained this week\n   - Muscle group frequency (what's been hit, what needs attention)\n   - Weekly strain average\n   - Weekly sleep average\n\n   D) TOMORROW'S TONAL WORKOUT - skip if Tonal unhealthy\n   - From Tonal data, find most recent workout with programEnrollmentId\n   - Program: 12 Weeks to Jacked (ID: 7d4d1d3d-9da9-4722-9e8c-fb65e45845a8)\n   - Show: Target area, body regions, workout number\n\n   E) TOMORROW'S OUTLOOK\n   - Based on today's strain + recent sleep:\n     - Predict recovery zone for tomorrow\n     - Suggest workout intensity\n\n   F) SLEEP RECOMMENDATION\n   - Target bedtime based on strain (higher strain = earlier bed)\n   - Sleep need calculation from Whoop\n\n   G) \ud83e\udde0 CORTANA'S HEALTH INSIGHTS\n   - Include any health-related insights from Step 5\n   - Show title + description briefly\n\n7. Mark insights as delivered:\n```bash\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'health' = ANY(domains);\"\n```\n\n8. Update ~/clawd/memory/fitness/YYYY-MM-DD.json with 'evening' key\n\nKeep message thorough but not overwhelming. If Tonal is down, still provide Whoop-based recap.",
+        "message": "PREFIX: Always prefix your output with: \ud83c\udfcb\ufe0f Fitness - Evening Recap. Example: \ud83c\udfcb\ufe0f Fitness - Evening Recap\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nFitness Evening Recap for Hamel (pre-bedtime summary at 8:30 PM ET).\n\nIMPORTANT FORMATTING RULE: Always use 12-hour time format with AM/PM (e.g., 9:30 PM, 6:00 AM). NEVER use 24-hour/military time (e.g., 21:30, 06:00). This applies to ALL times in the output.\n\n0. Health check first:\n   curl -s http://localhost:3033/tonal/health\n   If status != 'healthy': note 'Tonal auth issue - skipping Tonal details' and continue with Whoop only.\n\n1. Pull baseline from SAE sitrep (gathered at 1PM):\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\nBASELINE_RECOVERY=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_recovery';\")\necho \"Baseline recovery from sitrep: $BASELINE_RECOVERY\"\n```\nUse this as morning baseline context (compare with fresh evening data).\n\n2. Fetch FRESH Whoop data (evening data is newer than 1PM sitrep):\n   curl -s http://localhost:3033/whoop/data\n\n3. If Tonal healthy, fetch FRESH Tonal data:\n   curl -s http://localhost:3033/tonal/data\n\n4. **MANDATORY DATE FILTERING - NEVER SKIP THIS STEP**:\n   ```bash\n   # Get today's date in local timezone\n   TODAY=$(date +%Y-%m-%d)\n   echo \"Filtering workouts for: $TODAY\"\n   \n   # Filter Whoop workouts to TODAY ONLY - show verification\n   echo \"Checking Whoop workouts for today ($TODAY):\"\n   curl -s http://localhost:3033/whoop/data | jq --arg today \"$TODAY\" '.workouts[] | select(.start[:10] == $today) | {sport: .sport_name, strain: .score.strain, start: .start}' | head -5\n   \n   # Filter Tonal workouts to TODAY ONLY (if Tonal is healthy) - show verification  \n   if curl -s http://localhost:3033/tonal/health | grep -q '\"status\":\"healthy\"'; then\n     echo \"Checking Tonal workouts for today ($TODAY):\"\n     curl -s http://localhost:3033/tonal/data | jq --arg today \"$TODAY\" '.workouts[] | select(.beginTime[:10] == $today) | {beginTime, muscle_groups, totalVolumeLbs}' | head -3\n   fi\n   ```\n   \n   **CRITICAL RULE**: Only report workouts where the date matches TODAY's date exactly.\n   - For Whoop: `.start` field must start with TODAY's date (YYYY-MM-DD)\n   - For Tonal: `.beginTime` field must start with TODAY's date (YYYY-MM-DD)  \n   - If NO workouts from today exist: report \"Rest day \u2014 no workout logged today\"\n   - **NEVER report old workouts as today's activity** (e.g., don't report Feb 18 workout on Feb 20)\n\n5. Pull health insights generated during the day:\n```bash\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'health' = ANY(domains) ORDER BY priority ASC) t;\")\necho \"$INSIGHTS\"\n```\n\n6. Generate evening fitness recap with:\n\n   A) TODAY'S STRAIN SUMMARY\n   - Total day strain (scale interpretation)\n   - Kilojoules burned\n   - Max heart rate today\n   - Activity breakdown\n\n   B) WORKOUT DETAILS (Tonal) - **ONLY if Tonal healthy AND workouts from TODAY exist**\n   - Full exercise breakdown: sets, reps, weight\n   - Total volume lifted (weight \u00d7 reps)\n   - Muscle groups trained\n   - Compare to last similar workout if available\n   - Strength score changes (before/after if available)\n   - **If no Tonal workouts from TODAY: \"No Tonal workout logged today\"**\n\n   **DATA STATUS LANGUAGE (REQUIRED):**\n   - If endpoints return data but there are zero workouts today, say: \"Rest day \u2014 no workout logged today.\"\n   - If an endpoint is unreachable/errors/times out, say: \"<Service> data unavailable right now\" (do NOT call this a rest day).\n\n   C) WEEKLY PROGRESS\n   - Days trained this week\n   - Muscle group frequency (what's been hit, what needs attention)\n   - Weekly strain average\n   - Weekly sleep average\n\n   D) TOMORROW'S TONAL WORKOUT - skip if Tonal unhealthy\n   - From Tonal data, find most recent workout with programEnrollmentId\n   - Program: 12 Weeks to Jacked (ID: 7d4d1d3d-9da9-4722-9e8c-fb65e45845a8)\n   - Show: Target area, body regions, workout number\n\n   E) TOMORROW'S OUTLOOK\n   - Based on today's strain + recent sleep:\n     - Predict recovery zone for tomorrow\n     - Suggest workout intensity\n\n   F) SLEEP RECOMMENDATION\n   - Target bedtime based on strain (higher strain = earlier bed)\n   - Sleep need calculation from Whoop\n\n   G) \ud83e\udde0 CORTANA'S HEALTH INSIGHTS\n   - Include any health-related insights from Step 5\n   - Show title + description briefly\n\n7. Mark insights as delivered:\n```bash\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'health' = ANY(domains);\"\n```\n\n8. Update ~/clawd/memory/fitness/YYYY-MM-DD.json with 'evening' key\n\nKeep message thorough but not overwhelming. If Tonal is down, still provide Whoop-based recap.",
         "model": "openai-codex/gpt-5.2-codex"
       },
       "state": {
-        "nextRunAtMs": 1772069400000,
-        "lastRunAtMs": 1771983000018,
+        "nextRunAtMs": 1772155800000,
+        "lastRunAtMs": 1772069400027,
         "lastStatus": "ok",
-        "lastDurationMs": 114817,
+        "lastDurationMs": 268860,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": true,
@@ -418,7 +418,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83c\udfcb\ufe0f Fitness - Weekly Insights. Example: \ud83c\udfcb\ufe0f Fitness - Weekly Insights\n[rest of message]\n\nWeekly Fitness Insights for Hamel (Sunday 8pm ET).\n\nCRITICAL: Hamel wants ANALYSIS and INSIGHT, NOT raw data. No tables of numbers. Think like a coach reviewing the week.\n\n0. Health check first:\n   curl -s http://localhost:3033/tonal/health\n   If status != 'healthy': note 'Tonal auth issue' and provide Whoop-only analysis.\n\n1. Fetch data (keep it minimal to avoid context overflow):\n   - Whoop: curl -s http://localhost:3033/whoop/data | jq '{recovery: [.recovery[0:7][] | {date: .created_at[0:10], score: .score.recovery_score, hrv: .score.hrv_rmssd_milli}], workouts: [.workouts[0:10][] | {date: .start[0:10], type: .sport_name, strain: .score.strain}]}'\n   - Tonal (if healthy): curl -s http://localhost:3033/tonal/data | jq '{profile: .profile, recent: [.workouts | to_entries | sort_by(.value.beginTime) | reverse | .[0:7][] | {date: .value.beginTime[0:10], volume: .value.totalVolume}]}'\n\n2. Generate ANALYSIS (not data):\n\n   A) WHAT HAPPENED THIS WEEK (3-4 sentences)\n   - Training pattern: consistency, intensity, volume trend\n   - Recovery pattern: any red/yellow flags? What caused them?\n   - Sleep-recovery correlation insights\n\n   B) WINS \ud83c\udfc6 (2-3 bullets)\n   - PRs, consistency streaks, recovery improvements\n   - What went well that should continue\n\n   C) WATCH OUTS \u26a0\ufe0f (2-3 bullets)\n   - Patterns to break (late nights \u2192 poor recovery)\n   - Overtraining signals\n   - Sleep debt accumulation\n\n   D) NEXT WEEK FOCUS (2-3 actionable items)\n   - Specific recommendations based on this week's data\n   - Training adjustments\n   - Recovery priorities\n\n3. Save to ~/clawd/memory/fitness/weekly/YYYY-WXX.md\n\nTone: Coach giving a weekly debrief. Conversational, actionable, insightful. NO DATA TABLES. Max 300 words.",
+        "message": "PREFIX: Always prefix your output with: \ud83c\udfcb\ufe0f Fitness - Weekly Insights. Example: \ud83c\udfcb\ufe0f Fitness - Weekly Insights\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nWeekly Fitness Insights for Hamel (Sunday 8pm ET).\n\nCRITICAL: Hamel wants ANALYSIS and INSIGHT, NOT raw data. No tables of numbers. Think like a coach reviewing the week.\n\n0. Health check first:\n   curl -s http://localhost:3033/tonal/health\n   If status != 'healthy': note 'Tonal auth issue' and provide Whoop-only analysis.\n\n1. Fetch data (keep it minimal to avoid context overflow):\n   - Whoop: curl -s http://localhost:3033/whoop/data | jq '{recovery: [.recovery[0:7][] | {date: .created_at[0:10], score: .score.recovery_score, hrv: .score.hrv_rmssd_milli}], workouts: [.workouts[0:10][] | {date: .start[0:10], type: .sport_name, strain: .score.strain}]}'\n   - Tonal (if healthy): curl -s http://localhost:3033/tonal/data | jq '{profile: .profile, recent: [.workouts | to_entries | sort_by(.value.beginTime) | reverse | .[0:7][] | {date: .value.beginTime[0:10], volume: .value.totalVolume}]}'\n\n2. Generate ANALYSIS (not data):\n\n   A) WHAT HAPPENED THIS WEEK (3-4 sentences)\n   - Training pattern: consistency, intensity, volume trend\n   - Recovery pattern: any red/yellow flags? What caused them?\n   - Sleep-recovery correlation insights\n\n   B) WINS \ud83c\udfc6 (2-3 bullets)\n   - PRs, consistency streaks, recovery improvements\n   - What went well that should continue\n\n   C) WATCH OUTS \u26a0\ufe0f (2-3 bullets)\n   - Patterns to break (late nights \u2192 poor recovery)\n   - Overtraining signals\n   - Sleep debt accumulation\n\n   D) NEXT WEEK FOCUS (2-3 actionable items)\n   - Specific recommendations based on this week's data\n   - Training adjustments\n   - Recovery priorities\n\n3. Save to ~/clawd/memory/fitness/weekly/YYYY-WXX.md\n\nTone: Coach giving a weekly debrief. Conversational, actionable, insightful. NO DATA TABLES. Max 300 words.",
         "model": "openai-codex/gpt-5.2-codex"
       },
       "state": {
@@ -441,7 +441,7 @@
       "name": "\ud83d\udd27 Fitness service healthcheck",
       "enabled": true,
       "createdAtMs": 1769794825944,
-      "updatedAtMs": 1772053641927,
+      "updatedAtMs": 1772096419349,
       "schedule": {
         "kind": "cron",
         "expr": "0 4,16 * * *",
@@ -451,18 +451,18 @@
       "wakeMode": "next-heartbeat",
       "payload": {
         "kind": "agentTurn",
-        "message": "\ud83d\udd27 **Fitness Service Health Check** \u2014 verify service and remediate safely.\n\n1) Check `http://127.0.0.1:3033/tonal/health`.\n2) If unhealthy, restart ONLY via launchd (so .env is loaded):\n   `launchctl kickstart -k gui/$(id -u)/com.cortana.fitness-service`\n3) Re-check `/tonal/health` and report result.\n\n\ud83d\udeab Do NOT run `go run main.go` or `./fitness-services` directly.\n\ud83d\udeab Do NOT bypass launchd-run.sh.\nIf credentials appear missing, note that launchd wrapper sources `/Users/hd/Developer/cortana-external/.env`.",
+        "message": "\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\n\ud83d\udd27 **Fitness Service Health Check** \u2014 verify service and remediate safely.\n\n1) Check `http://127.0.0.1:3033/tonal/health`.\n2) If unhealthy, restart ONLY via launchd (so .env is loaded):\n   `launchctl kickstart -k gui/$(id -u)/com.cortana.fitness-service`\n3) Re-check `/tonal/health` and report result.\n\n\ud83d\udeab Do NOT run `go run main.go` or `./fitness-services` directly.\n\ud83d\udeab Do NOT bypass launchd-run.sh.\nIf credentials appear missing, note that launchd wrapper sources `/Users/hd/Developer/cortana-external/.env`.",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772096400000,
-        "lastRunAtMs": 1772053208202,
+        "nextRunAtMs": 1772139600000,
+        "lastRunAtMs": 1772096411726,
         "lastStatus": "ok",
-        "lastDurationMs": 169817,
+        "lastDurationMs": 7623,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
-        "lastDelivered": true,
-        "lastDeliveryStatus": "delivered"
+        "lastDelivered": false,
+        "lastDeliveryStatus": "not-delivered"
       },
       "delivery": {
         "mode": "announce",
@@ -477,7 +477,7 @@
       "name": "\ud83d\udcf0 Newsletter Alert (real-time)",
       "enabled": true,
       "createdAtMs": 1769815538299,
-      "updatedAtMs": 1772053385521,
+      "updatedAtMs": 1772136010644,
       "schedule": {
         "kind": "cron",
         "expr": "*/30 6-16 * * *",
@@ -487,18 +487,19 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83d\udcf0 Newsletter - Alert. Example: \ud83d\udcf0 Newsletter - Alert\n[rest of message]\n\nCheck for NEW unread newsletters and summarize them.\n\n1. Fetch unread emails using gog:\n   gog --account hameldesai3@gmail.com gmail search 'is:unread (category:updates OR from:substack OR list:)' --max 10 --json\n\n2. Parse the JSON output. Filter to likely newsletters (from known newsletter domains like cooperpress, substack, tldrnewsletter, morningbrew, etc.)\n\n3. IMPORTANT - Check already-alerted state:\n   - Read ~/clawd/memory/newsletter-alerted.json (create if missing, default: {\"ids\": []})\n   - Filter OUT any message IDs already in the 'ids' array\n   - Only proceed with truly NEW newsletters\n\n4. If there are NEW newsletters not yet alerted:\n   - For each one, provide a 2-3 sentence summary based on subject and snippet\n   - Include the Gmail link: https://mail.google.com/mail/u/0/#inbox/<messageId>\n   - Group by category (Tech/Dev, Crypto, Finance, Golf, etc.)\n   - AFTER creating the summary: append these message IDs to ~/clawd/memory/newsletter-alerted.json\n   - Keep only last 100 IDs to prevent file bloat\n\n5. If NO new newsletters (all already alerted or none unread): stay completely silent (output nothing)\n\nIMPORTANT GOG USAGE RULES:\n- To get email content: `gog --account hameldesai3@gmail.com gmail get <messageId> --json` (returns full message as JSON)\n- There is NO --format flag. Do NOT use --format text or --format full.\n- Use --json for structured output, --plain for text output.\n- The subject and snippet from the search results are usually sufficient for summaries \u2014 avoid fetching full messages unless needed.\n\nCRITICAL OUTPUT RULES:\n- Your FINAL response must be ONLY the newsletter summary text\n- Do NOT include meta-commentary\n- If no new newsletters, output NOTHING\n\nKeep summaries punchy and useful.",
+        "message": "PREFIX: Always prefix your output with: \ud83d\udcf0 Newsletter - Alert. Example: \ud83d\udcf0 Newsletter - Alert\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nCheck for NEW unread newsletters and summarize them.\n\n1. Fetch unread emails using gog:\n   gog --account hameldesai3@gmail.com gmail search 'is:unread (category:updates OR from:substack OR list:)' --max 10 --json\n\n2. Parse the JSON output. Filter to likely newsletters (from known newsletter domains like cooperpress, substack, tldrnewsletter, morningbrew, etc.)\n\n3. IMPORTANT - Check already-alerted state:\n   - Read ~/clawd/memory/newsletter-alerted.json (create if missing, default: {\"ids\": []})\n   - Filter OUT any message IDs already in the 'ids' array\n   - Only proceed with truly NEW newsletters\n\n4. If there are NEW newsletters not yet alerted:\n   - For each one, provide a 2-3 sentence summary based on subject and snippet\n   - Include the Gmail link: https://mail.google.com/mail/u/0/#inbox/<messageId>\n   - Group by category (Tech/Dev, Crypto, Finance, Golf, etc.)\n   - AFTER creating the summary: append these message IDs to ~/clawd/memory/newsletter-alerted.json\n   - Keep only last 100 IDs to prevent file bloat\n\n5. If NO new newsletters (all already alerted or none unread): stay completely silent (output nothing)\n\nIMPORTANT GOG USAGE RULES:\n- To get email content: `gog --account hameldesai3@gmail.com gmail get <messageId> --json` (returns full message as JSON)\n- There is NO --format flag. Do NOT use --format text or --format full.\n- Use --json for structured output, --plain for text output.\n- The subject and snippet from the search results are usually sufficient for summaries \u2014 avoid fetching full messages unless needed.\n\nCRITICAL OUTPUT RULES:\n- Your FINAL response must be ONLY the newsletter summary text\n- Do NOT include meta-commentary\n- If no new newsletters, output NOTHING\n\nKeep summaries punchy and useful.",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772055000000,
-        "lastRunAtMs": 1772053378019,
+        "nextRunAtMs": 1772137800000,
+        "lastRunAtMs": 1772136000031,
         "lastStatus": "ok",
-        "lastDurationMs": 7502,
+        "lastDurationMs": 10613,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
-        "lastDelivered": false
+        "lastDelivered": false,
+        "runningAtMs": 1772137800027
       },
       "delivery": {
         "mode": "announce",
@@ -513,7 +514,7 @@
       "name": "\ud83c\udf19 Bedtime Check (10pm ET)",
       "enabled": true,
       "createdAtMs": 1770599536224,
-      "updatedAtMs": 1771989492541,
+      "updatedAtMs": 1772075889741,
       "schedule": {
         "kind": "cron",
         "expr": "18 22 * * *",
@@ -523,7 +524,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83c\udf19 Sleep - Bedtime Check. Example: \ud83c\udf19 Sleep - Bedtime Check\n[rest of message]\n\nBedtime check for Hamel (10pm ET).\n\nHamel's target bedtime is 9-9:30pm ET. It's now 10pm \u2014 if he's still awake, that's a late night that will impact tomorrow's recovery.\n\nIMPORTANT - WEEKEND RULE (based on REM research):\nIf today is Friday or Saturday: Be FIRMER, not lenient. Weekend schedule drift is the #1 REM killer. Say something like:\n\"\ud83c\udf19 10pm check \u2014 weekends are where REM dies. Schedule drift tonight = yellow recovery tomorrow. Time for bed, Chief.\"\n\nWeekday message:\n\"\ud83c\udf19 Hey, it's 10pm \u2014 you up? (No reply = you're asleep, good! Reply = late night logged)\"\n\nAFTER sending the message, log this check to postgres (pattern tracking):\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -c \"INSERT INTO cortana_patterns (pattern_type, value, day_of_week, metadata) VALUES ('sleep_check', '22:00', EXTRACT(DOW FROM NOW())::integer, '{\\\"type\\\": \\\"bedtime_ping\\\", \\\"target\\\": \\\"21:00-21:30\\\"}');\"\n\nKeep it brief but direct on weekends.",
+        "message": "PREFIX: Always prefix your output with: \ud83c\udf19 Sleep - Bedtime Check. Example: \ud83c\udf19 Sleep - Bedtime Check\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nBedtime check for Hamel (10pm ET).\n\nHamel's target bedtime is 9-9:30pm ET. It's now 10pm \u2014 if he's still awake, that's a late night that will impact tomorrow's recovery.\n\nIMPORTANT - WEEKEND RULE (based on REM research):\nIf today is Friday or Saturday: Be FIRMER, not lenient. Weekend schedule drift is the #1 REM killer. Say something like:\n\"\ud83c\udf19 10pm check \u2014 weekends are where REM dies. Schedule drift tonight = yellow recovery tomorrow. Time for bed, Chief.\"\n\nWeekday message:\n\"\ud83c\udf19 Hey, it's 10pm \u2014 you up? (No reply = you're asleep, good! Reply = late night logged)\"\n\nAFTER sending the message, log this check to postgres (pattern tracking):\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -c \"INSERT INTO cortana_patterns (pattern_type, value, day_of_week, metadata) VALUES ('sleep_check', '22:00', EXTRACT(DOW FROM NOW())::integer, '{\\\"type\\\": \\\"bedtime_ping\\\", \\\"target\\\": \\\"21:00-21:30\\\"}');\"\n\nKeep it brief but direct on weekends.",
         "model": "openai-codex/gpt-5.1"
       },
       "delivery": {
@@ -533,10 +534,10 @@
         "bestEffort": true
       },
       "state": {
-        "nextRunAtMs": 1772075880000,
-        "lastRunAtMs": 1771989480016,
+        "nextRunAtMs": 1772162280000,
+        "lastRunAtMs": 1772075880032,
         "lastStatus": "ok",
-        "lastDurationMs": 12525,
+        "lastDurationMs": 9709,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": true,
@@ -568,10 +569,10 @@
     {
       "id": "a75c6231-9966-4fcf-a23d-8c1ca157b59a",
       "agentId": "main",
-      "name": "Amazon Session Keep-Alive",
+      "name": "\ud83d\uded2 Amazon Session Keep-Alive",
       "enabled": true,
       "createdAtMs": 1770932011695,
-      "updatedAtMs": 1772026479719,
+      "updatedAtMs": 1772112883397,
       "schedule": {
         "kind": "every",
         "everyMs": 28800000,
@@ -589,10 +590,10 @@
         "mode": "none"
       },
       "state": {
-        "nextRunAtMs": 1772055265858,
-        "lastRunAtMs": 1772026465858,
+        "nextRunAtMs": 1772141665924,
+        "lastRunAtMs": 1772112865924,
         "lastStatus": "ok",
-        "lastDurationMs": 13861,
+        "lastDurationMs": 17473,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -602,10 +603,10 @@
     {
       "id": "f47d5170-112d-473c-9c4a-d51662688899",
       "agentId": "main",
-      "name": "Daily Upgrade Protocol",
+      "name": "\ud83d\udd27 Daily Upgrade Protocol",
       "enabled": true,
       "createdAtMs": 1770932055504,
-      "updatedAtMs": 1772107432473,
+      "updatedAtMs": 1772118850149,
       "schedule": {
         "kind": "cron",
         "expr": "14 10 * * *",
@@ -615,9 +616,9 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: \ud83d\udd27 Upgrade - Daily Proposal\nIf memory/upgrades/TODAY.md already has a proposal, output nothing.\nOtherwise:\n1) Auto-commit pending git changes in ~/clawd\n2) Read yesterday memory + recent upgrades + last 10 cortana_feedback rows (3d)\n3) Propose ONE real friction fix (not hypothetical)\n4) Reply in 6 short lines: Git status, gap, fix, effort, autonomy gain, 'Approve? or discuss?'\n5) Log to memory/upgrades/TODAY.md and insert into cortana_upgrades.",
-        "timeoutSeconds": 90,
-        "model": "openai-codex/gpt-5.2-codex"
+        "message": "PREFIX: Always prefix your output with: \ud83d\udd27 Upgrade - Daily Proposal. Example: \ud83d\udd27 Upgrade - Daily Proposal\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nDaily Upgrade Protocol. You are Cortana running a self-improvement cycle.\n\nIMPORTANT: Today's date is the date you are running. Check memory/upgrades/YYYY-MM-DD.md for TODAY's date specifically. If today's file already has a proposal, output NOTHING \u2014 completely empty response. No explanation, no \"staying silent\", no meta-commentary. Just produce zero output. If it does NOT exist for today, you MUST generate a new proposal. Do NOT assume yesterday's proposal covers today.\n\nCRITICAL: Always generate a fresh proposal for today. Each day gets its own unique proposal based on yesterday's gaps.\n\nCRITICAL: Proposals must solve REAL friction observed in recent conversations or corrections \u2014 not hypothetical \"nice to have\" features. Look for: repeated manual tasks, corrections Hamel had to make, things that broke, patterns of asking for the same thing. If you can't find a genuine pain point, skip the proposal and just do the git commit.\n\n\n**FIRST: Git commit any pending changes**\n```bash\ncd ~/clawd && git add -A && git diff --cached --quiet || git commit -m \"Daily auto-commit $(date +%Y-%m-%d)\"\n```\n\nThen proceed with upgrade analysis:\n\n1. Read ~/clawd/projects/cortana-autonomy-roadmap.md for context\n2. Read yesterday's memory file (memory/YYYY-MM-DD.md) to see what happened\n3. Check memory/upgrades/ for recent upgrade history\n4. Query recent corrections: export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -c \"SELECT context, lesson FROM cortana_feedback WHERE timestamp > NOW() - INTERVAL '3 days' ORDER BY timestamp DESC LIMIT 10;\"\n5. Identify ONE concrete gap from yesterday - something you struggled with, context you missed, or something Hamel did manually that you should handle\n6. Propose a fix with clear effort level and autonomy gain\n\nDeliver to Hamel via Telegram in this format:\n\n\ud83d\udd27 Daily Upgrade Proposal\n\nGit: [committed X files / nothing to commit]\n\nYesterday's gap: [What you noticed]\nProposed fix: [Concrete solution]\nEffort: [Low/Medium/High]\nAutonomy gain: [What this enables]\n\nApprove? Or discuss?\n\nThen log your proposal to memory/upgrades/YYYY-MM-DD.md (create if needed) and to postgres:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -c \"INSERT INTO cortana_upgrades (gap_identified, proposed_fix, effort, status) VALUES ('<gap>', '<fix>', '<effort>', 'proposed');\"",
+        "timeoutSeconds": 180,
+        "model": "openai-codex/gpt-5.1"
       },
       "delivery": {
         "mode": "announce",
@@ -626,23 +627,23 @@
         "bestEffort": true
       },
       "state": {
-        "nextRunAtMs": 1772118840000,
-        "lastRunAtMs": 1772032440018,
-        "lastStatus": "error",
-        "lastDurationMs": 10,
-        "consecutiveErrors": 1,
-        "lastRunStatus": "error",
-        "lastDeliveryStatus": "unknown",
-        "lastError": "model not allowed: openai-codex/gpt-5.1-codex-max"
+        "nextRunAtMs": 1772205240000,
+        "lastRunAtMs": 1772118840030,
+        "lastStatus": "ok",
+        "lastDurationMs": 10119,
+        "consecutiveErrors": 0,
+        "lastRunStatus": "ok",
+        "lastDeliveryStatus": "not-delivered",
+        "lastDelivered": false
       }
     },
     {
       "id": "58db9015-b3bd-4be8-83ff-45ec5377b735",
       "agentId": "main",
-      "name": "Tonal Health Check",
+      "name": "\ud83d\udcaa Tonal Health Check",
       "enabled": true,
       "createdAtMs": 1770936710935,
-      "updatedAtMs": 1772053641927,
+      "updatedAtMs": 1772132006779,
       "schedule": {
         "kind": "every",
         "everyMs": 14400000,
@@ -660,10 +661,10 @@
         "mode": "none"
       },
       "state": {
-        "nextRunAtMs": 1772059971879,
-        "lastRunAtMs": 1772045571879,
+        "nextRunAtMs": 1772146392476,
+        "lastRunAtMs": 1772131992476,
         "lastStatus": "ok",
-        "lastDurationMs": 11227,
+        "lastDurationMs": 14303,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -673,10 +674,10 @@
     {
       "id": "7eaa6ed0-152b-42cf-b9c9-bb63eab0a5a0",
       "agentId": "main",
-      "name": "Twitter Auth Check",
+      "name": "\ud83d\udc26 Twitter Auth Check",
       "enabled": true,
       "createdAtMs": 1770936710968,
-      "updatedAtMs": 1772031210043,
+      "updatedAtMs": 1772117616434,
       "schedule": {
         "kind": "every",
         "everyMs": 28800000,
@@ -694,10 +695,10 @@
         "mode": "none"
       },
       "state": {
-        "nextRunAtMs": 1772059994234,
-        "lastRunAtMs": 1772031194234,
+        "nextRunAtMs": 1772146406168,
+        "lastRunAtMs": 1772117606168,
         "lastStatus": "ok",
-        "lastDurationMs": 15809,
+        "lastDurationMs": 10266,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -720,7 +721,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83e\udde0 Memory - Weekly Consolidation. Example: \ud83e\udde0 Memory - Weekly Consolidation\n[rest of message]\n\nWeekly Memory Consolidation (Sunday 3 AM). You are Cortana maintaining long-term memory.\n\n1. Read the last 7 days of memory files:\n   ls ~/clawd/memory/2026-*.md | tail -7\n   Read each file.\n\n2. Read current MEMORY.md:\n   cat ~/clawd/MEMORY.md\n\n3. Identify significant items from the week that should be in long-term memory:\n   - Key decisions made\n   - New preferences learned\n   - Important events or milestones\n   - Lessons from corrections/mistakes\n   - New integrations or capabilities added\n\n4. Update MEMORY.md with new insights (append to relevant sections or create new ones).\n   Keep it curated \u2014 MEMORY.md is distilled wisdom, not raw logs.\n\n5. Archive processed daily files:\n   mkdir -p ~/clawd/memory/archive/2026\n   mv ~/clawd/memory/2026-MM-DD.md ~/clawd/memory/archive/2026/ (for files older than 14 days)\n\n6. Query postgres for patterns learned this week:\n   export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n   psql cortana -c \"SELECT pattern_type, COUNT(*) FROM cortana_patterns WHERE timestamp > NOW() - INTERVAL '7 days' GROUP BY pattern_type;\"\n\n7. Send brief Telegram summary:\n   - Items added to MEMORY.md\n   - Files archived\n   - Pattern summary\n\nKeep it maintenance-focused. This is sleep-time compute \u2014 consolidate and prune.",
+        "message": "PREFIX: Always prefix your output with: \ud83e\udde0 Memory - Weekly Consolidation. Example: \ud83e\udde0 Memory - Weekly Consolidation\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nWeekly Memory Consolidation (Sunday 3 AM). You are Cortana maintaining long-term memory.\n\n1. Read the last 7 days of memory files:\n   ls ~/clawd/memory/2026-*.md | tail -7\n   Read each file.\n\n2. Read current MEMORY.md:\n   cat ~/clawd/MEMORY.md\n\n3. Identify significant items from the week that should be in long-term memory:\n   - Key decisions made\n   - New preferences learned\n   - Important events or milestones\n   - Lessons from corrections/mistakes\n   - New integrations or capabilities added\n\n4. Update MEMORY.md with new insights (append to relevant sections or create new ones).\n   Keep it curated \u2014 MEMORY.md is distilled wisdom, not raw logs.\n\n5. Archive processed daily files:\n   mkdir -p ~/clawd/memory/archive/2026\n   mv ~/clawd/memory/2026-MM-DD.md ~/clawd/memory/archive/2026/ (for files older than 14 days)\n\n6. Query postgres for patterns learned this week:\n   export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n   psql cortana -c \"SELECT pattern_type, COUNT(*) FROM cortana_patterns WHERE timestamp > NOW() - INTERVAL '7 days' GROUP BY pattern_type;\"\n\n7. Send brief Telegram summary:\n   - Items added to MEMORY.md\n   - Files archived\n   - Pattern summary\n\nKeep it maintenance-focused. This is sleep-time compute \u2014 consolidate and prune.",
         "timeoutSeconds": 300,
         "model": "openai-codex/gpt-5.2-codex"
       },
@@ -744,7 +745,7 @@
       "name": "\ud83d\udd0d Daily System Health Summary",
       "enabled": true,
       "createdAtMs": 1770940327751,
-      "updatedAtMs": 1771985625144,
+      "updatedAtMs": 1772072017356,
       "schedule": {
         "kind": "cron",
         "expr": "12 21 * * *",
@@ -754,7 +755,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83d\udccb Health Summary - Daily Cron Digest. Example: \ud83d\udccb Health Summary - Daily Cron Digest\n[rest of message]\n\nDaily System Health + Cron Digest (9 PM ET).\n\n## Part 1: Health Check\nQuery postgres for today's issues:\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\npsql cortana -c \"SELECT severity, COUNT(*) FROM cortana_events WHERE timestamp > CURRENT_DATE GROUP BY severity;\"\npsql cortana -c \"SELECT source, message FROM cortana_events WHERE timestamp > CURRENT_DATE AND severity = 'error';\"\npsql cortana -c \"SELECT source, COUNT(*) as failures FROM cortana_events WHERE timestamp > CURRENT_DATE AND event_type = 'cron_fail' GROUP BY source;\"\n```\n\n**Health Analysis:**\n1. If 0 errors today \u2192 healthy day (note it briefly)\n2. If 1-2 unrelated errors \u2192 normal noise (note briefly)\n3. If 3+ errors OR multiple from same source \u2192 alert with summary\n4. If critical pattern (same service failing repeatedly) \u2192 flag for investigation\n\n## Part 2: Cron Run Digest\nUse the cron tool (action=list) to get ALL cron jobs. For each job, check state.lastRunAtMs.\n\nCalculate midnight ET today in milliseconds. A job \"ran today\" if lastRunAtMs >= midnight ET.\n\nFor each job that ran today, report:\n- Name\n- Status: ok if lastStatus=\"ok\", failed otherwise\n- Duration: lastDurationMs converted to seconds\n\nFor jobs that did NOT run today, check their schedule to determine if they were expected to. If expected but missing, flag them.\n\n## Output Format (ALWAYS send this, even if zero errors):\n\n\ud83d\udccb Daily System Health + Cron Digest\n\n[Health section - brief summary of errors or \"\u2705 Clean day \u2014 no errors\"]\n\n\ud83d\udcca Cron Runs Today (X/Y jobs):\n\u2705 Job Name \u2014 ok (X.Xs)\n\u2705 Job Name \u2014 ok (X.Xs)\n\u274c Job Name \u2014 failed\n\u23ed\ufe0f Job Name \u2014 not scheduled today\n\n[Any patterns or concerns]\n\nIMPORTANT: Always deliver this message. The health section can be brief if healthy, but the cron digest must always appear.",
+        "message": "PREFIX: Always prefix your output with: \ud83d\udccb Health Summary - Daily Cron Digest. Example: \ud83d\udccb Health Summary - Daily Cron Digest\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nDaily System Health + Cron Digest (9 PM ET).\n\n## Part 1: Health Check\nQuery postgres for today's issues:\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\npsql cortana -c \"SELECT severity, COUNT(*) FROM cortana_events WHERE timestamp > CURRENT_DATE GROUP BY severity;\"\npsql cortana -c \"SELECT source, message FROM cortana_events WHERE timestamp > CURRENT_DATE AND severity = 'error';\"\npsql cortana -c \"SELECT source, COUNT(*) as failures FROM cortana_events WHERE timestamp > CURRENT_DATE AND event_type = 'cron_fail' GROUP BY source;\"\n```\n\n**Health Analysis:**\n1. If 0 errors today \u2192 healthy day (note it briefly)\n2. If 1-2 unrelated errors \u2192 normal noise (note briefly)\n3. If 3+ errors OR multiple from same source \u2192 alert with summary\n4. If critical pattern (same service failing repeatedly) \u2192 flag for investigation\n\n## Part 2: Cron Run Digest\nUse the cron tool (action=list) to get ALL cron jobs. For each job, check state.lastRunAtMs.\n\nCalculate midnight ET today in milliseconds. A job \"ran today\" if lastRunAtMs >= midnight ET.\n\nFor each job that ran today, report:\n- Name\n- Status: ok if lastStatus=\"ok\", failed otherwise\n- Duration: lastDurationMs converted to seconds\n\nFor jobs that did NOT run today, check their schedule to determine if they were expected to. If expected but missing, flag them.\n\n## Output Format (ALWAYS send this, even if zero errors):\n\n\ud83d\udccb Daily System Health + Cron Digest\n\n[Health section - brief summary of errors or \"\u2705 Clean day \u2014 no errors\"]\n\n\ud83d\udcca Cron Runs Today (X/Y jobs):\n\u2705 Job Name \u2014 ok (X.Xs)\n\u2705 Job Name \u2014 ok (X.Xs)\n\u274c Job Name \u2014 failed\n\u23ed\ufe0f Job Name \u2014 not scheduled today\n\n[Any patterns or concerns]\n\nIMPORTANT: Always deliver this message. The health section can be brief if healthy, but the cron digest must always appear.",
         "timeoutSeconds": 180,
         "model": "openai-codex/gpt-5.1"
       },
@@ -765,10 +766,10 @@
         "bestEffort": true
       },
       "state": {
-        "nextRunAtMs": 1772071920000,
-        "lastRunAtMs": 1771985520019,
+        "nextRunAtMs": 1772158320000,
+        "lastRunAtMs": 1772071920027,
         "lastStatus": "ok",
-        "lastDurationMs": 105125,
+        "lastDurationMs": 97329,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "delivered",
@@ -781,7 +782,7 @@
       "name": "\ud83e\uddf9 Cron Session Cleanup",
       "enabled": true,
       "createdAtMs": 1770984376271,
-      "updatedAtMs": 1772002818155,
+      "updatedAtMs": 1772089239210,
       "schedule": {
         "kind": "cron",
         "expr": "0 2 * * *",
@@ -791,7 +792,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83e\uddf9 System - Session Cleanup. Example: \ud83e\uddf9 System - Session Cleanup\n[rest of message]\n\nCron Session Cleanup \u2014 prevent context overflow in isolated cron sessions.\n\nThreshold: 400KB (~80k tokens) \u2014 sessions above this are at risk of hitting 200k limit.\n\n1. List all cron session files and their sizes:\n   find ~/.openclaw/agents/main/sessions -name '*.jsonl' -exec du -k {} \\; | sort -rn\n\n2. Identify sessions over 400KB (400 in du -k output).\n\n3. For each oversized session:\n   - Log which cron job it belongs to (check sessions_list if needed)\n   - Delete the file: rm <path>\n   - Track what was cleaned\n\n4. If any sessions were cleaned:\n   - Send brief Telegram alert: '\ud83e\uddf9 Cleaned X cron sessions (over 400KB threshold): [list job names]'\n   - Log to postgres: INSERT INTO cortana_events (event_type, source, severity, message) VALUES ('session_cleanup', 'cron_cleanup', 'info', '<summary>')\n\n5. If no sessions over threshold: stay silent (HEARTBEAT_OK).\n\nThis prevents the context overflow errors that crash morning briefs.",
+        "message": "PREFIX: Always prefix your output with: \ud83e\uddf9 System - Session Cleanup. Example: \ud83e\uddf9 System - Session Cleanup\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nCron Session Cleanup \u2014 prevent context overflow in isolated cron sessions.\n\nThreshold: 400KB (~80k tokens) \u2014 sessions above this are at risk of hitting 200k limit.\n\n1. List all cron session files and their sizes:\n   find ~/.openclaw/agents/main/sessions -name '*.jsonl' -exec du -k {} \\; | sort -rn\n\n2. Identify sessions over 400KB (400 in du -k output).\n\n3. For each oversized session:\n   - Log which cron job it belongs to (check sessions_list if needed)\n   - Delete the file: rm <path>\n   - Track what was cleaned\n\n4. If any sessions were cleaned:\n   - Send brief Telegram alert: '\ud83e\uddf9 Cleaned X cron sessions (over 400KB threshold): [list job names]'\n   - Log to postgres: INSERT INTO cortana_events (event_type, source, severity, message) VALUES ('session_cleanup', 'cron_cleanup', 'info', '<summary>')\n\n5. If no sessions over threshold: stay silent (HEARTBEAT_OK).\n\nThis prevents the context overflow errors that crash morning briefs.",
         "model": "openai-codex/gpt-5.1",
         "timeoutSeconds": 120
       },
@@ -802,10 +803,10 @@
         "bestEffort": true
       },
       "state": {
-        "nextRunAtMs": 1772089200000,
-        "lastRunAtMs": 1772002800017,
+        "nextRunAtMs": 1772175600000,
+        "lastRunAtMs": 1772089200015,
         "lastStatus": "ok",
-        "lastDurationMs": 18138,
+        "lastDurationMs": 39195,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -859,7 +860,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83c\udf19 Sleep - Weekend Pre-Bedtime. Example: \ud83c\udf19 Sleep - Weekend Pre-Bedtime\n[rest of message]\n\nWeekend pre-bedtime check (9:30pm, Fri/Sat only).\n\nContext from REM research: Weekend schedule drift is the #1 REM killer. The pattern is staying up 1-2h later on Fri/Sat, which tanks Sunday/Monday recovery. This 9:30pm check catches the drift BEFORE it starts.\n\nSend a short Telegram message:\n\"\ud83c\udf19 9:30pm weekend check \u2014 this is where REM dies. Your research shows Fri/Sat drift kills Sunday recovery. Wind down now, bed by 10. Don't let the weekend steal your gains.\"\n\nLog to postgres:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -c \"INSERT INTO cortana_patterns (pattern_type, value, day_of_week, metadata) VALUES ('sleep_check', '21:30', EXTRACT(DOW FROM NOW())::integer, '{\\\"type\\\": \\\"weekend_precheck\\\", \\\"target\\\": \\\"21:00-21:30\\\"}');\"\n\nKeep it punchy and direct. This is the intervention point.",
+        "message": "PREFIX: Always prefix your output with: \ud83c\udf19 Sleep - Weekend Pre-Bedtime. Example: \ud83c\udf19 Sleep - Weekend Pre-Bedtime\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nWeekend pre-bedtime check (9:30pm, Fri/Sat only).\n\nContext from REM research: Weekend schedule drift is the #1 REM killer. The pattern is staying up 1-2h later on Fri/Sat, which tanks Sunday/Monday recovery. This 9:30pm check catches the drift BEFORE it starts.\n\nSend a short Telegram message:\n\"\ud83c\udf19 9:30pm weekend check \u2014 this is where REM dies. Your research shows Fri/Sat drift kills Sunday recovery. Wind down now, bed by 10. Don't let the weekend steal your gains.\"\n\nLog to postgres:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -c \"INSERT INTO cortana_patterns (pattern_type, value, day_of_week, metadata) VALUES ('sleep_check', '21:30', EXTRACT(DOW FROM NOW())::integer, '{\\\"type\\\": \\\"weekend_precheck\\\", \\\"target\\\": \\\"21:00-21:30\\\"}');\"\n\nKeep it punchy and direct. This is the intervention point.",
         "model": "openai-codex/gpt-5.3-codex"
       },
       "delivery": {
@@ -882,7 +883,7 @@
       "name": "\ud83d\udcc8 CANSLIM Alert Scan (market sessions)",
       "enabled": true,
       "createdAtMs": 1771202685902,
-      "updatedAtMs": 1772051468447,
+      "updatedAtMs": 1772131670215,
       "schedule": {
         "kind": "cron",
         "expr": "30 9,12,15 * * 1-5",
@@ -892,9 +893,9 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83d\udcc8 Trading Advisor - CANSLIM Snapshot\n\nUse precomputed CANSLIM cache only (do NOT run the scanner script).\n\nRead:\n- ~/clawd/tools/trade-alerts/cache/canslim-latest.txt\n- ~/clawd/tools/trade-alerts/cache/canslim-latest.meta.json\n\nFreshness gate (required):\n- Parse meta.timestamp (UTC ISO8601).\n- Compute cache age in minutes from now.\n- If age >= 10 minutes OR meta missing/invalid, first line must include: \u26a0\ufe0f STALE CACHE.\n\nThen provide concise interpretation in 5-8 lines total:\n1) Cache status line: fresh/stale + age + last exit_code + run duration\n2) Market condition read (risk-on/risk-off/choppy) from cached scan text\n3) Top CANSLIM signals that matter right now\n4) BUY candidates worth watching now (if any)\n5) Key risks / invalidation cues\n6) Portfolio context: Hamel is heavy tech with large NVDA/TSLA exposure; prioritize diversification-aware adds\n\nIf cache file starts with 'ERROR:' or exit_code != 0, output a concise failure summary and no trade recommendations.",
+        "message": "\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nRun the CANSLIM alert scanner and return its output exactly (no extra commentary).\n\nCommands:\ncd ~/Developer/cortana-external/backtester\n/Users/hd/Developer/cortana-external/backtester/venv/bin/python canslim_alert.py --limit 8 --min-score 6\n\nRules:\n- Output must include market status summary and candidate signals (BUY/WATCH/NO_BUY).\n- If the script errors, return one concise error line starting with: '\ud83d\udcc8 Trading Advisor - Error:'",
         "model": "openai-codex/gpt-5.3-codex",
-        "timeoutSeconds": 90
+        "timeoutSeconds": 240
       },
       "delivery": {
         "mode": "announce",
@@ -903,14 +904,14 @@
         "bestEffort": true
       },
       "state": {
-        "nextRunAtMs": 1772116200000,
-        "lastRunAtMs": 1772051419267,
-        "lastStatus": "ok",
-        "lastDurationMs": 49180,
-        "consecutiveErrors": 0,
-        "lastRunStatus": "ok",
-        "lastDeliveryStatus": "delivered",
-        "lastDelivered": true
+        "nextRunAtMs": 1772137800000,
+        "lastRunAtMs": 1772131430184,
+        "lastStatus": "error",
+        "lastDurationMs": 240031,
+        "consecutiveErrors": 2,
+        "lastRunStatus": "error",
+        "lastDeliveryStatus": "unknown",
+        "runningAtMs": 1772137800027
       }
     },
     {
@@ -918,7 +919,7 @@
       "name": "\ud83c\udf10 SAE World State Builder",
       "enabled": true,
       "createdAtMs": 1771268247494,
-      "updatedAtMs": 1772043877100,
+      "updatedAtMs": 1772128813482,
       "schedule": {
         "kind": "cron",
         "expr": "0 7,13,21 * * *"
@@ -935,10 +936,10 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772071200000,
-        "lastRunAtMs": 1772043651647,
+        "nextRunAtMs": 1772157600000,
+        "lastRunAtMs": 1772128808041,
         "lastStatus": "ok",
-        "lastDurationMs": 225453,
+        "lastDurationMs": 5441,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -950,7 +951,7 @@
       "name": "\ud83e\udde0 SAE Cross-Domain Reasoner",
       "enabled": true,
       "createdAtMs": 1771268745562,
-      "updatedAtMs": 1772107432473,
+      "updatedAtMs": 1772129705458,
       "schedule": {
         "kind": "cron",
         "expr": "15 7,13,21 * * *",
@@ -960,21 +961,19 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "SAE cross-domain reasoner.\nRun:\n```bash\n~/clawd/tools/sae/cross-domain-snapshot.sh\n```\nUse the snapshot JSON to generate 0-3 non-duplicate cross-domain insights.\nInsert each into cortana_insights with priority/action.\nThen query any new priority <=2 insights for current_run_id.\nOutput only urgent insights (max 4 lines). If none, output nothing.\nDo NOT call Telegram/message tool directly.",
+        "message": "Read ~/clawd/sae/cross-domain-reasoner.md and execute all steps. You are the SAE Cross-Domain Reasoner. Run the reasoning process, write insights to cortana_insights, and message Hamel on Telegram ONLY if any priority 1-2 insights are generated.",
         "model": "openai-codex/gpt-5.2-codex",
-        "timeoutSeconds": 75
+        "timeoutSeconds": 120
       },
       "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
+        "mode": "none",
+        "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772072100000,
-        "lastRunAtMs": 1772043300017,
+        "nextRunAtMs": 1772158500000,
+        "lastRunAtMs": 1772129700034,
         "lastStatus": "ok",
-        "lastDurationMs": 7475,
+        "lastDurationMs": 5424,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -983,10 +982,10 @@
     },
     {
       "id": "f7414f95-7795-4e5f-81c6-034e9609cac6",
-      "name": "memory-consolidation",
+      "name": "\ud83e\udde0 Memory Consolidation",
       "enabled": true,
       "createdAtMs": 1771322310876,
-      "updatedAtMs": 1772007125159,
+      "updatedAtMs": 1772109080668,
       "schedule": {
         "kind": "cron",
         "expr": "12 3 * * *",
@@ -1005,14 +1004,14 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772093520000,
-        "lastRunAtMs": 1772007120024,
+        "nextRunAtMs": 1772179920000,
+        "lastRunAtMs": 1772093520019,
         "lastStatus": "ok",
-        "lastDurationMs": 5135,
+        "lastDurationMs": 83409,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
-        "lastDelivered": false,
-        "lastDeliveryStatus": "not-delivered"
+        "lastDelivered": true,
+        "lastDeliveryStatus": "delivered"
       }
     },
     {
@@ -1020,7 +1019,7 @@
       "name": "\ud83d\udd0d Proprioception: Cron & Tool Health",
       "enabled": true,
       "createdAtMs": 1771323577113,
-      "updatedAtMs": 1772053500689,
+      "updatedAtMs": 1772137392703,
       "schedule": {
         "kind": "every",
         "everyMs": 900000,
@@ -1030,7 +1029,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Run /Users/hd/clawd/proprioception/run_health_checks.py to log cron and tool health.\n\nSteps:\n1) cd /Users/hd/clawd\n2) bash -lc '/Users/hd/clawd/proprioception/run_health_checks.py'\n   - Keep existing logging behavior intact (cortana_cron_health + cortana_tool_health).\n\n3) After logging, check for crons currently failing with consecutive errors >= 2.\n   Prefer current cron state first; fallback to recent DB rows.\n\n   Current state source:\n   - Read ~/.openclaw/cron/jobs.json\n   - For each enabled job with state.consecutiveErrors >= 2, capture:\n     - cron name\n     - consecutive failure count\n     - last error reason (state.lastError if present)\n\n   DB fallback source (if needed):\n   export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n   psql cortana -t -A -F $'\t' -c \"WITH latest AS (SELECT DISTINCT ON (cron_name) cron_name, consecutive_failures, COALESCE(metadata->>'last_error', metadata->>'error', 'unknown') AS last_error FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) SELECT cron_name, consecutive_failures, last_error FROM latest WHERE consecutive_failures >= 2;\"\n\n4) Alert via Telegram when failures are found, with dedup (no spam):\n   - Dedup window: 2 hours per cron.\n   - Do NOT alert a cron if it was already alerted in the last 2 hours.\n   - Track dedup via cortana_cron_health metadata.alerted_at (preferred) or a query against recent rows.\n\n   Dedup query example:\n   export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n   psql cortana -t -A -F $'\t' -c \"SELECT 1 FROM cortana_cron_health WHERE cron_name = '<CRON_NAME>' AND COALESCE((metadata->>'alerted_at')::timestamptz, timestamp) > NOW() - INTERVAL '2 hours' AND COALESCE((metadata->>'alerted')::boolean, false) IS TRUE LIMIT 1;\"\n\n   If NOT deduped, send Telegram alert using the message tool with:\n   - failing cron names\n   - consecutive failure counts\n   - last error reason per cron\n\n   Suggested alert text:\n   \"\u26a0\ufe0f Cron health alert\n- <cron>: <N> consecutive failures\n  last error: <reason>\"\n\n   After sending, write a dedup marker row in cortana_cron_health for each alerted cron:\n   - status='alerted'\n   - consecutive_failures=<N>\n   - metadata includes: alerted=true, alerted_at=NOW(), alert_reason='consecutive_failures>=2', last_error\n\n5) If no qualifying failures (or all deduped), stay silent.\n\nKeep output minimal.",
+        "message": "Run /Users/hd/clawd/proprioception/run_health_checks.py to log cron and tool health. Steps:\\n1) cd /Users/hd/clawd\\n2) bash -lc '/Users/hd/clawd/proprioception/run_health_checks.py'\\nThe script handles logging to cortana_cron_health and cortana_tool_health with weather fallback. Keep output minimal.",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 180
       },
@@ -1039,10 +1038,10 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772054380257,
-        "lastRunAtMs": 1772053480257,
+        "nextRunAtMs": 1772138272194,
+        "lastRunAtMs": 1772137372194,
         "lastStatus": "ok",
-        "lastDurationMs": 20432,
+        "lastDurationMs": 20509,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
@@ -1054,7 +1053,7 @@
       "name": "\ud83d\udcca Proprioception: Budget & Self-Model",
       "enabled": true,
       "createdAtMs": 1771323590473,
-      "updatedAtMs": 1772052662507,
+      "updatedAtMs": 1772137310651,
       "schedule": {
         "kind": "every",
         "everyMs": 1800000,
@@ -1073,10 +1072,10 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772054406989,
-        "lastRunAtMs": 1772052606989,
+        "nextRunAtMs": 1772138996940,
+        "lastRunAtMs": 1772137196940,
         "lastStatus": "ok",
-        "lastDurationMs": 55518,
+        "lastDurationMs": 113711,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
@@ -1088,7 +1087,7 @@
       "name": "\ud83d\udcc8 Proprioception: Efficiency Analyzer",
       "enabled": true,
       "createdAtMs": 1771323600989,
-      "updatedAtMs": 1772107432473,
+      "updatedAtMs": 1772106883646,
       "schedule": {
         "kind": "cron",
         "expr": "30 2 * * *",
@@ -1098,32 +1097,32 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Proprioception efficiency analyzer (daily).\nRun:\n```bash\n~/clawd/tools/monitoring/proprioception-metrics.sh\n```\nRead returned JSON and update cortana_self_model (id=1):\n- metadata fields: top_cost_crons, subagent_cost_7d, brief_engagement_rate, analysis_date\n- top_cost_crons column\n- brief_engagement column\n\nIf no anomaly (single cron >30% estimated weekly cost), output nothing.\nIf anomaly exists, output max 4 concise lines with culprit + action.",
-        "model": "openai-codex/gpt-5.2-codex",
-        "timeoutSeconds": 75
+        "message": "You are Cortana's proprioception efficiency analyzer (daily 2:30 AM). Analyze accumulated data:\n\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n\n1. TOKEN COST PER CRON: Check session file sizes in ~/.openclaw/sessions/ grouped by cron label. Estimate cost at ~$0.015/KB of session file. Identify top 5 most expensive crons this week.\n\n2. SUB-AGENT COST: Check session files matching subagent patterns. Compute spawn rate and cost distribution.\n\n3. BRIEF ENGAGEMENT: Query cortana_feedback_signals for signals related to brief-type wake rules in last 7 days. Calculate engagement rate (responses within 2h / total briefs).\n\n4. Write summary to cortana_self_model metadata field as JSON with keys: top_cost_crons, subagent_cost_7d, brief_engagement_rate, analysis_date.\n\n5. Update cortana_self_model.top_cost_crons and brief_engagement fields.\n\nNo output unless anomalies found (e.g., single cron >30% of total spend).",
+        "model": "openai-codex/gpt-5.3-codex",
+        "timeoutSeconds": 120
       },
       "delivery": {
         "mode": "none",
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772091000000,
-        "lastRunAtMs": 1772004600022,
+        "nextRunAtMs": 1772177400000,
+        "lastRunAtMs": 1772106794204,
         "lastStatus": "ok",
-        "lastDurationMs": 5493,
+        "lastDurationMs": 89442,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
-        "lastDelivered": false,
-        "lastDeliveryStatus": "not-delivered"
+        "lastDeliveryStatus": "not-delivered",
+        "lastDelivered": false
       }
     },
     {
       "id": "becbf6fc-066d-48c8-b8f2-05b2489ef91e",
-      "name": "immune-scan",
+      "name": "\ud83d\udee1\ufe0f Immune Scan",
       "description": "Immune System: threat detection and auto-healing scan",
       "enabled": true,
       "createdAtMs": 1771324082626,
-      "updatedAtMs": 1772050359462,
+      "updatedAtMs": 1772136764766,
       "schedule": {
         "kind": "cron",
         "expr": "11 * * * *",
@@ -1145,11 +1144,11 @@
         "bestEffort": true
       },
       "state": {
-        "lastRunAtMs": 1772050349638,
+        "lastRunAtMs": 1772136749654,
         "lastStatus": "ok",
-        "lastDurationMs": 9824,
+        "lastDurationMs": 15112,
         "consecutiveErrors": 0,
-        "nextRunAtMs": 1772053949622,
+        "nextRunAtMs": 1772140349622,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
         "lastDelivered": false
@@ -1160,7 +1159,7 @@
       "name": "\ud83c\udfaf Mission Advancement (Nightly)",
       "enabled": true,
       "createdAtMs": 1771499531391,
-      "updatedAtMs": 1772035772030,
+      "updatedAtMs": 1772074818480,
       "schedule": {
         "kind": "cron",
         "expr": "0 22 * * *",
@@ -1171,21 +1170,21 @@
       "payload": {
         "kind": "agentTurn",
         "message": "You are Cortana. Read ~/clawd/SOUL.md for the mission statement and ~/clawd/MEMORY.md for current context. Based on everything you know about Hamel's goals and current state, identify 1 high-impact task that advances our mission ('Build the systems, habits, and intelligence that compound Hamel's time, health, wealth, and career \u2014 automatically.'). Consider all four pillars: Time, Health, Wealth, Career. Check cortana_tasks to avoid duplicates. If the task is auto-executable, add it to cortana_tasks with a clear execution plan. If it needs approval, describe it clearly for Hamel's review. Be specific and actionable \u2014 not vague aspirations.",
-        "model": "openai-codex/gpt-5.1"
+        "model": "openai-codex/gpt-5.3-codex"
       },
       "delivery": {
         "mode": "announce",
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772074800000,
-        "lastRunAtMs": 1771988400017,
-        "lastStatus": "error",
-        "lastDurationMs": 11,
-        "consecutiveErrors": 1,
-        "lastRunStatus": "error",
-        "lastDeliveryStatus": "unknown",
-        "lastError": "model not allowed: openai-codex/gpt-5.1-codex-max"
+        "nextRunAtMs": 1772161200000,
+        "lastRunAtMs": 1772074800024,
+        "lastStatus": "ok",
+        "lastDurationMs": 18456,
+        "consecutiveErrors": 0,
+        "lastRunStatus": "ok",
+        "lastDeliveryStatus": "not-delivered",
+        "lastDelivered": false
       }
     },
     {
@@ -1204,7 +1203,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "You are preparing the **Weekly Monday Market Brief** for Hamel.\n\nGoal: deliver one concise, actionable brief covering:\n1) portfolio weekly performance,\n2) upcoming earnings for held tickers,\n3) major economic events for the week.\n\n## Rules\n- Keep it compact, concrete, and decision-useful.\n- Respect portfolio constraints from `tools/portfolio/config.md`:\n  - TSLA and NVDA are forever holds (never recommend selling them).\n- If one data source fails, continue with what is available and mark the section as partial.\n\n## Data collection\n1) Portfolio snapshot + weekly change\n- Try:\n  - `curl -s http://localhost:3033/alpaca/portfolio`\n  - `curl -s http://localhost:3033/alpaca/stats`\n- Fallback:\n  - `curl -s http://localhost:3033/alpaca/portfolio`\n  - `curl -s http://localhost:3033/alpaca/stats`\n- Extract: total equity, cash, top positions by weight, and 1-week P/L (% and $) if available.\n\n2) Earnings watch (next 7-10 days)\n- Focus held names first: TSLA, NVDA, GOOGL, AAPL, MSFT, META, AMZN, BA, DIS, BRK.B, COIN (+ any current holdings found in portfolio API).\n- Use reputable sources (exchange calendars, Nasdaq, company IR pages, major finance calendars).\n- Include date + pre-market / after-close when known.\n\n3) Economic calendar (this week)\n- Include only high-impact U.S. events: CPI, PPI, NFP/jobs, unemployment, retail sales, FOMC/Fed speakers, GDP, ISM, consumer sentiment.\n- For each: date/time ET + why it matters to this portfolio.\n\n## Output format\nStart with: `\ud83d\udcca Monday Market Brief`\n\nThen sections:\n\n### 1) Portfolio Weekly Snapshot\n- Equity, cash, weekly P/L\n- Top concentration callout (e.g., TSLA+NVDA combined weight)\n- 2-3 bullets on material risk/opportunity\n\n### 2) Earnings Watch (Next 7-10 Days)\n- Bullet list: `TICKER \u2014 date/time \u2014 what matters`\n\n### 3) Econ Calendar (This Week)\n- Bullet list: `Day time \u2014 event \u2014 portfolio relevance`\n\n### 4) Action Plan This Week\n- 3-5 concrete actions (watch levels, add-on candidates, hedging/pace guidance)\n- No execution commands; just recommendations.\n\nTone: sharp, calm, non-hype. Keep total length around 250-450 words.",
+        "message": "\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nYou are preparing the **Weekly Monday Market Brief** for Hamel.\n\nGoal: deliver one concise, actionable brief covering:\n1) portfolio weekly performance,\n2) upcoming earnings for held tickers,\n3) major economic events for the week.\n\n## Rules\n- Keep it compact, concrete, and decision-useful.\n- Respect portfolio constraints from `tools/portfolio/config.md`:\n  - TSLA and NVDA are forever holds (never recommend selling them).\n- If one data source fails, continue with what is available and mark the section as partial.\n\n## Data collection\n1) Portfolio snapshot + weekly change\n- Try:\n  - `curl -s http://localhost:3033/alpaca/portfolio`\n  - `curl -s http://localhost:3033/alpaca/stats`\n- Fallback:\n  - `curl -s http://localhost:3033/alpaca/portfolio`\n  - `curl -s http://localhost:3033/alpaca/stats`\n- Extract: total equity, cash, top positions by weight, and 1-week P/L (% and $) if available.\n\n2) Earnings watch (next 7-10 days)\n- Focus held names first: TSLA, NVDA, GOOGL, AAPL, MSFT, META, AMZN, BA, DIS, BRK.B, COIN (+ any current holdings found in portfolio API).\n- Use reputable sources (exchange calendars, Nasdaq, company IR pages, major finance calendars).\n- Include date + pre-market / after-close when known.\n\n3) Economic calendar (this week)\n- Include only high-impact U.S. events: CPI, PPI, NFP/jobs, unemployment, retail sales, FOMC/Fed speakers, GDP, ISM, consumer sentiment.\n- For each: date/time ET + why it matters to this portfolio.\n\n## Output format\nStart with: `\ud83d\udcca Monday Market Brief`\n\nThen sections:\n\n### 1) Portfolio Weekly Snapshot\n- Equity, cash, weekly P/L\n- Top concentration callout (e.g., TSLA+NVDA combined weight)\n- 2-3 bullets on material risk/opportunity\n\n### 2) Earnings Watch (Next 7-10 Days)\n- Bullet list: `TICKER \u2014 date/time \u2014 what matters`\n\n### 3) Econ Calendar (This Week)\n- Bullet list: `Day time \u2014 event \u2014 portfolio relevance`\n\n### 4) Action Plan This Week\n- 3-5 concrete actions (watch levels, add-on candidates, hedging/pace guidance)\n- No execution commands; just recommendations.\n\nTone: sharp, calm, non-hype. Keep total length around 250-450 words.",
         "model": "openai-codex/gpt-5.2-codex"
       },
       "delivery": {
@@ -1223,12 +1222,11 @@
       }
     },
     {
-      "id": "2024d6c1-899b-430a-9075-0556b086e9d5",
-      "agentId": "main",
-      "name": "\ud83d\udc26 Bird Healthcheck (daily 7 AM ET)",
+      "id": "fd0ee16f-2259-4759-963f-85d5119447eb",
+      "name": "\ud83d\udcca Earnings Alert (daily)",
       "enabled": true,
-      "createdAtMs": 1772056239884,
-      "updatedAtMs": 1772056239884,
+      "createdAtMs": 1772108242543,
+      "updatedAtMs": 1772109092202,
       "schedule": {
         "kind": "cron",
         "expr": "0 7 * * *",
@@ -1238,148 +1236,16 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83d\udc26 Health - Bird Healthcheck. Example: \ud83d\udc26 Health - Bird Healthcheck\n[rest of message]\n\nRun X cookie auth health check only (no full pipeline):\n- Command: `~/clawd/tools/market-intel/bird-healthcheck.sh`\n- If command succeeds: output NOTHING.\n- If command fails: send Telegram alert that X cookie auth needs refresh, including one short error line.\n\nKeep it simple: health check only.",
-        "model": "openai-codex/gpt-5.1"
+        "message": "Run the earnings checker and calendar sync for portfolio holdings. Execute: ~/clawd/tools/earnings/check-earnings.sh then ~/clawd/tools/earnings/create-calendar-events.sh. Report any holdings with earnings within 48 hours (symbol, date, days until). If none, say 'No upcoming earnings in next 48h.'",
+        "model": "openai-codex/gpt-5.2-codex"
       },
       "delivery": {
         "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
+        "channel": "last",
         "bestEffort": true
-      }
-    },
-    {
-      "id": "eac7a31d-3c17-4d60-95a7-04cbb49ed71e",
-      "agentId": "main",
-      "name": "Earnings checker + calendar sync (daily)",
-      "enabled": true,
-      "createdAtMs": 1772056736938,
-      "updatedAtMs": 1772056736938,
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 7 * * *",
-        "tz": "America/New_York"
       },
-      "sessionTarget": "isolated",
-      "wakeMode": "now",
-      "payload": {
-        "kind": "agentTurn",
-        "message": "Run the daily earnings pipeline. First run checker JSON, then sync calendar events.\n\nCommands:\nE=$(~/clawd/tools/earnings/check-earnings.sh)\necho \"$E\" | ~/clawd/tools/earnings/create-calendar-events.sh >/dev/null || true\necho \"$E\"\n\nOutput only the checker JSON. If empty, output []",
-        "model": "openai-codex/gpt-5.1"
-      },
-      "state": {},
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
-      }
-    },
-    {
-      "id": "92e4ae89-d486-4718-bb2f-9de86320e56e",
-      "agentId": "main",
-      "name": "Earnings T-minus alert (held positions)",
-      "enabled": true,
-      "createdAtMs": 1772056736938,
-      "updatedAtMs": 1772056736938,
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 13 * * *",
-        "tz": "America/New_York"
-      },
-      "sessionTarget": "isolated",
-      "wakeMode": "now",
-      "payload": {
-        "kind": "agentTurn",
-        "message": "Run the earnings T-minus alert and output ONLY the alert text. If there is no alert due, output nothing.\\n\\nCommand:\\n~/clawd/tools/earnings-alert/earnings-check.sh --mode tminus",
-        "model": "openai-codex/gpt-5.1"
-      },
-      "state": {},
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
-      }
-    },
-    {
-      "id": "8f3c8b8a-3c2a-4f5e-bf30-6e0a9a1b9c42",
-      "agentId": "main",
-      "name": "\ud83d\udcda Weekly Doc Gardener",
-      "enabled": true,
-      "createdAtMs": 1772109600000,
-      "updatedAtMs": 1772109600000,
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 20 * * 0",
-        "tz": "America/New_York"
-      },
-      "sessionTarget": "isolated",
-      "wakeMode": "now",
-      "payload": {
-        "kind": "agentTurn",
-        "message": "You are the Librarian agent responsible for documentation hygiene. Run the weekly doc-gardener sweep and report findings.\\n\\nSteps (from repo root /Users/hd/clawd):\\n1) Read tools/doc-gardener/README.md for context.\\n2) Run: ./tools/doc-gardener/doc-gardener.sh\\n3) Review the stdout report and summarize key issues for Hamel.\\n\\nImportant:\\n- Do NOT edit files directly in this cron run; just execute the script and summarize the results.\\n- Keep your final response brief and structured (bullets by section).\\n- If the script fails, include the failing command and stderr in one short paragraph.",
-        "model": "openai-codex/gpt-5.1"
-      },
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
-      }
-    },
-    {
-      "id": "d1a8b3f4-8f8f-4cfe-ab20-b25077fe5578",
-      "agentId": "main",
-      "name": "Meta-monitor health rotation",
-      "enabled": true,
-      "createdAtMs": 1772123433300,
-      "updatedAtMs": 1772123433300,
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 */6 * * *",
-        "tz": "America/New_York"
-      },
-      "sessionTarget": "isolated",
-      "wakeMode": "now",
-      "payload": {
-        "kind": "agentTurn",
-        "message": "Run /Users/hd/clawd/tools/meta-monitor/meta-monitor.sh --json and handle output.",
-        "model": "openai-codex/gpt-5.1"
-      },
-      "state": {},
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
-      }
-    },
-    {
-      "id": "a7b2c3d4-e5f6-4a1b-8c9d-0e1f2a3b4c5d",
-      "agentId": "main",
-      "name": "Earnings calendar weekday alert",
-      "enabled": true,
-      "createdAtMs": 1772123433300,
-      "updatedAtMs": 1772123433300,
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 8 * * 1-5",
-        "tz": "America/New_York"
-      },
-      "sessionTarget": "isolated",
-      "wakeMode": "now",
-      "payload": {
-        "kind": "agentTurn",
-        "message": "Run /Users/hd/clawd/tools/earnings-alert/earnings-alert.sh --json and alert if any held positions have earnings this week.",
-        "model": "openai-codex/gpt-5.1"
-      },
-      "state": {},
-      "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
+      "state": {
+        "nextRunAtMs": 1772193600000
       }
     }
   ]
