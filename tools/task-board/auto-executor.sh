@@ -11,6 +11,24 @@ DB="${CORTANA_DB:-cortana}"
 ROOT="${CORTANA_ROOT:-/Users/hd}"
 ALLOW_PREFIX_1="$ROOT/Developer/cortana"
 ALLOW_PREFIX_2="$ROOT/Developer/cortana-external"
+LOG_DECISION_SCRIPT="/Users/hd/clawd/tools/log-decision.sh"
+
+log_task_decision() {
+  local action_name="$1"
+  local outcome="$2"
+  local reasoning="$3"
+  local confidence="${4:-0.9}"
+  local task_id="${5:-}"
+  local data_inputs='{}'
+
+  if [[ -n "$task_id" ]]; then
+    data_inputs="{\"task_id\":$task_id}"
+  fi
+
+  if [[ -x "$LOG_DECISION_SCRIPT" ]]; then
+    "$LOG_DECISION_SCRIPT" "auto_executor" "task_execution" "$action_name" "$outcome" "$reasoning" "$confidence" "" "$task_id" "$data_inputs" >/dev/null 2>&1 || true
+  fi
+}
 
 query_one() {
   psql "$DB" -t -A -c "$1"
@@ -37,6 +55,7 @@ FROM (
 ) t;")"
 
 if [[ -z "${TASK_ROW// /}" || "$TASK_ROW" == "" ]]; then
+  log_task_decision "auto_executor_no_ready_tasks" "skipped" "No dependency-ready auto-executable tasks found" "0.99"
   echo "No ready auto-executable tasks."
   exit 0
 fi
@@ -53,6 +72,7 @@ GOVERNOR_RISK="$(echo "$GOVERNOR_JSON" | jq -r '.risk_score')"
 GOVERNOR_ACTION_TYPE="$(echo "$GOVERNOR_JSON" | jq -r '.action_type')"
 
 if [[ "$GOVERNOR_DECISION" != "approved" ]]; then
+  log_task_decision "auto_executor_governor_${GOVERNOR_DECISION}" "skipped" "Governor blocked execution (action_type=${GOVERNOR_ACTION_TYPE}, risk=${GOVERNOR_RISK})" "0.95" "$TASK_ID"
   echo "Governor ${GOVERNOR_DECISION}: task #${TASK_ID} queued/blocked (action_type=${GOVERNOR_ACTION_TYPE}, risk=${GOVERNOR_RISK})."
   exit 0
 fi
@@ -80,6 +100,7 @@ case "$CWD" in
     REASON="Skipped by whitelist: cwd '${CWD}' is outside allowed repos"
     esc_reason="$(sql_escape "$REASON")"
     psql "$DB" -c "UPDATE cortana_tasks SET status='pending', outcome='${esc_reason}' WHERE id=${TASK_ID};" >/dev/null
+    log_task_decision "auto_executor_whitelist_block" "skipped" "$REASON" "0.98" "$TASK_ID"
     echo "$REASON"
     exit 1
     ;;
@@ -89,6 +110,7 @@ if [[ -z "$CMD" ]]; then
   REASON="Skipped: no executable command found in metadata.exec.command or execution_plan"
   esc_reason="$(sql_escape "$REASON")"
   psql "$DB" -c "UPDATE cortana_tasks SET status='pending', outcome='${esc_reason}' WHERE id=${TASK_ID};" >/dev/null
+  log_task_decision "auto_executor_missing_command" "fail" "$REASON" "0.99" "$TASK_ID"
   echo "$REASON"
   exit 1
 fi
@@ -98,6 +120,7 @@ if ! echo "$CMD" | grep -Eq '^(git (status|log|show|diff|fetch|pull|branch|rev-p
   REASON="Skipped by command safelist: $CMD"
   esc_reason="$(sql_escape "$REASON")"
   psql "$DB" -c "UPDATE cortana_tasks SET status='pending', outcome='${esc_reason}' WHERE id=${TASK_ID};" >/dev/null
+  log_task_decision "auto_executor_safelist_block" "skipped" "$REASON" "0.98" "$TASK_ID"
   echo "$REASON"
   exit 1
 fi
@@ -120,6 +143,7 @@ if [[ $RC -eq 0 ]]; then
         assigned_to='${ASSIGNED}',
         metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('last_auto_exec', NOW()::text, 'last_rc', 0)
     WHERE id=${TASK_ID};" >/dev/null
+  log_task_decision "auto_executor_task_${TASK_ID}" "success" "Task auto-executed successfully: ${TITLE}" "0.91" "$TASK_ID"
   echo "Done task #${TASK_ID}: ${TITLE}"
 else
   psql "$DB" -v ON_ERROR_STOP=1 -c "
@@ -129,6 +153,7 @@ else
         assigned_to='${ASSIGNED}',
         metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('last_auto_exec', NOW()::text, 'last_rc', ${RC})
     WHERE id=${TASK_ID};" >/dev/null
+  log_task_decision "auto_executor_task_${TASK_ID}" "fail" "Task auto-execution failed rc=${RC}: ${TITLE}" "0.9" "$TASK_ID"
   echo "Failed task #${TASK_ID} rc=${RC}: ${TITLE}"
   exit $RC
 fi

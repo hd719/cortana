@@ -45,6 +45,38 @@ Task Lifecycle:
 - Log behavioral patterns to `cortana_patterns` (sequence/time-of-day/recurring combos) using SQL templates in `docs/heartbeat-sql-reference.md`.
 - Run `python3 tools/proactive/detect.py --min-confidence 0.66` (or `--min-confidence 0.72 --create-tasks` for gated morning brief) to surface cross-signal opportunities and risks.
 
+## Decision Trace Logging (every heartbeat)
+
+After each heartbeat check, log a decision trace so Mission Control timeline reflects what was checked and what decision was made.
+
+```bash
+python3 ~/clawd/tools/tracing/log_decision.py \
+  --trigger heartbeat \
+  --action-type <check_type> \
+  --action-name <specific_check> \
+  --outcome <success|skipped|fail> \
+  --reasoning "<why this action was taken or skipped>" \
+  --confidence <0.0-1.0>
+```
+
+Examples:
+- Email check → `--action-type email_triage --action-name heartbeat_email_triage --outcome success --reasoning "12 unread, 0 urgent"`
+- Skipped check → `--action-type weather_check --action-name heartbeat_weather --outcome skipped --reasoning "checked 2h ago, threshold 6h"`
+- Cron delivery alert → `--action-type cron_delivery_monitor --action-name delivery_failure_detected --outcome fail --reasoning "Morning brief ran ok but lastDelivered=false"`
+- Task execution → `--action-type task_execution --action-name <task_title> --outcome success`
+
+Preferred wrapper for heartbeat checks:
+
+```bash
+~/clawd/tools/log-heartbeat-decision.sh <check_name> <success|skipped|fail> "<reasoning>" <0.0-1.0> '{"optional":"inputs"}'
+```
+
+At minimum, log traces for:
+- each rotated check decision (run vs skip)
+- proactive watchlist scan outcome
+- task queue execution decision
+- cron delivery monitor outcome
+
 ## Rules
 
 1. Read and update `memory/heartbeat-state.json` each heartbeat.
