@@ -1,0 +1,22 @@
+{
+  "rules": [
+    {
+      "trigger_task_pattern": "tools audit complete|tooling audit complete",
+      "next_action": "Spawn kill/consolidate task for stale sessions and duplicate workflows",
+      "agent_role": "huragok-consolidator",
+      "auto_execute": true
+    },
+    {
+      "trigger_task_pattern": "research complete|research findings delivered",
+      "next_action": "Spawn builder task to implement top 1-2 research recommendations",
+      "agent_role": "huragok-builder",
+      "auto_execute": true
+    },
+    {
+      "trigger_task_pattern": "pr merged|pull request merged",
+      "next_action": "Update docs and changelog for merged work",
+      "agent_role": "scribe-docs",
+      "auto_execute": true
+    }
+  ]
+}
