@@ -36,7 +36,12 @@ quarantine() {
 
 # Core checks
 check_pg() { psql "$DB" -c 'SELECT 1;' >/dev/null 2>&1; }
-check_gog() { timeout 8 gog --account hameldesai3@gmail.com auth list >/dev/null 2>&1; }
+check_gog() { timeout 8 gog --account hameldesai3@gmail.com auth list --no-input >/dev/null 2>&1; }
+check_gog_oauth() {
+  local repo_root
+  repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  timeout 20 "$repo_root/gog/oauth-refresh.sh" >/dev/null 2>&1
+}
 check_fitness() { curl -sSf --max-time 8 http://localhost:3033/health >/dev/null 2>&1; }
 check_openclaw() { openclaw gateway status >/dev/null 2>&1; }
 
@@ -45,6 +50,7 @@ run_check() {
   case "$chk" in
     pg) check_pg ;;
     gog) check_gog ;;
+    gog_oauth) check_gog_oauth ;;
     fitness) check_fitness ;;
     gateway) check_openclaw ;;
     *) quarantine "unknown preflight check '$chk'" ;;
