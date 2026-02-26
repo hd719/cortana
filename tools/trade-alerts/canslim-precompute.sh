@@ -12,7 +12,7 @@ mkdir -p "$CACHE_DIR"
 start_epoch=$(date +%s)
 timestamp=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
 
-output="$($PYTHON_BIN "$SCRIPT" --limit 8 --min-score 6 2>&1)"
+output="$($PYTHON_BIN -W ignore "$SCRIPT" --limit 8 --min-score 6 2>/dev/null)"
 exit_code=$?
 
 duration=$(( $(date +%s) - start_epoch ))
