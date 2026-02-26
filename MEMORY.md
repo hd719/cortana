@@ -9,6 +9,7 @@
 
 ## Preferences & Rules
 - **Calendar events must have times** — never all-day unless explicitly requested
+- **Approval gating (P0/P1 actions)** — Before executing destructive, external, or financial actions, check approval via `tools/approvals/check-approval.sh`. P0/P1 require explicit user approval. P2 auto-approves with conditions. P3 always auto-approves. Actions: deploy, delete_data, send_external_message, financial_transaction, git_push_force = P0/P1.
 - **Event reminders** — T-60m and T-10m only (not 90m/60m/30m)
 - **TSLA and NVDA are "forever holds"** — never recommend selling
 - **No heart emojis** — We're Cortana/Chief, not a Hallmark card. Use 🫡 for acknowledgment, not 💙❤️

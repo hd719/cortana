@@ -24,6 +24,26 @@ Rotating checks for heartbeat polls. Use `memory/heartbeat-state.json` to pick t
 
 - **Reflection sweep (1x daily, evening)** – Run `python3 tools/reflection/reflect.py --mode sweep --trigger-source heartbeat --window-days 30`. If repeated correction rate >25% → alert Hamel and propose stronger rule wording. Skip if run in last 12 hours.
 
+When the reflection sweep finds corrections in cortana_feedback that haven't been synced to mc_feedback_items, run:
+```bash
+python3 ~/clawd/tools/feedback/sync-feedback.py
+```
+
+When processing a new correction from the user during conversation, immediately log it:
+```bash
+~/clawd/tools/feedback/log-feedback.sh "correction" "<severity>" "<summary>" '{"context":"...","lesson":"..."}' "<agent_id>"
+```
+Severity mapping:
+- Contains "HARD RULE" / "MANDATORY" / "ZERO TOLERANCE" → "high"
+- Repeated correction (same lesson twice) → "high"
+- Normal correction → "medium"
+- Preference/style → "low"
+
+After logging feedback, if the fix is known, immediately add a remediation action:
+```bash
+~/clawd/tools/feedback/add-feedback-action.sh "<feedback_id>" "prompt_patch" "<description of fix>" "<commit_hash>" "applied"
+```
+
 - **Task detection + queue execution (every heartbeat)** – Scan recent conversation turns for missed actionable items (see `projects/task-board-detection.md`); auto-create only high-confidence standalone tasks. "Do all pending/ready tasks" means `status='ready'` only. Auto-executor must promote `status='scheduled' AND execute_at <= NOW()` to `ready` before execution. `backlog` tasks are never auto-executed (explicit promotion only). Check `cortana_tasks` for dependency-ready, auto-executable tasks and dispatch via `tools/task-board/auto-executor.sh` (single safe command per heartbeat). Surface overdue `remind_at` tasks and approaching deadlines.
 
 - **Cron delivery monitoring (every heartbeat)** — Parse `~/.openclaw/cron/jobs.json` and check each enabled job with `delivery.mode: "announce"`. If `state.lastStatus == "ok"` but `state.lastDelivered == false` or `state.lastDeliveryStatus != "delivered"`, this is a delivery failure. Alert immediately with the job name and last run time. Log to `cortana_events` with severity 'warning'. Self-heal attempt: if delivery failed, try resending the last result via explicit `message` tool to the configured `delivery.to` target.
