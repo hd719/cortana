@@ -1,5 +1,0 @@
-watchdog=0
-proprioception=3
-cron_preflight=3
-subagent_watchdog=3
-heartbeat_state_validation=0
