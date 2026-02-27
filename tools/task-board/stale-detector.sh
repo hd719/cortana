@@ -41,17 +41,29 @@ SQL
 cmd_run() {
   local sql
   read -r -d '' sql <<'SQL' || true
-WITH active_labels AS (
-  SELECT DISTINCT e.payload->>'label' AS label
+WITH active_agents AS (
+  SELECT DISTINCT
+    NULLIF(e.payload->>'run_id', '') AS run_id,
+    NULLIF(e.payload->>'label', '') AS label
   FROM cortana_event_bus_events e
   WHERE e.event_type = 'agent_spawned'
-    AND COALESCE(e.payload->>'label', '') <> ''
+    AND (
+      COALESCE(e.payload->>'label', '') <> ''
+      OR COALESCE(e.payload->>'run_id', '') <> ''
+    )
     AND NOT EXISTS (
       SELECT 1
       FROM cortana_event_bus_events t
       WHERE t.created_at >= e.created_at
         AND t.event_type IN ('agent_completed', 'agent_failed', 'agent_timeout')
-        AND t.payload->>'label' = e.payload->>'label'
+        AND (
+          (NULLIF(e.payload->>'run_id', '') IS NOT NULL AND t.payload->>'run_id' = e.payload->>'run_id')
+          OR (
+            NULLIF(e.payload->>'run_id', '') IS NULL
+            AND NULLIF(e.payload->>'label', '') IS NOT NULL
+            AND t.payload->>'label' = e.payload->>'label'
+          )
+        )
     )
 ), stale_pending_candidates AS (
   SELECT
@@ -60,7 +72,7 @@ WITH active_labels AS (
     COALESCE(t.updated_at, t.created_at) AS last_activity_at,
     EXTRACT(EPOCH FROM (NOW() - COALESCE(t.updated_at, t.created_at)))::bigint AS age_seconds
   FROM cortana_tasks t
-  WHERE t.status = 'pending'
+  WHERE t.status = 'ready'
     AND COALESCE(t.updated_at, t.created_at) < NOW() - INTERVAL '7 days'
     AND COALESCE((t.metadata->>'stale_flagged')::boolean, false) = false
   FOR UPDATE
@@ -90,15 +102,23 @@ WITH active_labels AS (
   WHERE t.status = 'in_progress'
     AND COALESCE(t.updated_at, t.created_at) < NOW() - INTERVAL '2 hours'
     AND (
-      t.assigned_to IS NULL
-      OR NOT EXISTS (
-        SELECT 1 FROM active_labels a WHERE a.label = t.assigned_to
+      (t.run_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM active_agents a WHERE a.run_id = t.run_id
+      ))
+      OR (
+        t.run_id IS NULL
+        AND (
+          t.assigned_to IS NULL
+          OR NOT EXISTS (
+            SELECT 1 FROM active_agents a WHERE a.label = t.assigned_to
+          )
+        )
       )
     )
   FOR UPDATE
 ), orphaned_in_progress_updated AS (
   UPDATE cortana_tasks t
-  SET status = 'pending',
+  SET status = 'ready',
       metadata = COALESCE(t.metadata, '{}'::jsonb)
         || jsonb_build_object(
           'orphan_reset', jsonb_build_object(
@@ -170,7 +190,7 @@ WITH active_labels AS (
       'operation', 'stale-detect',
       'stale_pending_flagged_count', (SELECT COUNT(*) FROM stale_pending_updated),
       'orphaned_in_progress_reset_count', (SELECT COUNT(*) FROM orphaned_in_progress_updated),
-      'active_labels', COALESCE((SELECT jsonb_agg(label) FROM active_labels), '[]'::jsonb),
+      'active_agents', COALESCE((SELECT jsonb_agg(jsonb_build_object('run_id', run_id, 'label', label)) FROM active_agents), '[]'::jsonb),
       'stale_task_ids', COALESCE((SELECT jsonb_agg(id) FROM stale_pending_updated), '[]'::jsonb),
       'orphan_reset_task_ids', COALESCE((SELECT jsonb_agg(id) FROM orphaned_in_progress_updated), '[]'::jsonb)
     )

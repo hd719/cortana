@@ -158,7 +158,7 @@ def ensure_remediation_task(cluster: Cluster, dry_run: bool) -> int | None:
     cluster_hash = hashlib.sha1(normalize(cluster.canonical_lesson).encode("utf-8")).hexdigest()
     existing = run_psql(
         "SELECT COALESCE((SELECT id FROM cortana_tasks "
-        "WHERE status IN ('pending','in_progress') "
+        "WHERE status IN ('ready','in_progress') "
         f"  AND metadata->>'recurrence_cluster_hash' = '{cluster_hash}' "
         "ORDER BY id DESC LIMIT 1), 0);"
     )
@@ -182,7 +182,7 @@ def ensure_remediation_task(cluster: Cluster, dry_run: bool) -> int | None:
     }
     new_id = run_psql(
         "INSERT INTO cortana_tasks (source, title, description, priority, auto_executable, status, execution_plan, metadata) "
-        f"VALUES ('reflection', '{_sql_escape(title)}', '{_sql_escape(desc)}', 1, true, 'pending', "
+        f"VALUES ('reflection', '{_sql_escape(title)}', '{_sql_escape(desc)}', 1, true, 'ready', "
         "'1) Inspect recurrence evidence 2) Strengthen rule language 3) Verify no further repeats', "
         f"'{_sql_escape(json.dumps(metadata))}'::jsonb) RETURNING id;"
     )

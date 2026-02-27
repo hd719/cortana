@@ -77,7 +77,7 @@ create_task_for_email() {
   local esc_id
   esc_id="$(sql_escape "$id")"
   local existing
-  existing="$(psql "$DB" -t -A -c "SELECT id FROM cortana_tasks WHERE status IN ('pending','in_progress') AND metadata->>'gmail_id'='${esc_id}' LIMIT 1;" 2>/dev/null || true)"
+  existing="$(psql "$DB" -t -A -c "SELECT id FROM cortana_tasks WHERE status IN ('ready','in_progress') AND metadata->>'gmail_id'='${esc_id}' LIMIT 1;" 2>/dev/null || true)"
   if [[ -n "${existing// /}" ]]; then
     return 0
   fi
@@ -105,7 +105,7 @@ create_task_for_email() {
       FALSE,
       'Review and respond to this email manually. No auto-send.',
       'email-triage-autopilot',
-      'pending',
+      'ready',
       jsonb_build_object(
         'gmail_id','${esc_id}',
         'from','${esc_from}',

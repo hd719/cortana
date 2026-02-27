@@ -9,20 +9,67 @@ PSQL = '/opt/homebrew/opt/postgresql@17/bin/psql'
 DB = 'cortana'
 
 
+class PsqlSession:
+    END_MARKER = '__OPENCLAW_SQL_DONE__'
+
+    def __init__(self, db_name):
+        self.proc = subprocess.Popen(
+            [PSQL, db_name, '-q', '-v', 'ON_ERROR_STOP=1', '-At'],
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            text=True,
+            bufsize=1,
+        )
+
+    def _run(self, sql):
+        if not self.proc.stdin or not self.proc.stdout:
+            raise RuntimeError('psql session unavailable')
+
+        payload = f"{sql.rstrip(';')};\n\\echo {self.END_MARKER}\n"
+        self.proc.stdin.write(payload)
+        self.proc.stdin.flush()
+
+        lines = []
+        while True:
+            line = self.proc.stdout.readline()
+            if line == '':
+                code = self.proc.poll()
+                tail = ''.join(lines).strip()
+                raise RuntimeError(f'psql session terminated (code={code}): {tail}')
+            txt = line.rstrip('\n')
+            if txt == self.END_MARKER:
+                break
+            lines.append(txt)
+
+        out = '\n'.join(lines).strip()
+        if out.startswith('ERROR:') or '\nERROR:' in out:
+            raise RuntimeError(out)
+        return out
+
+    def execute(self, sql):
+        self._run(sql)
+
+    def query_value(self, sql):
+        out = self._run(sql)
+        if not out:
+            return ''
+        return out.splitlines()[0]
+
+    def query_rows(self, sql):
+        out = self._run(sql)
+        return out.splitlines() if out else []
+
+    def close(self):
+        if self.proc.poll() is None:
+            self.proc.terminate()
+            self.proc.wait(timeout=2)
+
+
 def q(v):
     if v is None:
         return 'NULL'
     return "'" + str(v).replace("'", "''") + "'"
-
-
-def psql(sql, capture=False):
-    proc = subprocess.run([PSQL, DB, '-q', '-v', 'ON_ERROR_STOP=1', '-At', '-c', sql], capture_output=True, text=True)
-    if proc.returncode != 0:
-        raise RuntimeError(proc.stderr.strip())
-    if not capture:
-        return ''
-    out = (proc.stdout or '').strip()
-    return out.splitlines()[0] if out else ''
 
 
 def fp(*parts):
@@ -49,28 +96,69 @@ def quality_gate(text, enabled, dry):
         return {'verdict': 'hold', 'reason': 'gate_exception'}
 
 
-def start_run(source, since_hours, dry):
+def finalize_stale_runs(db, dry):
+    if dry:
+        return
+    reason = 'Stale run auto-finalized (exceeded 1hr TTL)'
+    db.execute(
+        f"""
+UPDATE cortana_memory_ingest_runs
+SET status = 'failed',
+    finished_at = NOW(),
+    errors = jsonb_build_array({q(reason)})
+WHERE status = 'running'
+  AND started_at < NOW() - INTERVAL '1 hour';
+"""
+    )
+
+
+def start_run(db, source, since_hours, dry):
     if dry:
         return -1
     meta = json.dumps({'mode': 'heartbeat_hook'})
-    return int(psql(f"INSERT INTO cortana_memory_ingest_runs (source, since_hours, status, metadata) VALUES ({q(source)}, {since_hours}, 'running', {q(meta)}::jsonb) RETURNING id;", True))
+    return int(
+        db.query_value(
+            f"""
+WITH created AS (
+  INSERT INTO cortana_memory_ingest_runs (source, since_hours, status, metadata)
+  VALUES ({q(source)}, {since_hours}, 'created', {q(meta)}::jsonb)
+  RETURNING id
+)
+UPDATE cortana_memory_ingest_runs r
+SET status = 'running'
+FROM created c
+WHERE r.id = c.id
+RETURNING r.id;
+"""
+        )
+    )
 
 
-def finish_run(run_id, c, errs, dry):
+def finish_run(db, run_id, c, errs, dry):
     if dry or run_id < 0:
         return
-    status = 'failed' if errs else 'success'
-    psql(f"UPDATE cortana_memory_ingest_runs SET finished_at=NOW(), status={q(status)}, inserted_episodic={c['e']}, inserted_semantic={c['s']}, inserted_procedural={c['p']}, inserted_provenance={c['v']}, errors={q(json.dumps(errs))}::jsonb WHERE id={run_id};")
+    status = 'failed' if errs else 'completed'
+    db.execute(
+        f"UPDATE cortana_memory_ingest_runs SET finished_at=NOW(), status={q(status)}, inserted_episodic={c['e']}, inserted_semantic={c['s']}, inserted_procedural={c['p']}, inserted_provenance={c['v']}, errors={q(json.dumps(errs))}::jsonb WHERE id={run_id};"
+    )
 
 
-def prov(run_id, tier, memory_id, stype, sref, shash, dry):
+def mark_run_failed(db, run_id, err, dry):
+    if dry or run_id < 0:
+        return
+    db.execute(
+        f"UPDATE cortana_memory_ingest_runs SET finished_at=NOW(), status='failed', errors={q(json.dumps([err]))}::jsonb WHERE id={run_id};"
+    )
+
+
+def prov(db, run_id, tier, memory_id, stype, sref, shash, dry):
     sql = f"INSERT INTO cortana_memory_provenance (memory_tier, memory_id, source_type, source_ref, source_hash, ingest_run_id, extractor_version) VALUES ({q(tier)}, {memory_id}, {q(stype)}, {q(sref)}, {q(shash)}, {( 'NULL' if run_id < 0 else run_id)}, 'v1') ON CONFLICT (memory_tier, memory_id, source_type, source_ref) DO NOTHING RETURNING id;"
     if dry:
         return True
-    return bool(psql(sql, True))
+    return bool(db.query_value(sql))
 
 
-def ingest_daily(run_id, since, c, dry, use_quality_gate=False):
+def ingest_daily(db, run_id, since, c, dry, use_quality_gate=False):
     for path in sorted(MEMORY_DIR.glob('*.md')):
         if path.name == 'README.md':
             continue
@@ -88,18 +176,23 @@ def ingest_daily(run_id, since, c, dry, use_quality_gate=False):
         hashv = fp(sref, summary, details)
         sql = f"INSERT INTO cortana_memory_episodic (happened_at, summary, details, tags, salience, trust, recency_weight, source_type, source_ref, fingerprint, metadata) VALUES ({q(mtime.isoformat())}, {q(summary)}, {q(details)}, ARRAY['daily_memory','heartbeat_ingest'], 0.65, 0.75, 1.0, 'daily_markdown', {q(sref)}, {q(hashv)}, {q(json.dumps({'line_count': len(lines)}))}::jsonb) ON CONFLICT (source_type, source_ref, fingerprint) DO NOTHING RETURNING id;"
         if dry:
-            c['e'] += 1; c['v'] += 1; continue
-        out = psql(sql, True)
+            c['e'] += 1
+            c['v'] += 1
+            continue
+        out = db.query_value(sql)
         if out:
             c['e'] += 1
-            if prov(run_id, 'episodic', int(out), 'daily_markdown', sref, hashv, dry):
+            if prov(db, run_id, 'episodic', int(out), 'daily_markdown', sref, hashv, dry):
                 c['v'] += 1
 
 
-def ingest_feedback(run_id, since, c, dry, use_quality_gate=False):
-    rows = psql(f"SELECT id, timestamp::text, COALESCE(feedback_type,''), COALESCE(context,''), COALESCE(lesson,'') FROM cortana_feedback WHERE timestamp >= {q(since.isoformat())} ORDER BY timestamp ASC;", True).splitlines()
+def ingest_feedback(db, run_id, since, c, dry, use_quality_gate=False):
+    rows = db.query_rows(
+        f"SELECT id, timestamp::text, COALESCE(feedback_type,''), COALESCE(context,''), COALESCE(lesson,'') FROM cortana_feedback WHERE timestamp >= {q(since.isoformat())} ORDER BY timestamp ASC;"
+    )
     for row in rows:
-        if not row: continue
+        if not row:
+            continue
         i, ts, t, ctx, lesson = row.split('|', 4)
         sref = f'cortana_feedback:{i}'
         epi_fp = fp(sref, t, ctx, lesson)
@@ -107,27 +200,42 @@ def ingest_feedback(run_id, since, c, dry, use_quality_gate=False):
         if gate.get('verdict') == 'archive':
             continue
         if dry:
-            c['e'] += 1; c['s'] += 1; c['p'] += 1; c['v'] += 3; continue
+            c['e'] += 1
+            c['s'] += 1
+            c['p'] += 1
+            c['v'] += 3
+            continue
 
-        e = psql(f"INSERT INTO cortana_memory_episodic (happened_at, summary, details, tags, salience, trust, recency_weight, source_type, source_ref, fingerprint, metadata) VALUES ({q(ts)}, {q('Feedback ' + t + ' recorded')}, {q('Context: ' + ctx + '\\nLesson: ' + lesson)}, ARRAY['feedback',{q(t)}], 0.85, 0.95, 1.0, 'feedback', {q(sref)}, {q(epi_fp)}, {q(json.dumps({'feedback_type': t}))}::jsonb) ON CONFLICT (source_type, source_ref, fingerprint) DO NOTHING RETURNING id;", True)
+        e = db.query_value(
+            f"INSERT INTO cortana_memory_episodic (happened_at, summary, details, tags, salience, trust, recency_weight, source_type, source_ref, fingerprint, metadata) VALUES ({q(ts)}, {q('Feedback ' + t + ' recorded')}, {q('Context: ' + ctx + '\\nLesson: ' + lesson)}, ARRAY['feedback',{q(t)}], 0.85, 0.95, 1.0, 'feedback', {q(sref)}, {q(epi_fp)}, {q(json.dumps({'feedback_type': t}))}::jsonb) ON CONFLICT (source_type, source_ref, fingerprint) DO NOTHING RETURNING id;"
+        )
         if e:
             c['e'] += 1
-            if prov(run_id, 'episodic', int(e), 'feedback', sref, epi_fp, dry): c['v'] += 1
+            if prov(db, run_id, 'episodic', int(e), 'feedback', sref, epi_fp, dry):
+                c['v'] += 1
 
         ft = 'preference' if t == 'preference' else ('fact' if t == 'fact' else 'rule')
-        sem = psql(f"INSERT INTO cortana_memory_semantic (fact_type, subject, predicate, object_value, confidence, trust, stability, first_seen_at, last_seen_at, source_type, source_ref, fingerprint, metadata) VALUES ({q(ft)}, 'hamel', 'guidance', {q(lesson or ctx)}, 0.92, 0.95, 0.80, {q(ts)}, {q(ts)}, 'feedback', {q(sref)}, {q(fp(sref, ft, lesson or ctx))}, {q(json.dumps({'feedback_type': t}))}::jsonb) ON CONFLICT (fact_type, subject, predicate, object_value) DO UPDATE SET last_seen_at=EXCLUDED.last_seen_at RETURNING id;", True)
+        sem_fp = fp(sref, ft, lesson or ctx)
+        sem = db.query_value(
+            f"INSERT INTO cortana_memory_semantic (fact_type, subject, predicate, object_value, confidence, trust, stability, first_seen_at, last_seen_at, source_type, source_ref, fingerprint, metadata) VALUES ({q(ft)}, 'hamel', 'guidance', {q(lesson or ctx)}, 0.92, 0.95, 0.80, {q(ts)}, {q(ts)}, 'feedback', {q(sref)}, {q(sem_fp)}, {q(json.dumps({'feedback_type': t}))}::jsonb) ON CONFLICT (fact_type, subject, predicate, object_value) DO UPDATE SET last_seen_at=EXCLUDED.last_seen_at RETURNING id;"
+        )
         if sem:
             c['s'] += 1
-            if prov(run_id, 'semantic', int(sem), 'feedback', sref, fp(sref, ft, lesson or ctx), dry): c['v'] += 1
+            if prov(db, run_id, 'semantic', int(sem), 'feedback', sref, sem_fp, dry):
+                c['v'] += 1
 
-        steps = json.dumps(['Detect correction signal','Acknowledge briefly','Log feedback','Update memory/rules','Confirm lesson'])
-        proc = psql(f"INSERT INTO cortana_memory_procedural (workflow_name, trigger_context, steps_json, expected_outcome, derived_from_feedback_id, trust, source_type, source_ref, fingerprint, metadata) VALUES ({q('Apply feedback: ' + t)}, {q((ctx or t)[:500])}, {q(steps)}::jsonb, 'Future behavior aligns with correction', {i}, 0.93, 'feedback', {q(sref)}, {q(fp(sref, 'proc', lesson or ctx))}, {q(json.dumps({'feedback_type': t}))}::jsonb) ON CONFLICT (workflow_name, trigger_context, fingerprint) DO NOTHING RETURNING id;", True)
+        steps = json.dumps(['Detect correction signal', 'Acknowledge briefly', 'Log feedback', 'Update memory/rules', 'Confirm lesson'])
+        proc_fp = fp(sref, 'proc', lesson or ctx)
+        proc = db.query_value(
+            f"INSERT INTO cortana_memory_procedural (workflow_name, trigger_context, steps_json, expected_outcome, derived_from_feedback_id, trust, source_type, source_ref, fingerprint, metadata) VALUES ({q('Apply feedback: ' + t)}, {q((ctx or t)[:500])}, {q(steps)}::jsonb, 'Future behavior aligns with correction', {i}, 0.93, 'feedback', {q(sref)}, {q(proc_fp)}, {q(json.dumps({'feedback_type': t}))}::jsonb) ON CONFLICT (workflow_name, trigger_context, fingerprint) DO NOTHING RETURNING id;"
+        )
         if proc:
             c['p'] += 1
-            if prov(run_id, 'procedural', int(proc), 'feedback', sref, fp(sref, 'proc', lesson or ctx), dry): c['v'] += 1
+            if prov(db, run_id, 'procedural', int(proc), 'feedback', sref, proc_fp, dry):
+                c['v'] += 1
 
 
-def update_metrics(dry):
+def update_metrics(db, dry):
     sql = """
 WITH m AS (
   SELECT
@@ -135,7 +243,7 @@ WITH m AS (
     (SELECT COUNT(*) FROM cortana_memory_semantic WHERE active = TRUE) AS semantic_total,
     (SELECT COUNT(*) FROM cortana_memory_procedural WHERE deprecated = FALSE) AS procedural_total,
     (SELECT COUNT(*) FROM cortana_memory_archive) AS archived_total,
-    (SELECT COUNT(*) FROM cortana_memory_ingest_runs WHERE started_at >= NOW() - INTERVAL '24 hours' AND status='success') AS ingest_runs_24h,
+    (SELECT COUNT(*) FROM cortana_memory_ingest_runs WHERE started_at >= NOW() - INTERVAL '24 hours' AND status='completed') AS ingest_runs_24h,
     (SELECT COALESCE(MAX(finished_at), MAX(started_at)) FROM cortana_memory_ingest_runs) AS last_ingest_at,
     (SELECT status FROM cortana_memory_ingest_runs ORDER BY id DESC LIMIT 1) AS last_run_status
 )
@@ -153,7 +261,7 @@ SET metadata = jsonb_set(COALESCE(metadata,'{}'::jsonb), '{memory_engine}', json
 FROM m WHERE id=1;
 """
     if not dry:
-        psql(sql)
+        db.execute(sql)
 
 
 def main():
@@ -168,18 +276,44 @@ def main():
     c = {'e': 0, 's': 0, 'p': 0, 'v': 0}
     errs = []
     run_id = -1
-    try:
-        run_id = start_run(a.source, a.since_hours, a.dry_run)
-        ingest_daily(run_id, since, c, a.dry_run, a.quality_gate)
-        ingest_feedback(run_id, since, c, a.dry_run, a.quality_gate)
-    except Exception as ex:
-        errs.append(str(ex))
-    finally:
-        finish_run(run_id, c, errs, a.dry_run)
-    if not errs:
-        update_metrics(a.dry_run)
 
-    out = {'ok': not errs, 'run_id': run_id, 'since_hours': a.since_hours, 'inserted': {'episodic': c['e'], 'semantic': c['s'], 'procedural': c['p'], 'provenance': c['v']}, 'errors': errs}
+    if a.dry_run:
+        run_id = -1
+        db = PsqlSession(DB)
+        try:
+            ingest_daily(db, run_id, since, c, a.dry_run, a.quality_gate)
+            ingest_feedback(db, run_id, since, c, a.dry_run, a.quality_gate)
+        except Exception as ex:
+            errs.append(str(ex))
+        finally:
+            db.close()
+    else:
+        db = PsqlSession(DB)
+        try:
+            finalize_stale_runs(db, a.dry_run)
+            run_id = start_run(db, a.source, a.since_hours, a.dry_run)
+
+            db.execute('BEGIN')
+            try:
+                ingest_daily(db, run_id, since, c, a.dry_run, a.quality_gate)
+                ingest_feedback(db, run_id, since, c, a.dry_run, a.quality_gate)
+                finish_run(db, run_id, c, errs, a.dry_run)
+                update_metrics(db, a.dry_run)
+                db.execute('COMMIT')
+            except Exception as ex:
+                db.execute('ROLLBACK')
+                errs.append(str(ex))
+                mark_run_failed(db, run_id, str(ex), a.dry_run)
+        finally:
+            db.close()
+
+    out = {
+        'ok': not errs,
+        'run_id': run_id,
+        'since_hours': a.since_hours,
+        'inserted': {'episodic': c['e'], 'semantic': c['s'], 'procedural': c['p'], 'provenance': c['v']},
+        'errors': errs,
+    }
     print(json.dumps(out, indent=2))
     if errs:
         raise SystemExit(1)

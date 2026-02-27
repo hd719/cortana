@@ -18,7 +18,7 @@ THRESHOLD_PATH = WORKSPACE / "config" / "alert-thresholds.json"
 LATEST_AUDIT_PATH = WORKSPACE / "reports" / "proactive-signal-audit.json"
 VALID_CATEGORIES = ["portfolio", "email", "calendar", "weather", "health", "tech_news"]
 NOISE_TOKENS = ["noise", "noisy", "too many alerts", "spam", "alert fatigue", "irrelevant"]
-ACTION_TASK_STATUSES = {"done", "completed", "in_progress", "resolved"}
+ACTION_TASK_STATUSES = {"completed", "in_progress"}
 
 
 @dataclass

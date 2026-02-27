@@ -34,7 +34,7 @@ create_alert() {
   esc_desc="$(sql_escape "$desc")"
   esc_meta="$(sql_escape "$meta")"
 
-  psql "$DB" -c "INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata) VALUES ('${SOURCE}', '${esc_title}', '${esc_desc}', 1, 'pending', FALSE, 'Investigate gog OAuth auth failure and re-authorize if needed.', '${esc_meta}'::jsonb);" >/dev/null 2>&1 || true
+  psql "$DB" -c "INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata) VALUES ('${SOURCE}', '${esc_title}', '${esc_desc}', 1, 'ready', FALSE, 'Investigate gog OAuth auth failure and re-authorize if needed.', '${esc_meta}'::jsonb);" >/dev/null 2>&1 || true
 }
 
 has_auth_refresh_cmd() {

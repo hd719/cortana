@@ -121,6 +121,32 @@ track_playbook_result() {
            WHERE name='$(sql_escape "$name")';"
 }
 
+reconcile_playbook_metrics() {
+  db_exec "WITH stats AS (
+    SELECT
+      p.name,
+      COUNT(i.id)::int AS total_used,
+      MAX(i.detected_at) AS last_used_at,
+      CASE
+        WHEN COUNT(i.id) = 0 THEN 1.0
+        ELSE ROUND(
+          SUM(CASE WHEN i.status='resolved' OR COALESCE(i.auto_resolved,false)=TRUE THEN 1 ELSE 0 END)::numeric / COUNT(i.id)::numeric,
+          4
+        )
+      END AS computed_success
+    FROM cortana_immune_playbooks p
+    LEFT JOIN cortana_immune_incidents i ON i.playbook_used = p.name
+    GROUP BY p.name
+  )
+  UPDATE cortana_immune_playbooks p
+  SET times_used = s.total_used,
+      last_used = s.last_used_at,
+      success_rate = s.computed_success,
+      updated_at = NOW()
+  FROM stats s
+  WHERE p.name = s.name;"
+}
+
 ensure_path_exists() {
   local path="$1"
   local create_if_missing="${2:-false}"
@@ -250,6 +276,7 @@ if [ -n "$sessions" ]; then
 fi
 
 check_tool_flap || true
+reconcile_playbook_metrics || true
 
 if [ -n "$issues" ]; then
   printf "%b" "$issues"

@@ -1,0 +1,13 @@
+{
+  "consecutive_embedding_429": 0,
+  "fallback_mode": false,
+  "reindex_queued": false,
+  "last_checked_at": "2026-02-27T20:40:46.247554+00:00",
+  "last_status": {
+    "files": 70,
+    "chunks": 237,
+    "provider": "openai",
+    "model": "text-embedding-3-small"
+  },
+  "last_fallback_reason": ""
+}

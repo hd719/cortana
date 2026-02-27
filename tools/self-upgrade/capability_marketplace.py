@@ -94,7 +94,7 @@ def mine_gaps(window_days: int) -> list[Gap]:
         "SELECT COALESCE(source,'task') AS source, COALESCE(title,'') AS title, COALESCE(description,'') AS description, COALESCE(outcome,'') AS outcome "
         "FROM cortana_tasks "
         f"WHERE created_at > NOW() - INTERVAL '{max(7, window_days)} days' "
-        "AND status IN ('pending','in_progress','cancelled') "
+        "AND status IN ('ready','in_progress','cancelled') "
         "UNION ALL "
         "SELECT 'feedback' AS source, COALESCE(context,'') AS title, COALESCE(lesson,'') AS description, '' AS outcome "
         "FROM cortana_feedback "
@@ -246,7 +246,7 @@ def maybe_create_task(prop: Proposal, threshold: float, dry_run: bool) -> int | 
     meta = asdict(prop)
     raw = run_psql(
         "INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata) VALUES "
-        f"('capability_marketplace','{sql_escape(title)}','{sql_escape(desc)}',2,'pending',TRUE,"
+        f"('capability_marketplace','{sql_escape(title)}','{sql_escape(desc)}',2,'ready',TRUE,"
         "'1) Validate fit 2) Prototype integration 3) Measure impact and harden',"
         f"'{sql_escape(json.dumps(meta))}'::jsonb) RETURNING id;"
     )

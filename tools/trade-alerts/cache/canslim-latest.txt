@@ -1,6 +1,13 @@
 📈 Trading Advisor - CANSLIM Scan
-Run: 2026-02-27 12:25 PM ET
-Market: correction | Position Sizing: 0%
-Status: 5 distribution days + downtrend. Stay out.
+Run: 2026-02-27 03:25 PM ET
+Market: uptrend_under_pressure | Position Sizing: 50%
+Status: 5 distribution days. Reduce exposure.
 
-No CANSLIM candidates met the current scan threshold.
+Summary: 2 candidates | BUY 0 | WATCH 0 | NO_BUY 2
+
+• CFLT (6/12) → NO_BUY
+  Score too low (6/12). Need >= 7.
+• HWM (6/12) → NO_BUY
+  Score too low (6/12). Need >= 7.
+
+⚠️ Signals are decision support only (not financial advice).

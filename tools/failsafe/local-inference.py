@@ -173,12 +173,12 @@ def get_ready_tasks(limit: int) -> List[Dict[str, Any]]:
         f"""
         SELECT id, title, priority, due_at, auto_executable, status
         FROM cortana_tasks
-        WHERE status = 'pending'
+        WHERE status = 'ready'
           AND auto_executable = TRUE
           AND (depends_on IS NULL OR NOT EXISTS (
               SELECT 1 FROM cortana_tasks t2
               WHERE t2.id = ANY(cortana_tasks.depends_on)
-                AND t2.status != 'done'
+                AND t2.status != 'completed'
           ))
         ORDER BY priority ASC, created_at ASC
         LIMIT {int(limit)};

@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 DB_BIN='/opt/homebrew/opt/postgresql@17/bin'; DB='cortana'
-ACTED={'accepted','done','completed','in_progress','resolved','acted'}
+ACTED={'accepted','completed','in_progress','acted'}
 DISMISSED={'dismissed','cancelled','rejected','ignored'}
 
 @dataclass
@@ -76,9 +76,9 @@ def load_tasks(days:int)->tuple[set[int],dict[int,str]]:
         sid=int(md.get('signal_id') or -1)
         if sid<=0: continue
         created.add(sid); st=str(r.get('status') or '').lower()
-        if st in {'done','completed'}: outcomes[sid]='acted'
+        if st == 'completed': outcomes[sid]='acted'
         elif st in {'cancelled','dismissed','rejected'}: outcomes[sid]='dismissed'
-        elif sid not in outcomes: outcomes[sid]='pending'
+        elif sid not in outcomes: outcomes[sid]='ready'
     return created,outcomes
 
 def build(days:int)->list[Outcome]:
@@ -89,11 +89,11 @@ def build(days:int)->list[Outcome]:
         if sid<=0: continue
         conf=float(s.get('confidence') or 0.0); state=tout.get(sid,'unknown')
         sg=smap.get(sid)
-        if sg and state in {'unknown','pending'}:
+        if sg and state in {'unknown','ready'}:
             ss=str(sg.get('status') or '').lower()
             if ss in ACTED: state='acted'
             elif ss in DISMISSED: state='dismissed'
-            elif ss: state='pending'
+            elif ss: state='ready'
         out.append(Outcome(sid,str(s.get('signal_type') or 'unknown'),conf,bucket(conf),sid in tcreated,state))
     return out
 

@@ -25,6 +25,8 @@
     "018_memory_superseded_by.sql",
     "019_agent_quality_scores.sql",
     "019_token_ledger.sql",
-    "020_workflow_checkpoints.sql"
+    "020_workflow_checkpoints.sql",
+    "021_task_status_failed.sql",
+    "022_event_stream_noise_reduction.sql"
   ]
 }

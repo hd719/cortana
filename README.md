@@ -204,6 +204,7 @@ Key files:
 - `docs/task-board.md` – Postgres‑backed task board + auto‑executor
 - `docs/learning-loop.md` – feedback protocol + self‑improvement
 - `docs/heartbeat-sql-reference.md` – canonical SQL snippets for heartbeats
+- `docs/memory-compaction-policy.md` – guardrails and retention policy for memory compaction
 
 ### 3.2 `config/`
 
@@ -216,20 +217,28 @@ Internal operator scripts, grouped by domain. Highlights:
 
 - **Heartbeat & cron**
   - Preflight checks, lean prompts, scheduling helpers
+  - `tools/cron/rotate-cron-artifacts.sh` – rotates cron artifacts/log state
+  - `tools/heartbeat/validate-heartbeat-state.sh` – validates `heartbeat-state.json` consistency
 - **Task board & autonomy**
   - `tools/task-board/` – queue management, stale detection, state enforcement
+  - `tools/task-board/emit-run-event.sh` – lifecycle event emission for run ledgering/audit trails
   - `tools/auto-chain/` – automatic follow‑up task chaining rules engine
   - `tools/approvals/` – P0–P3 approval gate operators (`check-approval.sh`, `poll-approval.sh`, `resume-approval.sh`)
 - **Memory & reflection**
   - `tools/memory/` – ingestion, quality gates, consolidation
+  - `tools/memory/vector-health-gate.py` + `tools/memory/safe-memory-search.py` – safety gates for semantic recall quality
+  - `tools/memory/compact-memory.sh` – controlled memory compaction workflow
   - `tools/reflection/` – repeated‑correction analysis, learning loops
   - `tools/feedback/` – correction logging, remediation actions, recurrence sync (`log-feedback.sh`, `add-feedback-action.sh`, `sync-feedback.py`)
+  - `tools/feedback/pipeline-reconciliation.sh` – feedback pipeline consistency check/reconcile
 - **Proactive intelligence**
   - `tools/proactive/` – cross‑signal detection & calibration
   - `tools/briefing/` – daily brief / news / market intel wiring
 - **Health & immune system**
   - `tools/health/self-diagnostic.sh` – Cortana health self‑check
+  - `tools/monitoring/meta-monitor.sh` + `tools/monitoring/quarantine-tracker.sh` – monitor orchestration + quarantine tracking
   - `tools/alerting/cost-breaker/` – runaway session circuit breaker
+  - `tools/alerting/emit-alert-intent.sh` – normalized alert-intent event emission
   - `tools/immune/` + `immune-system/` – incident capture + playbooks
 - **Finance/market**
   - `tools/market-intel/` – unified quote + X sentiment + portfolio overlay
@@ -237,6 +246,8 @@ Internal operator scripts, grouped by domain. Highlights:
 - **Fitness/behavioral**
   - `tools/fitness/` – Whoop/Tonal pipelines (via external fitness service)
   - `tools/behavioral-twin/` – pattern modeling for routines/sleep/etc.
+
+Shared shell helpers now live in `tools/lib/` (notably `idempotency.sh`) to keep operational scripts replay-safe.
 
 ### 3.4 `skills/`
 
@@ -269,6 +280,11 @@ Cortana treats files here as **ground truth memory**, with consolidation into Po
   - Each with its own `AGENTS.md` + `SOUL.md`
 
 Defines the Covenant roles, responsibilities, and routing contracts used by the main session.
+
+### 3.7 `tests/`
+
+- `tests/` contains lightweight regression coverage for hardening-critical scripts.
+- Current suite includes vector memory health-gate coverage (`tests/test_vector_health_gate.py`).
 
 ---
 
@@ -464,6 +480,7 @@ Rules:
 Representative highlights that are already live:
 
 - **[Feb 2026] Task board hygiene enforcement** – mandatory heartbeat sweep for ghost/stale tasks (zero tolerance for dashboard ghosts; see `HEARTBEAT.md`).
+- **[Feb 2026] Task lifecycle ledger hardening** – status enum freeze + run lifecycle ledger migrations (`migrations/001-freeze-status-enum.sql`, `migrations/002-run-lifecycle-ledger.sql`) plus normalized run event emission (`tools/task-board/emit-run-event.sh`).
 - **[Feb 2026] Fitness Service Hybrid Migration epic completed** – Mission Control fitness dashboard + alerting, backed by typed client packages.
 - **[Feb 2026] Council deliberation system shipped** – multi-agent weighted voting with OpenAI `gpt-4o` as the policy model for deliberation + synthesis.
 - **[Feb 2026] Whoop OAuth redirect_uri fix** – standardized `http` vs `https` redirect URIs for consistent token exchange and refresh.

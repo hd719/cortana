@@ -83,7 +83,7 @@ create_task() {
   local agent_role="$4"
   local auto_executable="$5"
 
-  local status="pending"
+  local status="ready"
   local execute_at_sql="NULL"
   if [[ "$auto_executable" == "true" ]]; then
     execute_at_sql="CURRENT_TIMESTAMP"
@@ -184,7 +184,7 @@ main() {
         --argjson priority "$priority" \
         --arg agent_role "$agent_role" \
         --argjson auto_executable "$auto_executable" \
-        '. + [{dry_run:true,id:null,title:$title,description:$description,priority:$priority,status:"pending",auto_executable:$auto_executable,source:"research-pipeline",metadata:{agent_role:$agent_role,pipeline:"research-pipeline",created_by:"research-to-tasks.sh"}}]')"
+        '. + [{dry_run:true,id:null,title:$title,description:$description,priority:$priority,status:"ready",auto_executable:$auto_executable,source:"research-pipeline",metadata:{agent_role:$agent_role,pipeline:"research-pipeline",created_by:"research-to-tasks.sh"}}]')"
     else
       local task_json
       task_json="$(create_task "$title" "$description" "$priority" "$agent_role" "$auto_executable")"

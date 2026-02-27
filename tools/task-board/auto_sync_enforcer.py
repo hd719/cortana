@@ -4,9 +4,9 @@ Sub-Agent Completion Auto-Sync Enforcer
 
 Purpose:
 - Validate sub-agent completion output quality
-- Match completion to pending/in_progress tasks in cortana_tasks
+- Match completion to ready/in_progress tasks in cortana_tasks
 - Auto-close matched tasks with outcome summary
-- Create a done task if no match exists
+- Create a completed task if no match exists
 - Emit JSON decision logs to stdout
 
 Usage examples:
@@ -143,7 +143,7 @@ def fetch_candidates(label: str) -> list[dict[str, Any]]:
     FROM (
       SELECT id, title, description, status, assigned_to, priority, created_at
       FROM cortana_tasks
-      WHERE status IN ('pending', 'in_progress')
+      WHERE status IN ('ready', 'in_progress')
         AND ({token_filter}
              OR LOWER(COALESCE(assigned_to,'')) LIKE '%' || {sql_quote(label.lower())} || '%'
              OR LOWER(COALESCE(metadata::text,'')) LIKE '%' || {sql_quote(label.lower())} || '%')
@@ -181,7 +181,7 @@ def summarize_result(result: str, max_len: int = 500) -> str:
 def update_task_done(task_id: int, summary: str, label: str) -> dict[str, Any]:
     query = f"""
     UPDATE cortana_tasks
-    SET status = 'done',
+    SET status = 'completed',
         completed_at = NOW(),
         outcome = {sql_quote(summary)},
         metadata = COALESCE(metadata, '{{}}'::jsonb) ||
@@ -205,7 +205,7 @@ def create_done_task(label: str, summary: str) -> dict[str, Any]:
        {sql_quote(title)},
        {sql_quote('Auto-created from sub-agent completion sync.')},
        3,
-       'done',
+       'completed',
        FALSE,
        {sql_quote(summary)},
        NOW(),
@@ -215,7 +215,7 @@ def create_done_task(label: str, summary: str) -> dict[str, Any]:
     """
     raw = run_sql(query)
     if not raw:
-        raise RuntimeError("Insert failed for fallback done task")
+        raise RuntimeError("Insert failed for fallback completed task")
     return json.loads(raw)
 
 
@@ -284,7 +284,7 @@ def main() -> int:
                     "label": args.label,
                     "matched_task_id": chosen["id"],
                     "match_score": scored[0]["score"],
-                    "status": "done",
+                    "status": "completed",
                     "task": updated,
                 },
                 pretty=args.pretty,
@@ -296,7 +296,7 @@ def main() -> int:
                 {
                     "label": args.label,
                     "reason": "no_match_found",
-                    "status": "done",
+                    "status": "completed",
                     "task": created,
                 },
                 pretty=args.pretty,

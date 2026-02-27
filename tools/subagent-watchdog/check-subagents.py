@@ -6,8 +6,10 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -15,6 +17,9 @@ from typing import Any
 
 
 FAIL_STATUSES = {"failed", "error", "aborted", "timeout", "timed_out", "cancelled"}
+TELEGRAM_GUARD = Path("/Users/hd/clawd/tools/notifications/telegram-delivery-guard.sh")
+COMPLETION_SYNC = Path("/Users/hd/clawd/tools/task-board/completion-sync.sh")
+DB_NAME = "cortana"
 
 
 def now_ms() -> int:
@@ -36,9 +41,44 @@ def load_json(path: Path, default: Any) -> Any:
         return default
 
 
+def _normalize_heartbeat_state(data: Any) -> dict[str, Any]:
+    base = {
+        "version": 2,
+        "lastChecks": {},
+        "lastRemediationAt": 0,
+        "subagentWatchdog": {"lastRun": 0, "lastLogged": {}},
+    }
+    if not isinstance(data, dict):
+        return base
+
+    out = dict(base)
+    out["version"] = int(data.get("version") or base["version"])
+    if isinstance(data.get("lastChecks"), dict):
+        out["lastChecks"] = data["lastChecks"]
+
+    sub = data.get("subagentWatchdog")
+    if isinstance(sub, dict):
+        out["subagentWatchdog"] = {
+            "lastRun": int(sub.get("lastRun") or 0),
+            "lastLogged": sub.get("lastLogged") if isinstance(sub.get("lastLogged"), dict) else {},
+        }
+    return out
+
+
 def save_json(path: Path, data: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2))
+    payload = json.dumps(data, indent=2) + "\n"
+    backup = path.with_suffix(path.suffix + ".bak")
+    if path.exists():
+        shutil.copy2(path, backup)
+
+    with tempfile.NamedTemporaryFile("w", dir=str(path.parent), delete=False) as tmp:
+        tmp.write(payload)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+        tmp_name = tmp.name
+
+    os.replace(tmp_name, path)
 
 
 def resolve_psql() -> str:
@@ -100,10 +140,96 @@ def failure_reasons(session: dict[str, Any], max_runtime_ms: int) -> list[dict[s
     return reasons
 
 
+def sql_quote(value: str | None) -> str:
+    return (value or "").replace("'", "''")
+
+
+def find_task_id_for_session(
+    *,
+    psql_bin: str,
+    session_key: str,
+    label: str | None,
+    run_id: str | None,
+) -> int | None:
+    run_q = sql_quote(run_id)
+    label_q = sql_quote(label)
+    key_q = sql_quote(session_key)
+    sql = (
+        "SELECT id FROM cortana_tasks "
+        "WHERE status='in_progress' AND ((NULLIF('"
+        + run_q
+        + "','') <> '' AND run_id='"
+        + run_q
+        + "') OR (run_id IS NULL AND (assigned_to='"
+        + label_q
+        + "' OR assigned_to='"
+        + key_q
+        + "' OR COALESCE(metadata->>'subagent_label','')='"
+        + label_q
+        + "' OR COALESCE(metadata->>'subagent_session_key','')='"
+        + key_q
+        + "'))) "
+        "ORDER BY CASE WHEN NULLIF('"
+        + run_q
+        + "','') <> '' AND run_id='"
+        + run_q
+        + "' THEN 0 ELSE 1 END, "
+        "updated_at DESC NULLS LAST, created_at DESC LIMIT 1;"
+    )
+    proc = subprocess.run([psql_bin, DB_NAME, "-X", "-t", "-A", "-c", sql], capture_output=True, text=True)
+    if proc.returncode != 0:
+        return None
+    raw = (proc.stdout or "").strip()
+    if not raw:
+        return None
+    try:
+        return int(raw)
+    except ValueError:
+        return None
+
+
+def reconcile_task_failure(reason_item: dict[str, Any], psql_bin: str) -> tuple[bool, str | None, int | None]:
+    task_id = find_task_id_for_session(
+        psql_bin=psql_bin,
+        session_key=str(reason_item.get("key") or ""),
+        label=reason_item.get("label"),
+        run_id=reason_item.get("runId"),
+    )
+    if task_id is None:
+        return True, None, None
+
+    outcome = (
+        f"Watchdog marked failed from sub-agent {reason_item.get('label') or reason_item.get('key')} "
+        f"({reason_item.get('reasonCode')}: {reason_item.get('reasonDetail')})"
+    )
+    outcome_sql = sql_quote(outcome)
+    run_q = sql_quote(reason_item.get("runId"))
+    reason_q = sql_quote(reason_item.get("reasonCode"))
+    sql = (
+        "UPDATE cortana_tasks SET status='failed', outcome='"
+        + outcome_sql
+        + "', run_id=COALESCE(NULLIF('"
+        + run_q
+        + "',''), run_id), metadata=COALESCE(metadata,'{}'::jsonb)||"
+        "jsonb_build_object('watchdog_synced_at',NOW()::text,'watchdog_reason','"
+        + reason_q
+        + "','subagent_run_id',NULLIF('"
+        + run_q
+        + "','')) "
+        f"WHERE id={task_id} AND status='in_progress';"
+    )
+    proc = subprocess.run([psql_bin, DB_NAME, "-X", "-c", sql], capture_output=True, text=True)
+    if proc.returncode != 0:
+        return False, proc.stderr.strip() or proc.stdout.strip() or "task update failed", task_id
+    return True, None, task_id
+
+
 def log_event(reason_item: dict[str, Any], psql_bin: str) -> tuple[bool, str | None]:
     metadata = {
         "session_key": reason_item["key"],
         "label": reason_item.get("label"),
+        "run_id": reason_item.get("runId"),
+        "task_id": reason_item.get("taskId"),
         "runtime_seconds": reason_item.get("runtimeSeconds"),
         "failure_reason": reason_item.get("reasonCode"),
         "detail": reason_item.get("reasonDetail"),
@@ -127,12 +253,48 @@ def log_event(reason_item: dict[str, Any], psql_bin: str) -> tuple[bool, str | N
     )
 
     try:
-        proc = subprocess.run([psql_bin, "cortana", "-c", sql], capture_output=True, text=True)
+        proc = subprocess.run([psql_bin, DB_NAME, "-c", sql], capture_output=True, text=True)
     except FileNotFoundError:
         return False, f"psql not found ({psql_bin})"
 
     if proc.returncode != 0:
         return False, (proc.stderr.strip() or proc.stdout.strip() or "psql insert failed")
+    return True, None
+
+
+def send_failure_alert(reason_item: dict[str, Any]) -> tuple[bool, str | None]:
+    if not TELEGRAM_GUARD.exists():
+        return False, f"telegram guard missing: {TELEGRAM_GUARD}"
+
+    key = reason_item.get("key")
+    label = reason_item.get("label") or "(no label)"
+    reason = reason_item.get("reasonCode")
+    detail = reason_item.get("reasonDetail")
+    msg = f"🚨 Sub-agent failure: {label}\nSession: {key}\nReason: {reason} ({detail})"
+
+    proc = subprocess.run(
+        [
+            str(TELEGRAM_GUARD),
+            msg,
+            "8171372724",
+            "",
+            "subagent_failure_alert",
+            f"subagent:{key}:{reason}",
+        ],
+        capture_output=True,
+        text=True,
+    )
+    if proc.returncode != 0:
+        return False, (proc.stderr.strip() or proc.stdout.strip() or "telegram guard failed")
+    return True, None
+
+
+def run_completion_sync() -> tuple[bool, str | None]:
+    if not COMPLETION_SYNC.exists():
+        return False, f"completion sync missing: {COMPLETION_SYNC}"
+    proc = subprocess.run([str(COMPLETION_SYNC)], capture_output=True, text=True)
+    if proc.returncode != 0:
+        return False, (proc.stderr.strip() or proc.stdout.strip() or "completion sync failed")
     return True, None
 
 
@@ -153,7 +315,7 @@ def main() -> int:
     now = now_ms()
     psql_bin = resolve_psql()
     state_path = Path(args.state_file)
-    state = load_json(state_path, {})
+    state = _normalize_heartbeat_state(load_json(state_path, {}))
     watchdog_state = state.get("subagentWatchdog", {})
     last_logged: dict[str, int] = watchdog_state.get("lastLogged", {}) if isinstance(watchdog_state, dict) else {}
 
@@ -171,6 +333,8 @@ def main() -> int:
             "subagentSessionsScanned": 0,
             "failedOrTimedOut": 0,
             "loggedEvents": 0,
+            "alertsSent": 0,
+            "tasksUpdated": 0,
             "logErrors": 0,
         },
         "failedAgents": [],
@@ -205,6 +369,7 @@ def main() -> int:
         base = {
             "key": key,
             "label": s.get("label"),
+            "runId": s.get("run_id") or s.get("runId") or s.get("sessionId"),
             "sessionId": s.get("sessionId"),
             "agentId": s.get("agentId"),
             "runtimeSeconds": runtime_seconds,
@@ -235,6 +400,15 @@ def main() -> int:
         item["logged"] = False
         item["cooldownSkipped"] = bool(in_cooldown)
 
+        task_ok, task_err, task_id = reconcile_task_failure(item, psql_bin)
+        item["taskId"] = task_id
+        item["taskUpdated"] = bool(task_id is not None and task_ok)
+        if item["taskUpdated"]:
+            output["summary"]["tasksUpdated"] += 1
+        elif task_err:
+            output["summary"]["logErrors"] += 1
+            output["logErrors"].append({"signature": f"{signature}|task", "error": f"task_update_failed: {task_err}"})
+
         if in_cooldown:
             output["failedAgents"].append(item)
             continue
@@ -244,6 +418,13 @@ def main() -> int:
             item["logged"] = True
             output["summary"]["loggedEvents"] += 1
             pruned_last_logged[signature] = now
+            alert_ok, alert_err = send_failure_alert(item)
+            item["alertSent"] = bool(alert_ok)
+            if alert_ok:
+                output["summary"]["alertsSent"] += 1
+            elif alert_err:
+                output["summary"]["logErrors"] += 1
+                output["logErrors"].append({"signature": signature, "error": f"alert_send_failed: {alert_err}"})
         else:
             output["summary"]["logErrors"] += 1
             output["logErrors"].append({"signature": signature, "error": err})
@@ -253,6 +434,9 @@ def main() -> int:
     state["subagentWatchdog"]["lastRun"] = now
     state["subagentWatchdog"]["lastLogged"] = pruned_last_logged
     save_json(state_path, state)
+
+    sync_ok, sync_err = run_completion_sync()
+    output["taskBoardSync"] = {"ok": bool(sync_ok), "error": sync_err}
 
     print(json.dumps(output, indent=2))
     return 0

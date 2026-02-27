@@ -467,7 +467,7 @@ def persist(run_id: int, signals: list[Signal], min_conf: float, create_tasks: b
         suggestion = f"{s.title} — {s.summary}"
         run_psql(
             "INSERT INTO cortana_proactive_suggestions (source, suggestion, status, metadata) VALUES "
-            f"('proactive-detector', '{sql_escape(suggestion)}', 'pending', "
+            f"('proactive-detector', '{sql_escape(suggestion)}', 'ready', "
             f"'{sql_escape(json.dumps({'signal_id': int(sid), 'confidence': s.confidence, 'signal_type': s.signal_type}))}'::jsonb);"
         )
         suggested += 1
@@ -476,7 +476,7 @@ def persist(run_id: int, signals: list[Signal], min_conf: float, create_tasks: b
             title = f"Proactive: {s.title}"
             run_psql(
                 "INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata) VALUES "
-                f"('proactive-detector', '{sql_escape(title)}', '{sql_escape(s.summary)}', 2, 'pending', FALSE, "
+                f"('proactive-detector', '{sql_escape(title)}', '{sql_escape(s.summary)}', 2, 'ready', FALSE, "
                 "'Review proactively surfaced risk/opportunity and act manually if needed.', "
                 f"'{sql_escape(json.dumps({'signal_id': int(sid), 'confidence': s.confidence, 'source': s.source}))}'::jsonb);"
             )

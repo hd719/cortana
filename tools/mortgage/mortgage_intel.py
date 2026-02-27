@@ -252,7 +252,7 @@ def maybe_create_task(event: IntelEvent, dry_run: bool) -> int | None:
     desc = f"{event.what_changed}\n\nWhat to do: {event.what_to_do}"
     sql = (
         "INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata) VALUES "
-        f"('mortgage_intel','{sql_escape(title)}','{sql_escape(desc)}',1,'pending',FALSE,"
+        f"('mortgage_intel','{sql_escape(title)}','{sql_escape(desc)}',1,'ready',FALSE,"
         "'Draft borrower-facing advisory + lock/float outreach list',"
         f"'{sql_escape(json.dumps({'topic': event.topic, 'impact_score': event.impact_score, 'url': event.url}))}'::jsonb) RETURNING id;"
     )

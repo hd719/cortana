@@ -148,7 +148,7 @@ def update_task_queue_state(db: str, dec: GovernorDecision) -> None:
     rationale = _sql_str(f"Queued for human approval by governor: {dec.rationale}")
     sql = f"""
     UPDATE cortana_tasks
-    SET status='pending',
+    SET status='ready',
         assigned_to='governor',
         outcome='{rationale}',
         metadata = COALESCE(metadata, '{{}}'::jsonb)

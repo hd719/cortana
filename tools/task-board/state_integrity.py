@@ -49,7 +49,7 @@ def log_event(event_type: str, severity: str, message: str, metadata: dict[str, 
 def fix_done_missing_completed_at(limit: int, dry_run: bool) -> list[int]:
     rows = fetch_json(
         "SELECT id FROM cortana_tasks "
-        "WHERE status='done' AND completed_at IS NULL "
+        "WHERE status='completed' AND completed_at IS NULL "
         f"ORDER BY id ASC LIMIT {max(1, limit)}"
     )
     ids = [int(r["id"]) for r in rows]
@@ -62,7 +62,7 @@ def fix_done_missing_completed_at(limit: int, dry_run: bool) -> list[int]:
         log_event(
             "auto_heal",
             "info",
-            f"Filled completed_at for {len(ids)} done task(s)",
+            f"Filled completed_at for {len(ids)} completed task(s)",
             {"task_ids": ids, "fix": "set_completed_at_now", "dry_run": dry_run},
             dry_run,
         )
@@ -79,8 +79,12 @@ def detect_orphaned_in_progress(orphan_minutes: int, limit: int) -> list[dict[st
         "    SELECT 1 FROM cortana_covenant_runs r "
         "    WHERE (r.status = 'running' OR r.ended_at IS NULL) "
         "      AND ("
-        "        (t.assigned_to IS NOT NULL AND r.agent = t.assigned_to) "
-        "        OR (t.assigned_to IS NOT NULL AND r.session_key = t.assigned_to)"
+        "        (t.run_id IS NOT NULL AND r.run_id = t.run_id) "
+        "        OR ("
+        "          t.run_id IS NULL "
+        "          AND t.assigned_to IS NOT NULL "
+        "          AND (r.agent = t.assigned_to OR r.session_key = t.assigned_to)"
+        "        )"
         "      )"
         "  ) "
         "ORDER BY COALESCE(t.updated_at, t.created_at) ASC "
@@ -93,7 +97,7 @@ def detect_completed_with_pending_children(limit: int) -> list[dict[str, Any]]:
         "SELECT p.id AS parent_id, p.title AS parent_title, COUNT(c.id)::int AS pending_children "
         "FROM cortana_tasks p "
         "JOIN cortana_tasks c ON c.parent_id = p.id "
-        "WHERE p.status='done' AND c.status IN ('pending', 'in_progress', 'blocked') "
+        "WHERE p.status='completed' AND c.status IN ('ready', 'in_progress', 'backlog') "
         "GROUP BY p.id, p.title "
         "ORDER BY pending_children DESC, p.id ASC "
         f"LIMIT {max(1, limit)}"

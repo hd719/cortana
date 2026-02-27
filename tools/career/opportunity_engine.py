@@ -174,7 +174,7 @@ def maybe_create_task(move: Opportunity, threshold: float, dry_run: bool) -> int
     meta = {"source": move.source, "url": move.url, "tags": move.tags, "goal_match": move.goal_match, "confidence": move.confidence}
     raw = run_psql(
         "INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata) VALUES "
-        f"('opportunity_engine','{sql_escape(title)}','{sql_escape(desc)}',2,'pending',TRUE,"
+        f"('opportunity_engine','{sql_escape(title)}','{sql_escape(desc)}',2,'ready',TRUE,"
         "'Execute this move in one focused block and capture artifact.',"
         f"'{sql_escape(json.dumps(meta))}'::jsonb) RETURNING id;"
     )

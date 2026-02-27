@@ -69,7 +69,7 @@ WITH locked AS (
       updated_at = CURRENT_TIMESTAMP
   FROM locked l
   WHERE t.id = l.id
-    AND l.status = 'pending'
+    AND l.status = 'ready'
   RETURNING t.id, t.status, t.assigned_to, t.title, t.updated_at
 ), event_insert AS (
   INSERT INTO cortana_events (event_type, source, severity, message, metadata)
@@ -78,7 +78,7 @@ WITH locked AS (
     :'source',
     CASE WHEN EXISTS (SELECT 1 FROM updated) THEN 'info' ELSE 'warning' END,
     CASE WHEN EXISTS (SELECT 1 FROM updated)
-      THEN format('Task %s moved pending -> in_progress', :task_id::text)
+      THEN format('Task %s moved ready -> in_progress', :task_id::text)
       ELSE format('Rejected spawn-start for task %s', :task_id::text)
     END,
     jsonb_build_object(
@@ -126,7 +126,7 @@ WITH locked AS (
   FOR UPDATE
 ), updated AS (
   UPDATE cortana_tasks t
-  SET status='done',
+  SET status='completed',
       completed_at = NOW(),
       outcome = :'outcome',
       updated_at = CURRENT_TIMESTAMP
@@ -141,7 +141,7 @@ WITH locked AS (
     :'source',
     CASE WHEN EXISTS (SELECT 1 FROM updated) THEN 'info' ELSE 'warning' END,
     CASE WHEN EXISTS (SELECT 1 FROM updated)
-      THEN format('Task %s moved in_progress -> done', :task_id::text)
+      THEN format('Task %s moved in_progress -> completed', :task_id::text)
       ELSE format('Rejected complete for task %s', :task_id::text)
     END,
     jsonb_build_object(
@@ -239,17 +239,29 @@ SQL
 cmd_check_orphans() {
   local sql
   read -r -d '' sql <<'SQL' || true
-WITH active_labels AS (
-  SELECT DISTINCT e.payload->>'label' AS label
+WITH active_agents AS (
+  SELECT DISTINCT
+    NULLIF(e.payload->>'run_id', '') AS run_id,
+    NULLIF(e.payload->>'label', '') AS label
   FROM cortana_event_bus_events e
   WHERE e.event_type = 'agent_spawned'
-    AND COALESCE(e.payload->>'label', '') <> ''
+    AND (
+      COALESCE(e.payload->>'label', '') <> ''
+      OR COALESCE(e.payload->>'run_id', '') <> ''
+    )
     AND NOT EXISTS (
       SELECT 1
       FROM cortana_event_bus_events t
       WHERE t.created_at >= e.created_at
         AND t.event_type IN ('agent_completed', 'agent_failed', 'agent_timeout')
-        AND t.payload->>'label' = e.payload->>'label'
+        AND (
+          (NULLIF(e.payload->>'run_id', '') IS NOT NULL AND t.payload->>'run_id' = e.payload->>'run_id')
+          OR (
+            NULLIF(e.payload->>'run_id', '') IS NULL
+            AND NULLIF(e.payload->>'label', '') IS NOT NULL
+            AND t.payload->>'label' = e.payload->>'label'
+          )
+        )
     )
 ), orphaned AS (
   SELECT
@@ -264,11 +276,19 @@ WITH active_labels AS (
   WHERE t.status = 'in_progress'
     AND COALESCE(t.updated_at, t.created_at) < NOW() - INTERVAL '2 hours'
     AND (
-      t.assigned_to IS NULL
-      OR NOT EXISTS (
-        SELECT 1
-        FROM active_labels a
-        WHERE a.label = t.assigned_to
+      (t.run_id IS NOT NULL AND NOT EXISTS (
+        SELECT 1 FROM active_agents a WHERE a.run_id = t.run_id
+      ))
+      OR (
+        t.run_id IS NULL
+        AND (
+          t.assigned_to IS NULL
+          OR NOT EXISTS (
+            SELECT 1
+            FROM active_agents a
+            WHERE a.label = t.assigned_to
+          )
+        )
       )
     )
   ORDER BY COALESCE(t.updated_at, t.created_at) ASC
@@ -282,7 +302,7 @@ WITH active_labels AS (
     jsonb_build_object(
       'operation', 'check-orphans',
       'orphan_count', (SELECT COUNT(*) FROM orphaned),
-      'active_labels', COALESCE((SELECT jsonb_agg(label) FROM active_labels), '[]'::jsonb),
+      'active_agents', COALESCE((SELECT jsonb_agg(jsonb_build_object('run_id', run_id, 'label', label)) FROM active_agents), '[]'::jsonb),
       'orphans', COALESCE((SELECT jsonb_agg(to_jsonb(orphaned)) FROM orphaned), '[]'::jsonb)
     )
   RETURNING id
@@ -291,7 +311,7 @@ SELECT json_build_object(
   'operation', 'check-orphans',
   'ok', true,
   'threshold', '2h',
-  'active_labels', COALESCE((SELECT json_agg(label) FROM active_labels), '[]'::json),
+  'active_agents', COALESCE((SELECT json_agg(json_build_object('run_id', run_id, 'label', label)) FROM active_agents), '[]'::json),
   'orphans', COALESCE((SELECT json_agg(orphaned) FROM orphaned), '[]'::json),
   'orphan_count', (SELECT COUNT(*) FROM orphaned),
   'event_id', (SELECT id FROM event_insert LIMIT 1),
@@ -308,12 +328,12 @@ cmd_reset_stale() {
 WITH stale AS (
   SELECT id
   FROM cortana_tasks
-  WHERE status = 'pending'
+  WHERE status = 'ready'
     AND COALESCE(updated_at, created_at) < NOW() - INTERVAL '7 days'
   FOR UPDATE
 ), updated AS (
   UPDATE cortana_tasks t
-  SET status = 'pending',
+  SET status = 'ready',
       metadata = COALESCE(t.metadata, '{}'::jsonb) || jsonb_build_object(
         'stale_reset', jsonb_build_object(
           'at', NOW(),

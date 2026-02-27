@@ -350,7 +350,7 @@ def upsert_task(r: Runner, email: EmailItem, response_required: bool, follow_up:
     due_sql = f"'{due_at.strftime('%Y-%m-%d %H:%M:%S')}'" if due_at else "NULL"
     remind_sql = f"'{remind_at.strftime('%Y-%m-%d %H:%M:%S')}'" if remind_at else "NULL"
 
-    if existing and existing.get("status") in {"pending", "in_progress", "blocked"}:
+    if existing and existing.get("status") in {"ready", "in_progress", "backlog"}:
         sql = f"""
         UPDATE cortana_tasks
         SET
@@ -376,7 +376,7 @@ def upsert_task(r: Runner, email: EmailItem, response_required: bool, follow_up:
       '{sql_q(title)}',
       '{sql_q(desc)}',
       {priority},
-      'pending',
+      'ready',
       {due_sql},
       {remind_sql},
       FALSE,
@@ -396,7 +396,7 @@ def closure_sweep(r: Runner, sent_lookback_days: int) -> None:
           SELECT id, title, status, created_at, metadata
           FROM cortana_tasks
           WHERE source='inbox-to-execution'
-            AND status IN ('pending','in_progress','blocked')
+            AND status IN ('ready','in_progress','backlog')
         ) t;
         """,
         fetch_json=True,
@@ -434,13 +434,13 @@ def closure_sweep(r: Runner, sent_lookback_days: int) -> None:
         sql = f"""
         UPDATE cortana_tasks
         SET
-          status='done',
+          status='completed',
           completed_at=COALESCE(completed_at, NOW()),
           outcome=COALESCE(outcome, 'Auto-closed: reply sent in thread.'),
           metadata=COALESCE(metadata, '{{}}'::jsonb) || '{sql_q(json.dumps(closure))}'::jsonb,
           updated_at=NOW()
         WHERE id={tid}
-          AND status IN ('pending','in_progress','blocked');
+          AND status IN ('ready','in_progress','backlog');
         """
         r.psql(sql)
         r.stats["closed"] += 1
@@ -493,13 +493,13 @@ def stale_and_orphan_scan(r: Runner, commit_lookback_days: int, sent_lookback_da
             || jsonb_build_object('stale_commitment', true, 'stale_detected_at', NOW()::text),
           updated_at=NOW()
         WHERE source='inbox-to-execution'
-          AND status IN ('pending','in_progress','blocked')
+          AND status IN ('ready','in_progress','backlog')
           AND metadata->>'thread_id'='{thr}';
         """
         r.psql(sql)
         r.stats["stale"] += 1
 
-    # orphan risk: commitment exists but no closure evidence and no done task
+    # orphan risk: commitment exists but no closure evidence and no completed task
     orphan: list[dict[str, Any]] = []
     for c in commits:
         thr = c.thread_id
@@ -521,7 +521,7 @@ def stale_and_orphan_scan(r: Runner, commit_lookback_days: int, sent_lookback_da
             fetch_json=True,
         )
         tasks = row if isinstance(row, list) else []
-        has_closed_task = any((t.get("status") == "done") for t in tasks)
+        has_closed_task = any((t.get("status") == "completed") for t in tasks)
 
         if not closure_evidence and not has_closed_task:
             orphan.append(

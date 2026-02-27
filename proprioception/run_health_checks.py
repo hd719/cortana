@@ -2,7 +2,9 @@
 import argparse
 import json
 import os
+import shutil
 import subprocess
+import tempfile
 import time
 from datetime import datetime
 from pathlib import Path
@@ -13,12 +15,79 @@ from autonomy_scorecard import compute_and_store_scorecard
 PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql"
 JOBS_FILE = Path.home() / ".openclaw/cron/jobs.json"
 HEARTBEAT_STATE_FILE = Path.home() / "clawd/memory/heartbeat-state.json"
+HEARTBEAT_VALIDATOR = Path.home() / "clawd/tools/heartbeat/validate-heartbeat-state.sh"
 REMEDIATION_STATE_FILE = Path.home() / "clawd/proprioception/state/heartbeat-remediation.json"
 
 REMEDIATION_COOLDOWN_SEC = 30 * 60
 MAX_REMEDIATIONS_PER_DAY = 3
 STALE_RUNNING_FALLBACK_MS = 45 * 60 * 1000
 HEARTBEAT_STATE_STALE_SEC = 8 * 60 * 60
+
+
+HEARTBEAT_DEFAULT_STATE = {
+    "version": 2,
+    "lastChecks": {},
+    "lastRemediationAt": 0,
+    "subagentWatchdog": {"lastRun": 0, "lastLogged": {}},
+}
+
+
+def _atomic_write_json_with_backup(path: Path, data: Dict[str, Any]) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    backup = path.with_suffix(path.suffix + ".bak")
+    payload = json.dumps(data, indent=2) + "\n"
+
+    if path.exists():
+        shutil.copy2(path, backup)
+    elif backup.exists():
+        backup.unlink(missing_ok=True)
+
+    with tempfile.NamedTemporaryFile("w", dir=str(path.parent), delete=False) as tmp:
+        tmp.write(payload)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+        tmp_name = tmp.name
+
+    os.replace(tmp_name, path)
+
+
+def _validate_heartbeat_state(data: Any, now: int) -> Dict[str, Any]:
+    clean: Dict[str, Any] = dict(HEARTBEAT_DEFAULT_STATE)
+    if isinstance(data, dict):
+        clean["version"] = int(data.get("version") or HEARTBEAT_DEFAULT_STATE["version"])
+        last_checks = data.get("lastChecks")
+        normalized_checks: Dict[str, Any] = {}
+        if isinstance(last_checks, dict):
+            for k, v in last_checks.items():
+                if isinstance(v, dict):
+                    normalized_checks[k] = {"lastChecked": int(v.get("lastChecked") or 0)}
+                else:
+                    normalized_checks[k] = {"lastChecked": int(v or 0)}
+        clean["lastChecks"] = normalized_checks
+
+        sub = data.get("subagentWatchdog")
+        if isinstance(sub, dict):
+            last_logged = sub.get("lastLogged")
+            clean["subagentWatchdog"] = {
+                "lastRun": int(sub.get("lastRun") or 0),
+                "lastLogged": last_logged if isinstance(last_logged, dict) else {},
+            }
+
+    clean["lastRemediationAt"] = int(now)
+    return clean
+
+
+def _load_heartbeat_state(now: int) -> Tuple[Dict[str, Any], bool, str]:
+    if not HEARTBEAT_STATE_FILE.exists():
+        return _validate_heartbeat_state({}, now), True, "created_missing_state_file"
+
+    try:
+        raw = json.loads(HEARTBEAT_STATE_FILE.read_text())
+        normalized = _validate_heartbeat_state(raw, now)
+        stale = (time.time() - HEARTBEAT_STATE_FILE.stat().st_mtime) > HEARTBEAT_STATE_STALE_SEC
+        return normalized, True, "refreshed_state_file_stale" if stale else "state_file_verified"
+    except Exception:
+        return _validate_heartbeat_state({}, now), True, "repaired_corrupt_state_file"
 
 
 def run_cmd(cmd: str, timeout: int) -> Dict[str, Any]:
@@ -40,6 +109,43 @@ def run_cmd(cmd: str, timeout: int) -> Dict[str, Any]:
 
 def sql_escape(val: str) -> str:
     return val.replace("'", "''") if val else ""
+
+
+def run_heartbeat_state_validation() -> List[Dict[str, Any]]:
+    if not HEARTBEAT_VALIDATOR.exists():
+        return [{
+            "event_type": "heartbeat_state_validation",
+            "source": "proprioception",
+            "severity": "warning",
+            "message": "Heartbeat state validator missing",
+            "metadata": {"path": str(HEARTBEAT_VALIDATOR)},
+        }]
+
+    proc = subprocess.run([str(HEARTBEAT_VALIDATOR)], capture_output=True, text=True)
+    stdout = (proc.stdout or "").strip()
+    metadata: Dict[str, Any] = {}
+    if stdout:
+        try:
+            metadata = json.loads(stdout.splitlines()[-1])
+        except Exception:
+            metadata = {"raw": stdout[:500]}
+
+    if proc.returncode != 0:
+        return [{
+            "event_type": "heartbeat_state_validation",
+            "source": "proprioception",
+            "severity": "warning",
+            "message": "Heartbeat state validation failed",
+            "metadata": {"stderr": (proc.stderr or "")[:500], **metadata},
+        }]
+
+    return [{
+        "event_type": "heartbeat_state_validation",
+        "source": "proprioception",
+        "severity": "info",
+        "message": "Heartbeat state validation completed",
+        "metadata": metadata,
+    }]
 
 
 def collect_tool_health() -> List[Dict[str, Any]]:
@@ -202,29 +308,9 @@ def save_remediation_state(state: Dict[str, Any]) -> None:
 
 
 def ensure_heartbeat_state_file(now: int) -> Tuple[bool, str]:
-    HEARTBEAT_STATE_FILE.parent.mkdir(parents=True, exist_ok=True)
-
-    if not HEARTBEAT_STATE_FILE.exists():
-        HEARTBEAT_STATE_FILE.write_text(json.dumps({"lastChecks": {}, "lastRemediationAt": now}, indent=2) + "\n")
-        return True, "created_missing_state_file"
-
-    try:
-        data = json.loads(HEARTBEAT_STATE_FILE.read_text())
-        if not isinstance(data, dict):
-            raise ValueError("state file not a JSON object")
-        changed = False
-        if "lastChecks" not in data or not isinstance(data.get("lastChecks"), dict):
-            data["lastChecks"] = {}
-            changed = True
-        data["lastRemediationAt"] = now
-        changed = True
-        if changed:
-            HEARTBEAT_STATE_FILE.write_text(json.dumps(data, indent=2) + "\n")
-        stale = (time.time() - HEARTBEAT_STATE_FILE.stat().st_mtime) > HEARTBEAT_STATE_STALE_SEC
-        return True, "refreshed_state_file_stale" if stale else "state_file_verified"
-    except Exception:
-        HEARTBEAT_STATE_FILE.write_text(json.dumps({"lastChecks": {}, "lastRemediationAt": now}, indent=2) + "\n")
-        return True, "repaired_corrupt_state_file"
+    data, ensured, action = _load_heartbeat_state(now)
+    _atomic_write_json_with_backup(HEARTBEAT_STATE_FILE, data)
+    return ensured, action
 
 
 def remediate_heartbeat_misses(jobs: List[Dict[str, Any]], cron_rows: List[Dict[str, Any]], now_ms: int, dry_run: bool = False) -> Tuple[List[Dict[str, Any]], bool]:
@@ -443,9 +529,11 @@ def main():
 
     now_ms = int(time.time() * 1000)
     jobs = load_jobs()
+    validation_events = run_heartbeat_state_validation()
     tool_rows = collect_tool_health()
     cron_rows = collect_cron_health(jobs, now_ms)
     events, _ = remediate_heartbeat_misses(jobs, cron_rows, now_ms, dry_run=args.dry_run)
+    events = validation_events + events
 
     memory_health = collect_memory_health_summary()
     if memory_health:

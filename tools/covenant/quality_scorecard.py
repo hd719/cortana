@@ -171,8 +171,8 @@ def score(task_id: int) -> dict[str, Any]:
 
     criteria = {
         "task_marked_done": {
-            "passed": task["status"] == "done",
-            "points": CRITERIA_POINTS if task["status"] == "done" else 0,
+            "passed": task["status"] == "completed",
+            "points": CRITERIA_POINTS if task["status"] == "completed" else 0,
             "details": f"status={task['status']}",
         },
         "git_commit_made": {

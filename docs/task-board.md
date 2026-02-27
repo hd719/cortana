@@ -10,12 +10,29 @@ Cortana maintains an autonomous task queue in `cortana_tasks` with epic/project 
 
 Task Lifecycle:
   backlog → ready → in_progress → completed/failed
-  scheduled (execute_at future) → ready (when execute_at <= NOW()) → in_progress → completed/failed
 
 - "Do all tasks" = `status='ready'` only
-- Auto-executor picks up: `status='ready' AND auto_executable=TRUE`, plus promotes `status='scheduled' AND execute_at <= NOW()` to `ready`
+- Auto-executor picks up: `status='ready' AND auto_executable=TRUE`
 - Backlog items require explicit promotion
-- `pending` is legacy alias and should be migrated to `ready`/`scheduled`
+- `pending` is legacy alias and should be migrated to `ready`
+
+## Schema Constraints
+
+`cortana_tasks.status` is now locked to the canonical lifecycle values via DB CHECK constraint:
+
+- `backlog`
+- `ready`
+- `scheduled`
+- `in_progress`
+- `completed`
+- `failed`
+- `cancelled`
+
+Constraint name: `cortana_tasks_status_check`
+
+Migration: `tools/task-board/migrations/001-freeze-status-enum.sql`
+
+Legacy aliases (`pending`, `done`, `blocked`) must be normalized before insert/update (migration maps them to canonical values).
 
 ## Task Detection Protocol
 
@@ -74,17 +91,17 @@ VALUES ('<title>', '<details>', <1-5>, <true|false>, '<steps>', '<due_date>', '<
 
 Recognize these natural language commands in Telegram and execute against `cortana_tasks` / `cortana_epics`:
 
-- "Show me tasks" / "What's on the board?" → full board view (epics + standalone + blocked)
-- "What's blocked?" → only dependency-blocked tasks
-- "Show epics" → active epics with progress (`done/total`)
-- "Task done: <id>" / "Mark task <id> complete" → set `status='done'`, `completed_at=NOW()`
+- "Show me tasks" / "What's on the board?" → full board view (epics + standalone + backlog)
+- "What's in backlog?" → backlog-priority tasks
+- "Show epics" → active epics with progress (`completed/total`)
+- "Task done: <id>" / "Mark task <id> complete" → set `status='completed'`, `completed_at=NOW()`
 - "Skip task: <id>" → set `status='cancelled'`
 - "Add task: <description>" → create standalone task via detection rules
 - "What's due today?" / "Today's priorities?" → due-today + P1 tasks
 - "What can you do now?" / "Ready tasks?" → dependency-ready `auto_executable=TRUE`
 
 **Response formatting (Telegram):**
-- Use icons: ✅ done/completed, ⏳ in_progress, 🟢 ready, 🗓️ scheduled, 💤 backlog, 🔒 blocked, 🎯 epic, 📌 standalone
+- Use icons: ✅ completed, ⏳ in_progress, 🟢 ready, 💤 backlog, ❌ failed, 🚫 cancelled, 🎯 epic, 📌 standalone
 - Show task IDs, priorities (P1-P5), due dates when present, and `(auto)` for auto-executable tasks
 - No markdown tables
 
@@ -92,19 +109,12 @@ Recognize these natural language commands in Telegram and execute against `corta
 
 Check for ready auto-executable tasks and execute the highest priority one if time permits:
 ```sql
--- 1) Promote scheduled tasks that have reached execute time
-UPDATE cortana_tasks
-SET status = 'ready'
-WHERE status = 'scheduled'
-  AND execute_at IS NOT NULL
-  AND execute_at <= NOW();
-
--- 2) Execute actionable tasks only
+-- Execute actionable tasks only
 SELECT * FROM cortana_tasks 
 WHERE status = 'ready' AND auto_executable = TRUE 
   AND (depends_on IS NULL OR NOT EXISTS (
     SELECT 1 FROM cortana_tasks t2 
-    WHERE t2.id = ANY(cortana_tasks.depends_on) AND t2.status NOT IN ('done', 'completed')
+    WHERE t2.id = ANY(cortana_tasks.depends_on) AND t2.status != 'completed'
   ))
 ORDER BY priority ASC, created_at ASC LIMIT 1;
 ```
@@ -127,7 +137,7 @@ SELECT
   e.title,
   e.deadline,
   COUNT(t.id) as total_tasks,
-  COUNT(CASE WHEN t.status = 'done' THEN 1 END) as completed_tasks
+  COUNT(CASE WHEN t.status = 'completed' THEN 1 END) as completed_tasks
 FROM cortana_epics e
 LEFT JOIN cortana_tasks t ON t.epic_id = e.id
 WHERE e.status = 'active'
@@ -137,7 +147,7 @@ ORDER BY e.deadline ASC NULLS LAST;
 -- Top standalone tasks (no epic)
 SELECT title, priority, due_at, status FROM cortana_tasks
 WHERE epic_id IS NULL 
-  AND status IN ('ready', 'scheduled', 'in_progress')
+  AND status IN ('ready', 'in_progress')
 ORDER BY priority ASC, due_at ASC NULLS LAST
 LIMIT 5;
 
@@ -149,7 +159,7 @@ SELECT id, title, due_at, priority,
     ELSE 'UPCOMING'
   END as urgency
 FROM cortana_tasks
-WHERE status IN ('ready', 'scheduled')
+WHERE status IN ('ready')
   AND due_at IS NOT NULL
   AND due_at <= NOW() + INTERVAL '48 hours'
 ORDER BY due_at ASC;
@@ -161,6 +171,6 @@ WHERE status = 'ready'
   AND (depends_on IS NULL OR NOT EXISTS (
     SELECT 1 FROM cortana_tasks t2
     WHERE t2.id = ANY(cortana_tasks.depends_on)
-      AND t2.status NOT IN ('done', 'completed')
+      AND t2.status != 'completed'
   ));
 ```

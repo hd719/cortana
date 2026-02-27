@@ -50,7 +50,7 @@ VALUES (
   '$title',
   'Temporary task created by tools/tests/integration-tests.sh',
   5,
-  'pending',
+  'ready',
   false,
   jsonb_build_object('integration_test', true, 'created_at', NOW())
 )

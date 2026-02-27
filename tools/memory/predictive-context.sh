@@ -16,7 +16,7 @@ if ! command -v openclaw >/dev/null 2>&1; then
   exit 1
 fi
 
-RAW_JSON="$(openclaw memory search "$QUERY" --json --max-results "$MAX_RESULTS" 2>/dev/null || true)"
+RAW_JSON="$(python3 /Users/hd/clawd/tools/memory/safe-memory-search.py "$QUERY" --json --max-results "$MAX_RESULTS" 2>/dev/null || true)"
 
 if [[ -z "${RAW_JSON//[[:space:]]/}" ]]; then
   cat <<EOF

@@ -2,8 +2,8 @@
 
 def test_classify_task_failure_and_success(load_module):
     mod = load_module("reflection/reflect.py", "reflection_reflect")
-    t_fail = {"title": "X", "description": "", "outcome": "failed due to error", "status": "done"}
-    t_ok = {"title": "X", "description": "", "outcome": "all good", "status": "done"}
+    t_fail = {"title": "X", "description": "", "outcome": "failed due to error", "status": "completed"}
+    t_ok = {"title": "X", "description": "", "outcome": "all good", "status": "completed"}
 
     fail = mod._classify_task(t_fail)
     ok = mod._classify_task(t_ok)

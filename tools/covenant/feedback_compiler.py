@@ -31,7 +31,7 @@ TASK_ISSUE_PATTERNS = (
     "failed",
     "failure",
     "regression",
-    "blocked",
+    "backlog",
     "bug",
     "retry",
 )
@@ -151,7 +151,7 @@ def compile_from_tasks() -> int:
 SELECT id, title, description, status, outcome
 FROM cortana_tasks
 WHERE status = 'failed'
-   OR (status = 'done' AND ({pattern_sql}))
+   OR (status = 'completed' AND ({pattern_sql}))
 ORDER BY id DESC
 LIMIT 300;
 """

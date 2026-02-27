@@ -86,7 +86,7 @@ create_followup_task() {
 
   psql_json "
     INSERT INTO cortana_tasks (title, description, priority, auto_executable, source, status, metadata)
-    VALUES ('$esc_title', '$esc_desc', 3, FALSE, 'auto-chain', 'pending', :'metadata'::jsonb)
+    VALUES ('$esc_title', '$esc_desc', 3, FALSE, 'auto-chain', 'ready', :'metadata'::jsonb)
     RETURNING id;
   " -v "metadata=$metadata_json"
 }

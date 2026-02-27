@@ -16,11 +16,11 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "You are Cortana \ud83d\ude0e. Generate a daily MORNING BRIEF for Hamel. Keep it calm, concise, warm.\n\n\u26a0\ufe0f CRITICAL: Your output IS the message \u2014 do NOT use the message tool to send. The delivery system handles that automatically. Just output the brief text as your final response.\n\nPREFIX: Always prefix your output with: \u2600\ufe0f Brief - Morning Brief. Example: \u2600\ufe0f Brief - Morning Brief\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nIMPORTANT FORMATTING RULE: Always use 12-hour time format with AM/PM (e.g., 9:30 PM, 6:00 AM). NEVER use 24-hour/military time (e.g., 21:30, 06:00). This applies to ALL times in the output.\n\nHard constraints:\n- Minimize web_search usage. Pull pre-gathered data from SAE sitrep first.\n- Only fetch fresh data for things NOT in the sitrep (news, API usage).\n\n## Step 0: Check Market Status\n```bash\nMARKET_STATUS=$(~/clawd/skills/markets/check_market_status.sh)\necho \"Market status: $MARKET_STATUS\"\n```\nInclude this in the Markets section. NEVER guess whether markets are open \u2014 always use this script.\n\n## Step 1: Pull SAE World State (pre-gathered at 7:00 AM)\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n\n# Get all sitrep data in one query\nSITREP=$(psql cortana -t -A -c \"SELECT json_object_agg(domain || '.' || key, value) FROM cortana_sitrep_latest;\")\necho \"$SITREP\" | python3 -m json.tool 2>/dev/null || echo \"$SITREP\"\n\n# Check freshness - if data is older than 4 hours, we will fetch directly\nSITREP_AGE=$(psql cortana -t -A -c \"SELECT EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/3600 FROM cortana_sitrep;\")\necho \"Sitrep age: ${SITREP_AGE} hours\"\n```\n\nIf sitrep data is missing or stale (>4 hours), fall back to direct data gathering for that domain.\n\n## Step 2: Pull SAE Insights (generated at 7:15 AM)\n```bash\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, insight_type, domains, title, description, priority, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND timestamp > NOW() - INTERVAL '2 hours' ORDER BY priority ASC) t;\")\necho \"$INSIGHTS\" | python3 -m json.tool 2>/dev/null || echo \"$INSIGHTS\"\n```\n\n## Step 3: Log wake time pattern\n```bash\npsql cortana -c \"INSERT INTO cortana_patterns (pattern_type, value, day_of_week, metadata) VALUES ('wake', '07:30', EXTRACT(DOW FROM NOW())::integer, '{\\\"source\\\": \\\"morning_brief_cron\\\"}');\"\n```\n\n## Step 4: Gather ONLY what SAE does not cover\n\nA) API Usage (not in sitrep):\n   Run: `node /Users/hd/clawd/skills/telegram-usage/handler.js`\n\nB) News digest (not in sitrep) \u2014 use RSS via news-summary skill as primary:\n   - mortgages/housing/rates/Fed/regulatory (top 2-4)\n   - software engineering / reliability / security (top 2-4)\n   - major world events impacting markets/tech/cyber (top 1-2)\n   - AI News (top 2-4): major model releases, OpenAI/Anthropic/Google, OpenClaw ecosystem/company moves, regulation\n\n## Step 5: Compose brief using sitrep data + fresh news\n\nInclude sections (tight bullets, same order):\n\nA) API Usage \u2014 from handler.js output\nB) Weather \u2014 from sitrep weather.today (fallback: web_search Warren NJ weather)\nC) Calendar \u2014 from sitrep calendar.events_48h (fallback: gog command). Times must be ET with AM/PM.\nD) News digest \u2014 from RSS/web_search (fresh, not in sitrep)\nE) AI News \u2014 from RSS/web_search (fresh, not in sitrep)\nF) Fitness snapshot \u2014 from sitrep health.whoop_recovery + health.whoop_sleep (fallback: curl whoop)\nG) Markets/portfolio \u2014 Include $MARKET_STATUS from Step 0. From sitrep finance.portfolio_snapshot (fallback: stock-analysis skill)\nH) Tasks \u2014 from sitrep tasks.pending\nI) \ud83e\udde0 Cortana's Insights \u2014 from cortana_insights pulled in Step 2. Show each insight title + description briefly.\nJ) Today I can do for you (2-4 concrete tasks)\nK) Today you should do (2-4 career-advancing, specific)\n\n## Step 6: Mark insights as delivered\nAfter composing the brief, mark all included insights:\n```bash\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND timestamp > NOW() - INTERVAL '2 hours';\"\n```\n\nIf any command fails, continue and note the failure in one line.",
+        "message": "You are Cortana. Create Hamel's daily morning brief for Telegram. Calm, concise, actionable.\nOutput format:\n\u2600\ufe0f Brief - Morning Brief\n- Today at a glance (3 bullets)\n- Warren, NJ weather (today high/low + rain chance)\n- Key news (max 3 bullets, US/world + one tech/cyber item)\n- Markets snapshot (major index tone + market open/closed from ~/clawd/skills/markets/check_market_status.sh)\n- Top 3 priorities for today (time/health/career aligned)\n- One concrete career-advancing task\n\nRules: keep under 220 words, use 12-hour AM/PM time, avoid fluff.\nDelivery is MANUAL: send final text with message tool (channel=telegram, target=8171372724) exactly once.\nAfter sending, return a one-line confirmation only.",
         "model": "openai-codex/gpt-5.2-codex"
       },
       "state": {
-        "nextRunAtMs": 1772195400000,
+        "nextRunAtMs": 1772281800000,
         "lastRunAtMs": 1772109000032,
         "lastStatus": "ok",
         "lastDurationMs": 49707,
@@ -30,10 +30,8 @@
         "lastDeliveryStatus": "not-delivered"
       },
       "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
+        "mode": "none",
+        "channel": "last"
       }
     },
     {
@@ -88,7 +86,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: \ud83d\udcf0 Newsletter - Daily Digest. Example: \ud83d\udcf0 Newsletter - Daily Digest\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nCreate and send Hamel an end-of-day Newsletter Digest.\n\nGoal: summarize newsletters received today.\n\n1. Fetch today's emails using gog:\n   gog --account hameldesai3@gmail.com gmail search 'newer_than:1d (category:updates OR from:substack OR list:)' --max 20 --json\n\n2. Filter to newsletters (morningbrew, substack, tldrnewsletter, cooperpress, etc.)\n\n3. Group by sender, max ~5 senders, max ~3 items per sender\n\n4. Include Gmail deep links: https://mail.google.com/mail/u/0/#inbox/<messageId>\n\n5. If there are 0 newsletters today, say so briefly and exit.\n\nKeep it concise. If anything fails, report the error in one line and stop.\n\nAfter generating your response, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery.",
+        "message": "Create Hamel's end-of-day newsletter digest from today's Gmail newsletters.\nSteps:\n1) Run: gog --account hameldesai3@gmail.com gmail search 'newer_than:1d (category:updates OR from:substack OR list:)' --max 20 --json\n2) Keep newsletter senders only; group by sender (max 5 senders, max 3 items/sender).\n3) Include Gmail deep links: https://mail.google.com/mail/u/0/#inbox/<messageId>\n4) If none, send a short 'no newsletters today' note.\n\nFormat prefix: \ud83d\udcf0 Newsletter - Daily Digest\nDelivery is MANUAL: send with message tool (channel=telegram, target=8171372724) exactly once; do not rely on announce.\nAfter sending, return one-line confirmation only.",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
@@ -102,10 +100,8 @@
         "lastDeliveryStatus": "not-delivered"
       },
       "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
+        "mode": "none",
+        "channel": "last"
       },
       "prompt": "\n\nAfter generating your digest, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery."
     },
@@ -129,7 +125,7 @@
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772187420000,
+        "nextRunAtMs": 1772245020000,
         "lastRunAtMs": 1772158620025,
         "lastStatus": "ok",
         "lastDurationMs": 17465,
@@ -151,7 +147,7 @@
       "name": "\ud83d\udcc5 Calendar reminders \u2192 Telegram (ALL calendars)",
       "enabled": true,
       "createdAtMs": 1769585938649,
-      "updatedAtMs": 1772165236255,
+      "updatedAtMs": 1772222854637,
       "schedule": {
         "kind": "cron",
         "expr": "7 6-23 * * *",
@@ -165,10 +161,10 @@
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772190420000,
-        "lastRunAtMs": 1772165220022,
+        "nextRunAtMs": 1772226420000,
+        "lastRunAtMs": 1772222820017,
         "lastStatus": "ok",
-        "lastDurationMs": 16233,
+        "lastDurationMs": 34620,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -267,7 +263,7 @@
         "model": "openai-codex/gpt-5.2-codex"
       },
       "state": {
-        "nextRunAtMs": 1772196300000,
+        "nextRunAtMs": 1772455500000,
         "lastRunAtMs": 1772113752175,
         "lastStatus": "ok",
         "lastDurationMs": 41632,
@@ -281,55 +277,6 @@
         "channel": "telegram",
         "to": "8171372724",
         "bestEffort": true
-      }
-    },
-    {
-      "id": "bb1046bd-dc05-41df-acdb-c613aa180154",
-      "agentId": "main",
-      "name": "\ud83d\udcca COIN Earnings Reminder (Feb 12 AMC)",
-      "enabled": false,
-      "createdAtMs": 1769707386701,
-      "updatedAtMs": 1770909378939,
-      "schedule": {
-        "kind": "at",
-        "at": "2026-02-12T15:00:00.000Z"
-      },
-      "sessionTarget": "main",
-      "wakeMode": "now",
-      "payload": {
-        "kind": "systemEvent",
-        "text": "\ud83d\udcca EARNINGS ALERT: Coinbase (COIN) reports Q4 2025 earnings TODAY after market close. Current position: 4 shares (~1% of portfolio). \u26a0\ufe0f Higher volatility/regulatory risk position. Key watch: Trading volume/take-rate, regulatory actions, institutional custody flows. Last quarter beat by 36%!"
-      },
-      "state": {
-        "lastRunAtMs": 1770909258795,
-        "lastStatus": "ok",
-        "lastDurationMs": 120144
-      }
-    },
-    {
-      "id": "97343a85-2db1-4aa0-b0e9-989527028be4",
-      "agentId": "main",
-      "name": "\ud83d\udcca NVDA Earnings Reminder (Feb 25 AMC)",
-      "enabled": false,
-      "createdAtMs": 1769707386703,
-      "updatedAtMs": 1772031616331,
-      "schedule": {
-        "kind": "at",
-        "at": "2026-02-25T15:00:00.000Z"
-      },
-      "sessionTarget": "main",
-      "wakeMode": "now",
-      "payload": {
-        "kind": "systemEvent",
-        "text": "\ud83d\udcca EARNINGS ALERT: NVIDIA (NVDA) reports Q4 FY26 earnings TODAY after market close. \ud83d\udd25 FOREVER HOLD - 80 shares (~21% of portfolio). Key watch: Data center revenue growth, margin trends, supply constraints, hyperscaler capex, export restrictions. Last quarter beat by 3.2%. Analysts see 34% upside!"
-      },
-      "state": {
-        "lastRunAtMs": 1772031600019,
-        "lastStatus": "ok",
-        "lastDurationMs": 16312,
-        "lastRunStatus": "ok",
-        "lastDeliveryStatus": "not-requested",
-        "consecutiveErrors": 0
       }
     },
     {
@@ -353,7 +300,7 @@
         "timeoutSeconds": 240
       },
       "state": {
-        "nextRunAtMs": 1772197380000,
+        "nextRunAtMs": 1772283780000,
         "lastRunAtMs": 1772110980016,
         "lastStatus": "ok",
         "lastDurationMs": 69545,
@@ -448,7 +395,7 @@
       "updatedAtMs": 1772182831557,
       "schedule": {
         "kind": "cron",
-        "expr": "0 4,16 * * *",
+        "expr": "6 4,16 * * *",
         "tz": "America/New_York"
       },
       "sessionTarget": "isolated",
@@ -481,10 +428,10 @@
       "name": "\ud83d\udcf0 Newsletter Alert (real-time)",
       "enabled": true,
       "createdAtMs": 1769815538299,
-      "updatedAtMs": 1772141411080,
+      "updatedAtMs": 1772222870798,
       "schedule": {
         "kind": "cron",
-        "expr": "*/30 6-16 * * *",
+        "expr": "7,37 6-16 * * *",
         "tz": "America/New_York"
       },
       "sessionTarget": "isolated",
@@ -495,10 +442,10 @@
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772190000000,
-        "lastRunAtMs": 1772141400033,
+        "nextRunAtMs": 1772224620000,
+        "lastRunAtMs": 1772222854637,
         "lastStatus": "ok",
-        "lastDurationMs": 11047,
+        "lastDurationMs": 16161,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
@@ -594,7 +541,7 @@
         "mode": "none"
       },
       "state": {
-        "nextRunAtMs": 1772199265978,
+        "nextRunAtMs": 1772228011695,
         "lastRunAtMs": 1772170465978,
         "lastStatus": "ok",
         "lastDurationMs": 23171,
@@ -631,7 +578,7 @@
         "bestEffort": true
       },
       "state": {
-        "nextRunAtMs": 1772205240000,
+        "nextRunAtMs": 1772291640000,
         "lastRunAtMs": 1772118840030,
         "lastStatus": "ok",
         "lastDurationMs": 10119,
@@ -666,7 +613,7 @@
         "mode": "none"
       },
       "state": {
-        "nextRunAtMs": 1772189593876,
+        "nextRunAtMs": 1772232710935,
         "lastRunAtMs": 1772175193876,
         "lastStatus": "ok",
         "lastDurationMs": 32190,
@@ -700,7 +647,7 @@
         "mode": "none"
       },
       "state": {
-        "nextRunAtMs": 1772204026083,
+        "nextRunAtMs": 1772232710968,
         "lastRunAtMs": 1772175226083,
         "lastStatus": "ok",
         "lastDurationMs": 6581,
@@ -895,7 +842,7 @@
       "name": "\ud83d\udcc8 CANSLIM Alert Scan (market sessions)",
       "enabled": true,
       "createdAtMs": 1771202685902,
-      "updatedAtMs": 1772137858152,
+      "updatedAtMs": 1772224439729,
       "schedule": {
         "kind": "cron",
         "expr": "30 9,12,15 * * 1-5",
@@ -916,10 +863,10 @@
         "bestEffort": true
       },
       "state": {
-        "nextRunAtMs": 1772202600000,
-        "lastRunAtMs": 1772137812120,
+        "nextRunAtMs": 1772461800000,
+        "lastRunAtMs": 1772224248912,
         "lastStatus": "ok",
-        "lastDurationMs": 46032,
+        "lastDurationMs": 190817,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "delivered",
@@ -948,7 +895,7 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772193600000,
+        "nextRunAtMs": 1772244000000,
         "lastRunAtMs": 1772157600017,
         "lastStatus": "ok",
         "lastDurationMs": 5329,
@@ -982,7 +929,7 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772194500000,
+        "nextRunAtMs": 1772244900000,
         "lastRunAtMs": 1772158500021,
         "lastStatus": "ok",
         "lastDurationMs": 5082,
@@ -1031,7 +978,7 @@
       "name": "\ud83d\udd0d Proprioception: Cron & Tool Health",
       "enabled": true,
       "createdAtMs": 1771323577113,
-      "updatedAtMs": 1772185189865,
+      "updatedAtMs": 1772224494991,
       "schedule": {
         "kind": "every",
         "everyMs": 900000,
@@ -1050,10 +997,10 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772186074504,
-        "lastRunAtMs": 1772185174504,
+        "nextRunAtMs": 1772225377321,
+        "lastRunAtMs": 1772224477321,
         "lastStatus": "ok",
-        "lastDurationMs": 15361,
+        "lastDurationMs": 17670,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
@@ -1065,11 +1012,11 @@
       "name": "\ud83d\udcca Proprioception: Budget & Self-Model",
       "enabled": true,
       "createdAtMs": 1771323590473,
-      "updatedAtMs": 1772184033607,
+      "updatedAtMs": 1772224248893,
       "schedule": {
         "kind": "every",
         "everyMs": 1800000,
-        "anchorMs": 1771323590473
+        "anchorMs": 1771324190473
       },
       "sessionTarget": "isolated",
       "wakeMode": "now",
@@ -1084,10 +1031,10 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772185797555,
-        "lastRunAtMs": 1772183997555,
+        "nextRunAtMs": 1772225990576,
+        "lastRunAtMs": 1772224190576,
         "lastStatus": "ok",
-        "lastDurationMs": 36052,
+        "lastDurationMs": 58317,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
@@ -1134,7 +1081,7 @@
       "description": "Immune System: threat detection and auto-healing scan",
       "enabled": true,
       "createdAtMs": 1771324082626,
-      "updatedAtMs": 1772183557898,
+      "updatedAtMs": 1772223156054,
       "schedule": {
         "kind": "cron",
         "expr": "11 * * * *",
@@ -1156,11 +1103,11 @@
         "bestEffort": true
       },
       "state": {
-        "lastRunAtMs": 1772183549640,
+        "lastRunAtMs": 1772223149658,
         "lastStatus": "ok",
-        "lastDurationMs": 8258,
+        "lastDurationMs": 6396,
         "consecutiveErrors": 0,
-        "nextRunAtMs": 1772187149622,
+        "nextRunAtMs": 1772226749622,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
         "lastDelivered": false
@@ -1257,7 +1204,7 @@
         "bestEffort": true
       },
       "state": {
-        "nextRunAtMs": 1772193600000
+        "nextRunAtMs": 1772280000000
       }
     },
     {
@@ -1285,7 +1232,43 @@
         "to": "8171372724",
         "bestEffort": true
       },
-      "state": {}
+      "state": {
+        "nextRunAtMs": 1772409600000
+      }
+    },
+    {
+      "id": "4ed4d04c-2e16-4532-92e6-c12b771d228e",
+      "agentId": "main",
+      "name": "\ud83e\udde0 Vector Memory Health Gate",
+      "enabled": true,
+      "createdAtMs": 1772224772705,
+      "updatedAtMs": 1772224772705,
+      "schedule": {
+        "kind": "cron",
+        "expr": "20 6 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Run vector memory health gate and deferred reindex queue check. Execute:\npython3 /Users/hd/clawd/tools/memory/vector-health-gate.py --json\n\nRules:\n- Do not send Telegram messages.\n- If output shows fallback_mode=true or reindex_queued=true, summarize in one short line in the run output.\n- Never disable memory indexing; rely on fallback + queued reindex behavior.",
+        "model": "openai-codex/gpt-5.2-codex"
+      },
+      "state": {
+        "nextRunAtMs": null,
+        "lastRunAtMs": null,
+        "lastStatus": "never",
+        "lastDurationMs": null,
+        "consecutiveErrors": 0,
+        "lastRunStatus": "never",
+        "lastDelivered": false,
+        "lastDeliveryStatus": "not-delivered"
+      },
+      "delivery": {
+        "mode": "none",
+        "channel": "last"
+      }
     }
   ]
 }

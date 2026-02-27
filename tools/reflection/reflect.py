@@ -33,7 +33,7 @@ TARGET_FILES = {
     "correction": ROOT / "AGENTS.md",
 }
 
-FAILURE_HINTS = ("fail", "error", "broken", "blocked", "retry", "regress", "didn't", "did not")
+FAILURE_HINTS = ("fail", "error", "broken", "backlog", "retry", "regress", "didn't", "did not")
 NEAR_MISS_HINTS = ("almost", "near", "manual", "had to", "would have", "close call")
 
 
@@ -96,13 +96,13 @@ def _classify_task(task: dict[str, Any]) -> tuple[str, float, str]:
         return "failure", 0.9, "Task outcome contains failure indicators."
     if any(h in text for h in NEAR_MISS_HINTS):
         return "near_miss", 0.7, "Task outcome indicates near-miss/manual recovery."
-    if str(task.get("status") or "") == "done":
+    if str(task.get("status") or "") == "completed":
         return "success", 0.4, "Task completed without explicit failure markers."
     return "unknown", 0.2, "Insufficient outcome signal."
 
 
 def _task_reflection(run_id: int, explicit_task_id: int | None = None) -> int:
-    where = f"t.id = {explicit_task_id}" if explicit_task_id else "t.status IN ('done','cancelled') AND t.completed_at > NOW() - INTERVAL '7 days'"
+    where = f"t.id = {explicit_task_id}" if explicit_task_id else "t.status IN ('completed','cancelled') AND t.completed_at > NOW() - INTERVAL '7 days'"
     tasks = _fetch_json(
         "SELECT t.id, t.title, t.description, t.status, t.outcome, t.completed_at "
         "FROM cortana_tasks t "

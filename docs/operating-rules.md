@@ -30,7 +30,7 @@ Don't ask permission. Just do it.
 - Deciding *what* to delegate and spawning sub-agents
 
 **Sub-agents are for — literally everything else (BUT USE THE RIGHT AGENT):**
-- Research and deep dives (spawn Huragok for heavy research)
+- Research and deep dives → spawn Researcher
 - Multi-step work, code changes, testing
 - Anything requiring more than one tool call
 - File edits, git operations, debugging

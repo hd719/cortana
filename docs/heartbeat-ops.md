@@ -39,10 +39,11 @@ You are free to edit `HEARTBEAT.md` with a short checklist or reminders. Keep it
 **Track your checks** in `memory/heartbeat-state.json`:
 ```json
 {
+  "version": 2,
   "lastChecks": {
-    "email": 1703275200,
-    "calendar": 1703260800,
-    "weather": null
+    "email": { "lastChecked": 1703275200000 },
+    "calendar": { "lastChecked": 1703260800000 },
+    "weather": { "lastChecked": 1703250000000 }
   }
 }
 ```

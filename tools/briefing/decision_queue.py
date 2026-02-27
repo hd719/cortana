@@ -148,7 +148,7 @@ def from_watchlist() -> list[Candidate]:
 def from_tasks() -> list[Candidate]:
     rows = fetch_json(
         "SELECT id, title, priority, due_at, auto_executable "
-        "FROM cortana_tasks WHERE status IN ('pending','in_progress') ORDER BY priority ASC, due_at ASC NULLS LAST LIMIT 12"
+        "FROM cortana_tasks WHERE status IN ('ready','in_progress') ORDER BY priority ASC, due_at ASC NULLS LAST LIMIT 12"
     )
     out: list[Candidate] = []
     now = datetime.now(timezone.utc).astimezone(ET)
