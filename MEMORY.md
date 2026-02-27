@@ -36,6 +36,7 @@
 - **Action over asking**: for internal, non-destructive work, just act (spawn agents, chain workflows, execute plans); report results instead of seeking permission.
 - **Launch-proof rule**: never say a sub-agent was launched unless a real `runId` was returned. Action first, message second; on failure, report failure + retry plan.
 - **Agent launch disclosure**: before spawning, state which agent role (Huragok/Researcher/Oracle/Librarian/Monitor) and what it will do.
+- **Sub-agent scope containment** (mandatory): every spawn prompt must explicitly state what the agent is NOT allowed to do. At minimum: "Do not create new files unless explicitly asked. Do not create backups. Only modify the listed files." Librarian especially will fill perceived gaps if unconstrained. (Feb 27, 2026)
 - **Covenant routing** (mandatory):
   - **Huragok** – systems/infra/tooling/code-heavy work.
   - **Researcher** – research, comparisons, deep dives.
