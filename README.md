@@ -1,17 +1,66 @@
 # Cortana Workspace (`~/clawd`)
 
-This is Cortana’s **command brain**: memory, policy, orchestration, cron prompts, and internal automation.
+This repo is **Cortana’s command brain** – memory, policy, orchestration, cron prompts, and internal automation.
 
-If `~/Developer/cortana-external` is the runtime body (services/apps), this repo is the mind.
+If `~/Developer/cortana-external` is the runtime body (services + Mission Control), this repo is the **mind and nervous system**.
 
 ---
 
-## 🧬 TLDR — Cortana's Architecture
+## 1. What this is
 
-**At a glance:** 50+ PostgreSQL tables • 5 specialized agents • 15+ autonomous tools • 10+ scheduled services (launchd + cron) • Local inference fallback • Zero-API embedding at ~1,400 texts/sec.
+Cortana is Hamel’s **autonomous AI chief-of-staff** built on **OpenClaw**.
 
-### 🧠 The Brain (Memory & Cognition)
-Cortana thinks in layers: immediate context for now, session logs for continuity, and vector-backed long-term memory for recall. The memory loop is compressed daily, embedded locally, and prewarmed before the day starts.
+- Runs as a **main session (Opus)** plus a **Covenant** of specialized sub‑agents
+- Optimized for one human, one machine – **personal assistant, not a SaaS product**
+- Backed by PostgreSQL, OpenClaw cron, and a fleet of local tools/services
+- Designed to compound four **mission pillars**:
+  - **Time** – kill busywork, track tasks, surface leverage
+  - **Health** – sleep/recovery/fitness tracking + accountability
+  - **Wealth** – portfolio + mortgage + market intelligence
+  - **Career** – learning, side projects, strategic positioning
+
+Everything in this repo exists to make those four vectors compound automatically.
+
+---
+
+## 2. Architecture overview
+
+### 2.1 Sessions & model tiering
+
+Cortana runs as:
+
+- **Main session ("Command Deck")**
+  - Model: Anthropic Opus (primary)
+  - Responsibilities: conversation, triage, routing, approvals
+  - Hard rule: if a task needs more than one tool call → spawn a sub‑agent
+
+- **Covenant sub‑agents** (spawned sessions)
+  - Models: mix of **Opus / Sonnet / smaller OpenAI/Claude variants** depending on task
+    - Heavy reasoning / architecture → Opus
+    - Routine coding / refactors → coding agents (Codex/Claude Code/etc.)
+    - Monitoring/log analysis, simple transforms → smaller / cheaper models
+  - Each sub‑agent runs with **role‑scoped context + memory injection**
+
+### 2.2 The Covenant (agent team)
+
+Core Covenant roles (implemented as sub‑agent profiles + routing rules):
+
+- **Huragok** – systems engineer
+  - Infra, tools, debugging, performance, reliability
+- **Researcher** – scout
+  - Web research, deep dives, competitive analysis, literature
+- **Monitor** – guardian
+  - Patterns, health monitoring, cron health, budget/proprioception
+- **Oracle** – forecaster
+  - Strategy, scenario planning, risk, what‑if analysis
+- **Librarian** – knowledge & docs
+  - READMEs, documentation, schema notes, information architecture
+
+Routing lives in `AGENTS.md` + `covenant/` and is enforced by the main session: **Cortana dispatches, Covenant executes.**
+
+### 2.3 Memory & cognition
+
+Cortana thinks in layers: working context → session logs → vector‑backed long‑term memory.
 
 ```mermaid
 graph LR
@@ -26,8 +75,14 @@ graph LR
     L --> O
 ```
 
-### 💪 The Nervous System (Communication & Coordination)
-Cortana sits at command-and-control center, routing signals between agents and systems. Events flow through a durable bus, while parallel workflows fan out and converge with structured handoffs.
+### 2.4 Nervous system, immune system, and proprioception
+
+Cortana runs as a **coordinated system**, not a single chat thread:
+
+- **Nervous system** – communication & coordination
+  - Event bus (PostgreSQL `LISTEN/NOTIFY`) for agent lifecycle + task events
+  - Handoff artifact bus for structured context passing between sub‑agents
+  - Fan‑out / fan‑in executor for parallel agent workflows
 
 ```mermaid
 graph TD
@@ -47,8 +102,11 @@ graph TD
     L1 --> C0
 ```
 
-### 🛡️ The Immune System (Self-Healing & Safety)
-When things drift, Cortana doesn't panic—she triages. Risk gates, watchdogs, local fallback inference, and recovery playbooks enforce a tiered response: auto-fix first, then alert, then escalate for approval.
+- **Immune system** – self‑healing & safety
+  - Autonomy governor with risk‑scored approval gates
+  - Watchdog LaunchAgent (`com.cortana.watchdog`) checking key services every 15 minutes
+  - Local inference fallback (Ollama + phi3:mini) for degraded external APIs
+  - Recovery playbooks + incident logging in Postgres
 
 ```mermaid
 graph LR
@@ -62,8 +120,13 @@ graph LR
     T --> C1[🔴 Tier 3: Ask Chief]
 ```
 
-### 👁️ The Senses (Awareness & Perception)
-Cortana continuously senses both machine state and human context. Vision, pattern models, proactive watchlists, and internal self-health telemetry combine into situational awareness.
+- **Proprioception** – Cortana’s sense of her own health/budget
+  - Budget + token ledger, cron health, tool health, throttle tiers
+  - Consolidated into `cortana_self_model` and surfaced in Mission Control
+
+### 2.5 Senses & awareness
+
+Cortana tracks both **machine state** and **human context**:
 
 ```mermaid
 graph TD
@@ -75,255 +138,301 @@ graph TD
     SA --> D[📣 Decisions / Alerts / Timing]
 ```
 
-### ⚔️ The Covenant (Agent Team)
-Five specialized agents execute as a coordinated strike team. Cortana orchestrates a Roland → Arbiter → Executor loop, injects role-scoped memory, and continuously compiles lessons back into future runs.
-
-```mermaid
-graph LR
-    C2[🎯 Cortana<br/>Command & Control] --> P0[🧠 Roland<br/>Tactical Strategist]
-    P0 --> C1[⚔️ Arbiter<br/>Plan Challenger]
-    C1 --> E0[⚙️ Executor]
-
-    E0 --> H[🔧 Huragok<br/>Systems Engineer]
-    E0 --> R[🛰️ Researcher<br/>Scout]
-    E0 --> M[🛡️ Monitor<br/>Guardian]
-    E0 --> O0[🔮 Oracle<br/>Forecaster]
-    E0 --> L[📚 Librarian<br/>Knowledge Base]
-
-    ISM[🧷 Identity-Scoped Memory Injection] --> E0
-    AFC[🧬 Agent Feedback Compiler<br/>Per-agent Lessons] --> P0
-    AFC --> C1
-```
-
 ---
 
-## 1) What Cortana is
-
-Cortana is Hamel’s **AI chief of staff** in a Halo-inspired partnership model:
-- Hamel executes in the field
-- Cortana handles coordination, memory, prioritization, and systems intelligence
-- Work is routed through a Covenant-style specialist team (Huragok/Researcher/Monitor/Oracle/Librarian)
-
-Core mission: compound **Time, Health, Wealth, Career**.
-
----
-
-## 2) Architecture overview
-
-### Core stack
-- **OpenClaw**: agent runtime, cron scheduler, sub-agent orchestration
-- **PostgreSQL (`cortana`)**: event/memory/task/state source of truth
-- **Covenant agents**: role-routed sub-agents for execution
-- **Heartbeat system**: periodic lightweight checks + proactive actions (`HEARTBEAT.md`)
-
-### Runtime split
-- `~/clawd` (this repo): policy, memory, prompts, tools, docs
-- `~/Developer/cortana-external`: Go APIs, Mission Control app, backtester, watchdog
-
----
-
-## 3) Repo layout (verified)
+## 3. Directory structure (top level)
 
 ```text
 ~/clawd
-├── AGENTS.md, SOUL.md, USER.md, IDENTITY.md
-├── README.md, TOOLS.md, MEMORY.md, HEARTBEAT.md
-├── config/cron/jobs.json
-├── covenant/                    # Covenant framework + role docs
-├── skills/                      # installed local skills
-├── tools/                       # internal automation tools
-├── memory/, knowledge/, docs/
-├── proprioception/, immune-system/, cortical-loop/, sae/
-└── migrations/, reports/, projects/, tmp/
+├── AGENTS.md           # Harness + delegation/routing rules
+├── SOUL.md             # Persona, tone, mission
+├── USER.md             # Hamel context + standing requests
+├── IDENTITY.md         # Name, call-sign, vibe
+├── MEMORY.md           # Curated long-term memory (MAIN session only)
+├── HEARTBEAT.md        # Heartbeat rotation and proactive ops
+├── README.md           # This file
+├── TOOLS.md            # Machine-specific runtime notes & symlinks
+├── config/             # Cron + runtime config
+├── docs/               # Operating rules, heartbeat/task-board docs, etc.
+├── tools/              # Internal automation tools (bash/py/ts, etc.)
+├── skills/             # Installed OpenClaw skills
+├── memory/             # Daily logs + archives + fitness/mission data
+├── covenant/           # Covenant agent framework + role docs
+├── cortical-loop/      # World/SAE/council-style reasoning artifacts
+├── immune-system/      # Immune/incident/playbook scripts and notes
+├── proprioception/     # Self-model, budget, throttle logic
+├── sae/                # Situational awareness engine assets
+├── knowledge/          # Static knowledge and reference files
+├── learning/           # Feedback + learning loop assets
+├── migrations/         # Database migrations for cortana DB
+├── reports/            # Generated reports, briefings, analyses
+├── projects/, plans/   # Higher-level epics and plan docs
+├── agents/, canvas/    # Agent harness support + Canvas configs
+└── tmp/, logs/, ...    # Scratch + operational logs
 ```
 
----
+### 3.1 `docs/`
 
-## 4) Tools in this repo (`tools/`) — key operators
+Key files:
 
-### Required core tool families
-- `tools/market-intel/` — unified market + sentiment snapshot pipeline
-- `tools/gmail/` — email triage/autopilot scripts
-- `tools/task-board/` — task queue, auto-executor, stale detection cleanup, and state enforcement tooling
-- `tools/memory/` — ingestion + quality gates + consolidation helpers
-- `tools/reflection/` — reflection and repeated-correction analysis
-- `tools/proactive/` — cross-signal proactive detection/calibration
-- `tools/alerting/` — cron preflight + alert playbooks (includes `cost-breaker` runaway-session circuit breaker)
-- `tools/trade-alerts/` — Alpaca-backed trade alert pipeline and execution wiring
-- `tools/earnings-alert/` — earnings checker/calendar scripts wired into morning brief + cron
-- `tools/auto-chain/` — automatic follow-up task chaining rules engine
-- `tools/health/` — self-diagnostic and platform health scripts (`self-diagnostic.sh`)
-- `tools/spawn/` — sub-agent spawn pre-flight validator
+- `docs/operating-rules.md` – behavioral rules, delegation, routing, safety
+- `docs/heartbeat-ops.md` – heartbeat rotation, quiet hours, proactive checks
+- `docs/task-board.md` – Postgres‑backed task board + auto‑executor
+- `docs/learning-loop.md` – feedback protocol + self‑improvement
+- `docs/heartbeat-sql-reference.md` – canonical SQL snippets for heartbeats
 
-### Additional major tool groups present
-`behavioral-twin`, `briefing`, `covenant`, `email`, `embeddings`, `event-bus`, `failsafe`, `fitness`, `governor`, `guardrails`, `health`, `market-intel`, `mortgage`, `ops-eye`, `policy`, `portfolio`, `resilience`, `self-upgrade`, `tracing`, `trading`, `travel`, and others under `tools/`.
+### 3.2 `config/`
 
----
+- `config/cron/jobs.json` – **single source of truth** for OpenClaw cron jobs
+  - Symlinked to `~/.openclaw/cron/jobs.json` (see `TOOLS.md`)
 
-## 5) Installed skills (`skills/`) — verified
+### 3.3 `tools/`
 
-- `auto-updater`
-- `bird`
-- `caldav-calendar`
-- `clawddocs`
-- `clawdhub`
-- `fitness-coach`
-- `gog`
-- `markets`
-- `news-summary`
-- `process-watch`
-- `stock-analysis`
-- `telegram-usage`
-- `weather`
+Internal operator scripts, grouped by domain. Highlights:
 
----
+- **Heartbeat & cron**
+  - Preflight checks, lean prompts, scheduling helpers
+- **Task board & autonomy**
+  - `tools/task-board/` – queue management, stale detection, state enforcement
+  - `tools/auto-chain/` – automatic follow‑up task chaining rules engine
+- **Memory & reflection**
+  - `tools/memory/` – ingestion, quality gates, consolidation
+  - `tools/reflection/` – repeated‑correction analysis, learning loops
+- **Proactive intelligence**
+  - `tools/proactive/` – cross‑signal detection & calibration
+  - `tools/briefing/` – daily brief / news / market intel wiring
+- **Health & immune system**
+  - `tools/health/self-diagnostic.sh` – Cortana health self‑check
+  - `tools/alerting/cost-breaker/` – runaway session circuit breaker
+  - `tools/immune/` + `immune-system/` – incident capture + playbooks
+- **Finance/market**
+  - `tools/market-intel/` – unified quote + X sentiment + portfolio overlay
+  - `tools/trade-alerts/`, `tools/earnings-alert/` – trading/earnings pipelines
+- **Fitness/behavioral**
+  - `tools/fitness/` – Whoop/Tonal pipelines (via external fitness service)
+  - `tools/behavioral-twin/` – pattern modeling for routines/sleep/etc.
 
-## 6) Covenant framework
+### 3.4 `skills/`
 
-Covenant docs live in `covenant/`:
-- `covenant/README.md`
-- `covenant/CONTEXT.md`
-- `covenant/CORTANA.md`
-- Role folders: `huragok/`, `librarian/`, `monitor/`, `oracle/` (each with `AGENTS.md` + `SOUL.md`)
+Installed OpenClaw skills (non‑exhaustive):
 
-Operational routing contract (from AGENTS/MEMORY):
-- **Huragok**: systems/infra/tooling
-- **Researcher**: research/deep dives
-- **Monitor**: monitoring/patterns/health
-- **Oracle**: forecasting/strategy/risk
-- **Librarian**: docs/README/knowledge structure
+- `auto-updater` – keep Clawdbot + skills updated via cron
+- `bird` – X/Twitter CLI for reading/searching/posting
+- `caldav-calendar` – iCloud/CalDAV calendar integration
+- `gog` – Gmail + Google Calendar (Clawdbot‑Calendar) CLI
+- `fitness-coach` – Whoop/Tonal analysis and coaching
+- `news-summary` – world news briefings
+- `stock-analysis`, `markets` – market status + stock intelligence
+- `process-watch` – process/host resource monitoring
+- `weather` – weather forecasts (wttr.in/Open‑Meteo)
+- `telegram-usage` – session/token usage stats
 
----
+### 3.5 `memory/`
 
-## 7) Cron jobs and scheduler wiring
+- Daily notes: `memory/YYYY-MM-DD.md`
+- Fitness and health data: `memory/fitness/*.json`
+- Research and long‑form analysis: `memory/research-*.md`
+- Archive pipeline: `memory/archive/YYYY/MM/` (with daily files moved here)
 
-### Source of truth
-- **Repo file:** `/Users/hd/clawd/config/cron/jobs.json`
-- **Runtime path:** `~/.openclaw/cron/jobs.json`
+Cortana treats files here as **ground truth memory**, with consolidation into Postgres + embeddings.
 
-Design intent is repo-managed cron definitions with runtime mapping via symlink. Verify with:
-```bash
-ls -l ~/.openclaw/cron/jobs.json
-```
+### 3.6 `covenant/`
 
-### Major enabled cron groups (from `jobs.json`)
-- Daily briefs: Morning Brief, Stock Market Brief, Fitness Morning/Evening
-- Newsletter checks: real-time + weekday digest
-- Calendar reminders
-- Fitness + Tonal + X session health checks
-- CANSLIM intraday scan + weekly Monday market brief
-- SAE world-state + cross-domain reasoner
-- Memory consolidation + cleanup + weekly reflection/status
-- Proprioception: health, budget/self-model, efficiency
-- Immune scan + mission advancement + bedtime/weekend sleep checks
+- `covenant/README.md`, `CONTEXT.md`, `CORTANA.md`
+- Role folders: `huragok/`, `librarian/`, `monitor/`, `oracle/`, etc.
+  - Each with its own `AGENTS.md` + `SOUL.md`
+
+Defines the Covenant roles, responsibilities, and routing contracts used by the main session.
 
 ---
 
-## 8) Database (`cortana_*`) summary
+## 4. Key features
 
-PostgreSQL path:
+### 4.1 Heartbeat system
+
+Heartbeat rules live in `HEARTBEAT.md` and related docs/scripts:
+
+- Scheduled via OpenClaw cron (`config/cron/jobs.json`)
+- Rotating checks for:
+  - Email (Gmail), calendar (CalDAV + Google), newsletters
+  - Fitness: Whoop/Tonal sync and recovery/strain analysis
+  - Market/news: stock market open/close, CANSLIM scans, earnings
+  - Memory consolidation, reflection, and learning
+  - Cron health, tool health, budget, and proprioception
+- Quiet‑hours aware; only pings when signal clears thresholds
+
+### 4.2 Task board (PostgreSQL‑backed)
+
+Task system lives primarily in the `cortana` Postgres DB, wired via tools in this repo and surfaced in Mission Control (`cortana-external`).
+
+- Tables: `cortana_tasks`, `cortana_epics` (+ metadata JSONB)
+- Features:
+  - Autonomous task detection from conversations + heartbeats
+  - Epic/subtask hierarchy, priorities, deadlines
+  - Auto‑executor for safe, auto‑executable tasks
+  - Integrity audits + stale detection + cleanup
+  - State‑transition enforcement (single source of truth)
+
+### 4.3 Memory consolidation & semantic recall
+
+- Daily files → ingestion → semantic compression → `pgvector` tables
+- Local embeddings via `fastembed` (~1,400 texts/sec; no external embedding API)
+- Memory tables include:
+  - `cortana_memory_semantic`, `cortana_memory_episodic`, `cortana_memory_procedural`
+  - `cortana_memory_archive`, `cortana_memory_consolidation`, `cortana_memory_ingest_runs`
+  - `cortana_memory_provenance`, `cortana_memory_recall_checks`
+- Precompute Oracle pre‑warms relevant context before the day starts
+
+### 4.4 Proactive intelligence
+
+Cortana runs **watchlists + pattern detectors** across:
+
+- Sleep/wake/workout patterns (`cortana_patterns`)
+- Market/portfolio watchlist (`cortana_watchlist`)
+- News, earnings, macro events (via `news-summary`, `market-intel`, `earnings-alert`)
+- Task board state, overdue items, blocked work
+
+Output flows into:
+
+- `cortana_insights`, `cortana_sitrep` (situation reports)
+- `cortana_wake_rules` (when to proactively ping)
+- Morning/evening briefs + Mission Control dashboards
+
+### 4.5 Fitness / finance / calendar integrations
+
+- **Fitness**
+  - External fitness service (Go, in `cortana-external`) for Whoop/Tonal
+  - Skills + tools here handle briefings, alerts, and pattern analysis
+- **Finance**
+  - Market/stock tools, X sentiment, portfolio overlay (via local Alpaca endpoint)
+  - Earnings calendar and trade alerts wired into briefings and heartbeats
+- **Calendar & time**
+  - `caldav-calendar` skill (iCloud/CalDAV) and `gog` (Google Calendar)
+  - Daily schedule awareness, reminders, and sleep boundary checks
+
+---
+
+## 5. Database (`cortana` Postgres) – high‑level map
+
+PostgreSQL binary path (local):
+
 ```bash
 export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 ```
 
-### Core ops
-`cortana_events`, `cortana_feedback`, `cortana_patterns`, `cortana_tasks`, `cortana_epics`, `cortana_upgrades`, `cortana_watchlist`
+### 5.1 Core ops
 
-### SAE + insights + wake logic
-`cortana_sitrep`, `cortana_insights`, `cortana_wake_rules`, `cortana_chief_model`, `cortana_feedback_signals`
+- `cortana_events` – error/system event logging
+- `cortana_feedback` – feedback + corrections
+- `cortana_patterns` – behavior patterns (sleep, workouts, etc.)
+- `cortana_tasks`, `cortana_epics` – task board
+- `cortana_upgrades` – self‑improvement tracking
+- `cortana_watchlist` – tracked tickers/topics
 
-### Covenant + coordination
-`cortana_covenant_runs`, `cortana_handoff_artifacts`, `cortana_event_bus_events`, `cortana_trace_spans`, `cortana_decision_traces`
+### 5.2 SAE, insights, and wake logic
 
-### Memory system
-`cortana_memory_semantic`, `cortana_memory_episodic`, `cortana_memory_procedural`, `cortana_memory_archive`, `cortana_memory_consolidation`, `cortana_memory_ingest_runs`, `cortana_memory_provenance`, `cortana_memory_recall_checks`
+- `cortana_sitrep` – situation reports
+- `cortana_insights` – generated insights
+- `cortana_wake_rules` – proactive wake rules
+- `cortana_chief_model`, `cortana_feedback_signals` – modeling Chief + feedback
 
-### Proprioception + budget + throttle
-`cortana_self_model`, `cortana_budget_log`, `cortana_cron_health`, `cortana_tool_health`, `cortana_throttle_log`, `cortana_token_ledger`
+### 5.3 Covenant & coordination
 
-### Immune/autonomy/policy quality
-`cortana_immune_incidents`, `cortana_immune_playbooks`, `cortana_policy_decisions`, `cortana_policy_overrides`, `cortana_policy_budget_usage`, `cortana_action_policies`, `cortana_quality_scores`, `cortana_response_evaluations`, `cortana_workflow_checkpoints`, `cortana_chaos_runs`, `cortana_chaos_events`, `cortana_autonomy_incidents`, `cortana_autonomy_scorecard_snapshots`
+- `cortana_covenant_runs` – agent runs
+- `cortana_handoff_artifacts` – structured handoff data
+- `cortana_event_bus_events` – event bus
+- `cortana_trace_spans`, `cortana_decision_traces` – tracing and decision lineage
+
+### 5.4 Memory system
+
+- `cortana_memory_semantic`, `cortana_memory_episodic`, `cortana_memory_procedural`
+- `cortana_memory_archive`, `cortana_memory_consolidation`
+- `cortana_memory_ingest_runs`, `cortana_memory_provenance`
+- `cortana_memory_recall_checks`
+
+### 5.5 Proprioception, budget, throttling
+
+- `cortana_self_model` – singleton self‑model / health dashboard
+- `cortana_budget_log` – budget tracking
+- `cortana_cron_health`, `cortana_tool_health` – cron/tool health history
+- `cortana_throttle_log` – throttle tier changes
+- `cortana_token_ledger` – detailed token spend
+
+### 5.6 Immune system, autonomy, quality
+
+- `cortana_immune_incidents`, `cortana_immune_playbooks`
+- `cortana_policy_decisions`, `cortana_policy_overrides`, `cortana_policy_budget_usage`, `cortana_action_policies`
+- `cortana_quality_scores`, `cortana_response_evaluations`
+- `cortana_workflow_checkpoints`
+- `cortana_chaos_runs`, `cortana_chaos_events`
+- `cortana_autonomy_incidents`, `cortana_autonomy_scorecard_snapshots`
 
 ---
 
-## 9) Services and external dependencies
+## 6. Key config files
 
-From this repo’s perspective, key local services are:
-- **Fitness service**: `http://127.0.0.1:3033` (hosted in `cortana-external`)
-- **Watchdog LaunchAgent**: `com.cortana.watchdog` (script in `~/Developer/cortana-external/watchdog/watchdog.sh`, every 15 min)
-- **OpenClaw browser CDP**: `127.0.0.1:18800`
+- `AGENTS.md` – harness + delegation + routing + git rules
+- `SOUL.md` – Cortana’s personality, tone, and mission
+- `USER.md` – Hamel’s context and preferences
+- `IDENTITY.md` – short identity summary
+- `MEMORY.md` – curated long‑term memory (MAIN session only)
+- `HEARTBEAT.md` – heartbeat rotation + proactive ops
+- `docs/heartbeat-sql-reference.md` – SQL reference for heartbeats
+- `TOOLS.md` – environment‑specific notes and symlinks
+- `config/cron/jobs.json` – OpenClaw cron definitions
+- `memory/YYYY-MM-DD.md` – daily memory logs
 
----
+### Symlinks (repo → runtime mappings)
 
-## 10) Key config files
-
-- `AGENTS.md` — operational constitution + delegation/branch hygiene rules
-- `SOUL.md` — persona and response style
-- `USER.md` — Hamel context/preferences
-- `MEMORY.md` — curated long-term memory
-- `HEARTBEAT.md` — heartbeat rotation and proactive checks
-- `docs/heartbeat-sql-reference.md` — canonical heartbeat SQL templates/reference
-- `TOOLS.md` — machine-specific runtime notes and symlink registry
-- `config/cron/jobs.json` — cron definitions
-- `memory/` — daily memory logs
-
----
-
-## 11) Symlinks (repo → runtime mappings)
-
-Documented mapping:
 - `~/.openclaw/cron/jobs.json` ↔ `/Users/hd/clawd/config/cron/jobs.json`
 
 Policy: any repo/runtime symlink must be listed in `TOOLS.md` and referenced here.
 
 ---
 
-## 12) Git workflow + branch hygiene (mandatory)
+## 7. Git workflow & branch hygiene
 
-### For this repo
+This repo is the **source of truth** for Cortana’s brain. Treat it accordingly.
+
 ```bash
 git checkout main
 git pull
-# create branch only after main is fresh (if branching)
+# create branches from fresh main only
 ```
 
 Rules:
-- Never branch from stale feature branches
-- Keep docs synced with shipped changes
-- Commit/push immediately after meaningful updates
-- Treat git as the primary source of truth
+
+- Branch from **fresh `main`** only
+- Keep docs in sync with shipped behavior
+- Commit/push every meaningful change
+- No long‑lived, drifting branches
 
 ---
 
-## 13) Recent major additions
+## 8. Recent major additions (pre‑Feb 2026)
 
-- **Auto-chain rules engine** (`tools/auto-chain/`) for automatic task follow-up chaining (**#40**)
-- **Cost breaker** (`tools/alerting/cost-breaker`) runaway session circuit breaker (**#38**)
-- **gog OAuth health** cron-safe refresh health script (**#37**)
-- **Task board stale detector** with auto-cleanup + audit events (**#36**)
-- **Tools audit** inventory of tool scripts and references (**#35**)
-- **Heartbeat SQL reference** moved to `docs/heartbeat-sql-reference.md` (**#34**)
-- **Meta-monitor + earnings-alert merge** completed (PRs **#31, #33, #39**)
-- **Spawn pre-flight validator** for sub-agent launch safety (**#30**)
-- **Doc gardener** automated documentation maintenance workflow (**#29**)
-- **Self-diagnostic** script at `tools/health/self-diagnostic.sh` for Cortana health (**#28**)
-- **Task board state enforcer** CLI for atomic state transitions (**#32**)
-- **Pytest suite** for critical Python tool coverage
-- **Earnings alert system** (checker + calendar scripts) integrated with morning brief and cron
-- **Cron optimization** via precompute scripts and leaner prompts for slow jobs
-- **Research recommendations** added to task importer outputs
-- **Agent review chain** protocol for sub-agent output review and quality gate
-- **AGENTS.md refactor** to slim pointer/harness pattern
-- **Market-intel pipeline** (`tools/market-intel`) integrating quote + X sentiment + portfolio overlay
+Representative highlights that are already live:
+
+- **Auto‑chain rules engine** (`tools/auto-chain/`) for automatic follow‑up task chaining
+- **Cost breaker** (`tools/alerting/cost-breaker`) runaway‑session circuit breaker
+- **gog OAuth health** cron‑safe refresh health script
+- **Task board stale detector** with auto‑cleanup + audit events
+- **Tools audit** inventory of tool scripts and references
+- **Heartbeat SQL reference** moved to `docs/heartbeat-sql-reference.md`
+- **Meta‑monitor + earnings‑alert merge** across heartbeats + alerting
+- **Spawn pre‑flight validator** for sub‑agent launch safety
+- **Doc gardener** automated documentation maintenance workflow
+- **Self‑diagnostic** (`tools/health/self-diagnostic.sh`) for Cortana health
+- **Task board state enforcer** CLI for atomic task transitions
+- **Market‑intel pipeline** (`tools/market-intel`) combining quote + X sentiment + portfolio overlay
 - **X/Twitter integration hardening** (`bird`, auth health checks, watchdog coverage)
-- **Task board system** (`cortana_tasks`/`cortana_epics`, auto-executor, integrity audits)
-- **Covenant communication upgrades** (handoff artifact bus, lifecycle eventing, identity-scoped memory injection, fan-out/fan-in execution)
-- **Vector + local embeddings stack** (`pgvector`, fastembed, semantic memory acceleration)
-- **Proprioception + immune expansion** (budget/throttle, risk gates, auto-heal workflows)
+- **Vector + local embeddings stack** (`pgvector`, fastembed) for semantic memory
+- **Proprioception + immune expansion** (budget/throttle, risk gates, auto‑heal workflows)
+- **Covenant communication upgrades** (handoff bus, lifecycle eventing, identity‑scoped memory injection, fan‑out/fan‑in execution)
 
 ---
 
-## 14) Quick operator checks
+## 9. Operator quick checks
 
 ```bash
 # Cron health
@@ -333,7 +442,7 @@ openclaw cron list
 export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 psql cortana -c "select now();"
 
-# Fitness service health
+# Fitness service health (from external repo)
 curl -s http://127.0.0.1:3033/tonal/health
 
 # Watchdog loaded
@@ -342,4 +451,12 @@ launchctl list | grep com.cortana.watchdog
 
 ---
 
-Last refreshed: **2026-02-26** (README + tooling/test cross-check)
+## 10. Scope / setup note
+
+This repo is a **personal Cortana setup for one human on one machine**. It assumes:
+
+- macOS with local PostgreSQL and OpenClaw installed
+- Hamel’s directory layout (`~/clawd`, `~/Developer/cortana-external`, etc.)
+- Local skills configured via OpenClaw (see `skills/`)
+
+It is **not** a generic framework or turnkey product. You can read it for ideas, but expect to adapt heavily if you try to replicate it elsewhere.
