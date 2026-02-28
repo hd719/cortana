@@ -15,7 +15,8 @@ if (args.length < 3) {
 }
 
 const [category, severity, summary, detailsJsonRaw, agentIdRaw, taskIdRaw] = args;
-const detailsJson = detailsJsonRaw && detailsJsonRaw.trim() !== "" ? detailsJsonRaw : "{}";
+const detailsJson =
+  detailsJsonRaw !== undefined && detailsJsonRaw !== "" ? detailsJsonRaw : "{}";
 const agentId = agentIdRaw ?? "";
 const taskId = taskIdRaw ?? "";
 const source = "user";

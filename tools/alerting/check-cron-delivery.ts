@@ -53,7 +53,7 @@ for (const job of jobs) {
     lastRunMs = Math.trunc(lastRunRaw);
   } else if (typeof lastRunRaw === "string") {
     const trimmed = lastRunRaw.trim();
-    if (/^\d+$/.test(trimmed)) {
+    if (/^[+-]?\d+$/.test(trimmed)) {
       lastRunMs = Number.parseInt(trimmed, 10);
     }
   }

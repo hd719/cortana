@@ -59,7 +59,7 @@ function parseTs(value: unknown, allowZero = false): number {
   if (typeof value === "string") {
     const s = value.trim();
     if (!s) throw new Error("empty timestamp string");
-    if (/^\d+$/.test(s)) return parseTs(Number(s), allowZero);
+    if (/^\d+$/.test(s)) return parseTs(Number(s), false);
 
     const parsed = Date.parse(s.replace(/Z$/, "+00:00"));
     if (Number.isNaN(parsed)) throw new Error("invalid iso timestamp");

@@ -15,7 +15,7 @@ if (args.length < 3) {
 
 const [feedbackId, actionType, description, actionRefRaw, statusRaw] = args;
 const actionRef = actionRefRaw ?? "";
-const status = statusRaw ?? "planned";
+const status = statusRaw !== undefined && statusRaw !== "" ? statusRaw : "planned";
 
 const isUuid = (value: string) =>
   /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(

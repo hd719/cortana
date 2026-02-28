@@ -114,7 +114,10 @@ const reasoning = reasoningRaw ?? "";
 const confidence = confidenceRaw ?? "";
 const eventId = "";
 const taskId = "";
-const dataInputs = dataInputsRaw && dataInputsRaw.trim() !== "" ? dataInputsRaw : stringifyJson({});
+const dataInputs =
+  dataInputsRaw !== undefined && dataInputsRaw !== \"\"
+    ? dataInputsRaw
+    : stringifyJson({});
 const traceId = randomUUID().toLowerCase();
 
 const sql = `
