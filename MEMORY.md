@@ -86,7 +86,7 @@
 
 - **README sync**: README.md must reflect crons, agents, integrations, and major system changes.
 - **Document as you go**: when a decision or change matters long-term, update the right doc immediately.
-- **Cron definitions**: version-controlled in `config/cron/jobs.json`; runtime `~/.openclaw/cron/jobs.json` is a symlink. Edit in repo; changes go live via symlink.
+- **Cron definitions**: runtime source of truth is `~/.openclaw/cron/jobs.json`. Gateway overwrites symlinks on restart, so edit runtime directly. Sync to `config/cron/jobs.json` in repo as version-controlled backup after changes.
 - **Symlinks**: any repo↔runtime symlink must be documented in both MEMORY.md and TOOLS.md.
 - **Post-update integrity**: after every OpenClaw update, verify critical symlinks (especially `~/.openclaw/cron/jobs.json`) and self-heal drift immediately.
 - **Delivery integrity**: cron/heartbeat health checks must validate both run execution and message delivery (`lastDeliveryStatus` / `lastDelivered`), not execution alone.
