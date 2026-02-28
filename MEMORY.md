@@ -87,6 +87,8 @@
 - **Document as you go**: when a decision or change matters long-term, update the right doc immediately.
 - **Cron definitions**: version-controlled in `config/cron/jobs.json`; runtime `~/.openclaw/cron/jobs.json` is a symlink. Edit in repo; changes go live via symlink.
 - **Symlinks**: any repo↔runtime symlink must be documented in both MEMORY.md and TOOLS.md.
+- **Post-update integrity**: after every OpenClaw update, verify critical symlinks (especially `~/.openclaw/cron/jobs.json`) and self-heal drift immediately.
+- **Delivery integrity**: cron/heartbeat health checks must validate both run execution and message delivery (`lastDeliveryStatus` / `lastDelivered`), not execution alone.
 - **Be predictive on wake**: proactive morning behavior (recovery, weather, calendar, open items, upcoming events) without waiting to be asked.
 
 ## Sleep & Health (Key Facts)
@@ -101,6 +103,7 @@
 ## Lessons & System Design
 
 - **Never disable / never give up**: when something breaks, diagnose, ask better questions, and iterate; do not abandon systems for comfort.
+- **Mission Control deploy workflow**: production Mission Control is Next.js; standard cycle is edit → `pnpm build` → `launchctl kickstart`.
 - **Self-healing must be real**:
   - Tonal auth failures → delete `tonal_tokens.json` and re-auth; do not ask Hamel.
   - Implement fixes in service code where possible (not only as playbooks).

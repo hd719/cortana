@@ -1,40 +1,68 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
-# 1. Check Tonal tokens
-if [ -f ~/Developer/cortana-external/tonal_tokens.json ]; then
-  TONAL_STATUS=$(cat ~/Developer/cortana-external/tonal_tokens.json | python3 -c 'import sys,json; t=json.load(sys.stdin); print("tonal: ok" if t.get("access_token") else "tonal: NO TOKEN")')
+# 1. Tonal tokens
+if [[ -f "$HOME/Developer/cortana-external/tonal_tokens.json" ]]; then
+  TONAL_STATUS=$(python3 - << 'PYEOF'
+import json, pathlib
+p = pathlib.Path.home() / 'Developer' / 'cortana-external' / 'tonal_tokens.json'
+try:
+    t = json.loads(p.read_text())
+    print('tonal: ok' if t.get('access_token') else 'tonal: NO TOKEN')
+except Exception:
+    print('tonal: NO TOKEN')
+PYEOF
+  )
 else
-  TONAL_STATUS='tonal: NO TOKEN'
+  TONAL_STATUS="tonal: NO TOKEN"
 fi
 
-# 2. Check services
-if command -v pg_isready >/dev/null 2>&1; then
-  PG_STATUS=$(pg_isready -q && echo 'postgres: ok' || echo 'postgres: DOWN')
-else
-  PG_STATUS='postgres: DOWN'
-fi
+# 2. Services
+PG_OK=1
+pg_isready -q 2>/dev/null || PG_OK=0
+GATEWAY_OK=1
+curl -sf http://localhost:18800/json > /dev/null 2>&1 || GATEWAY_OK=0
 
-if curl -sf http://localhost:18800/json >/dev/null 2>&1; then
-  GATEWAY_STATUS='gateway: ok'
-else
-  GATEWAY_STATUS='gateway: DOWN'
-fi
+# 3. Disk usage (% as integer)
+DISK_USE=$(df -h / | tail -1 | awk '{gsub("%","",$5); print $5}')
 
-# 3. Check disk (not used for output here)
-df -h / >/dev/null 2>&1 || true
-
-# 4. Check session files over 400KB
-SESSION_FIND_OUTPUT=$(find ~/.openclaw/agents/main/sessions -name '*.jsonl' -size +400k 2>/dev/null || true)
-AUTOHEAL_MSG=""
-if [ -n "${SESSION_FIND_OUTPUT}" ]; then
-  echo "${SESSION_FIND_OUTPUT}" | xargs rm -f || true
+# 4. Oversized session files
+OVERSIZED=$(find "$HOME/.openclaw/agents/main/sessions" -name '*.jsonl' -size +400k 2>/dev/null | wc -l | tr -d ' ')
+AUTO_HEALED=0
+if [[ "$OVERSIZED" =~ ^[0-9]+$ ]] && [ "$OVERSIZED" -gt 0 ]; then
+  find "$HOME/.openclaw/agents/main/sessions" -name '*.jsonl' -size +400k -delete 2>/dev/null || true
+  export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
   psql cortana -c "INSERT INTO cortana_events (event_type, source, severity, message) VALUES ('auto_heal', 'immune_scan', 'info', 'Cleaned oversized session');" >/dev/null 2>&1 || true
-  AUTOHEAL_MSG='autoheal: cleaned oversized session files'
+  AUTO_HEALED=1
 fi
 
-# Filter output: only non-ok or autoheal
-if [ "${TONAL_STATUS}" != 'tonal: ok' ]; then echo "${TONAL_STATUS}"; fi
-if [ "${PG_STATUS}" != 'postgres: ok' ]; then echo "${PG_STATUS}"; fi
-if [ "${GATEWAY_STATUS}" != 'gateway: ok' ]; then echo "${GATEWAY_STATUS}"; fi
-if [ -n "${AUTOHEAL_MSG}" ]; then echo "${AUTOHEAL_MSG}"; fi
+OUTPUT=""
+
+if [[ "$TONAL_STATUS" != "tonal: ok" ]]; then
+  OUTPUT+="$TONAL_STATUS
+"
+fi
+
+if [ $PG_OK -eq 0 ]; then
+  OUTPUT+="postgres: DOWN
+"
+fi
+
+if [ $GATEWAY_OK -eq 0 ]; then
+  OUTPUT+="gateway: DOWN
+"
+fi
+
+if [[ "$DISK_USE" =~ ^[0-9]+$ ]] && [ "$DISK_USE" -ge 90 ]; then
+  OUTPUT+="disk: ${DISK_USE}%
+"
+fi
+
+if [ $AUTO_HEALED -eq 1 ]; then
+  OUTPUT+="auto-heal: cleaned oversized session files
+"
+fi
+
+if [ -n "$OUTPUT" ]; then
+  printf "%s" "$OUTPUT" | sed 's/[[:space:]]*$//'
+fi

@@ -1,0 +1,41 @@
+{
+  "date": "2026-02-27",
+  "evening": {
+    "timestamp": "2026-02-27 08:34 PM EST",
+    "data_sources": {
+      "whoop_api": "ok",
+      "tonal_api": "ok",
+      "tonal_health": "healthy"
+    },
+    "recovery_baseline": null,
+    "today": {
+      "whoop_workouts_count": 2,
+      "tonal_workouts_count": 1,
+      "day_strain": 13.836439,
+      "kilojoules": 8200.831,
+      "max_hr": 159,
+      "activity_breakdown": [
+        {
+          "sport": "weightlifting",
+          "strain": 9.476516,
+          "start": "2026-02-27T10:43:19.407Z"
+        },
+        {
+          "sport": "running",
+          "strain": 10.039092,
+          "start": "2026-02-27T11:23:23.135Z"
+        }
+      ]
+    },
+    "weekly_progress": {
+      "days_trained": 3,
+      "weekly_strain_avg": 11.18,
+      "weekly_sleep_avg_hours": 9.53
+    },
+    "sleep_recommendation": {
+      "target_bedtime": "9:15 PM",
+      "sleep_need_hours": null
+    },
+    "insights_delivered": []
+  }
+}
