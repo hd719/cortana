@@ -2,11 +2,10 @@
 
 import fs from "fs";
 import path from "path";
-import { spawnSync } from "child_process";
 import { resolveRepoPath } from "../lib/paths.js";
+import { query } from "../lib/db.js";
 
 const ROOT = resolveRepoPath();
-const DB_PATH = "/opt/homebrew/opt/postgresql@17/bin";
 
 const TARGET_FILES: Record<string, string> = {
   preference: path.join(ROOT, "MEMORY.md"),
@@ -33,14 +32,7 @@ function sqlEscape(text: string): string {
 }
 
 function runPsql(sql: string): string {
-  const env = { ...process.env };
-  env.PATH = `${DB_PATH}:${env.PATH ?? ""}`;
-  const cmd = ["psql", "cortana", "-q", "-X", "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", sql];
-  const res = spawnSync(cmd[0], cmd.slice(1), { encoding: "utf8", env });
-  if (res.status !== 0) {
-    throw new Error((res.stderr || "psql failed").trim());
-  }
-  return (res.stdout || "").trim();
+  return query(sql).trim();
 }
 
 function fetchJson(sql: string): Array<Record<string, any>> {
@@ -272,6 +264,11 @@ function run(triggerSource: string, mode: string, windowDays: number, taskId: nu
   }
 }
 
+function printHelp(): void {
+  const text = `usage: reflect.ts [-h] [--mode {sweep,task}] [--trigger-source {manual,heartbeat,post_task,cron}] [--window-days WINDOW_DAYS] [--task-id TASK_ID] [--auto-apply-threshold AUTO_APPLY_THRESHOLD]\n\nCortana reflection loop\n\noptions:\n  -h, --help            show this help message and exit\n  --mode {sweep,task}\n  --trigger-source {manual,heartbeat,post_task,cron}\n  --window-days WINDOW_DAYS\n  --task-id TASK_ID\n  --auto-apply-threshold AUTO_APPLY_THRESHOLD`;
+  console.log(text);
+}
+
 type Args = {
   mode: string;
   triggerSource: string;
@@ -292,7 +289,10 @@ function parseArgs(argv: string[]): Args {
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     const next = argv[i + 1];
-    if (arg === "--mode" && next) {
+    if (arg === "-h" || arg === "--help") {
+      printHelp();
+      process.exit(0);
+    } else if (arg === "--mode" && next) {
       args.mode = next;
       i += 1;
     } else if (arg === "--trigger-source" && next) {
@@ -307,22 +307,30 @@ function parseArgs(argv: string[]): Args {
     } else if (arg === "--auto-apply-threshold" && next) {
       args.autoApplyThreshold = Number.parseFloat(next);
       i += 1;
+    } else if (arg.startsWith("-")) {
+      console.error(`Unknown argument: ${arg}`);
+      printHelp();
+      process.exit(2);
     }
   }
 
   return args;
 }
 
-const args = parseArgs(process.argv.slice(2));
-if (args.mode === "task" && !args.taskId) {
-  console.error("--task-id is required for --mode task");
-  process.exit(2);
+async function main(): Promise<void> {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.mode === "task" && !args.taskId) {
+    console.error("--task-id is required for --mode task");
+    process.exit(2);
+  }
+
+  try {
+    run(args.triggerSource, args.mode, args.windowDays, args.taskId, args.autoApplyThreshold);
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(msg);
+    process.exit(1);
+  }
 }
 
-try {
-  run(args.triggerSource, args.mode, args.windowDays, args.taskId, args.autoApplyThreshold);
-} catch (error) {
-  const msg = error instanceof Error ? error.message : String(error);
-  console.error(msg);
-  process.exit(1);
-}
+main();

@@ -4,6 +4,9 @@ import { spawnSync } from "child_process";
 import http from "http";
 import https from "https";
 import { URL } from "url";
+import { query } from "../lib/db.js";
+
+const ET_TZ = "America/New_York";
 
 const STOPWORDS = new Set([
   "the", "and", "for", "with", "from", "that", "this", "your", "have", "will", "you", "about", "re", "fw", "fwd",
@@ -11,14 +14,14 @@ const STOPWORDS = new Set([
 ]);
 
 const SECTOR_ETFS: Record<string, string> = {
-  "Technology": "XLK",
+  Technology: "XLK",
   "Financial Services": "XLF",
-  "Healthcare": "XLV",
+  Healthcare: "XLV",
   "Consumer Cyclical": "XLY",
   "Consumer Defensive": "XLP",
-  "Energy": "XLE",
-  "Industrials": "XLI",
-  "Utilities": "XLU",
+  Energy: "XLE",
+  Industrials: "XLI",
+  Utilities: "XLU",
   "Real Estate": "XLRE",
   "Basic Materials": "XLB",
   "Communication Services": "XLC",
@@ -70,14 +73,7 @@ function sqlEscape(text: string): string {
 }
 
 function runPsql(sql: string): string {
-  const env = { ...process.env };
-  env.PATH = `/opt/homebrew/opt/postgresql@17/bin:${env.PATH ?? ""}`;
-  const cmd = ["psql", "cortana", "-q", "-X", "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", sql];
-  const out = spawnSync(cmd[0], cmd.slice(1), { encoding: "utf8", env });
-  if (out.status !== 0) {
-    throw new Error((out.stderr || "psql failed").trim());
-  }
-  return (out.stdout || "").trim();
+  return query(sql).trim();
 }
 
 function fetchJsonFromSql(sql: string): Array<Record<string, unknown>> {
@@ -116,25 +112,115 @@ async function httpJson(url: string, timeout = 8000): Promise<unknown> {
   return JSON.parse(text);
 }
 
+type ZonedParts = {
+  year: number;
+  month: number;
+  day: number;
+  hour: number;
+  minute: number;
+  second: number;
+};
+
+const ET_PARTS = new Intl.DateTimeFormat("en-US", {
+  timeZone: ET_TZ,
+  year: "numeric",
+  month: "2-digit",
+  day: "2-digit",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hour12: false,
+});
+
+function getEtParts(date: Date): ZonedParts {
+  const parts = ET_PARTS.formatToParts(date);
+  const lookup: Record<string, string> = {};
+  for (const part of parts) {
+    lookup[part.type] = part.value;
+  }
+  return {
+    year: Number(lookup.year),
+    month: Number(lookup.month),
+    day: Number(lookup.day),
+    hour: Number(lookup.hour),
+    minute: Number(lookup.minute),
+    second: Number(lookup.second),
+  };
+}
+
+function getEtOffsetMinutes(date: Date): number {
+  const parts = getEtParts(date);
+  const asUtc = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  return Math.round((asUtc - date.getTime()) / 60000);
+}
+
+function formatOffset(offsetMinutes: number): string {
+  const sign = offsetMinutes >= 0 ? "+" : "-";
+  const abs = Math.abs(offsetMinutes);
+  const hours = String(Math.floor(abs / 60)).padStart(2, "0");
+  const minutes = String(abs % 60).padStart(2, "0");
+  return `${sign}${hours}:${minutes}`;
+}
+
+function toEtISOString(date: Date): string {
+  const parts = getEtParts(date);
+  const ms = date.getMilliseconds();
+  const frac = ms ? `.${String(ms).padStart(3, "0")}` : "";
+  const offset = formatOffset(getEtOffsetMinutes(date));
+  return (
+    `${String(parts.year).padStart(4, "0")}-` +
+    `${String(parts.month).padStart(2, "0")}-` +
+    `${String(parts.day).padStart(2, "0")}T` +
+    `${String(parts.hour).padStart(2, "0")}:` +
+    `${String(parts.minute).padStart(2, "0")}:` +
+    `${String(parts.second).padStart(2, "0")}` +
+    `${frac}${offset}`
+  );
+}
+
+function formatEtDate(date: Date): string {
+  const parts = getEtParts(date);
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}-${String(parts.day).padStart(2, "0")}`;
+}
+
+function makeEtDate(year: number, month: number, day: number, hour = 0, minute = 0, second = 0, ms = 0): Date {
+  const utcGuess = new Date(Date.UTC(year, month - 1, day, hour, minute, second, ms));
+  const offsetMinutes = getEtOffsetMinutes(utcGuess);
+  return new Date(utcGuess.getTime() - offsetMinutes * 60000);
+}
+
 function parseDt(value: string | null | undefined): Date | null {
   if (!value) return null;
-  try {
-    if (value.endsWith("Z")) {
-      return new Date(value.replace("Z", "+00:00"));
-    }
-    const d = new Date(value);
-    if (!Number.isNaN(d.getTime())) return d;
-  } catch {
-    // fall through
+  const text = String(value).trim();
+  if (!text) return null;
+
+  const dateOnly = text.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (dateOnly) {
+    const year = Number(dateOnly[1]);
+    const month = Number(dateOnly[2]);
+    const day = Number(dateOnly[3]);
+    return makeEtDate(year, month, day);
   }
 
-  try {
-    const raw = value.slice(0, 10);
-    const d = new Date(raw);
-    if (!Number.isNaN(d.getTime())) return d;
-  } catch {
-    return null;
+  if (/^\d+$/.test(text)) return null;
+
+  if (text.endsWith("Z")) {
+    const d = new Date(text.replace("Z", "+00:00"));
+    return Number.isNaN(d.getTime()) ? null : d;
   }
+
+  const d = new Date(text);
+  if (!Number.isNaN(d.getTime())) return d;
+
+  const prefix = text.slice(0, 10);
+  const prefixMatch = prefix.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (prefixMatch) {
+    const year = Number(prefixMatch[1]);
+    const month = Number(prefixMatch[2]);
+    const day = Number(prefixMatch[3]);
+    return makeEtDate(year, month, day);
+  }
+
   return null;
 }
 
@@ -159,9 +245,15 @@ function tokenize(text: string): Set<string> {
   return new Set(toks.filter((t) => !STOPWORDS.has(t)));
 }
 
+function weekdayIndexEt(now: Date): number {
+  const parts = getEtParts(now);
+  const dow = new Date(Date.UTC(parts.year, parts.month - 1, parts.day)).getUTCDay();
+  return dow === 0 ? 6 : dow - 1;
+}
+
 async function collectCalendar(now: Date): Promise<Signal[]> {
   const calId = process.env.PROACTIVE_CALENDAR_ID ?? "primary";
-  const toDt = new Date(now.getTime() + 48 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const toDt = formatEtDate(new Date(now.getTime() + 48 * 60 * 60 * 1000));
   const events = gogJson(["calendar", "events", calId, "--from", "today", "--to", toDt]);
 
   const parsed: Array<Record<string, any>> = [];
@@ -216,7 +308,7 @@ async function collectCalendar(now: Date): Promise<Signal[]> {
           confidence: Math.min(conf, 0.95),
           severity: mins <= 90 ? "high" : "medium",
           opportunity: false,
-          starts_at: ev.start.toISOString(),
+          starts_at: toEtISOString(ev.start),
           metadata: { event_id: ev.id, minutes_until: mins },
         })
       );
@@ -232,7 +324,7 @@ async function collectCalendar(now: Date): Promise<Signal[]> {
           confidence: mins > 60 ? 0.67 : 0.77,
           severity: "medium",
           opportunity: false,
-          starts_at: ev.start.toISOString(),
+          starts_at: toEtISOString(ev.start),
           metadata: { event_id: ev.id, location: ev.location },
         })
       );
@@ -251,7 +343,7 @@ async function collectCalendar(now: Date): Promise<Signal[]> {
             confidence: gap <= 0 ? 0.78 : 0.69,
             severity: gap <= 0 ? "high" : "medium",
             opportunity: false,
-            starts_at: ev.start.toISOString(),
+            starts_at: toEtISOString(ev.start),
             metadata: { event_a: ev.id, event_b: nxt.id, gap_minutes: gap },
           })
         );
@@ -333,7 +425,7 @@ async function collectPortfolio(now: Date): Promise<Signal[]> {
             confidence: 0.86,
             severity: "high",
             opportunity: false,
-            starts_at: nextEarn.toISOString(),
+            starts_at: toEtISOString(nextEarn),
             metadata: { symbol: sym, hours_until: hrs },
           })
         );
@@ -494,8 +586,9 @@ async function collectEmail(now: Date): Promise<Signal[]> {
 }
 
 async function collectBehavioral(now: Date): Promise<Signal[]> {
-  const dow = now.getDay() === 0 ? 6 : now.getDay() - 1;
-  const hour = now.getHours();
+  const dow = weekdayIndexEt(now);
+  const nowParts = getEtParts(now);
+  const hour = nowParts.hour;
   const rows = fetchJsonFromSql(
     "SELECT pattern_type, value, day_of_week, metadata, COUNT(*)::int AS n " +
       "FROM cortana_patterns " +
@@ -508,18 +601,13 @@ async function collectBehavioral(now: Date): Promise<Signal[]> {
     const ptype = r.pattern_type as string | undefined;
     const value = String(r.value ?? "");
     const n = Number(r.n ?? 0);
-    let target: Date | null = null;
 
     const match = value.match(/^(\d{1,2}):(\d{2})$/);
-    if (match) {
-      const hourVal = Number(match[1]);
-      const minVal = Number(match[2]);
-      const t = new Date(now);
-      t.setHours(hourVal, minVal, 0, 0);
-      target = t;
-    }
+    if (!match || !ptype) continue;
 
-    if (!target || !ptype) continue;
+    const hourVal = Number(match[1]);
+    const minVal = Number(match[2]);
+    const target = makeEtDate(nowParts.year, nowParts.month, nowParts.day, hourVal, minVal, 0, 0);
 
     const deltaM = Math.abs(Math.floor((target.getTime() - now.getTime()) / 60000));
     if (deltaM <= 90 && ["wake", "sleep_check"].includes(ptype)) {
@@ -533,7 +621,7 @@ async function collectBehavioral(now: Date): Promise<Signal[]> {
           confidence: conf,
           severity: "low",
           opportunity: true,
-          starts_at: target.toISOString(),
+          starts_at: toEtISOString(target),
           metadata: { pattern_type: ptype, value, count: n, current_hour: hour },
         })
       );
@@ -556,19 +644,20 @@ function correlate(signals: Signal[]): Signal[] {
       const overlap = [...cTokens].filter((t) => eTokens.has(t));
       if (overlap.length >= 2) {
         const conf = Math.min(0.68 + 0.04 * overlap.length, 0.93);
+        const sorted = overlap.sort();
         out.push(
           new Signal({
             source: "cross_signal",
             signal_type: "calendar_email_correlation",
             title: "Meeting prep likely needed from email context",
-            summary: `Calendar + email overlap: ${overlap.sort().slice(0, 5).join(", ")}`,
+            summary: `Calendar + email overlap: ${sorted.slice(0, 5).join(", ")}`,
             confidence: conf,
             severity: conf >= 0.8 ? "high" : "medium",
             opportunity: false,
             metadata: {
               calendar_title: c.title,
               email_title: e.title,
-              token_overlap: overlap.sort().slice(0, 8),
+              token_overlap: sorted.slice(0, 8),
             },
           })
         );
@@ -647,7 +736,7 @@ function parseArgs(argv: string[]): Args {
 async function main(): Promise<number> {
   const args = parseArgs(process.argv.slice(2));
   const now = new Date();
-  const started = now.toISOString();
+  const started = toEtISOString(now);
 
   const runId = Number(
     runPsql(
@@ -662,7 +751,8 @@ async function main(): Promise<number> {
     try {
       allSignals.push(...(await collector(now)));
     } catch (error) {
-      errors.push(`${collector.name}: ${error}`);
+      const msg = error instanceof Error ? error.message : String(error);
+      errors.push(`${collector.name}: ${msg}`);
     }
   }
 
@@ -676,7 +766,9 @@ async function main(): Promise<number> {
           run_id: runId,
           started,
           min_confidence: args.minConfidence,
-          signals: allSignals.filter((s) => s.confidence >= args.minConfidence).map((s) => ({ ...s })),
+          signals: allSignals
+            .filter((s) => s.confidence >= args.minConfidence)
+            .map((s) => ({ ...s })),
           errors,
         },
         null,
@@ -715,4 +807,10 @@ async function main(): Promise<number> {
   return 0;
 }
 
-main().then((code) => process.exit(code));
+main()
+  .then((code) => process.exit(code))
+  .catch((error) => {
+    const msg = error instanceof Error ? error.message : String(error);
+    console.error(msg);
+    process.exit(1);
+  });
