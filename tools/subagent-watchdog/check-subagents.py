@@ -20,6 +20,7 @@ FAIL_STATUSES = {"failed", "error", "aborted", "timeout", "timed_out", "cancelle
 TELEGRAM_GUARD = Path("/Users/hd/openclaw/tools/notifications/telegram-delivery-guard.sh")
 COMPLETION_SYNC = Path("/Users/hd/openclaw/tools/task-board/completion-sync.sh")
 DB_NAME = "cortana"
+RUN_STORE_PATH = Path(os.environ.get("OPENCLAW_SUBAGENT_RUNS_PATH", os.path.expanduser("~/.openclaw/subagents/runs.json")))
 
 
 def now_ms() -> int:
@@ -79,6 +80,73 @@ def save_json(path: Path, data: Any) -> None:
         tmp_name = tmp.name
 
     os.replace(tmp_name, path)
+
+
+def _terminal_status_from_reason(item: dict[str, Any]) -> str:
+    code = str(item.get("reasonCode") or "").lower()
+    status = str(item.get("status") or "").lower()
+
+    if code == "runtime_exceeded" or status in {"timeout", "timed_out"}:
+        return "timeout"
+    if status in {"aborted", "cancelled", "canceled", "killed"}:
+        return "killed"
+    if code == "aborted_last_run":
+        return "failed"
+    return "failed"
+
+
+def emit_terminal_to_run_store(
+    session_key: str,
+    session_id: str,
+    label: str | None,
+    reason_code: str,
+    reason_detail: str | None,
+    run_store_path: Path = RUN_STORE_PATH,
+) -> tuple[bool, str | None, bool]:
+    payload = load_json(run_store_path, {})
+    if not isinstance(payload, dict):
+        payload = {}
+
+    runs = payload.get("runs")
+    if not isinstance(runs, dict):
+        return False, "runs.json missing runs object", False
+
+    session_id = str(session_id or "")
+    match_key = None
+    for key, record in runs.items():
+        if not isinstance(record, dict):
+            continue
+        if session_id and (
+            str(record.get("childSessionKey") or "") == session_id
+            or str(record.get("runId") or "") == session_id
+        ):
+            match_key = key
+            break
+
+    if not match_key:
+        return True, None, False
+
+    record = runs[match_key]
+    if not isinstance(record, dict):
+        return False, f"invalid run record for {match_key}", False
+
+    record["endedAt"] = now_ms()
+    record["endedReason"] = str(reason_code or "watchdog_terminal")
+    outcome = record.get("outcome") if isinstance(record.get("outcome"), dict) else {}
+    outcome["status"] = "failed"
+    record["outcome"] = outcome
+    runs[match_key] = record
+
+    run_store_path.parent.mkdir(parents=True, exist_ok=True)
+    serialized = json.dumps(payload, indent=2) + "\n"
+    with tempfile.NamedTemporaryFile("w", dir=str(run_store_path.parent), delete=False) as tmp:
+        tmp.write(serialized)
+        tmp.flush()
+        os.fsync(tmp.fileno())
+        tmp_name = tmp.name
+    os.replace(tmp_name, run_store_path)
+
+    return True, None, True
 
 
 def resolve_psql() -> str:
@@ -300,9 +368,9 @@ def run_completion_sync() -> tuple[bool, str | None]:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Detect sub-agent failures/timeouts and emit JSON")
-    parser.add_argument("--max-runtime-seconds", type=int, default=300)
+    parser.add_argument("--max-runtime-seconds", type=int, default=180)
     parser.add_argument("--active-minutes", type=int, default=1440)
-    parser.add_argument("--cooldown-seconds", type=int, default=21600)
+    parser.add_argument("--cooldown-seconds", type=int, default=3600)
     parser.add_argument(
         "--state-file",
         default=os.path.expanduser("~/openclaw/memory/heartbeat-state.json"),
@@ -310,6 +378,8 @@ def main() -> int:
     )
     parser.add_argument("--all-agents", action="store_true", default=True)
     parser.add_argument("--no-all-agents", dest="all_agents", action="store_false")
+    parser.add_argument("--emit-terminal", dest="emit_terminal", action="store_true", default=True)
+    parser.add_argument("--no-emit-terminal", dest="emit_terminal", action="store_false")
     args = parser.parse_args()
 
     now = now_ms()
@@ -327,6 +397,7 @@ def main() -> int:
             "activeMinutes": args.active_minutes,
             "cooldownSeconds": args.cooldown_seconds,
             "allAgents": args.all_agents,
+            "emitTerminal": args.emit_terminal,
         },
         "summary": {
             "sessionsScanned": 0,
@@ -335,6 +406,7 @@ def main() -> int:
             "loggedEvents": 0,
             "alertsSent": 0,
             "tasksUpdated": 0,
+            "terminalsEmitted": 0,
             "logErrors": 0,
         },
         "failedAgents": [],
@@ -410,6 +482,21 @@ def main() -> int:
             output["logErrors"].append({"signature": f"{signature}|task", "error": f"task_update_failed: {task_err}"})
 
         if in_cooldown:
+            if args.emit_terminal:
+                emit_ok, emit_err, matched = emit_terminal_to_run_store(
+                    session_key=item["key"],
+                    session_id=str(item.get("sessionId") or item.get("runId") or ""),
+                    label=item.get("label"),
+                    reason_code=str(item.get("reasonCode") or "watchdog_terminal"),
+                    reason_detail=item.get("reasonDetail"),
+                )
+                item["terminalEmitted"] = bool(emit_ok and matched)
+                item["terminalMatched"] = bool(matched)
+                if emit_ok and matched:
+                    output["summary"]["terminalsEmitted"] += 1
+                elif emit_err:
+                    output["summary"]["logErrors"] += 1
+                    output["logErrors"].append({"signature": f"{signature}|terminal", "error": f"terminal_emit_failed: {emit_err}"})
             output["failedAgents"].append(item)
             continue
 
@@ -428,6 +515,23 @@ def main() -> int:
         else:
             output["summary"]["logErrors"] += 1
             output["logErrors"].append({"signature": signature, "error": err})
+
+        if args.emit_terminal:
+            emit_ok, emit_err, matched = emit_terminal_to_run_store(
+                session_key=item["key"],
+                session_id=str(item.get("sessionId") or item.get("runId") or ""),
+                label=item.get("label"),
+                reason_code=str(item.get("reasonCode") or "watchdog_terminal"),
+                reason_detail=item.get("reasonDetail"),
+            )
+            item["terminalEmitted"] = bool(emit_ok and matched)
+            item["terminalMatched"] = bool(matched)
+            if emit_ok and matched:
+                output["summary"]["terminalsEmitted"] += 1
+            elif emit_err:
+                output["summary"]["logErrors"] += 1
+                output["logErrors"].append({"signature": f"{signature}|terminal", "error": f"terminal_emit_failed: {emit_err}"})
+
         output["failedAgents"].append(item)
 
     state.setdefault("subagentWatchdog", {})
