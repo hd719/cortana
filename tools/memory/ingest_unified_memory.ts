@@ -2,11 +2,12 @@
 
 import fs from "fs";
 import path from "path";
-import { spawn } from "child_process";
+import { spawn, spawnSync } from "child_process";
 import { createHash } from "crypto";
 import { createInterface } from "readline";
+import { resolveRepoPath } from "../lib/paths.js";
 
-const WORKSPACE = "/Users/hd/openclaw";
+const WORKSPACE = resolveRepoPath();
 const MEMORY_DIR = path.join(WORKSPACE, "memory");
 const PSQL = "/opt/homebrew/opt/postgresql@17/bin/psql";
 const DB = "cortana";
@@ -20,28 +21,26 @@ class PsqlSession {
   private exitCode: number | null = null;
 
   constructor(dbName: string) {
-    this.proc = spawn(PSQL, [dbName, "-q", "-v", "ON_ERROR_STOP=1", "-At"], {
-      stdio: ["pipe", "pipe", "pipe"],
-    });
+    const cmd = `${PSQL} ${dbName} -q -v ON_ERROR_STOP=1 -At 2>&1`;
+    this.proc = spawn("bash", ["-c", cmd], { stdio: ["pipe", "pipe", "pipe"] });
 
-    const handleLine = (line: string) => {
+    const stdoutRl = createInterface({ input: this.proc.stdout });
+    stdoutRl.on("line", (line) => {
       if (this.lineResolvers.length > 0) {
         const resolve = this.lineResolvers.shift();
         resolve?.(line);
       } else {
         this.lineQueue.push(line);
       }
-    };
-
-    const stdoutRl = createInterface({ input: this.proc.stdout });
-    stdoutRl.on("line", handleLine);
-
-    const stderrRl = createInterface({ input: this.proc.stderr });
-    stderrRl.on("line", handleLine);
+    });
 
     this.proc.on("close", (code) => {
       this.closed = true;
       this.exitCode = code ?? null;
+      while (this.lineResolvers.length > 0) {
+        const resolve = this.lineResolvers.shift();
+        resolve?.("");
+      }
     });
   }
 
@@ -116,23 +115,22 @@ function fp(...parts: Array<string | undefined | null>): string {
   return h.digest("hex").slice(0, 32);
 }
 
-async function qualityGate(text: string, enabled: boolean, dry: boolean): Promise<Record<string, unknown>> {
+function formatUtcIso(date: Date): string {
+  return date.toISOString().replace("Z", "+00:00");
+}
+
+function qualityGate(text: string, enabled: boolean, dry: boolean): Record<string, unknown> {
   if (!enabled) return { verdict: "promote" };
-  const gate = path.join(WORKSPACE, "tools", "memory", "memory_quality_gate.py");
+  const gate = path.join(WORKSPACE, "tools", "memory", "memory_quality_gate.ts");
   if (!fs.existsSync(gate)) {
     return { verdict: "promote", reason: "gate_missing" };
   }
   try {
-    const proc = spawn("python3", [gate, "--text", text, "--dry-run"], { stdio: ["ignore", "pipe", "pipe"] });
-    const chunks: Buffer[] = [];
-    for await (const chunk of proc.stdout) {
-      chunks.push(Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk));
-    }
-    const out = Buffer.concat(chunks).toString("utf8");
-    const status = await new Promise<number>((resolve) => proc.on("close", (code) => resolve(code ?? 1)));
-    if (status !== 0) return { verdict: "hold", reason: "gate_error" };
-    const data = JSON.parse(out.trim() || "{}");
-    return data && typeof data === "object" ? data : { verdict: "hold" };
+    const proc = spawnSync(gate, ["--text", text, "--dry-run"], { encoding: "utf8" });
+    if (proc.status !== 0) return { verdict: "hold", reason: "gate_error" };
+    const raw = (proc.stdout || "").trim() || "{}";
+    const data = JSON.parse(raw);
+    return data && typeof data === "object" && !Array.isArray(data) ? data : { verdict: "hold" };
   } catch {
     return { verdict: "hold", reason: "gate_exception" };
   }
@@ -188,13 +186,29 @@ async function markRunFailed(db: PsqlSession, runId: number, err: string, dry: b
   );
 }
 
-async function prov(db: PsqlSession, runId: number, tier: string, memoryId: number, stype: string, sref: string, shash: string, dry: boolean): Promise<boolean> {
+async function prov(
+  db: PsqlSession,
+  runId: number,
+  tier: string,
+  memoryId: number,
+  stype: string,
+  sref: string,
+  shash: string,
+  dry: boolean
+): Promise<boolean> {
   const sql = `INSERT INTO cortana_memory_provenance (memory_tier, memory_id, source_type, source_ref, source_hash, ingest_run_id, extractor_version) VALUES (${q(tier)}, ${memoryId}, ${q(stype)}, ${q(sref)}, ${q(shash)}, ${runId < 0 ? "NULL" : runId}, 'v1') ON CONFLICT (memory_tier, memory_id, source_type, source_ref) DO NOTHING RETURNING id;`;
   if (dry) return true;
   return Boolean(await db.queryValue(sql));
 }
 
-async function ingestDaily(db: PsqlSession, runId: number, since: Date, counts: Record<string, number>, dry: boolean, useQualityGate: boolean): Promise<void> {
+async function ingestDaily(
+  db: PsqlSession,
+  runId: number,
+  since: Date,
+  counts: Record<string, number>,
+  dry: boolean,
+  useQualityGate: boolean
+): Promise<void> {
   const files = fs.readdirSync(MEMORY_DIR).filter((f) => f.endsWith(".md") && f !== "README.md");
   for (const name of files.sort()) {
     const filePath = path.join(MEMORY_DIR, name);
@@ -206,12 +220,12 @@ async function ingestDaily(db: PsqlSession, runId: number, since: Date, counts: 
     const lines = text.split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
     const summary = `Daily memory snapshot from ${name}`;
     const details = lines.slice(0, 40).join("\\n").slice(0, 6000);
-    const gate = await qualityGate((summary + "\n" + details).slice(0, 2000), useQualityGate, dry);
-    if (gate.verdict === "archive") continue;
+    const gate = qualityGate((summary + "\n" + details).slice(0, 2000), useQualityGate, dry);
+    if ((gate as any).verdict === "archive") continue;
 
     const sref = filePath;
     const hashv = fp(sref, summary, details);
-    const sql = `INSERT INTO cortana_memory_episodic (happened_at, summary, details, tags, salience, trust, recency_weight, source_type, source_ref, fingerprint, metadata) VALUES (${q(mtime.toISOString())}, ${q(summary)}, ${q(details)}, ARRAY['daily_memory','heartbeat_ingest'], 0.65, 0.75, 1.0, 'daily_markdown', ${q(sref)}, ${q(hashv)}, ${q(JSON.stringify({ line_count: lines.length }))}::jsonb) ON CONFLICT (source_type, source_ref, fingerprint) DO NOTHING RETURNING id;`;
+    const sql = `INSERT INTO cortana_memory_episodic (happened_at, summary, details, tags, salience, trust, recency_weight, source_type, source_ref, fingerprint, metadata) VALUES (${q(formatUtcIso(mtime))}, ${q(summary)}, ${q(details)}, ARRAY['daily_memory','heartbeat_ingest'], 0.65, 0.75, 1.0, 'daily_markdown', ${q(sref)}, ${q(hashv)}, ${q(JSON.stringify({ line_count: lines.length }))}::jsonb) ON CONFLICT (source_type, source_ref, fingerprint) DO NOTHING RETURNING id;`;
 
     if (dry) {
       counts.e += 1;
@@ -229,20 +243,31 @@ async function ingestDaily(db: PsqlSession, runId: number, since: Date, counts: 
   }
 }
 
-async function ingestFeedback(db: PsqlSession, runId: number, since: Date, counts: Record<string, number>, dry: boolean, useQualityGate: boolean): Promise<void> {
+async function ingestFeedback(
+  db: PsqlSession,
+  runId: number,
+  since: Date,
+  counts: Record<string, number>,
+  dry: boolean,
+  useQualityGate: boolean
+): Promise<void> {
   const rows = await db.queryRows(
-    `SELECT id, timestamp::text, COALESCE(feedback_type,''), COALESCE(context,''), COALESCE(lesson,'') FROM cortana_feedback WHERE timestamp >= ${q(since.toISOString())} ORDER BY timestamp ASC;`
+    `SELECT id, timestamp::text, COALESCE(feedback_type,''), COALESCE(context,''), COALESCE(lesson,'') FROM cortana_feedback WHERE timestamp >= ${q(formatUtcIso(since))} ORDER BY timestamp ASC;`
   );
 
   for (const row of rows) {
     if (!row) continue;
     const parts = row.split("|");
     if (parts.length < 5) continue;
-    const [i, ts, t, ctx, lesson] = parts;
+    const i = parts[0] ?? "";
+    const ts = parts[1] ?? "";
+    const t = parts[2] ?? "";
+    const ctx = parts[3] ?? "";
+    const lesson = parts.slice(4).join("|");
     const sref = `cortana_feedback:${i}`;
     const epiFp = fp(sref, t, ctx, lesson);
-    const gate = await qualityGate((lesson || ctx || t).slice(0, 2000), useQualityGate, dry);
-    if (gate.verdict === "archive") continue;
+    const gate = qualityGate((lesson || ctx || t).slice(0, 2000), useQualityGate, dry);
+    if ((gate as any).verdict === "archive") continue;
 
     if (dry) {
       counts.e += 1;
@@ -326,18 +351,20 @@ FROM m WHERE id=1;
 
 type Args = { sinceHours: number; source: string; dryRun: boolean; qualityGate: boolean };
 
-function parseArgs(argv: string[]): Args {
-  const args: Args = {
-    sinceHours: 24,
-    source: "heartbeat",
-    dryRun: false,
-    qualityGate: false,
-  };
+function printHelp(): void {
+  const text = `usage: ingest_unified_memory.ts [-h] [--since-hours SINCE_HOURS] [--source SOURCE] [--dry-run] [--quality-gate]\n\noptions:\n  -h, --help            show this help message and exit\n  --since-hours SINCE_HOURS\n  --source SOURCE\n  --dry-run\n  --quality-gate        run memory_quality_gate before ingesting`;
+  console.log(text);
+}
 
+function parseArgs(argv: string[]): Args {
+  const args: Args = { sinceHours: 24, source: "heartbeat", dryRun: false, qualityGate: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     const next = argv[i + 1];
-    if (arg === "--since-hours" && next) {
+    if (arg === "-h" || arg === "--help") {
+      printHelp();
+      process.exit(0);
+    } else if (arg === "--since-hours" && next) {
       args.sinceHours = Number.parseInt(next, 10);
       i += 1;
     } else if (arg === "--source" && next) {
@@ -347,9 +374,12 @@ function parseArgs(argv: string[]): Args {
       args.dryRun = true;
     } else if (arg === "--quality-gate") {
       args.qualityGate = true;
+    } else if (arg.startsWith("-")) {
+      console.error(`Unknown argument: ${arg}`);
+      printHelp();
+      process.exit(2);
     }
   }
-
   return args;
 }
 
@@ -409,4 +439,8 @@ async function main(): Promise<void> {
   }
 }
 
-main();
+main().catch((err) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(msg);
+  process.exit(1);
+});
