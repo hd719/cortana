@@ -103,6 +103,11 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
 - **Cron delivery monitoring (every heartbeat)**
   - Run `tools/alerting/check-cron-delivery.sh` every heartbeat.
 
+- **Cron auto-retry (every heartbeat)**
+  - After the cron delivery monitoring check, run `npx tsx ~/openclaw/tools/alerting/cron-auto-retry.ts`.
+  - Auto-retries any cron with 1+ consecutive failures.
+  - Silent on success; alerts Hamel only if retry also fails (2+ consecutive).
+
 - **Sub-agent reaper (every heartbeat)**
   - Run `~/openclaw/tools/reaper/reaper.sh` to clean stale sub-agent sessions.
   - Reaps sessions stuck in "running" for >2h with no activity.
