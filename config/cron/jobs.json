@@ -193,7 +193,8 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nFED WATCH (FOMC statement) \u2014 today.\n\nRight after the statement drops, send Hamel a plain-English summary for a mortgage broker:\n- Hold/cut/hike?\n- Any key language change (hawkish/dovish)?\n- What this likely means for mortgage rates today/tomorrow (bond/MBS reaction)\n\nSteps:\n1) Find the official FOMC statement on federalreserve.gov (use web_search if needed).\n2) web_fetch the statement.\n3) Send 6\u201310 bullets + 1\u20132 short quotes.\n4) Include the source link."
+        "message": "\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nFED WATCH (FOMC statement) \u2014 today.\n\nRight after the statement drops, send Hamel a plain-English summary for a mortgage broker:\n- Hold/cut/hike?\n- Any key language change (hawkish/dovish)?\n- What this likely means for mortgage rates today/tomorrow (bond/MBS reaction)\n\nSteps:\n1) Find the official FOMC statement on federalreserve.gov (use web_search if needed).\n2) web_fetch the statement.\n3) Send 6\u201310 bullets + 1\u20132 short quotes.\n4) Include the source link.",
+        "model": "openai-codex/gpt-5.3-codex"
       },
       "state": {
         "lastRunAtMs": 1769627100002,
@@ -511,7 +512,8 @@
       "wakeMode": "now",
       "payload": {
         "kind": "systemEvent",
-        "text": "\ud83d\udcda Reminder: HW 04 + Quiz 04 (Pairwise and Orthogonal Arrays) due today for SSW 567. Classes at 6:30 PM."
+        "text": "\ud83d\udcda Reminder: HW 04 + Quiz 04 (Pairwise and Orthogonal Arrays) due today for SSW 567. Classes at 6:30 PM.",
+        "model": "openai-codex/gpt-5.3-codex"
       },
       "state": {
         "nextRunAtMs": 1772625600000
@@ -1015,7 +1017,7 @@
       "name": "\ud83d\udcca Proprioception: Budget & Self-Model",
       "enabled": true,
       "createdAtMs": 1771323590473,
-      "updatedAtMs": 1772276457402,
+      "updatedAtMs": 1772278243298,
       "schedule": {
         "kind": "every",
         "everyMs": 1800000,
@@ -1034,10 +1036,10 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772278191221,
-        "lastRunAtMs": 1772276391221,
+        "nextRunAtMs": 1772279991255,
+        "lastRunAtMs": 1772278191255,
         "lastStatus": "ok",
-        "lastDurationMs": 66181,
+        "lastDurationMs": 52043,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
