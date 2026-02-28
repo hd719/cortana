@@ -1,0 +1,4 @@
+#!/usr/bin/env npx tsx
+import { execSync } from 'node:child_process';import { existsSync, readFileSync } from 'node:fs';import { homedir } from 'node:os';
+async function main(){const out:string[]=[];let token='';const p=`${homedir()}/Developer/cortana-external/tonal_tokens.json`;if(existsSync(p)){try{token=JSON.parse(readFileSync(p,'utf8')).access_token??'';}catch{}}if(!token)out.push('tonal: NO TOKEN');try{execSync('pg_isready -q');}catch{out.push('postgres: DOWN');}try{execSync('curl -sf http://localhost:18800/json >/dev/null');}catch{out.push('gateway: DOWN');}try{const disk=execSync("df -h / | tail -1 | awk '{print $5}'",{encoding:'utf8'}).trim();if(Number(disk.replace('%',''))>=90)out.push(`disk: ${disk}`);}catch{}try{execSync("find $HOME/.openclaw/agents/main/sessions -name '*.jsonl' -size +400k -delete");}catch{}if(out.length)console.log(out.join('\n'));}
+main();

@@ -1,0 +1,3 @@
+#!/usr/bin/env npx tsx
+async function main(){const d=new Date();const today=d.toISOString().slice(0,10);const dow=d.getDay();if(dow===0||dow===6){console.log('CLOSED: Weekend');return;}const map:Record<string,string>={'2026-01-01':"CLOSED: New Year's Day",'2026-01-19':'CLOSED: Martin Luther King Jr. Day','2026-02-16':"CLOSED: Presidents' Day",'2026-04-03':'CLOSED: Good Friday','2026-05-25':'CLOSED: Memorial Day','2026-06-19':'CLOSED: Juneteenth Holiday','2026-07-03':'CLOSED: Independence Day','2026-09-07':'CLOSED: Labor Day','2026-11-26':'CLOSED: Thanksgiving Day','2026-12-25':'CLOSED: Christmas Day','2026-11-27':'EARLY CLOSE 1:00 PM ET: Day after Thanksgiving','2026-12-24':'EARLY CLOSE 1:00 PM ET: Christmas Eve'};console.log(map[today]??'OPEN');}
+main();

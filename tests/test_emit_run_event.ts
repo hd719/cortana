@@ -1,0 +1,4 @@
+#!/usr/bin/env npx tsx
+import assert from 'node:assert';import { mkdtempSync, writeFileSync, chmodSync, readFileSync } from 'node:fs';import { tmpdir } from 'node:os';import { join } from 'node:path';import { execSync } from 'node:child_process';
+async function main(){const tmp=mkdtempSync(join(tmpdir(),'emit-run-'));const mock=join(tmp,'mock-psql');const log=join(tmp,'sql.log');writeFileSync(mock,`#!/usr/bin/env bash\necho "$*" >> "${log}"\nexit 0\n`);chmodSync(mock,0o755);const script=`source /Users/hd/openclaw/tools/task-board/emit-run-event.sh\nPSQL_BIN=${mock}\nCORTANA_DB=test\nemit_run_event \"run-1\" \"123\" \"started\" \"unit-test\" '{\"k\":\"v\"}'\nemit_run_event \"run-2\" \"\" \"completed\" \"\" \"\"\n`;execSync(`bash -lc ${JSON.stringify(script)}`);const txt=readFileSync(log,'utf8');assert.match(txt,/run-1/);assert.match(txt,/run-2/);console.log('PASS: emit-run-event');}
+main().catch(e=>{console.error(e);process.exit(1)});
