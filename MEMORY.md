@@ -117,6 +117,14 @@
 - **Calendar reminders**: prompts for reminder crons must specify time windows to avoid early/late alerts.
 - **clawdhub**: clean ghost entries via lock file edits, not just filesystem deletes.
 
+## Critical Tools (wired into heartbeat)
+
+- **Sub-agent watchdog**: `tools/subagent-watchdog/check-subagents.sh` — detects failed/timed-out sub-agents, emits terminal events to `runs.json`, logs to `cortana_events`, sends alerts.
+- **Sub-agent reaper**: `tools/reaper/reaper.sh` — cleans stale sessions stuck in "running" >2h, syncs task board, runs every heartbeat after watchdog.
+- **QA validation suite**: `tools/qa/validate-system.sh` — daily check of symlinks, crons, DB, critical tools, heartbeat state, memory files, disk space. Has `--fix` mode for auto-remediation.
+- **Session reconciler**: `tools/session-reconciler/reconcile-sessions.sh` — reconciles ghost sessions/runs.
+- **Heartbeat state validator**: `tools/heartbeat/validate-heartbeat-state.sh` — validates state file integrity before writes.
+
 ## Current Priorities (Feb 2026 snapshot)
 
 - Fitness and sleep optimization (maintain high recovery, fix REM + weekend drift).

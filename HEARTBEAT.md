@@ -108,6 +108,20 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Log to `cortana_events` with severity `warning`.
   - Self-heal: retry sending last result via `message` tool to configured `delivery.to`.
 
+- **Sub-agent reaper (every heartbeat)**
+  - Run `~/openclaw/tools/reaper/reaper.sh` to clean stale sub-agent sessions.
+  - Reaps sessions stuck in "running" for >2h with no activity.
+  - Updates `~/.openclaw/subagents/runs.json` and syncs `cortana_tasks` back to `ready`.
+  - Logs reaped sessions to `cortana_events` (event_type `subagent_reaped`).
+  - Skip if tool doesn't exist yet (graceful degradation).
+
+- **QA system validation (1× daily, morning)**
+  - Run `~/openclaw/tools/qa/validate-system.sh --json`.
+  - Checks: symlink integrity, cron definitions, DB connectivity, critical tools, heartbeat state, memory files, disk space.
+  - On failures: attempt `--fix` for auto-remediable issues (broken symlinks, etc.).
+  - Alert Hamel only on unfixable failures.
+  - Skip if run within last **24h**.
+
 - **Sub-agent health monitoring (every heartbeat)**
   - Run:
     ```bash
