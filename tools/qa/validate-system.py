@@ -339,6 +339,180 @@ def check_disk_space() -> Dict[str, Any]:
     return check
 
 
+def _parse_simple_step(field: str) -> int | None:
+    if field.startswith("*/"):
+        try:
+            return int(field[2:])
+        except ValueError:
+            return None
+    return None
+
+
+def _parse_int_list(field: str, min_v: int, max_v: int) -> List[int] | None:
+    if not field or "*" in field or "/" in field:
+        return None
+    out = []
+    for part in field.split(","):
+        part = part.strip()
+        if not part.isdigit():
+            return None
+        v = int(part)
+        if v < min_v or v > max_v:
+            return None
+        out.append(v)
+    return sorted(set(out)) if out else None
+
+
+def _estimate_interval_ms(expr: str) -> int | None:
+    parts = expr.split()
+    if len(parts) < 5:
+        return None
+
+    minute, hour = parts[0], parts[1]
+
+    minute_step = _parse_simple_step(minute)
+    hour_step = _parse_simple_step(hour)
+
+    if hour_step and hour_step > 0:
+        return hour_step * 60 * 60 * 1000
+
+    hour_values = _parse_int_list(hour, 0, 23)
+    if hour_values:
+        if len(hour_values) == 1:
+            return 24 * 60 * 60 * 1000
+        diffs = []
+        for i in range(len(hour_values)):
+            cur = hour_values[i]
+            nxt = hour_values[(i + 1) % len(hour_values)]
+            diff_hours = (nxt - cur) % 24
+            if diff_hours == 0:
+                continue
+            diffs.append(diff_hours)
+        if diffs:
+            return min(diffs) * 60 * 60 * 1000
+
+    if hour == "*":
+        if minute_step and minute_step > 0:
+            return minute_step * 60 * 1000
+        minute_values = _parse_int_list(minute, 0, 59)
+        if minute_values:
+            if len(minute_values) == 1:
+                return 60 * 60 * 1000
+            diffs = []
+            for i in range(len(minute_values)):
+                cur = minute_values[i]
+                nxt = minute_values[(i + 1) % len(minute_values)]
+                diff_minutes = (nxt - cur) % 60
+                if diff_minutes == 0:
+                    continue
+                diffs.append(diff_minutes)
+            if diffs:
+                return min(diffs) * 60 * 1000
+        return 60 * 60 * 1000
+
+    return None
+
+
+def check_cron_staleness(fix: bool) -> Dict[str, Any]:
+    check = make_check("cron_staleness")
+    details: Dict[str, Any] = {"path": str(RUNTIME_JOBS), "late_jobs": [], "fix_attempts": []}
+
+    if not RUNTIME_JOBS.exists():
+        fail(check, "Runtime cron jobs file is missing")
+        check["details"] = details
+        return check
+
+    try:
+        data = json.loads(RUNTIME_JOBS.read_text())
+    except Exception as exc:
+        fail(check, f"Invalid runtime jobs JSON: {exc}")
+        check["details"] = details
+        return check
+
+    jobs = data.get("jobs") if isinstance(data, dict) else None
+    if not isinstance(jobs, list):
+        fail(check, "Runtime jobs.json must contain a top-level 'jobs' array")
+        check["details"] = details
+        return check
+
+    now_ms = int(datetime.now(timezone.utc).timestamp() * 1000)
+    details["now_ms"] = now_ms
+    details["job_count"] = len(jobs)
+
+    enabled_count = 0
+    analyzed_count = 0
+
+    for idx, job in enumerate(jobs):
+        if not isinstance(job, dict):
+            continue
+        if not job.get("enabled", False):
+            continue
+
+        enabled_count += 1
+        job_id = str(job.get("id") or job.get("name") or f"index:{idx}")
+        schedule = job.get("schedule") if isinstance(job.get("schedule"), dict) else {}
+        expr = schedule.get("expr") if isinstance(schedule, dict) else None
+        state = job.get("state") if isinstance(job.get("state"), dict) else {}
+
+        if not isinstance(expr, str) or not expr.strip():
+            continue
+
+        expected_interval_ms = _estimate_interval_ms(expr.strip())
+        if not expected_interval_ms:
+            continue
+
+        last_run_at = state.get("lastRunAt")
+        if not isinstance(last_run_at, (int, float)):
+            last_run_at = state.get("lastFiredAt")
+        if not isinstance(last_run_at, (int, float)):
+            continue
+
+        analyzed_count += 1
+        lag_ms = max(0, now_ms - int(last_run_at))
+        stale_threshold_ms = expected_interval_ms * 2
+
+        if lag_ms > stale_threshold_ms:
+            late_by_ms = lag_ms - stale_threshold_ms
+            late_job = {
+                "id": job_id,
+                "name": job.get("name"),
+                "expr": expr,
+                "last_run_at_ms": int(last_run_at),
+                "lag_ms": lag_ms,
+                "expected_interval_ms": expected_interval_ms,
+                "stale_threshold_ms": stale_threshold_ms,
+                "late_by_ms": late_by_ms,
+            }
+            details["late_jobs"].append(late_job)
+
+    details["enabled_jobs"] = enabled_count
+    details["analyzed_jobs"] = analyzed_count
+
+    if details["late_jobs"]:
+        if fix:
+            for item in details["late_jobs"]:
+                rc, out, err = run(["openclaw", "cron", "run", item["id"]])
+                details["fix_attempts"].append(
+                    {
+                        "id": item["id"],
+                        "rc": rc,
+                        "stdout": out,
+                        "stderr": err,
+                        "ok": rc == 0,
+                    }
+                )
+            failed_fixes = [x for x in details["fix_attempts"] if not x["ok"]]
+            if failed_fixes:
+                warn(check, f"Found {len(details['late_jobs'])} stale job(s); some fix attempts failed")
+            else:
+                warn(check, f"Found and force-ran {len(details['late_jobs'])} stale job(s)")
+        else:
+            warn(check, f"Found {len(details['late_jobs'])} stale cron job(s)")
+
+    check["details"] = details
+    return check
+
+
 def summarize(checks: List[Dict[str, Any]]) -> Dict[str, Any]:
     failed = sum(1 for c in checks if c["status"] == "fail")
     warned = sum(1 for c in checks if c["status"] == "warn")

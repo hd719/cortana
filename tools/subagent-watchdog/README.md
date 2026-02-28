@@ -20,6 +20,7 @@ Closes the visibility gap where a sub-agent can fail/timeout silently unless man
 5. Sends Telegram failure alerts via `tools/notifications/telegram-delivery-guard.sh` with `alert_type=subagent_failure_alert`.
 6. Runs `tools/task-board/completion-sync.sh` to auto-sync mapped in-progress tasks to `done`/`failed`.
 7. Prints structured JSON summary to stdout so heartbeat/cron can react.
+8. Wrapper post-step: runs `tools/reaper/reaper.sh` to clean stale sub-agent runs (best-effort).
 
 ## Files
 
@@ -37,6 +38,9 @@ Closes the visibility gap where a sub-agent can fail/timeout silently unless man
 
 # Scan only last 4 hours
 ~/openclaw/tools/subagent-watchdog/check-subagents.sh --active-minutes 240
+
+# Reaper standalone (stale runs >2h)
+~/openclaw/tools/reaper/reaper.sh --max-age-hours 2
 ```
 
 ## Output shape
