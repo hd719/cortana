@@ -1,0 +1,1234 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["partialIndexes"]
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_action_policies {
+  id                  BigInt   @id @default(autoincrement())
+  policy_key          String   @unique
+  category            String
+  description         String?
+  base_decision       String
+  requires_approval   Boolean  @default(false)
+  risk_base           Decimal  @default(0) @db.Decimal(5, 2)
+  risk_threshold_ask  Decimal  @default(65) @db.Decimal(5, 2)
+  risk_threshold_deny Decimal  @default(90) @db.Decimal(5, 2)
+  immutable           Boolean  @default(false)
+  constraints         Json     @default("{}")
+  enabled             Boolean  @default(true)
+  created_at          DateTime @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([category, enabled], map: "idx_action_policies_category_enabled")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+/// This model contains an expression index which requires additional setup for migrations. Visit https://pris.ly/d/expression-indexes for more info.
+model cortana_agent_feedback {
+  id                 Int               @id @default(autoincrement())
+  agent_role         String
+  feedback_text      String
+  source_feedback_id Int?
+  source_task_id     Int?
+  confidence         Decimal           @default(0.80) @db.Decimal(3, 2)
+  active             Boolean           @default(true)
+  created_at         DateTime          @default(now()) @db.Timestamptz(6)
+  updated_at         DateTime          @default(now()) @db.Timestamptz(6)
+  cortana_feedback   cortana_feedback? @relation(fields: [source_feedback_id], references: [id], onUpdate: NoAction)
+  cortana_tasks      cortana_tasks?    @relation(fields: [source_task_id], references: [id], onUpdate: NoAction)
+
+  @@index([active], map: "idx_cortana_agent_feedback_active")
+  @@index([agent_role], map: "idx_cortana_agent_feedback_role")
+  @@index([agent_role, active], map: "idx_cortana_agent_feedback_role_active")
+}
+
+model cortana_autonomy_incidents {
+  id                  BigInt   @id @default(autoincrement())
+  timestamp           DateTime @default(now()) @db.Timestamptz(6)
+  incident_type       String
+  source              String?
+  auto_resolved       Boolean  @default(false)
+  escalated_to_human  Boolean  @default(false)
+  resolution_time_sec Decimal? @db.Decimal(10, 2)
+  metadata            Json     @default("{}")
+
+  @@index([auto_resolved, escalated_to_human], map: "idx_autonomy_incidents_flags")
+  @@index([timestamp(sort: Desc)], map: "idx_autonomy_incidents_ts")
+}
+
+model cortana_autonomy_scorecard_snapshots {
+  id                         BigInt   @id @default(autoincrement())
+  timestamp                  DateTime @default(now()) @db.Timestamptz(6)
+  window_days                Int      @default(7)
+  score                      Decimal  @db.Decimal(5, 2)
+  self_heal_rate             Decimal  @db.Decimal(5, 2)
+  proactive_hit_rate         Decimal  @db.Decimal(5, 2)
+  task_completion_rate       Decimal  @db.Decimal(5, 2)
+  correction_frequency_score Decimal  @db.Decimal(5, 2)
+  response_quality_score     Decimal  @db.Decimal(5, 2)
+  memory_accuracy            Decimal  @db.Decimal(5, 2)
+  uptime_score               Decimal  @db.Decimal(5, 2)
+  metrics                    Json     @default("{}")
+  weights                    Json     @default("{}")
+
+  @@index([timestamp(sort: Desc)], map: "idx_autonomy_snapshots_ts")
+}
+
+model cortana_budget_log {
+  id            Int      @id @default(autoincrement())
+  timestamp     DateTime @default(now()) @db.Timestamptz(6)
+  spend_to_date Decimal? @db.Decimal(8, 2)
+  burn_rate     Decimal? @db.Decimal(6, 2)
+  projected     Decimal? @db.Decimal(8, 2)
+  breakdown     Json?    @default("{}")
+  pct_used      Decimal? @db.Decimal(5, 2)
+
+  @@index([timestamp(sort: Desc)], map: "idx_budget_log_ts")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_budget_policies {
+  id             BigInt   @id @default(autoincrement())
+  budget_key     String   @unique
+  cost_type      String
+  scope          String   @default("global")
+  scope_value    String?
+  window_seconds Int
+  limit_value    Decimal  @db.Decimal(14, 4)
+  warn_at_pct    Decimal  @default(80) @db.Decimal(5, 2)
+  hard_stop      Boolean  @default(true)
+  on_exceed      String   @default("ask")
+  metadata       Json     @default("{}")
+  enabled        Boolean  @default(true)
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  updated_at     DateTime @default(now()) @db.Timestamptz(6)
+
+  @@index([cost_type, scope, enabled], map: "idx_budget_policies_type_scope_enabled")
+}
+
+model cortana_chaos_events {
+  id                 Int                @id @default(autoincrement())
+  run_id             String             @db.Uuid
+  started_at         DateTime           @default(now()) @db.Timestamptz(6)
+  scenario_name      String
+  fault_type         String
+  injected           Boolean            @default(true)
+  detected           Boolean            @default(false)
+  recovered          Boolean            @default(false)
+  detection_ms       Int                @default(0)
+  recovery_ms        Int                @default(0)
+  notes              String?
+  metadata           Json               @default("{}")
+  cortana_chaos_runs cortana_chaos_runs @relation(fields: [run_id], references: [run_id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([fault_type, started_at(sort: Desc)], map: "idx_cortana_chaos_events_fault_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_chaos_runs {
+  id                   Int                    @id @default(autoincrement())
+  run_id               String                 @unique @db.Uuid
+  started_at           DateTime               @default(now()) @db.Timestamptz(6)
+  mode                 String                 @default("simulation")
+  scenario_count       Int                    @default(0)
+  status               String                 @default("running")
+  metadata             Json                   @default("{}")
+  cortana_chaos_events cortana_chaos_events[]
+
+  @@index([started_at(sort: Desc)], map: "idx_cortana_chaos_runs_started_at")
+}
+
+model cortana_chief_model {
+  key        String    @id @db.VarChar(50)
+  value      Json
+  updated_at DateTime? @default(now()) @db.Timestamptz(6)
+  source     String?   @db.VarChar(50)
+}
+
+model cortana_council_events {
+  id                       String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id               String                   @db.Uuid
+  event_type               String
+  payload                  Json?                    @default("{}")
+  created_at               DateTime                 @default(now()) @db.Timestamptz(6)
+  cortana_council_sessions cortana_council_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([session_id, created_at], map: "idx_council_events_session")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_council_sessions {
+  id                     String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  created_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  updated_at             DateTime                 @default(now()) @db.Timestamptz(6)
+  type                   String
+  status                 String                   @default("open")
+  title                  String
+  context                Json                     @default("{}")
+  initiator              String
+  participants           String[]
+  decision               Json?
+  decided_at             DateTime?                @db.Timestamptz(6)
+  expires_at             DateTime                 @db.Timestamptz(6)
+  related_task_id        Int?
+  model_policy           Json?                    @default("{\"voter_model\": \"openai/gpt-4o-mini\", \"synthesis_model\": \"anthropic/claude-sonnet-4-20250514\", \"session_budget_usd\": 0.05, \"max_tokens_per_vote\": 500}")
+  metadata               Json?                    @default("{}")
+  cortana_council_events cortana_council_events[]
+  cortana_tasks          cortana_tasks?           @relation(fields: [related_task_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cortana_council_votes  cortana_council_votes[]
+
+  @@index([expires_at], map: "idx_council_sessions_expires", where: raw("(status = 'open'::text)"))
+  @@index([status], map: "idx_council_sessions_status")
+  @@index([type, status], map: "idx_council_sessions_type_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_council_votes {
+  id                       String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  session_id               String                   @db.Uuid
+  voter                    String
+  vote                     String
+  confidence               Float?
+  reasoning                String?
+  model_used               String?
+  token_cost               Int?
+  voted_at                 DateTime                 @default(now()) @db.Timestamptz(6)
+  cortana_council_sessions cortana_council_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([session_id, voter])
+  @@index([session_id], map: "idx_council_votes_session")
+}
+
+model cortana_covenant_runs {
+  id            Int       @id @default(autoincrement())
+  agent         String    @db.VarChar(50)
+  mission       String
+  started_at    DateTime? @default(now()) @db.Timestamp(6)
+  ended_at      DateTime? @db.Timestamp(6)
+  status        String?   @default("running") @db.VarChar(20)
+  tokens_used   Int?
+  cost_estimate Decimal?  @db.Decimal(10, 4)
+  budget_cap    Decimal?  @db.Decimal(10, 4)
+  output_path   String?
+  summary       String?
+  session_key   String?   @db.VarChar(100)
+}
+
+model cortana_cron_health {
+  id                   Int      @id @default(autoincrement())
+  timestamp            DateTime @default(now()) @db.Timestamptz(6)
+  cron_name            String
+  status               String
+  consecutive_failures Int?     @default(0)
+  run_duration_sec     Decimal? @db.Decimal(8, 2)
+  metadata             Json?    @default("{}")
+
+  @@index([cron_name, timestamp(sort: Desc)], map: "idx_cron_health_name")
+}
+
+model cortana_decision_traces {
+  id           BigInt    @id @default(autoincrement())
+  trace_id     String    @unique(map: "idx_decision_traces_trace_id")
+  event_id     BigInt?
+  task_id      BigInt?
+  run_id       String?
+  trigger_type String
+  action_type  String
+  action_name  String
+  reasoning    String?
+  confidence   Decimal?  @db.Decimal(5, 4)
+  outcome      String    @default("unknown")
+  data_inputs  Json      @default("{}")
+  metadata     Json      @default("{}")
+  created_at   DateTime  @default(now()) @db.Timestamptz(6)
+  completed_at DateTime? @db.Timestamptz(6)
+
+  @@index([confidence], map: "idx_decision_traces_confidence")
+  @@index([created_at(sort: Desc)], map: "idx_decision_traces_created_at")
+  @@index([data_inputs], map: "idx_decision_traces_data_inputs", type: Gin)
+  @@index([metadata], map: "idx_decision_traces_metadata", type: Gin)
+  @@index([outcome], map: "idx_decision_traces_outcome")
+  @@index([trigger_type, action_type], map: "idx_decision_traces_trigger_action")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_epics {
+  id            Int             @id @default(autoincrement())
+  title         String
+  source        String?
+  status        String?         @default("active")
+  deadline      DateTime?       @db.Timestamptz(6)
+  created_at    DateTime?       @default(now()) @db.Timestamptz(6)
+  completed_at  DateTime?       @db.Timestamptz(6)
+  metadata      Json?           @default("{}")
+  cortana_tasks cortana_tasks[]
+
+  @@index([status], map: "idx_cortana_epics_status")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_event_bus_events {
+  id             BigInt   @id @default(autoincrement())
+  created_at     DateTime @default(now()) @db.Timestamptz(6)
+  event_type     String
+  source         String
+  payload        Json     @default("{}")
+  correlation_id String?  @db.Uuid
+  delivered      Boolean  @default(false)
+
+  @@index([created_at(sort: Desc)], map: "idx_event_bus_events_created_at")
+  @@index([event_type, created_at(sort: Desc)], map: "idx_event_bus_events_type_created")
+}
+
+model cortana_event_stream {
+  id           Int       @id @default(autoincrement())
+  timestamp    DateTime? @default(now()) @db.Timestamptz(6)
+  source       String    @db.VarChar(50)
+  event_type   String    @db.VarChar(50)
+  payload      Json?     @default("{}")
+  processed    Boolean?  @default(false)
+  processed_at DateTime? @db.Timestamptz(6)
+
+  @@index([source, timestamp(sort: Desc)], map: "idx_event_stream_source")
+  @@index([processed, timestamp], map: "idx_event_stream_unprocessed", where: raw("(processed = false)"))
+}
+
+model cortana_events {
+  id         Int       @id @default(autoincrement())
+  timestamp  DateTime? @default(now()) @db.Timestamptz(6)
+  event_type String?   @db.VarChar(50)
+  source     String?   @db.VarChar(100)
+  severity   String?   @db.VarChar(20)
+  message    String?
+  metadata   Json?
+
+  @@index([source], map: "idx_events_source")
+  @@index([timestamp], map: "idx_events_timestamp")
+  @@index([event_type], map: "idx_events_type")
+}
+
+model cortana_feedback {
+  id                     Int                      @id @default(autoincrement())
+  timestamp              DateTime?                @default(now()) @db.Timestamptz(6)
+  feedback_type          String?                  @db.VarChar(50)
+  context                String?
+  lesson                 String?
+  applied                Boolean?                 @default(false)
+  cortana_agent_feedback cortana_agent_feedback[]
+
+  @@index([applied], map: "idx_feedback_applied")
+  @@index([feedback_type], map: "idx_feedback_type")
+}
+
+model cortana_feedback_signals {
+  id                 Int       @id @default(autoincrement())
+  timestamp          DateTime? @default(now()) @db.Timestamptz(6)
+  signal_type        String    @db.VarChar(20)
+  source             String    @db.VarChar(50)
+  related_rule       String?   @db.VarChar(100)
+  related_message_id String?
+  context            String?
+  processed          Boolean?  @default(false)
+  weight_delta       Float?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_governor_decisions {
+  id                      BigInt         @id @default(autoincrement())
+  timestamp               DateTime       @default(now()) @db.Timestamptz(6)
+  task_id                 BigInt?
+  action_type             String
+  risk_score              Decimal        @db.Decimal(5, 4)
+  threshold               Decimal        @db.Decimal(5, 4)
+  requires_human_approval Boolean        @default(false)
+  decision                String
+  rationale               String
+  queued_for_approval     Boolean        @default(false)
+  metadata                Json           @default("{}")
+
+  @@index([decision, action_type], map: "idx_governor_decisions_decision")
+  @@index([task_id], map: "idx_governor_decisions_task_id")
+  @@index([timestamp(sort: Desc)], map: "idx_governor_decisions_ts")
+}
+
+model cortana_handoff_artifacts {
+  id            Int       @id @default(autoincrement())
+  chain_id      String    @db.Uuid
+  from_agent    String
+  to_agent      String?
+  artifact_type String
+  payload       Json
+  created_by    String    @default("cortana")
+  consumed_at   DateTime? @db.Timestamptz(6)
+  created_at    DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([chain_id], map: "idx_handoff_artifacts_chain_id")
+  @@index([consumed_at], map: "idx_handoff_artifacts_consumed_at")
+  @@index([from_agent], map: "idx_handoff_artifacts_from_agent")
+  @@index([to_agent], map: "idx_handoff_artifacts_to_agent")
+}
+
+model cortana_immune_incidents {
+  id               Int       @id @default(autoincrement())
+  detected_at      DateTime  @default(now()) @db.Timestamptz(6)
+  resolved_at      DateTime? @db.Timestamptz(6)
+  threat_type      String
+  source           String
+  severity         String    @default("medium")
+  description      String
+  threat_signature String?
+  tier             Int
+  status           String    @default("detected")
+  playbook_used    String?
+  resolution       String?
+  auto_resolved    Boolean?  @default(false)
+  metadata         Json?     @default("{}")
+
+  @@index([detected_at(sort: Desc)], map: "idx_immune_incidents_detected")
+  @@index([threat_signature], map: "idx_immune_incidents_signature")
+  @@index([status], map: "idx_immune_incidents_status", where: raw("(status <> 'resolved'::text)"))
+}
+
+model cortana_immune_playbooks {
+  id               Int       @id @default(autoincrement())
+  name             String    @unique
+  threat_signature String
+  description      String
+  actions          Json
+  tier             Int       @default(1)
+  enabled          Boolean?  @default(true)
+  times_used       Int?      @default(0)
+  last_used        DateTime? @db.Timestamptz(6)
+  success_rate     Decimal?  @default(1.0) @db.Decimal(4, 2)
+  created_at       DateTime  @default(now()) @db.Timestamptz(6)
+  updated_at       DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([threat_signature], map: "idx_immune_playbooks_signature")
+}
+
+model cortana_insights {
+  id               Int       @id @default(autoincrement())
+  timestamp        DateTime? @default(now()) @db.Timestamptz(6)
+  sitrep_run_id    String?   @db.Uuid
+  insight_type     String
+  domains          String[]
+  title            String
+  description      String
+  priority         Int?      @default(3)
+  action_suggested String?
+  acted_on         Boolean?  @default(false)
+  acted_at         DateTime? @db.Timestamptz(6)
+
+  @@index([priority], map: "idx_insights_priority")
+  @@index([timestamp(sort: Desc)], map: "idx_insights_timestamp")
+  @@index([insight_type], map: "idx_insights_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_memory_archive {
+  id          BigInt   @id @default(autoincrement())
+  memory_tier String
+  memory_id   BigInt
+  archived_at DateTime @default(now()) @db.Timestamptz(6)
+  reason      String
+  snapshot    Json
+  metadata    Json     @default("{}")
+
+  @@unique([memory_tier, memory_id])
+  @@index([memory_tier, archived_at(sort: Desc)], map: "idx_memory_archive_tier_archived")
+}
+
+model cortana_memory_consolidation {
+  id                 Int       @id @default(autoincrement())
+  run_id             String    @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  started_at         DateTime  @default(now()) @db.Timestamptz(6)
+  completed_at       DateTime? @db.Timestamptz(6)
+  status             String    @default("running")
+  days_reviewed      String[]
+  items_distilled    Int?      @default(0)
+  items_strengthened Int?      @default(0)
+  items_pruned       Int?      @default(0)
+  items_archived     Int?      @default(0)
+  dream_insights     Int?      @default(0)
+  feedback_clusters  Json?     @default("[]")
+  summary            String?
+  error              String?
+
+  @@index([started_at(sort: Desc)], map: "idx_consolidation_started")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_memory_episodic {
+  id              BigInt                 @id @default(autoincrement())
+  happened_at     DateTime               @default(now()) @db.Timestamptz(6)
+  summary         String
+  details         String?
+  participants    String[]               @default([])
+  tags            String[]               @default([])
+  salience        Decimal                @default(0.500) @db.Decimal(4, 3)
+  trust           Decimal                @default(0.600) @db.Decimal(4, 3)
+  recency_weight  Decimal                @default(1.000) @db.Decimal(4, 3)
+  source_type     String
+  source_ref      String?
+  fingerprint     String?
+  ingested_at     DateTime               @default(now()) @db.Timestamptz(6)
+  active          Boolean                @default(true)
+  metadata        Json                   @default("{}")
+  embedding       Unsupported("vector")?
+  embedding_model String?
+  embedded_at     DateTime?              @db.Timestamptz(6)
+
+  @@unique([source_type, source_ref, fingerprint])
+  @@index([active], map: "idx_memory_episodic_active")
+  @@index([embedding], map: "idx_memory_episodic_embedding_hnsw", where: raw("(embedding IS NOT NULL)"))
+  @@index([happened_at(sort: Desc)], map: "idx_memory_episodic_happened")
+  @@index([tags], map: "idx_memory_episodic_tags", type: Gin)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_memory_ingest_runs {
+  id                        BigInt                      @id @default(autoincrement())
+  started_at                DateTime                    @default(now()) @db.Timestamptz(6)
+  finished_at               DateTime?                   @db.Timestamptz(6)
+  status                    String                      @default("running")
+  source                    String                      @default("heartbeat")
+  since_hours               Int?
+  inserted_episodic         Int                         @default(0)
+  inserted_semantic         Int                         @default(0)
+  inserted_procedural       Int                         @default(0)
+  inserted_provenance       Int                         @default(0)
+  errors                    Json                        @default("[]")
+  metadata                  Json                        @default("{}")
+  cortana_memory_provenance cortana_memory_provenance[]
+
+  @@index([started_at(sort: Desc)], map: "idx_memory_ingest_runs_started")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_memory_procedural {
+  id                       BigInt    @id @default(autoincrement())
+  workflow_name            String
+  trigger_context          String?
+  steps_json               Json      @default("[]")
+  expected_outcome         String?
+  derived_from_feedback_id BigInt?
+  trust                    Decimal   @default(0.850) @db.Decimal(4, 3)
+  success_count            Int       @default(0)
+  failure_count            Int       @default(0)
+  last_success_at          DateTime? @db.Timestamptz(6)
+  last_failure_at          DateTime? @db.Timestamptz(6)
+  source_type              String
+  source_ref               String?
+  fingerprint              String?
+  deprecated               Boolean   @default(false)
+  metadata                 Json      @default("{}")
+
+  @@unique([workflow_name, trigger_context, fingerprint])
+  @@index([deprecated], map: "idx_memory_procedural_deprecated")
+  @@index([workflow_name], map: "idx_memory_procedural_name")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_memory_provenance {
+  id                         BigInt                      @id @default(autoincrement())
+  memory_tier                String
+  memory_id                  BigInt
+  source_type                String
+  source_ref                 String?
+  source_hash                String?
+  ingest_run_id              BigInt?
+  extractor_version          String                      @default("v1")
+  created_at                 DateTime                    @default(now()) @db.Timestamptz(6)
+  metadata                   Json                        @default("{}")
+  cortana_memory_ingest_runs cortana_memory_ingest_runs? @relation(fields: [ingest_run_id], references: [id], onUpdate: NoAction)
+
+  @@unique([memory_tier, memory_id, source_type, source_ref])
+  @@index([source_type, source_ref], map: "idx_memory_provenance_source")
+  @@index([memory_tier, memory_id], map: "idx_memory_provenance_tier_id")
+}
+
+model cortana_memory_recall_checks {
+  id        BigInt   @id @default(autoincrement())
+  timestamp DateTime @default(now()) @db.Timestamptz(6)
+  source    String?
+  prompt    String?
+  expected  String?
+  actual    String?
+  correct   Boolean
+  metadata  Json     @default("{}")
+
+  @@index([correct], map: "idx_memory_checks_correct")
+  @@index([timestamp(sort: Desc)], map: "idx_memory_checks_ts")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_memory_semantic {
+  id                                                                                           BigInt                    @id @default(autoincrement())
+  fact_type                                                                                    String                    @default("fact")
+  subject                                                                                      String
+  predicate                                                                                    String
+  object_value                                                                                 String
+  confidence                                                                                   Decimal                   @default(0.700) @db.Decimal(4, 3)
+  trust                                                                                        Decimal                   @default(0.750) @db.Decimal(4, 3)
+  stability                                                                                    Decimal                   @default(0.500) @db.Decimal(4, 3)
+  first_seen_at                                                                                DateTime                  @default(now()) @db.Timestamptz(6)
+  last_seen_at                                                                                 DateTime                  @default(now()) @db.Timestamptz(6)
+  source_type                                                                                  String
+  source_ref                                                                                   String?
+  fingerprint                                                                                  String?
+  supersedes_memory_id                                                                         BigInt?
+  active                                                                                       Boolean                   @default(true)
+  metadata                                                                                     Json                      @default("{}")
+  embedding                                                                                    Unsupported("vector")?
+  embedding_model                                                                              String?
+  embedded_at                                                                                  DateTime?                 @db.Timestamptz(6)
+  fidelity_score                                                                               Decimal?                  @db.Decimal(5, 4)
+  supersedes_id                                                                                BigInt?
+  superseded_at                                                                                DateTime?                 @db.Timestamptz(6)
+  extraction_source                                                                            String?
+  embedding_local                                                                              Unsupported("vector")?
+  access_count                                                                                 Int                       @default(0)
+  superseded_by                                                                                BigInt?
+  cortana_memory_semantic_cortana_memory_semantic_superseded_byTocortana_memory_semantic       cortana_memory_semantic?  @relation("cortana_memory_semantic_superseded_byTocortana_memory_semantic", fields: [superseded_by], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_cortana_memory_semantic_cortana_memory_semantic_superseded_byTocortana_memory_semantic cortana_memory_semantic[] @relation("cortana_memory_semantic_superseded_byTocortana_memory_semantic")
+  cortana_memory_semantic_cortana_memory_semantic_supersedes_idTocortana_memory_semantic       cortana_memory_semantic?  @relation("cortana_memory_semantic_supersedes_idTocortana_memory_semantic", fields: [supersedes_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_cortana_memory_semantic_cortana_memory_semantic_supersedes_idTocortana_memory_semantic cortana_memory_semantic[] @relation("cortana_memory_semantic_supersedes_idTocortana_memory_semantic")
+
+  @@unique([fact_type, subject, predicate, object_value])
+  @@index([active], map: "idx_memory_semantic_active")
+  @@index([active, superseded_at], map: "idx_memory_semantic_active_not_superseded")
+  @@index([embedding], map: "idx_memory_semantic_embedding_hnsw", where: raw("(embedding IS NOT NULL)"))
+  @@index([embedding_local], map: "idx_memory_semantic_embedding_local_hnsw", where: raw("(embedding_local IS NOT NULL)"))
+  @@index([subject, predicate], map: "idx_memory_semantic_subject_predicate")
+  @@index([superseded_by], map: "idx_memory_semantic_superseded_by")
+  @@index([supersedes_id], map: "idx_memory_semantic_supersedes_id")
+}
+
+model cortana_metrics {
+  date                 DateTime @id @db.Date
+  proactive_actions    Int?     @default(0)
+  self_recoveries      Int?     @default(0)
+  corrections_received Int?     @default(0)
+  upgrades_proposed    Int?     @default(0)
+  upgrades_implemented Int?     @default(0)
+  alerts_sent          Int?     @default(0)
+  crons_failed         Int?     @default(0)
+}
+
+model cortana_patterns {
+  id           Int       @id @default(autoincrement())
+  timestamp    DateTime? @default(now()) @db.Timestamptz(6)
+  pattern_type String?   @db.VarChar(50)
+  value        String?
+  day_of_week  Int?
+  metadata     Json?
+
+  @@index([day_of_week], map: "idx_patterns_dow")
+  @@index([timestamp], map: "idx_patterns_timestamp")
+  @@index([pattern_type], map: "idx_patterns_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_policy_budget_usage {
+  id              BigInt   @id @default(autoincrement())
+  timestamp       DateTime @default(now()) @db.Timestamptz(6)
+  cost_type       String
+  action_category String?
+  action_key      String?
+  amount          Decimal  @db.Decimal(14, 4)
+  metadata        Json     @default("{}")
+
+  @@index([action_category, action_key], map: "idx_policy_budget_usage_scope")
+  @@index([timestamp(sort: Desc), cost_type], map: "idx_policy_budget_usage_ts_type")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_policy_decisions {
+  id              BigInt   @id @default(autoincrement())
+  timestamp       DateTime @default(now()) @db.Timestamptz(6)
+  action_key      String?
+  action_category String
+  operation       String?
+  target          String?
+  requested_by    String   @default("system")
+  policy_key      String?
+  override_key    String?
+  risk_score      Decimal  @db.Decimal(5, 2)
+  confidence      Decimal? @db.Decimal(5, 4)
+  budget_snapshot Json     @default("{}")
+  decision        String
+  escalation_tier Int?     @db.SmallInt
+  rationale       String
+  metadata        Json     @default("{}")
+
+  @@index([decision, action_category], map: "idx_policy_decisions_decision")
+  @@index([timestamp(sort: Desc)], map: "idx_policy_decisions_ts")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_policy_overrides {
+  id                 BigInt    @id @default(autoincrement())
+  override_key       String    @unique
+  granted_by         String
+  reason             String
+  action_category    String?
+  action_key         String?
+  max_risk_allowed   Decimal?  @db.Decimal(5, 2)
+  decision_override  String?
+  budget_adjustments Json      @default("{}")
+  metadata           Json      @default("{}")
+  active             Boolean   @default(true)
+  starts_at          DateTime  @default(now()) @db.Timestamptz(6)
+  expires_at         DateTime  @db.Timestamptz(6)
+  revoked_at         DateTime? @db.Timestamptz(6)
+  created_at         DateTime  @default(now()) @db.Timestamptz(6)
+
+  @@index([active, starts_at, expires_at], map: "idx_policy_overrides_active_window")
+  @@index([action_category, action_key], map: "idx_policy_overrides_scope")
+}
+
+model cortana_predictions {
+  id            Int       @id @default(autoincrement())
+  prediction_id String?   @db.VarChar(50)
+  domain        String?   @db.VarChar(50)
+  prediction    String?
+  confidence    Int?
+  made_at       DateTime? @default(now()) @db.Timestamp(6)
+  resolve_by    DateTime? @db.Timestamp(6)
+  resolved_at   DateTime? @db.Timestamp(6)
+  outcome       String?   @db.VarChar(20)
+  notes         String?
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_proactive_detector_runs {
+  id                        BigInt                      @id @default(autoincrement())
+  started_at                DateTime                    @default(now()) @db.Timestamptz(6)
+  finished_at               DateTime?                   @db.Timestamptz(6)
+  status                    String                      @default("running")
+  signals_total             Int                         @default(0)
+  signals_gated             Int                         @default(0)
+  suggestions_created       Int                         @default(0)
+  errors                    Json                        @default("[]")
+  metadata                  Json                        @default("{}")
+  cortana_proactive_signals cortana_proactive_signals[]
+
+  @@index([started_at(sort: Desc)], map: "idx_proactive_detector_runs_started")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_proactive_signals {
+  id                              BigInt                           @id @default(autoincrement())
+  run_id                          BigInt?
+  created_at                      DateTime                         @default(now()) @db.Timestamptz(6)
+  source                          String
+  signal_type                     String
+  title                           String
+  summary                         String
+  confidence                      Decimal                          @db.Decimal(4, 3)
+  severity                        String                           @default("medium")
+  opportunity                     Boolean                          @default(true)
+  starts_at                       DateTime?                        @db.Timestamptz(6)
+  fingerprint                     String                           @unique(map: "idx_proactive_signals_fingerprint")
+  status                          String                           @default("new")
+  related_task_id                 Int?
+  metadata                        Json                             @default("{}")
+  cortana_tasks                   cortana_tasks?                   @relation(fields: [related_task_id], references: [id], onUpdate: NoAction)
+  cortana_proactive_detector_runs cortana_proactive_detector_runs? @relation(fields: [run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([confidence(sort: Desc), created_at(sort: Desc)], map: "idx_proactive_signals_conf")
+  @@index([source, signal_type], map: "idx_proactive_signals_source_type")
+  @@index([starts_at], map: "idx_proactive_signals_starts_at")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_proactive_suggestions {
+  id              BigInt         @id @default(autoincrement())
+  timestamp       DateTime       @default(now()) @db.Timestamptz(6)
+  source          String?
+  suggestion      String
+  status          String         @default("pending")
+  related_task_id Int?
+  metadata        Json           @default("{}")
+  cortana_tasks   cortana_tasks? @relation(fields: [related_task_id], references: [id], onUpdate: NoAction)
+
+  @@index([status], map: "idx_proactive_suggestions_status")
+  @@index([timestamp(sort: Desc)], map: "idx_proactive_suggestions_ts")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_quality_scores {
+  id               BigInt        @id @default(autoincrement())
+  task_id          Int
+  agent_role       String
+  score            Int
+  criteria_results Json          @default("{}")
+  scored_at        DateTime      @default(now()) @db.Timestamptz(6)
+  cortana_tasks    cortana_tasks @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([agent_role, scored_at(sort: Desc)], map: "idx_cortana_quality_scores_agent_role_scored_at")
+  @@index([scored_at(sort: Desc)], map: "idx_cortana_quality_scores_scored_at")
+  @@index([task_id], map: "idx_cortana_quality_scores_task_id")
+}
+
+model cortana_reflection_journal {
+  id                      Int                      @id @default(autoincrement())
+  created_at              DateTime                 @default(now()) @db.Timestamptz(6)
+  run_id                  Int?
+  entry_type              String
+  title                   String
+  body                    String?
+  metadata                Json                     @default("{}")
+  cortana_reflection_runs cortana_reflection_runs? @relation(fields: [run_id], references: [id], onUpdate: NoAction)
+
+  @@index([created_at(sort: Desc)], map: "idx_reflection_journal_created_at")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_reflection_rules {
+  id                      Int                      @id @default(autoincrement())
+  feedback_type           String                   @db.VarChar(50)
+  rule_text               String
+  confidence              Decimal                  @default(0) @db.Decimal(4, 3)
+  evidence_count          Int                      @default(1)
+  first_seen              DateTime                 @default(now()) @db.Timestamptz(6)
+  last_seen               DateTime                 @default(now()) @db.Timestamptz(6)
+  status                  String                   @default("proposed")
+  target_file             String?
+  applied_at              DateTime?                @db.Timestamptz(6)
+  source_run_id           Int?
+  metadata                Json                     @default("{}")
+  cortana_reflection_runs cortana_reflection_runs? @relation(fields: [source_run_id], references: [id], onUpdate: NoAction)
+
+  @@unique([feedback_type, rule_text])
+  @@index([status, confidence(sort: Desc)], map: "idx_reflection_rules_status_conf")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_reflection_runs {
+  id                         Int                          @id @default(autoincrement())
+  started_at                 DateTime                     @default(now()) @db.Timestamptz(6)
+  completed_at               DateTime?                    @db.Timestamptz(6)
+  trigger_source             String                       @default("manual")
+  mode                       String                       @default("sweep")
+  status                     String                       @default("running")
+  window_days                Int                          @default(30)
+  feedback_rows              Int                          @default(0)
+  reflected_tasks            Int                          @default(0)
+  rules_extracted            Int                          @default(0)
+  rules_auto_applied         Int                          @default(0)
+  repeated_correction_rate   Decimal                      @default(0) @db.Decimal(6, 2)
+  summary                    String?
+  metadata                   Json                         @default("{}")
+  error                      String?
+  cortana_reflection_journal cortana_reflection_journal[]
+  cortana_reflection_rules   cortana_reflection_rules[]
+
+  @@index([started_at(sort: Desc)], map: "idx_reflection_runs_started_at")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_response_evaluations {
+  id            BigInt         @id @default(autoincrement())
+  timestamp     DateTime       @default(now()) @db.Timestamptz(6)
+  task_id       Int?
+  source        String?
+  evaluator     String         @default("system")
+  outcome       String
+  notes         String?
+  metadata      Json           @default("{}")
+  cortana_tasks cortana_tasks? @relation(fields: [task_id], references: [id], onUpdate: NoAction)
+
+  @@index([outcome], map: "idx_response_evals_outcome")
+  @@index([timestamp(sort: Desc)], map: "idx_response_evals_ts")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_run_events {
+  id            Int            @id @default(autoincrement())
+  run_id        String
+  task_id       Int?
+  event_type    String
+  source        String?
+  metadata      Json?
+  created_at    DateTime?      @default(now()) @db.Timestamptz(6)
+  cortana_tasks cortana_tasks? @relation(fields: [task_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@index([run_id], map: "idx_run_events_run_id")
+  @@index([task_id], map: "idx_run_events_task_id")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_self_model {
+  id               Int      @id @default(1)
+  health_score     Int      @default(100)
+  status           String   @default("nominal")
+  budget_used      Decimal? @default(0) @db.Decimal(8, 2)
+  budget_pct_used  Decimal? @default(0) @db.Decimal(5, 2)
+  budget_burn_rate Decimal? @default(0) @db.Decimal(6, 2)
+  budget_projected Decimal? @default(0) @db.Decimal(8, 2)
+  throttle_tier    Int      @default(0)
+  crons_total      Int?     @default(0)
+  crons_healthy    Int?     @default(0)
+  crons_failing    String[] @default([])
+  crons_missed     String[] @default([])
+  tools_up         String[] @default([])
+  tools_down       String[] @default([])
+  top_cost_crons   Json?    @default("{}")
+  brief_engagement Decimal? @default(0) @db.Decimal(4, 2)
+  alerts           String[] @default([])
+  metadata         Json?    @default("{}")
+  updated_at       DateTime @default(now()) @db.Timestamptz(6)
+}
+
+model cortana_sitrep {
+  id        Int                      @id @default(autoincrement())
+  timestamp DateTime?                @default(now()) @db.Timestamptz(6)
+  run_id    String?                  @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  domain    String
+  key       String
+  value     Json
+  ttl       Unsupported("interval")? @default(dbgenerated("'24:00:00'::interval"))
+
+  @@unique([run_id, domain, key])
+  @@index([domain], map: "idx_sitrep_domain")
+  @@index([run_id], map: "idx_sitrep_run_id")
+  @@index([timestamp(sort: Desc)], map: "idx_sitrep_timestamp")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_task_reflections {
+  id            Int            @id @default(autoincrement())
+  task_id       Int?           @unique
+  reflected_at  DateTime       @default(now()) @db.Timestamptz(6)
+  outcome_type  String
+  signal_score  Decimal        @default(0) @db.Decimal(5, 2)
+  lesson        String?
+  evidence      Json           @default("{}")
+  cortana_tasks cortana_tasks? @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@index([reflected_at(sort: Desc)], map: "idx_task_reflections_reflected_at")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_tasks {
+  id                            Int                             @id @default(autoincrement())
+  created_at                    DateTime?                       @default(now()) @db.Timestamp(6)
+  source                        String?                         @db.VarChar(50)
+  title                         String
+  description                   String?
+  priority                      Int?                            @default(3)
+  status                        String?                         @default("pending") @db.VarChar(20)
+  due_at                        DateTime?                       @db.Timestamp(6)
+  remind_at                     DateTime?                       @db.Timestamp(6)
+  execute_at                    DateTime?                       @db.Timestamp(6)
+  auto_executable               Boolean?                        @default(false)
+  execution_plan                String?
+  depends_on                    Int[]
+  completed_at                  DateTime?                       @db.Timestamp(6)
+  outcome                       String?
+  metadata                      Json?                           @default("{}")
+  epic_id                       Int?
+  parent_id                     Int?
+  assigned_to                   String?
+  updated_at                    DateTime                        @default(now())
+  run_id                        String?
+  cortana_agent_feedback        cortana_agent_feedback[]
+  cortana_council_sessions      cortana_council_sessions[]
+  cortana_proactive_signals     cortana_proactive_signals[]
+  cortana_proactive_suggestions cortana_proactive_suggestions[]
+  cortana_quality_scores        cortana_quality_scores[]
+  cortana_response_evaluations  cortana_response_evaluations[]
+  cortana_run_events            cortana_run_events[]
+  cortana_task_reflections      cortana_task_reflections?
+  cortana_epics                 cortana_epics?                  @relation(fields: [epic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cortana_tasks                 cortana_tasks?                  @relation("cortana_tasksTocortana_tasks", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  other_cortana_tasks           cortana_tasks[]                 @relation("cortana_tasksTocortana_tasks")
+  cortana_trace_spans           cortana_trace_spans[]
+
+  @@index([auto_executable], map: "idx_cortana_tasks_auto_executable")
+  @@index([epic_id], map: "idx_cortana_tasks_epic_id")
+  @@index([parent_id], map: "idx_cortana_tasks_parent_id")
+  @@index([status], map: "idx_cortana_tasks_status")
+}
+
+model cortana_throttle_log {
+  id            Int      @id @default(autoincrement())
+  timestamp     DateTime @default(now()) @db.Timestamptz(6)
+  tier_from     Int
+  tier_to       Int
+  reason        String
+  actions_taken String[] @default([])
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_token_ledger {
+  id             BigInt         @id @default(autoincrement())
+  timestamp      DateTime       @default(now()) @db.Timestamptz(6)
+  agent_role     String
+  task_id        BigInt?
+  trace_id       String?
+  model          String
+  tokens_in      Int
+  tokens_out     Int
+  estimated_cost Decimal        @db.Decimal(12, 6)
+  metadata       Json           @default("{}")
+
+  @@index([agent_role, timestamp(sort: Desc)], map: "idx_token_ledger_agent_timestamp")
+  @@index([metadata], map: "idx_token_ledger_metadata_gin", type: Gin)
+  @@index([model, timestamp(sort: Desc)], map: "idx_token_ledger_model_timestamp")
+  @@index([task_id], map: "idx_token_ledger_task_id")
+  @@index([timestamp(sort: Desc)], map: "idx_token_ledger_timestamp")
+  @@index([trace_id], map: "idx_token_ledger_trace_id")
+}
+
+model cortana_tool_health {
+  id          Int      @id @default(autoincrement())
+  timestamp   DateTime @default(now()) @db.Timestamptz(6)
+  tool_name   String
+  status      String
+  response_ms Int?
+  error       String?
+  self_healed Boolean? @default(false)
+
+  @@index([tool_name, timestamp(sort: Desc)], map: "idx_tool_health_name")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_trace_spans {
+  id              Int            @id @default(autoincrement())
+  trace_id        String         @db.Uuid
+  span_name       String
+  agent_role      String?
+  task_id         Int?
+  chain_id        String?        @db.Uuid
+  started_at      DateTime       @db.Timestamptz(6)
+  ended_at        DateTime       @db.Timestamptz(6)
+  duration_ms     Int?           @default(dbgenerated("((EXTRACT(epoch FROM (ended_at - started_at)) * (1000)::numeric))::integer"))
+  token_count_in  Int?
+  token_count_out Int?
+  metadata        Json           @default("{}")
+  cortana_tasks   cortana_tasks? @relation(fields: [task_id], references: [id], onUpdate: NoAction)
+
+  @@index([agent_role], map: "idx_cortana_trace_spans_agent_role")
+  @@index([task_id], map: "idx_cortana_trace_spans_task_id")
+  @@index([trace_id], map: "idx_cortana_trace_spans_trace_id")
+}
+
+model cortana_trades {
+  id             Int       @id @default(autoincrement())
+  timestamp      DateTime? @default(now()) @db.Timestamptz(6)
+  symbol         String
+  side           String
+  qty            Decimal?  @db.Decimal
+  notional       Decimal?  @db.Decimal
+  entry_price    Decimal?  @db.Decimal
+  target_price   Decimal?  @db.Decimal
+  stop_loss      Decimal?  @db.Decimal
+  thesis         String?
+  signal_source  String?
+  status         String?   @default("open")
+  exit_price     Decimal?  @db.Decimal
+  exit_timestamp DateTime? @db.Timestamptz(6)
+  pnl            Decimal?  @db.Decimal
+  pnl_pct        Decimal?  @db.Decimal
+  outcome        String?
+  metadata       Json?     @default("{}")
+}
+
+model cortana_upgrades {
+  id             Int       @id @default(autoincrement())
+  proposed_at    DateTime? @default(now()) @db.Timestamptz(6)
+  gap_identified String?
+  proposed_fix   String?
+  effort         String?   @db.VarChar(20)
+  status         String?   @default("proposed") @db.VarChar(20)
+  outcome        String?
+  approved_at    DateTime? @db.Timestamptz(6)
+  implemented_at DateTime? @db.Timestamptz(6)
+
+  @@index([proposed_at], map: "idx_upgrades_proposed")
+  @@index([status], map: "idx_upgrades_status")
+}
+
+model cortana_wake_rules {
+  id                Int       @id @default(autoincrement())
+  name              String    @db.VarChar(100)
+  description       String?
+  source            String    @db.VarChar(50)
+  event_type        String    @db.VarChar(50)
+  condition         Json
+  priority          Int?      @default(3)
+  weight            Float?    @default(1.0)
+  enabled           Boolean?  @default(true)
+  suppress_when     Json?     @default("{}")
+  created_at        DateTime? @default(now()) @db.Timestamptz(6)
+  last_triggered    DateTime? @db.Timestamptz(6)
+  trigger_count     Int?      @default(0)
+  positive_feedback Int?      @default(0)
+  negative_feedback Int?      @default(0)
+}
+
+model cortana_watchlist {
+  id           Int       @id @default(autoincrement())
+  created_at   DateTime? @default(now()) @db.Timestamp(6)
+  category     String
+  item         String
+  condition    String?
+  threshold    Json?
+  last_checked DateTime? @db.Timestamp(6)
+  last_value   Json?
+  alert_sent   Boolean?  @default(false)
+  enabled      Boolean?  @default(true)
+  metadata     Json?
+
+  @@index([category], map: "idx_watchlist_category")
+  @@index([enabled], map: "idx_watchlist_enabled", where: raw("(enabled = true)"))
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model cortana_workflow_checkpoints {
+  id            BigInt         @id @default(autoincrement())
+  workflow_id   String         @db.Uuid
+  step_id       String
+  state         String
+  agent_role    String?
+  task_id       BigInt?
+  trace_id      String?
+  payload       Json           @default("{}")
+  created_at    DateTime       @default(now()) @db.Timestamptz(6)
+  updated_at    DateTime       @default(now()) @db.Timestamptz(6)
+
+  @@index([state], map: "idx_workflow_checkpoints_state")
+  @@index([workflow_id, created_at(sort: Desc)], map: "idx_workflow_checkpoints_workflow_created")
+  @@index([workflow_id], map: "idx_workflow_checkpoints_workflow_id")
+}
+
+model mc_approval_events {
+  id                   BigInt               @id @default(autoincrement())
+  approval_id          String               @db.Uuid
+  event_type           String
+  actor                String?
+  payload              Json?
+  created_at           DateTime             @default(now()) @db.Timestamptz(6)
+  mc_approval_requests mc_approval_requests @relation(fields: [approval_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model mc_approval_requests {
+  id                 String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  run_id             String?              @db.Uuid
+  task_id            String?              @db.Uuid
+  agent_id           String
+  action_type        String
+  proposal           Json
+  diff               Json?
+  rationale          String?
+  risk_level         String
+  risk_score         Decimal?             @db.Decimal(5, 2)
+  blast_radius       String?
+  auto_approvable    Boolean              @default(false)
+  policy_version     String?
+  status             String               @default("pending")
+  decision           Json?
+  approved_by        String?
+  approved_at        DateTime?            @db.Timestamptz(6)
+  rejected_by        String?
+  rejected_at        DateTime?            @db.Timestamptz(6)
+  created_at         DateTime             @default(now()) @db.Timestamptz(6)
+  expires_at         DateTime?            @db.Timestamptz(6)
+  resumed_at         DateTime?            @db.Timestamptz(6)
+  executed_at        DateTime?            @db.Timestamptz(6)
+  execution_result   Json?
+  resume_payload     Json?
+  mc_approval_events mc_approval_events[]
+
+  @@index([run_id], map: "mc_approval_requests_run_idx")
+  @@index([status, risk_level, expires_at], map: "mc_approval_requests_status_idx")
+}
+
+model mc_council_members {
+  id                  BigInt              @id @default(autoincrement())
+  session_id          String              @db.Uuid
+  agent_id            String
+  role                String?
+  weight              Decimal             @default(1.0) @db.Decimal(6, 3)
+  stance              String?
+  vote                String?
+  vote_score          Decimal?            @db.Decimal(6, 3)
+  reasoning           String?
+  responded_at        DateTime?           @db.Timestamptz(6)
+  mc_council_sessions mc_council_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+model mc_council_messages {
+  id                  BigInt              @id @default(autoincrement())
+  session_id          String              @db.Uuid
+  turn_no             Int
+  speaker_id          String
+  message_type        String
+  content             String
+  metadata            Json?
+  created_at          DateTime            @default(now()) @db.Timestamptz(6)
+  mc_council_sessions mc_council_sessions @relation(fields: [session_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model mc_council_sessions {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  task_id             String?               @db.Uuid
+  topic               String
+  objective           String?
+  mode                String
+  status              String                @default("running")
+  created_by          String?
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  decided_at          DateTime?             @db.Timestamptz(6)
+  final_decision      Json?
+  confidence          Decimal?              @db.Decimal(5, 2)
+  rationale           String?
+  model_policy        Json?                 @default("{\"voter\": \"gpt-4o\", \"synthesizer\": \"gpt-4o\"}")
+  mc_council_members  mc_council_members[]
+  mc_council_messages mc_council_messages[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model mc_feedback_actions {
+  id                BigInt            @id @default(autoincrement())
+  feedback_id       String            @db.Uuid
+  action_type       String
+  action_ref        String?
+  description       String?
+  status            String
+  created_at        DateTime          @default(now()) @db.Timestamptz(6)
+  verified_at       DateTime?         @db.Timestamptz(6)
+  mc_feedback_items mc_feedback_items @relation(fields: [feedback_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model mc_feedback_items {
+  id                  String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  run_id              String?               @db.Uuid
+  task_id             String?               @db.Uuid
+  agent_id            String?
+  source              String
+  category            String
+  severity            String
+  summary             String
+  details             Json?
+  recurrence_key      String?
+  status              String                @default("new")
+  owner               String?
+  created_at          DateTime              @default(now()) @db.Timestamptz(6)
+  updated_at          DateTime              @default(now()) @db.Timestamptz(6)
+  remediation_status  String?               @default("open")
+  remediation_notes   String?
+  resolved_at         DateTime?             @db.Timestamptz(6)
+  resolved_by         String?
+  mc_feedback_actions mc_feedback_actions[]
+}
