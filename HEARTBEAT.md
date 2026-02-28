@@ -101,12 +101,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Surface overdue `remind_at` tasks and approaching deadlines.
 
 - **Cron delivery monitoring (every heartbeat)**
-  - Parse `~/.openclaw/cron/jobs.json`.
-  - For each enabled job with `delivery.mode: "announce"`:
-    - If `state.lastStatus == "ok"` but `state.lastDelivered == false` or `state.lastDeliveryStatus != "delivered"` → delivery failure.
-  - Alert immediately with job name + last run time.
-  - Log to `cortana_events` with severity `warning`.
-  - Self-heal: retry sending last result via `message` tool to configured `delivery.to`.
+  - Run `tools/alerting/check-cron-delivery.sh` every heartbeat.
 
 - **Sub-agent reaper (every heartbeat)**
   - Run `~/openclaw/tools/reaper/reaper.sh` to clean stale sub-agent sessions.

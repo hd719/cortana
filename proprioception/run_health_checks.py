@@ -17,6 +17,7 @@ JOBS_FILE = Path.home() / ".openclaw/cron/jobs.json"
 HEARTBEAT_STATE_FILE = Path.home() / "clawd/memory/heartbeat-state.json"
 HEARTBEAT_VALIDATOR = Path.home() / "clawd/tools/heartbeat/validate-heartbeat-state.sh"
 REMEDIATION_STATE_FILE = Path.home() / "clawd/proprioception/state/heartbeat-remediation.json"
+CRON_DELIVERY_CHECK = Path(__file__).resolve().parents[1] / "tools/alerting/check-cron-delivery.sh"
 
 REMEDIATION_COOLDOWN_SEC = 30 * 60
 MAX_REMEDIATIONS_PER_DAY = 3
@@ -210,6 +211,16 @@ def collect_tool_health() -> List[Dict[str, Any]]:
             "error": wttr["error"] if fallback["ok"] else fallback["error"],
             "self_healed": fallback["ok"],
         })
+
+    # cron delivery monitor
+    cron_delivery = run_cmd(f"{CRON_DELIVERY_CHECK}", timeout=20)
+    results.append({
+        "tool_name": "cron_delivery",
+        "status": "up" if cron_delivery["ok"] else "down",
+        "response_ms": cron_delivery["duration_ms"],
+        "error": cron_delivery["error"],
+        "self_healed": False,
+    })
 
     return results
 
