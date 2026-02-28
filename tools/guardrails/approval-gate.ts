@@ -1,10 +1,11 @@
 #!/usr/bin/env npx tsx
 
 import path from "node:path";
+import os from "node:os";
 import crypto from "node:crypto";
 import { readJsonFile } from "../lib/json-file.js";
 
-const DEFAULT_CONFIG = path.join(process.env.HOME ?? "~", ".openclaw", "openclaw.json");
+const DEFAULT_CONFIG = path.join(os.homedir(), ".openclaw", "openclaw.json");
 
 const HIGH_RISK_KEYWORDS = [
   "external email",

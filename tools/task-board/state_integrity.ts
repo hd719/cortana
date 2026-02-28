@@ -1,21 +1,170 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+
+import { query } from "../lib/db.js";
+
+type Json = Record<string, any>;
+
+const SOURCE = "state_integrity";
+
+function sqlEscape(text: string): string {
+  return text.replace(/'/g, "''");
+}
+
+function runPsql(sql: string): string {
+  return query(sql).trim();
+}
+
+function fetchJson(sql: string): Array<Record<string, any>> {
+  const wrapped = `SELECT COALESCE(json_agg(t), '[]'::json)::text FROM (${sql}) t;`;
+  const raw = runPsql(wrapped);
+  return raw ? (JSON.parse(raw) as Array<Record<string, any>>) : [];
+}
+
+function logEvent(eventType: string, severity: string, message: string, metadata: Json, dryRun: boolean): void {
+  if (dryRun) return;
+  const meta = sqlEscape(JSON.stringify(metadata));
+  runPsql(
+    "INSERT INTO cortana_events (event_type, source, severity, message, metadata) VALUES " +
+      `('${sqlEscape(eventType)}', '${SOURCE}', '${sqlEscape(severity)}', ` +
+      `'${sqlEscape(message)}', '${meta}'::jsonb);`
+  );
+}
+
+function fixDoneMissingCompletedAt(limit: number, dryRun: boolean): number[] {
+  const rows = fetchJson(
+    "SELECT id FROM cortana_tasks " +
+      "WHERE status='completed' AND completed_at IS NULL " +
+      `ORDER BY id ASC LIMIT ${Math.max(1, limit)}`
+  );
+  const ids = rows.map((r) => Number(r.id));
+  if (ids.length && !dryRun) {
+    runPsql(
+      "UPDATE cortana_tasks SET completed_at = NOW(), updated_at = CURRENT_TIMESTAMP " +
+        `WHERE id = ANY(ARRAY[${ids.join(",")} ]::int[]) AND completed_at IS NULL;`
+    );
+  }
+  if (ids.length) {
+    logEvent(
+      "auto_heal",
+      "info",
+      `Filled completed_at for ${ids.length} completed task(s)`,
+      { task_ids: ids, fix: "set_completed_at_now", dry_run: dryRun },
+      dryRun
+    );
+  }
+  return ids;
+}
+
+function detectOrphanedInProgress(orphanMinutes: number, limit: number): Json[] {
+  return fetchJson(
+    "SELECT t.id, t.title, t.assigned_to, t.updated_at, t.created_at " +
+      "FROM cortana_tasks t " +
+      "WHERE t.status='in_progress' " +
+      `  AND COALESCE(t.updated_at, t.created_at, NOW()) < NOW() - INTERVAL '${Math.max(
+        1,
+        orphanMinutes
+      )} minutes' ` +
+      "  AND NOT EXISTS (" +
+      "    SELECT 1 FROM cortana_covenant_runs r " +
+      "    WHERE (r.status = 'running' OR r.ended_at IS NULL) " +
+      "      AND (" +
+      "        (t.run_id IS NOT NULL AND r.run_id = t.run_id) " +
+      "        OR (" +
+      "          t.run_id IS NULL " +
+      "          AND t.assigned_to IS NOT NULL " +
+      "          AND (r.agent = t.assigned_to OR r.session_key = t.assigned_to)" +
+      "        )" +
+      "      )" +
+      "  ) " +
+      "ORDER BY COALESCE(t.updated_at, t.created_at) ASC " +
+      `LIMIT ${Math.max(1, limit)}`
+  );
+}
+
+function detectCompletedWithPendingChildren(limit: number): Json[] {
+  return fetchJson(
+    "SELECT p.id AS parent_id, p.title AS parent_title, COUNT(c.id)::int AS pending_children " +
+      "FROM cortana_tasks p " +
+      "JOIN cortana_tasks c ON c.parent_id = p.id " +
+      "WHERE p.status='completed' AND c.status IN ('ready', 'in_progress', 'backlog') " +
+      "GROUP BY p.id, p.title " +
+      "ORDER BY pending_children DESC, p.id ASC " +
+      `LIMIT ${Math.max(1, limit)}`
+  );
+}
+
+function audit(orphanMinutes: number, fixLimit: number, detectLimit: number, dryRun: boolean): Json {
+  const fixedDone = fixDoneMissingCompletedAt(fixLimit, dryRun);
+  const orphaned = detectOrphanedInProgress(orphanMinutes, detectLimit);
+  const completedWithPending = detectCompletedWithPendingChildren(detectLimit);
+
+  if (orphaned.length) {
+    logEvent(
+      "integrity_warning",
+      "warning",
+      `Detected ${orphaned.length} orphaned in_progress task(s)`,
+      { orphaned_tasks: orphaned, orphan_minutes: orphanMinutes, dry_run: dryRun },
+      dryRun
+    );
+  }
+
+  if (completedWithPending.length) {
+    logEvent(
+      "integrity_warning",
+      "warning",
+      `Detected ${completedWithPending.length} completed parent task(s) with pending children`,
+      { mismatches: completedWithPending, dry_run: dryRun },
+      dryRun
+    );
+  }
+
+  return {
+    status: "ok",
+    dry_run: dryRun,
+    fixed: { done_missing_completed_at: fixedDone.length, task_ids: fixedDone },
+    detected: { orphaned_in_progress: orphaned, completed_with_pending_children: completedWithPending },
+  };
+}
+
+type Args = { orphanMinutes: number; fixLimit: number; detectLimit: number; dryRun: boolean };
+
+function parseArgs(argv: string[]): Args {
+  const args: Args = { orphanMinutes: 30, fixLimit: 200, detectLimit: 200, dryRun: false };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    switch (arg) {
+      case "--orphan-minutes":
+        args.orphanMinutes = Number(argv[i + 1]);
+        i += 1;
+        break;
+      case "--fix-limit":
+        args.fixLimit = Number(argv[i + 1]);
+        i += 1;
+        break;
+      case "--detect-limit":
+        args.detectLimit = Number(argv[i + 1]);
+        i += 1;
+        break;
+      case "--dry-run":
+        args.dryRun = true;
+        break;
+      default:
+        break;
+    }
+  }
+  return args;
+}
 
 async function main(): Promise<void> {
-  const py = "#!/usr/bin/env python3\n\"\"\"Heartbeat-safe state integrity auditor for cortana_tasks.\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport os\nimport subprocess\nimport sys\nfrom typing import Any\n\nDB_NAME = \"cortana\"\nDB_PATH = \"/opt/homebrew/opt/postgresql@17/bin\"\nSOURCE = \"state_integrity\"\n\n\ndef _sql_escape(text: str) -> str:\n    return text.replace(\"'\", \"''\")\n\n\ndef run_psql(sql: str) -> str:\n    env = os.environ.copy()\n    env[\"PATH\"] = f\"{DB_PATH}:{env.get('PATH', '')}\"\n    cmd = [\"psql\", DB_NAME, \"-q\", \"-X\", \"-v\", \"ON_ERROR_STOP=1\", \"-t\", \"-A\", \"-c\", sql]\n    proc = subprocess.run(cmd, capture_output=True, text=True, env=env)\n    if proc.returncode != 0:\n        raise RuntimeError(proc.stderr.strip() or \"psql failed\")\n    return proc.stdout.strip()\n\n\ndef fetch_json(sql: str) -> list[dict[str, Any]]:\n    wrapped = f\"SELECT COALESCE(json_agg(t), '[]'::json)::text FROM ({sql}) t;\"\n    raw = run_psql(wrapped)\n    return json.loads(raw) if raw else []\n\n\ndef log_event(event_type: str, severity: str, message: str, metadata: dict[str, Any], dry_run: bool) -> None:\n    if dry_run:\n        return\n    meta = _sql_escape(json.dumps(metadata, separators=(\",\", \":\")))\n    run_psql(\n        \"INSERT INTO cortana_events (event_type, source, severity, message, metadata) VALUES \"\n        f\"('{_sql_escape(event_type)}', '{SOURCE}', '{_sql_escape(severity)}', \"\n        f\"'{_sql_escape(message)}', '{meta}'::jsonb);\"\n    )\n\n\ndef fix_done_missing_completed_at(limit: int, dry_run: bool) -> list[int]:\n    rows = fetch_json(\n        \"SELECT id FROM cortana_tasks \"\n        \"WHERE status='completed' AND completed_at IS NULL \"\n        f\"ORDER BY id ASC LIMIT {max(1, limit)}\"\n    )\n    ids = [int(r[\"id\"]) for r in rows]\n    if ids and not dry_run:\n        run_psql(\n            \"UPDATE cortana_tasks SET completed_at = NOW(), updated_at = CURRENT_TIMESTAMP \"\n            f\"WHERE id = ANY(ARRAY[{','.join(str(i) for i in ids)}]::int[]) AND completed_at IS NULL;\"\n        )\n    if ids:\n        log_event(\n            \"auto_heal\",\n            \"info\",\n            f\"Filled completed_at for {len(ids)} completed task(s)\",\n            {\"task_ids\": ids, \"fix\": \"set_completed_at_now\", \"dry_run\": dry_run},\n            dry_run,\n        )\n    return ids\n\n\ndef detect_orphaned_in_progress(orphan_minutes: int, limit: int) -> list[dict[str, Any]]:\n    return fetch_json(\n        \"SELECT t.id, t.title, t.assigned_to, t.updated_at, t.created_at \"\n        \"FROM cortana_tasks t \"\n        \"WHERE t.status='in_progress' \"\n        f\"  AND COALESCE(t.updated_at, t.created_at, NOW()) < NOW() - INTERVAL '{max(1, orphan_minutes)} minutes' \"\n        \"  AND NOT EXISTS (\"\n        \"    SELECT 1 FROM cortana_covenant_runs r \"\n        \"    WHERE (r.status = 'running' OR r.ended_at IS NULL) \"\n        \"      AND (\"\n        \"        (t.run_id IS NOT NULL AND r.run_id = t.run_id) \"\n        \"        OR (\"\n        \"          t.run_id IS NULL \"\n        \"          AND t.assigned_to IS NOT NULL \"\n        \"          AND (r.agent = t.assigned_to OR r.session_key = t.assigned_to)\"\n        \"        )\"\n        \"      )\"\n        \"  ) \"\n        \"ORDER BY COALESCE(t.updated_at, t.created_at) ASC \"\n        f\"LIMIT {max(1, limit)}\"\n    )\n\n\ndef detect_completed_with_pending_children(limit: int) -> list[dict[str, Any]]:\n    return fetch_json(\n        \"SELECT p.id AS parent_id, p.title AS parent_title, COUNT(c.id)::int AS pending_children \"\n        \"FROM cortana_tasks p \"\n        \"JOIN cortana_tasks c ON c.parent_id = p.id \"\n        \"WHERE p.status='completed' AND c.status IN ('ready', 'in_progress', 'backlog') \"\n        \"GROUP BY p.id, p.title \"\n        \"ORDER BY pending_children DESC, p.id ASC \"\n        f\"LIMIT {max(1, limit)}\"\n    )\n\n\ndef audit(orphan_minutes: int, fix_limit: int, detect_limit: int, dry_run: bool) -> dict[str, Any]:\n    fixed_done = fix_done_missing_completed_at(limit=fix_limit, dry_run=dry_run)\n    orphaned = detect_orphaned_in_progress(orphan_minutes=orphan_minutes, limit=detect_limit)\n    completed_with_pending = detect_completed_with_pending_children(limit=detect_limit)\n\n    if orphaned:\n        log_event(\n            \"integrity_warning\",\n            \"warning\",\n            f\"Detected {len(orphaned)} orphaned in_progress task(s)\",\n            {\"orphaned_tasks\": orphaned, \"orphan_minutes\": orphan_minutes, \"dry_run\": dry_run},\n            dry_run,\n        )\n\n    if completed_with_pending:\n        log_event(\n            \"integrity_warning\",\n            \"warning\",\n            f\"Detected {len(completed_with_pending)} completed parent task(s) with pending children\",\n            {\"mismatches\": completed_with_pending, \"dry_run\": dry_run},\n            dry_run,\n        )\n\n    summary = {\n        \"status\": \"ok\",\n        \"dry_run\": dry_run,\n        \"fixed\": {\n            \"done_missing_completed_at\": len(fixed_done),\n            \"task_ids\": fixed_done,\n        },\n        \"detected\": {\n            \"orphaned_in_progress\": orphaned,\n            \"completed_with_pending_children\": completed_with_pending,\n        },\n    }\n    return summary\n\n\ndef parse_args() -> argparse.Namespace:\n    p = argparse.ArgumentParser(\n        description=\"Run cortana_tasks state integrity audit (quick, idempotent, heartbeat-safe).\"\n    )\n    p.add_argument(\"--orphan-minutes\", type=int, default=30, help=\"Age threshold for orphaned in_progress tasks\")\n    p.add_argument(\"--fix-limit\", type=int, default=200, help=\"Max low-risk fixes per run\")\n    p.add_argument(\"--detect-limit\", type=int, default=200, help=\"Max anomalies returned per detector\")\n    p.add_argument(\"--dry-run\", action=\"store_true\", help=\"Detect only; do not update tasks or write events\")\n    return p.parse_args()\n\n\ndef main() -> int:\n    args = parse_args()\n    try:\n        report = audit(\n            orphan_minutes=args.orphan_minutes,\n            fix_limit=args.fix_limit,\n            detect_limit=args.detect_limit,\n            dry_run=args.dry_run,\n        )\n    except Exception as exc:  # noqa: BLE001\n        print(json.dumps({\"status\": \"error\", \"error\": str(exc)}), file=sys.stderr)\n        return 1\n\n    print(json.dumps(report, default=str))\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n";
-  const dir = mkdtempSync(join(tmpdir(), 'pywrap-'));
-  const script = join(dir, 'script.py');
-  writeFileSync(script, py, 'utf8');
-  const proc = spawnSync('python3', [script, ...process.argv.slice(2)], { stdio: 'inherit' });
-  rmSync(dir, { recursive: true, force: true });
-  if (proc.error) {
-    console.error(String(proc.error));
+  const args = parseArgs(process.argv.slice(2));
+  try {
+    const report = audit(args.orphanMinutes, args.fixLimit, args.detectLimit, args.dryRun);
+    console.log(JSON.stringify(report));
+    process.exit(0);
+  } catch (err) {
+    console.error(JSON.stringify({ status: "error", error: err instanceof Error ? err.message : String(err) }));
     process.exit(1);
   }
-  process.exit(proc.status ?? 1);
 }
 
 main().catch((err) => {

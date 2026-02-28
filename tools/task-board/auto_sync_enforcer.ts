@@ -1,21 +1,332 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+
+import fs from "fs";
+import path from "path";
+import { runPsql, withPostgresPath } from "../lib/db.js";
+
+type Json = Record<string, any>;
+
+const PSQL_BIN_PATH = "/opt/homebrew/opt/postgresql@17/bin";
+const DB_NAME = "cortana";
+
+const EVIDENCE_MARKERS = new Set([
+  "implemented",
+  "updated",
+  "added",
+  "fixed",
+  "refactored",
+  "tested",
+  "validated",
+  "committed",
+  "pushed",
+  "created",
+  "ran",
+  "query",
+  "sql",
+  "python",
+]);
+
+const VAGUE_PATTERNS = [
+  /^\s*done\.?\s*$/i,
+  /^\s*completed\.?\s*$/i,
+  /^\s*all good\.?\s*$/i,
+  /^\s*fixed it\.?\s*$/i,
+  /^\s*handled\.?\s*$/i,
+];
+
+function emit(event: string, payload: Json, pretty = false): void {
+  const doc = { event, ts: new Date().toISOString(), ...payload };
+  if (pretty) console.log(JSON.stringify(doc, null, 2));
+  else console.log(JSON.stringify(doc));
+}
+
+function runSql(query: string): string {
+  const proc = runPsql(query, { db: DB_NAME, args: ["-X", "-t", "-A"], env: withPostgresPath(process.env) });
+  if (proc.status !== 0) {
+    const msg = (proc.stderr ?? proc.stdout ?? "psql failed").trim();
+    throw new Error(msg || "psql failed");
+  }
+  return (proc.stdout ?? "").trim();
+}
+
+function sqlQuote(value: string): string {
+  return `'${value.replace(/'/g, "''")}'`;
+}
+
+function normalize(text: string): string {
+  return text.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function tokenize(label: string): string[] {
+  return label
+    .toLowerCase()
+    .split(/[^a-zA-Z0-9]+/)
+    .filter((tok) => tok.length >= 3);
+}
+
+function validateResult(result: string): Json {
+  const norm = normalize(result);
+  const wordCount = norm ? norm.split(" ").length : 0;
+
+  const reasons: string[] = [];
+  let score = 1.0;
+
+  if (!norm) {
+    reasons.push("empty");
+    score -= 1.0;
+  }
+
+  if (VAGUE_PATTERNS.some((re) => re.test(norm))) {
+    reasons.push("vague_one_liner");
+    score -= 0.6;
+  }
+
+  if (wordCount < 8) {
+    reasons.push("too_short");
+    score -= 0.35;
+  }
+
+  const evidenceHits = Array.from(EVIDENCE_MARKERS).filter((m) => norm.includes(m)).length;
+  const hasPathsOrCommands = /\/\w|\.py\b|\.md\b|git\s+|python3\s+|SELECT\s+|UPDATE\s+/i.test(result);
+
+  if (evidenceHits === 0 && !hasPathsOrCommands) {
+    reasons.push("no_evidence_markers");
+    score -= 0.5;
+  }
+
+  const valid = score >= 0.5 && !reasons.includes("empty");
+  return {
+    valid,
+    score: Math.max(0, Math.round(score * 10000) / 10000),
+    reasons,
+    word_count: wordCount,
+    evidence_hits: evidenceHits,
+    has_paths_or_commands: hasPathsOrCommands,
+  };
+}
+
+function fetchCandidates(label: string): Json[] {
+  const tokens = tokenize(label);
+  const likeClauses = tokens.map(
+    (t) => `LOWER(title) LIKE '%${t}%' OR LOWER(COALESCE(description,'')) LIKE '%${t}%'`
+  );
+  const tokenFilter = likeClauses.length ? likeClauses.join(" OR ") : "TRUE";
+
+  const query = `
+    SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json)
+    FROM (
+      SELECT id, title, description, status, assigned_to, priority, created_at
+      FROM cortana_tasks
+      WHERE status IN ('ready', 'in_progress')
+        AND (${tokenFilter}
+             OR LOWER(COALESCE(assigned_to,'')) LIKE '%' || ${sqlQuote(label.toLowerCase())} || '%'
+             OR LOWER(COALESCE(metadata::text,'')) LIKE '%' || ${sqlQuote(label.toLowerCase())} || '%')
+      ORDER BY priority ASC, created_at DESC
+      LIMIT 50
+    ) t;
+  `;
+
+  const raw = runSql(query);
+  if (!raw) return [];
+  return JSON.parse(raw);
+}
+
+function longestCommonSubstring(a: string, b: string): { aIndex: number; bIndex: number; length: number } {
+  let maxLen = 0;
+  let endA = 0;
+  let endB = 0;
+  const prev = new Array(b.length + 1).fill(0);
+  for (let i = 1; i <= a.length; i += 1) {
+    let prevDiag = 0;
+    for (let j = 1; j <= b.length; j += 1) {
+      const temp = prev[j];
+      if (a[i - 1] === b[j - 1]) {
+        prev[j] = prevDiag + 1;
+        if (prev[j] > maxLen) {
+          maxLen = prev[j];
+          endA = i;
+          endB = j;
+        }
+      } else {
+        prev[j] = 0;
+      }
+      prevDiag = temp;
+    }
+  }
+  return { aIndex: endA - maxLen, bIndex: endB - maxLen, length: maxLen };
+}
+
+function matchingBlocks(a: string, b: string): number {
+  if (!a.length || !b.length) return 0;
+  const { aIndex, bIndex, length } = longestCommonSubstring(a, b);
+  if (length === 0) return 0;
+  const left = matchingBlocks(a.slice(0, aIndex), b.slice(0, bIndex));
+  const right = matchingBlocks(a.slice(aIndex + length), b.slice(bIndex + length));
+  return length + left + right;
+}
+
+function sequenceMatcherRatio(a: string, b: string): number {
+  if (!a.length && !b.length) return 1.0;
+  const matches = matchingBlocks(a, b);
+  return (2.0 * matches) / (a.length + b.length);
+}
+
+function similarityScore(label: string, task: Json): number {
+  const l = normalize(label);
+  const title = normalize(String(task.title ?? ""));
+  const desc = normalize(String(task.description ?? ""));
+
+  const titleRatio = sequenceMatcherRatio(l, title);
+  const descRatio = sequenceMatcherRatio(l, desc);
+
+  const tokenHits = tokenize(label).filter((t) => title.includes(t) || desc.includes(t)).length;
+  const tokenBonus = Math.min(0.3, tokenHits * 0.06);
+
+  return Math.max(titleRatio, descRatio * 0.8) + tokenBonus;
+}
+
+function summarizeResult(result: string, maxLen = 500): string {
+  const cleaned = result.replace(/\s+/g, " ").trim();
+  if (cleaned.length <= maxLen) return cleaned;
+  return cleaned.slice(0, maxLen - 3) + "...";
+}
+
+function updateTaskDone(taskId: number, summary: string, label: string): Json {
+  const query = `
+    UPDATE cortana_tasks
+    SET status = 'completed',
+        completed_at = NOW(),
+        outcome = ${sqlQuote(summary)},
+        metadata = COALESCE(metadata, '{}'::jsonb) ||
+                   jsonb_build_object('auto_sync', true, 'subagent_label', ${sqlQuote(label)})
+    WHERE id = ${taskId}
+    RETURNING row_to_json(cortana_tasks);
+  `;
+  const raw = runSql(query);
+  if (!raw) throw new Error(`Update failed for task ${taskId}`);
+  return JSON.parse(raw);
+}
+
+function createDoneTask(label: string, summary: string): Json {
+  const title = `Sub-agent completion: ${label}`;
+  const query = `
+    INSERT INTO cortana_tasks
+      (source, title, description, priority, status, auto_executable, outcome, completed_at, metadata, assigned_to)
+    VALUES
+      ('subagent_auto_sync',
+       ${sqlQuote(title)},
+       ${sqlQuote("Auto-created from sub-agent completion sync.")},
+       3,
+       'completed',
+       FALSE,
+       ${sqlQuote(summary)},
+       NOW(),
+       jsonb_build_object('auto_sync', true, 'created_from_label', ${sqlQuote(label)}),
+       ${sqlQuote(label)})
+    RETURNING row_to_json(cortana_tasks);
+  `;
+  const raw = runSql(query);
+  if (!raw) throw new Error("Insert failed for fallback completed task");
+  return JSON.parse(raw);
+}
+
+type Args = {
+  label: string | null;
+  result: string | null;
+  resultFile: string | null;
+  minMatch: number;
+  pretty: boolean;
+};
+
+function parseArgs(argv: string[]): Args {
+  const args: Args = { label: null, result: null, resultFile: null, minMatch: 0.38, pretty: false };
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    switch (arg) {
+      case "--label":
+        args.label = argv[i + 1] ?? null;
+        i += 1;
+        break;
+      case "--result":
+        args.result = argv[i + 1] ?? null;
+        i += 1;
+        break;
+      case "--result-file":
+        args.resultFile = argv[i + 1] ?? null;
+        i += 1;
+        break;
+      case "--min-match":
+        args.minMatch = Number(argv[i + 1]);
+        i += 1;
+        break;
+      case "--pretty":
+        args.pretty = true;
+        break;
+      default:
+        break;
+    }
+  }
+  return args;
+}
 
 async function main(): Promise<void> {
-  const py = "#!/usr/bin/env python3\n\"\"\"\nSub-Agent Completion Auto-Sync Enforcer\n\nPurpose:\n- Validate sub-agent completion output quality\n- Match completion to ready/in_progress tasks in cortana_tasks\n- Auto-close matched tasks with outcome summary\n- Create a completed task if no match exists\n- Emit JSON decision logs to stdout\n\nUsage examples:\n  python3 tools/task-board/auto_sync_enforcer.py \\\n    --label huragok-tone-and-sync \\\n    --result \"Implemented tone sentinel and auto sync enforcer; tests pass.\"\n\n  python3 tools/task-board/auto_sync_enforcer.py \\\n    --label monitor-healthcheck \\\n    --result-file /tmp/subagent_result.txt \\\n    --pretty\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport difflib\nimport json\nimport os\nimport re\nimport subprocess\nimport sys\nfrom datetime import datetime, timezone\nfrom pathlib import Path\nfrom typing import Any\n\nPSQL_BIN_PATH = \"/opt/homebrew/opt/postgresql@17/bin\"\nDB_NAME = \"cortana\"\n\nEVIDENCE_MARKERS = {\n    \"implemented\",\n    \"updated\",\n    \"added\",\n    \"fixed\",\n    \"refactored\",\n    \"tested\",\n    \"validated\",\n    \"committed\",\n    \"pushed\",\n    \"created\",\n    \"ran\",\n    \"query\",\n    \"sql\",\n    \"python\",\n}\n\nVAGUE_PATTERNS = [\n    r\"^\\s*done\\.?\\s*$\",\n    r\"^\\s*completed\\.?\\s*$\",\n    r\"^\\s*all good\\.?\\s*$\",\n    r\"^\\s*fixed it\\.?\\s*$\",\n    r\"^\\s*handled\\.?\\s*$\",\n]\n\n\ndef emit(event: str, payload: dict[str, Any], pretty: bool = False) -> None:\n    doc = {\"event\": event, \"ts\": datetime.now(timezone.utc).isoformat(), **payload}\n    if pretty:\n        print(json.dumps(doc, indent=2, ensure_ascii=False))\n    else:\n        print(json.dumps(doc, ensure_ascii=False))\n\n\ndef run_sql(query: str) -> str:\n    env = os.environ.copy()\n    env[\"PATH\"] = f\"{PSQL_BIN_PATH}:{env.get('PATH', '')}\"\n    proc = subprocess.run(\n        [\"psql\", DB_NAME, \"-X\", \"-t\", \"-A\", \"-c\", query],\n        capture_output=True,\n        text=True,\n        env=env,\n    )\n    if proc.returncode != 0:\n        raise RuntimeError(proc.stderr.strip() or \"psql failed\")\n    return proc.stdout.strip()\n\n\ndef sql_quote(value: str) -> str:\n    return \"'\" + value.replace(\"'\", \"''\") + \"'\"\n\n\ndef normalize(text: str) -> str:\n    return re.sub(r\"\\s+\", \" \", text.strip().lower())\n\n\ndef tokenize(label: str) -> list[str]:\n    return [tok for tok in re.split(r\"[^a-zA-Z0-9]+\", label.lower()) if len(tok) >= 3]\n\n\ndef validate_result(result: str) -> dict[str, Any]:\n    norm = normalize(result)\n    word_count = len(norm.split()) if norm else 0\n\n    reasons: list[str] = []\n    score = 1.0\n\n    if not norm:\n        reasons.append(\"empty\")\n        score -= 1.0\n\n    if any(re.search(pat, norm, re.IGNORECASE) for pat in VAGUE_PATTERNS):\n        reasons.append(\"vague_one_liner\")\n        score -= 0.6\n\n    if word_count < 8:\n        reasons.append(\"too_short\")\n        score -= 0.35\n\n    evidence_hits = sum(1 for m in EVIDENCE_MARKERS if m in norm)\n    has_paths_or_commands = bool(re.search(r\"(/\\w|\\.py\\b|\\.md\\b|git\\s+|python3\\s+|SELECT\\s+|UPDATE\\s+)\", result, re.IGNORECASE))\n\n    if evidence_hits == 0 and not has_paths_or_commands:\n        reasons.append(\"no_evidence_markers\")\n        score -= 0.5\n\n    valid = score >= 0.5 and \"empty\" not in reasons\n    return {\n        \"valid\": valid,\n        \"score\": max(0.0, round(score, 4)),\n        \"reasons\": reasons,\n        \"word_count\": word_count,\n        \"evidence_hits\": evidence_hits,\n        \"has_paths_or_commands\": has_paths_or_commands,\n    }\n\n\ndef fetch_candidates(label: str) -> list[dict[str, Any]]:\n    tokens = tokenize(label)\n    like_clauses = [f\"LOWER(title) LIKE '%{t}%' OR LOWER(COALESCE(description,'')) LIKE '%{t}%'\" for t in tokens]\n    token_filter = \" OR \".join(like_clauses) if like_clauses else \"TRUE\"\n\n    query = f\"\"\"\n    SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json)\n    FROM (\n      SELECT id, title, description, status, assigned_to, priority, created_at\n      FROM cortana_tasks\n      WHERE status IN ('ready', 'in_progress')\n        AND ({token_filter}\n             OR LOWER(COALESCE(assigned_to,'')) LIKE '%' || {sql_quote(label.lower())} || '%'\n             OR LOWER(COALESCE(metadata::text,'')) LIKE '%' || {sql_quote(label.lower())} || '%')\n      ORDER BY priority ASC, created_at DESC\n      LIMIT 50\n    ) t;\n    \"\"\"\n    raw = run_sql(query)\n    if not raw:\n        return []\n    return json.loads(raw)\n\n\ndef similarity_score(label: str, task: dict[str, Any]) -> float:\n    l = normalize(label)\n    title = normalize(task.get(\"title\") or \"\")\n    desc = normalize(task.get(\"description\") or \"\")\n\n    title_ratio = difflib.SequenceMatcher(a=l, b=title).ratio()\n    desc_ratio = difflib.SequenceMatcher(a=l, b=desc).ratio()\n\n    token_hits = sum(1 for t in tokenize(label) if t in title or t in desc)\n    token_bonus = min(0.3, token_hits * 0.06)\n\n    return max(title_ratio, desc_ratio * 0.8) + token_bonus\n\n\ndef summarize_result(result: str, max_len: int = 500) -> str:\n    cleaned = re.sub(r\"\\s+\", \" \", result.strip())\n    if len(cleaned) <= max_len:\n        return cleaned\n    return cleaned[: max_len - 3] + \"...\"\n\n\ndef update_task_done(task_id: int, summary: str, label: str) -> dict[str, Any]:\n    query = f\"\"\"\n    UPDATE cortana_tasks\n    SET status = 'completed',\n        completed_at = NOW(),\n        outcome = {sql_quote(summary)},\n        metadata = COALESCE(metadata, '{{}}'::jsonb) ||\n                   jsonb_build_object('auto_sync', true, 'subagent_label', {sql_quote(label)})\n    WHERE id = {task_id}\n    RETURNING row_to_json(cortana_tasks);\n    \"\"\"\n    raw = run_sql(query)\n    if not raw:\n        raise RuntimeError(f\"Update failed for task {task_id}\")\n    return json.loads(raw)\n\n\ndef create_done_task(label: str, summary: str) -> dict[str, Any]:\n    title = f\"Sub-agent completion: {label}\"\n    query = f\"\"\"\n    INSERT INTO cortana_tasks\n      (source, title, description, priority, status, auto_executable, outcome, completed_at, metadata, assigned_to)\n    VALUES\n      ('subagent_auto_sync',\n       {sql_quote(title)},\n       {sql_quote('Auto-created from sub-agent completion sync.')},\n       3,\n       'completed',\n       FALSE,\n       {sql_quote(summary)},\n       NOW(),\n       jsonb_build_object('auto_sync', true, 'created_from_label', {sql_quote(label)}),\n       {sql_quote(label)})\n    RETURNING row_to_json(cortana_tasks);\n    \"\"\"\n    raw = run_sql(query)\n    if not raw:\n        raise RuntimeError(\"Insert failed for fallback completed task\")\n    return json.loads(raw)\n\n\ndef parse_args() -> argparse.Namespace:\n    parser = argparse.ArgumentParser(description=\"Auto-sync sub-agent completion into cortana_tasks.\")\n    parser.add_argument(\"--label\", required=True, help=\"Sub-agent label (e.g., huragok-tone-and-sync)\")\n    grp = parser.add_mutually_exclusive_group(required=True)\n    grp.add_argument(\"--result\", help=\"Completion result text\")\n    grp.add_argument(\"--result-file\", type=Path, help=\"Path to completion result text file\")\n    parser.add_argument(\"--min-match\", type=float, default=0.38, help=\"Minimum similarity score to match existing task\")\n    parser.add_argument(\"--pretty\", action=\"store_true\", help=\"Pretty JSON output\")\n    return parser.parse_args()\n\n\ndef main() -> int:\n    args = parse_args()\n    result_text = args.result if args.result is not None else args.result_file.read_text()\n\n    validation = validate_result(result_text)\n    emit(\"auto_sync_validation\", {\"label\": args.label, **validation}, pretty=args.pretty)\n\n    if not validation[\"valid\"]:\n        emit(\n            \"auto_sync_rejected\",\n            {\n                \"label\": args.label,\n                \"reason\": \"Completion result failed validation\",\n                \"validation\": validation,\n            },\n            pretty=args.pretty,\n        )\n        return 3\n\n    candidates = fetch_candidates(args.label)\n    scored = [\n        {\n            \"task\": task,\n            \"score\": round(similarity_score(args.label, task), 4),\n        }\n        for task in candidates\n    ]\n    scored.sort(key=lambda x: x[\"score\"], reverse=True)\n\n    emit(\n        \"auto_sync_match_scan\",\n        {\n            \"label\": args.label,\n            \"candidate_count\": len(scored),\n            \"top_candidates\": [\n                {\"id\": c[\"task\"][\"id\"], \"title\": c[\"task\"].get(\"title\"), \"score\": c[\"score\"]}\n                for c in scored[:5]\n            ],\n        },\n        pretty=args.pretty,\n    )\n\n    summary = summarize_result(result_text)\n\n    try:\n        if scored and scored[0][\"score\"] >= args.min_match:\n            chosen = scored[0][\"task\"]\n            updated = update_task_done(chosen[\"id\"], summary, args.label)\n            emit(\n                \"auto_sync_task_updated\",\n                {\n                    \"label\": args.label,\n                    \"matched_task_id\": chosen[\"id\"],\n                    \"match_score\": scored[0][\"score\"],\n                    \"status\": \"completed\",\n                    \"task\": updated,\n                },\n                pretty=args.pretty,\n            )\n        else:\n            created = create_done_task(args.label, summary)\n            emit(\n                \"auto_sync_task_created\",\n                {\n                    \"label\": args.label,\n                    \"reason\": \"no_match_found\",\n                    \"status\": \"completed\",\n                    \"task\": created,\n                },\n                pretty=args.pretty,\n            )\n    except Exception as exc:  # pragma: no cover\n        emit(\"auto_sync_error\", {\"label\": args.label, \"error\": str(exc)}, pretty=args.pretty)\n        return 2\n\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n";
-  const dir = mkdtempSync(join(tmpdir(), 'pywrap-'));
-  const script = join(dir, 'script.py');
-  writeFileSync(script, py, 'utf8');
-  const proc = spawnSync('python3', [script, ...process.argv.slice(2)], { stdio: 'inherit' });
-  rmSync(dir, { recursive: true, force: true });
-  if (proc.error) {
-    console.error(String(proc.error));
-    process.exit(1);
+  const args = parseArgs(process.argv.slice(2));
+  if (!args.label || (!args.result && !args.resultFile) || (args.result && args.resultFile)) {
+    console.error("usage: auto_sync_enforcer.ts --label <label> (--result <text> | --result-file <path>)");
+    process.exit(2);
   }
-  process.exit(proc.status ?? 1);
+
+  const resultText = args.result ?? fs.readFileSync(path.resolve(args.resultFile!), "utf8");
+  const validation = validateResult(resultText);
+  emit("auto_sync_validation", { label: args.label, ...validation }, args.pretty);
+
+  if (!validation.valid) {
+    emit(
+      "auto_sync_rejected",
+      { label: args.label, reason: "Completion result failed validation", validation },
+      args.pretty
+    );
+    process.exit(3);
+  }
+
+  const candidates = fetchCandidates(args.label);
+  const scored = candidates.map((task) => ({ task, score: Math.round(similarityScore(args.label!, task) * 10000) / 10000 }));
+  scored.sort((a, b) => b.score - a.score);
+
+  emit(
+    "auto_sync_match_scan",
+    {
+      label: args.label,
+      candidate_count: scored.length,
+      top_candidates: scored.slice(0, 5).map((c) => ({ id: c.task.id, title: c.task.title, score: c.score })),
+    },
+    args.pretty
+  );
+
+  const summary = summarizeResult(resultText);
+  try {
+    if (scored.length && scored[0].score >= args.minMatch) {
+      const chosen = scored[0].task;
+      const updated = updateTaskDone(Number(chosen.id), summary, args.label);
+      emit(
+        "auto_sync_task_updated",
+        { label: args.label, matched_task_id: chosen.id, match_score: scored[0].score, status: "completed", task: updated },
+        args.pretty
+      );
+    } else {
+      const created = createDoneTask(args.label, summary);
+      emit(
+        "auto_sync_task_created",
+        { label: args.label, reason: "no_match_found", status: "completed", task: created },
+        args.pretty
+      );
+    }
+  } catch (err) {
+    emit("auto_sync_error", { label: args.label, error: err instanceof Error ? err.message : String(err) }, args.pretty);
+    process.exit(2);
+  }
+
+  process.exit(0);
 }
 
 main().catch((err) => {

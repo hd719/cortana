@@ -1,7 +1,6 @@
 #!/usr/bin/env npx tsx
 
 import { spawnSync } from "node:child_process";
-import { runPsql } from "../lib/db.js";
 import { PSQL_BIN } from "../lib/paths.js";
 
 const DEFAULT_MODEL = process.env.FAILSAFE_MODEL ?? "phi3:mini";

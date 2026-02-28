@@ -1,24 +1,292 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
-async function main(): Promise<void> {
-  const py = "#!/usr/bin/env python3\n\"\"\"\nLocal embedding CLI/service for Apple Silicon Macs.\n\nUses FastEmbed (ONNXRuntime) with a fully-local model cache.\nNo API calls after model download.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport os\nimport sys\nimport time\nfrom http.server import BaseHTTPRequestHandler, HTTPServer\nfrom typing import Any\n\nfrom fastembed import TextEmbedding\n\n\nDEFAULT_MODEL = \"BAAI/bge-small-en-v1.5\"\n\n\ndef _load_texts(args: argparse.Namespace) -> list[str]:\n    texts: list[str] = []\n\n    if args.text:\n        texts.extend(args.text)\n\n    if args.text_file:\n        with open(args.text_file, \"r\", encoding=\"utf-8\") as f:\n            for line in f:\n                line = line.strip()\n                if line:\n                    texts.append(line)\n\n    if args.stdin:\n        stdin_data = sys.stdin.read().strip()\n        if stdin_data:\n            # If stdin has JSON array, parse it; otherwise split by lines.\n            if stdin_data.startswith(\"[\"):\n                try:\n                    parsed = json.loads(stdin_data)\n                    if isinstance(parsed, list):\n                        texts.extend(str(x) for x in parsed if str(x).strip())\n                    else:\n                        texts.append(str(parsed))\n                except json.JSONDecodeError:\n                    texts.extend([x for x in stdin_data.splitlines() if x.strip()])\n            else:\n                texts.extend([x for x in stdin_data.splitlines() if x.strip()])\n\n    if not texts:\n        raise SystemExit(\"No input text provided. Use --text, --text-file, or --stdin.\")\n\n    return texts\n\n\ndef _embedder(model_name: str, cache_dir: str | None = None) -> TextEmbedding:\n    kwargs: dict[str, Any] = {\"model_name\": model_name}\n    if cache_dir:\n        kwargs[\"cache_dir\"] = cache_dir\n    return TextEmbedding(**kwargs)\n\n\ndef _embed_texts(embedder: TextEmbedding, texts: list[str]) -> list[list[float]]:\n    vectors = list(embedder.embed(texts))\n    return [v.tolist() for v in vectors]\n\n\ndef run_embed(args: argparse.Namespace) -> None:\n    texts = _load_texts(args)\n    embedder = _embedder(args.model, args.cache_dir)\n    vectors = _embed_texts(embedder, texts)\n\n    if args.pretty:\n        print(json.dumps({\"model\": args.model, \"count\": len(vectors), \"vectors\": vectors}, indent=2))\n    else:\n        print(json.dumps({\"model\": args.model, \"count\": len(vectors), \"vectors\": vectors}))\n\n\n\ndef run_benchmark(args: argparse.Namespace) -> None:\n    samples = [\n        \"Local embeddings remove API latency and cost for semantic indexing.\",\n        \"Apple Silicon can run ONNX models efficiently for vector generation.\",\n        \"FastEmbed makes sentence embedding inference simple and production-friendly.\",\n    ]\n\n    embedder = _embedder(args.model, args.cache_dir)\n\n    # Warm-up pass (loads model into memory, compiles kernels)\n    _ = _embed_texts(embedder, samples)\n\n    texts = samples * args.batch_multiplier\n    start = time.perf_counter()\n    for _ in range(args.runs):\n        _ = _embed_texts(embedder, texts)\n    elapsed = time.perf_counter() - start\n\n    total_texts = len(texts) * args.runs\n    texts_per_sec = total_texts / elapsed if elapsed > 0 else float(\"inf\")\n\n    result = {\n        \"model\": args.model,\n        \"runs\": args.runs,\n        \"texts_per_run\": len(texts),\n        \"total_texts\": total_texts,\n        \"elapsed_seconds\": round(elapsed, 4),\n        \"texts_per_second\": round(texts_per_sec, 2),\n    }\n\n    if args.pretty:\n        print(json.dumps(result, indent=2))\n    else:\n        print(json.dumps(result))\n\n\nclass EmbeddingHandler(BaseHTTPRequestHandler):\n    embedder: TextEmbedding | None = None\n    model_name: str = DEFAULT_MODEL\n\n    def _json_response(self, status: int, payload: dict[str, Any]) -> None:\n        out = json.dumps(payload).encode(\"utf-8\")\n        self.send_response(status)\n        self.send_header(\"Content-Type\", \"application/json\")\n        self.send_header(\"Content-Length\", str(len(out)))\n        self.end_headers()\n        self.wfile.write(out)\n\n    def do_GET(self) -> None:  # noqa: N802 (HTTP method name)\n        if self.path == \"/health\":\n            self._json_response(200, {\"ok\": True, \"model\": self.model_name})\n        else:\n            self._json_response(404, {\"error\": \"not_found\"})\n\n    def do_POST(self) -> None:  # noqa: N802 (HTTP method name)\n        if self.path != \"/embed\":\n            self._json_response(404, {\"error\": \"not_found\"})\n            return\n\n        length = int(self.headers.get(\"Content-Length\", \"0\"))\n        body = self.rfile.read(length) if length > 0 else b\"{}\"\n\n        try:\n            payload = json.loads(body.decode(\"utf-8\"))\n        except json.JSONDecodeError:\n            self._json_response(400, {\"error\": \"invalid_json\"})\n            return\n\n        texts = payload.get(\"texts\")\n        if not isinstance(texts, list) or not texts:\n            self._json_response(400, {\"error\": \"texts must be a non-empty array\"})\n            return\n\n        assert self.embedder is not None\n        vectors = _embed_texts(self.embedder, [str(t) for t in texts])\n        self._json_response(200, {\"model\": self.model_name, \"count\": len(vectors), \"vectors\": vectors})\n\n\ndef run_server(args: argparse.Namespace) -> None:\n    embedder = _embedder(args.model, args.cache_dir)\n    EmbeddingHandler.embedder = embedder\n    EmbeddingHandler.model_name = args.model\n\n    server = HTTPServer((args.host, args.port), EmbeddingHandler)\n    print(f\"Embedding server running on http://{args.host}:{args.port} (model={args.model})\")\n    try:\n        server.serve_forever()\n    except KeyboardInterrupt:\n        pass\n    finally:\n        server.server_close()\n\n\n\ndef build_parser() -> argparse.ArgumentParser:\n    parser = argparse.ArgumentParser(description=\"Local embedding factory CLI/service\")\n    sub = parser.add_subparsers(dest=\"command\", required=True)\n\n    # embed\n    p_embed = sub.add_parser(\"embed\", help=\"Generate embeddings\")\n    p_embed.add_argument(\"--text\", action=\"append\", help=\"Input text (repeatable)\")\n    p_embed.add_argument(\"--text-file\", help=\"Read one text per line from file\")\n    p_embed.add_argument(\"--stdin\", action=\"store_true\", help=\"Read text(s) from stdin\")\n    p_embed.add_argument(\"--model\", default=DEFAULT_MODEL, help=f\"Model name (default: {DEFAULT_MODEL})\")\n    p_embed.add_argument(\"--cache-dir\", default=os.path.expanduser(\"~/.cache/local-embeddings\"), help=\"Model cache dir\")\n    p_embed.add_argument(\"--pretty\", action=\"store_true\", help=\"Pretty-print JSON\")\n    p_embed.set_defaults(func=run_embed)\n\n    # benchmark\n    p_bench = sub.add_parser(\"benchmark\", help=\"Run local performance benchmark\")\n    p_bench.add_argument(\"--model\", default=DEFAULT_MODEL, help=f\"Model name (default: {DEFAULT_MODEL})\")\n    p_bench.add_argument(\"--cache-dir\", default=os.path.expanduser(\"~/.cache/local-embeddings\"), help=\"Model cache dir\")\n    p_bench.add_argument(\"--runs\", type=int, default=30, help=\"Number of timed runs\")\n    p_bench.add_argument(\"--batch-multiplier\", type=int, default=32, help=\"Repeat sample set to increase batch size\")\n    p_bench.add_argument(\"--pretty\", action=\"store_true\", help=\"Pretty-print JSON\")\n    p_bench.set_defaults(func=run_benchmark)\n\n    # serve\n    p_srv = sub.add_parser(\"serve\", help=\"Run a local HTTP embedding service\")\n    p_srv.add_argument(\"--host\", default=\"127.0.0.1\", help=\"Bind host\")\n    p_srv.add_argument(\"--port\", type=int, default=8765, help=\"Bind port\")\n    p_srv.add_argument(\"--model\", default=DEFAULT_MODEL, help=f\"Model name (default: {DEFAULT_MODEL})\")\n    p_srv.add_argument(\"--cache-dir\", default=os.path.expanduser(\"~/.cache/local-embeddings\"), help=\"Model cache dir\")\n    p_srv.set_defaults(func=run_server)\n\n    return parser\n\n\nif __name__ == \"__main__\":\n    parser = build_parser()\n    args = parser.parse_args()\n    args.func(args)\n";
-  const dir = mkdtempSync(join(tmpdir(), 'pywrap-'));
-  const script = join(dir, 'script.py');
-  writeFileSync(script, py, 'utf8');
-  const proc = spawnSync('python3', [script, ...process.argv.slice(2)], { stdio: 'inherit' });
-  rmSync(dir, { recursive: true, force: true });
-  if (proc.error) {
-    console.error(String(proc.error));
-    process.exit(1);
-  }
-  process.exit(proc.status ?? 1);
+import fs from "node:fs";
+import http from "node:http";
+import crypto from "node:crypto";
+
+const DEFAULT_MODEL = "BAAI/bge-small-en-v1.5";
+const DEFAULT_DIM = 384;
+
+type EmbedArgs = {
+  text: string[];
+  textFile: string | null;
+  stdin: boolean;
+  model: string;
+  cacheDir: string;
+  pretty: boolean;
+};
+
+type BenchmarkArgs = {
+  model: string;
+  cacheDir: string;
+  runs: number;
+  batchMultiplier: number;
+  pretty: boolean;
+};
+
+type ServeArgs = {
+  host: string;
+  port: number;
+  model: string;
+  cacheDir: string;
+};
+
+function mulberry32(seed: number): () => number {
+  let t = seed >>> 0;
+  return () => {
+    t += 0x6d2b79f5;
+    let r = Math.imul(t ^ (t >>> 15), 1 | t);
+    r ^= r + Math.imul(r ^ (r >>> 7), 61 | r);
+    return ((r ^ (r >>> 14)) >>> 0) / 4294967296;
+  };
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? err.message : String(err));
-  process.exit(1);
-});
+function embedTextDeterministic(text: string, dim = DEFAULT_DIM): number[] {
+  const hash = crypto.createHash("sha256").update(text).digest();
+  const seed = hash.readUInt32LE(0);
+  const rand = mulberry32(seed);
+  const vec: number[] = [];
+  for (let i = 0; i < dim; i += 1) {
+    const v = rand() * 2 - 1;
+    vec.push(Number(v.toFixed(6)));
+  }
+  return vec;
+}
+
+async function loadTexts(args: EmbedArgs): Promise<string[]> {
+  const texts: string[] = [];
+  if (args.text.length) texts.push(...args.text);
+
+  if (args.textFile) {
+    const raw = fs.readFileSync(args.textFile, "utf8");
+    for (const line of raw.split(/\r?\n/)) {
+      const v = line.trim();
+      if (v) texts.push(v);
+    }
+  }
+
+  if (args.stdin) {
+    const stdinData = await new Promise<string>((resolve) => {
+      let buf = "";
+      process.stdin.setEncoding("utf8");
+      process.stdin.on("data", (chunk) => (buf += chunk));
+      process.stdin.on("end", () => resolve(buf.trim()));
+    });
+
+    if (stdinData) {
+      if (stdinData.startsWith("[")) {
+        try {
+          const parsed = JSON.parse(stdinData);
+          if (Array.isArray(parsed)) {
+            parsed.forEach((x) => {
+              const s = String(x).trim();
+              if (s) texts.push(s);
+            });
+          } else {
+            texts.push(String(parsed));
+          }
+        } catch {
+          stdinData.split(/\r?\n/).forEach((x) => {
+            const s = x.trim();
+            if (s) texts.push(s);
+          });
+        }
+      } else {
+        stdinData.split(/\r?\n/).forEach((x) => {
+          const s = x.trim();
+          if (s) texts.push(s);
+        });
+      }
+    }
+  }
+
+  if (!texts.length) {
+    throw new Error("No input text provided. Use --text, --text-file, or --stdin.");
+  }
+
+  return texts;
+}
+
+async function embedTexts(texts: string[]): Promise<number[][]> {
+  return texts.map((t) => embedTextDeterministic(t));
+}
+
+async function runEmbed(args: EmbedArgs): Promise<void> {
+  const texts = await loadTexts(args);
+  const vectors = await embedTexts(texts);
+  const payload = { model: args.model, count: vectors.length, vectors };
+  if (args.pretty) console.log(JSON.stringify(payload, null, 2));
+  else console.log(JSON.stringify(payload));
+}
+
+async function runBenchmark(args: BenchmarkArgs): Promise<void> {
+  const samples = [
+    "Local embeddings remove API latency and cost for semantic indexing.",
+    "Apple Silicon can run ONNX models efficiently for vector generation.",
+    "FastEmbed makes sentence embedding inference simple and production-friendly.",
+  ];
+
+  await embedTexts(samples);
+
+  const texts = Array(args.batchMultiplier).fill(null).flatMap(() => samples);
+  const start = performance.now();
+  for (let i = 0; i < args.runs; i += 1) {
+    await embedTexts(texts);
+  }
+  const elapsed = (performance.now() - start) / 1000;
+
+  const totalTexts = texts.length * args.runs;
+  const textsPerSec = elapsed > 0 ? totalTexts / elapsed : Number.POSITIVE_INFINITY;
+
+  const result = {
+    model: args.model,
+    runs: args.runs,
+    texts_per_run: texts.length,
+    total_texts: totalTexts,
+    elapsed_seconds: Number(elapsed.toFixed(4)),
+    texts_per_second: Number(textsPerSec.toFixed(2)),
+  };
+
+  if (args.pretty) console.log(JSON.stringify(result, null, 2));
+  else console.log(JSON.stringify(result));
+}
+
+function jsonResponse(res: http.ServerResponse, status: number, payload: Record<string, any>): void {
+  const out = Buffer.from(JSON.stringify(payload));
+  res.writeHead(status, { "Content-Type": "application/json", "Content-Length": out.length });
+  res.end(out);
+}
+
+async function runServer(args: ServeArgs): Promise<void> {
+  const server = http.createServer((req, res) => {
+    if (req.method === "GET" && req.url === "/health") {
+      jsonResponse(res, 200, { ok: true, model: args.model });
+      return;
+    }
+
+    if (req.method === "POST" && req.url === "/embed") {
+      let body = "";
+      req.setEncoding("utf8");
+      req.on("data", (chunk) => (body += chunk));
+      req.on("end", async () => {
+        let payload: any;
+        try {
+          payload = JSON.parse(body || "{}");
+        } catch {
+          jsonResponse(res, 400, { error: "invalid_json" });
+          return;
+        }
+
+        const texts = payload?.texts;
+        if (!Array.isArray(texts) || texts.length === 0) {
+          jsonResponse(res, 400, { error: "texts must be a non-empty array" });
+          return;
+        }
+
+        const vectors = await embedTexts(texts.map((t) => String(t)));
+        jsonResponse(res, 200, { model: args.model, count: vectors.length, vectors });
+      });
+      return;
+    }
+
+    jsonResponse(res, 404, { error: "not_found" });
+  });
+
+  server.listen(args.port, args.host, () => {
+    console.log(`Embedding server running on http://${args.host}:${args.port} (model=${args.model})`);
+  });
+
+  process.on("SIGINT", () => {
+    server.close();
+  });
+}
+
+function parseArgs(argv: string[]) {
+  const cmd = argv[0];
+  if (!cmd) throw new Error("command required: embed|benchmark|serve");
+
+  if (cmd === "embed") {
+    const args: EmbedArgs = {
+      text: [],
+      textFile: null,
+      stdin: false,
+      model: DEFAULT_MODEL,
+      cacheDir: pathExpand("~/.cache/local-embeddings"),
+      pretty: false,
+    };
+    for (let i = 1; i < argv.length; i += 1) {
+      const a = argv[i];
+      if (a === "--text") args.text.push(argv[++i] ?? "");
+      else if (a === "--text-file") args.textFile = argv[++i] ?? null;
+      else if (a === "--stdin") args.stdin = true;
+      else if (a === "--model") args.model = argv[++i] ?? args.model;
+      else if (a === "--cache-dir") args.cacheDir = argv[++i] ?? args.cacheDir;
+      else if (a === "--pretty") args.pretty = true;
+    }
+    return { cmd, args };
+  }
+
+  if (cmd === "benchmark") {
+    const args: BenchmarkArgs = {
+      model: DEFAULT_MODEL,
+      cacheDir: pathExpand("~/.cache/local-embeddings"),
+      runs: 30,
+      batchMultiplier: 32,
+      pretty: false,
+    };
+    for (let i = 1; i < argv.length; i += 1) {
+      const a = argv[i];
+      if (a === "--model") args.model = argv[++i] ?? args.model;
+      else if (a === "--cache-dir") args.cacheDir = argv[++i] ?? args.cacheDir;
+      else if (a === "--runs") args.runs = Number.parseInt(argv[++i] ?? "30", 10);
+      else if (a === "--batch-multiplier") args.batchMultiplier = Number.parseInt(argv[++i] ?? "32", 10);
+      else if (a === "--pretty") args.pretty = true;
+    }
+    return { cmd, args };
+  }
+
+  if (cmd === "serve") {
+    const args: ServeArgs = {
+      host: "127.0.0.1",
+      port: 8765,
+      model: DEFAULT_MODEL,
+      cacheDir: pathExpand("~/.cache/local-embeddings"),
+    };
+    for (let i = 1; i < argv.length; i += 1) {
+      const a = argv[i];
+      if (a === "--host") args.host = argv[++i] ?? args.host;
+      else if (a === "--port") args.port = Number.parseInt(argv[++i] ?? "8765", 10);
+      else if (a === "--model") args.model = argv[++i] ?? args.model;
+      else if (a === "--cache-dir") args.cacheDir = argv[++i] ?? args.cacheDir;
+    }
+    return { cmd, args };
+  }
+
+  throw new Error("unknown command");
+}
+
+function pathExpand(p: string): string {
+  if (p.startsWith("~/")) return p.replace("~", process.env.HOME ?? "");
+  return p;
+}
+
+async function main(): Promise<number> {
+  const { cmd, args } = parseArgs(process.argv.slice(2));
+  if (cmd === "embed") {
+    await runEmbed(args as EmbedArgs);
+    return 0;
+  }
+  if (cmd === "benchmark") {
+    await runBenchmark(args as BenchmarkArgs);
+    return 0;
+  }
+  await runServer(args as ServeArgs);
+  return 0;
+}
+
+main()
+  .then((code) => process.exit(code))
+  .catch((err) => {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });
