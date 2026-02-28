@@ -50,6 +50,7 @@
   - Every `sessions_spawn` must include the correct model; no exceptions.
 - **Sub-agent labels**: required for every spawn → `{covenant-agent}-{task-slug}` (e.g., `huragok-cron-symlink`, `librarian-docs-update`, `monitor-portfolio-check`). Generic labels are forbidden.
 - **Sub-agent relay protocol**: completions are summarized by Cortana to Hamel in ≤10 words; full details go to memory/daily notes when needed.
+- **Orphan sweep on session start** (mandatory): on every new session, check for running sub-agents older than 30 minutes with no parent. Kill or re-run them immediately — never leave orphans for Hamel to discover.
 - **AUTO-CHAIN rule** (zero tolerance): when a sub-agent finishes with actionable output, immediately create tasks and spawn follow-on agents as needed. Only pause for external/destructive actions; internal coordination is automatic.
 
 ## Task Board Rules (MANDATORY)
