@@ -7,7 +7,7 @@ Route Covenant sub-agent completions back through the **main Cortana session** (
 
 ## What I investigated
 
-## 1) Local docs (`/Users/hd/clawd/docs/`)
+## 1) Local docs (`/Users/hd/openclaw/docs/`)
 - `docs/inter-agent-communication-gaps.md` confirms async completion announce exists and is push-based.
 - No doc-level setting found to disable only sub-agent direct completion sends.
 

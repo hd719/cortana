@@ -4,8 +4,8 @@
   "state": "completed",
   "summary": "Implemented machine-parseable status/completion protocol validation and prompt wiring.",
   "artifacts": [
-    {"type": "file", "path": "/Users/hd/clawd/tools/covenant/validate_agent_protocol.py"},
-    {"type": "file", "path": "/Users/hd/clawd/tools/covenant/build_identity_spawn_prompt.py"}
+    {"type": "file", "path": "/Users/hd/openclaw/tools/covenant/validate_agent_protocol.py"},
+    {"type": "file", "path": "/Users/hd/openclaw/tools/covenant/build_identity_spawn_prompt.py"}
   ],
   "risks": [
     "Protocol extraction currently validates first matching line only"

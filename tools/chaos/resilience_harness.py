@@ -16,7 +16,7 @@ from typing import Any, Callable
 
 PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql"
 DEFAULT_TOKEN_FILE = Path(os.path.expanduser("~/.config/cortana/tokens/fitness.token"))
-DEFAULT_CRON_OUTPUT = Path(os.path.expanduser("~/clawd/logs/heartbeat.log"))
+DEFAULT_CRON_OUTPUT = Path(os.path.expanduser("~/openclaw/logs/heartbeat.log"))
 DEFAULT_SESSION_DIR = Path(os.path.expanduser("~/.local/share/openclaw/sessions"))
 
 
@@ -156,7 +156,7 @@ class Harness:
         return None, None
 
     def _trigger_immune_scan(self) -> None:
-        immune_script = Path("/Users/hd/clawd/tools/immune_scan.sh")
+        immune_script = Path("/Users/hd/openclaw/tools/immune_scan.sh")
         if not immune_script.exists():
             return
         subprocess.run(["bash", str(immune_script)], capture_output=True, text=True)

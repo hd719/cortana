@@ -39,7 +39,7 @@ The script prints JSON only:
 
 ## Usage
 ```bash
-~/clawd/tools/earnings-alert/earnings-alert.sh
+~/openclaw/tools/earnings-alert/earnings-alert.sh
 ```
 
 ## Notes

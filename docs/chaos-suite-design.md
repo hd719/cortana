@@ -90,16 +90,16 @@ Suggested cron cadence:
 ```bash
 # Apply migration
 export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
-psql cortana -f /Users/hd/clawd/migrations/011_chaos_suite.sql
+psql cortana -f /Users/hd/openclaw/migrations/011_chaos_suite.sql
 
 # Run all scenarios + regression checks
-python3 /Users/hd/clawd/tools/chaos/runner.py --json
+python3 /Users/hd/openclaw/tools/chaos/runner.py --json
 
 # Run selected scenarios only
-python3 /Users/hd/clawd/tools/chaos/runner.py --scenarios tool_unavailability heartbeat_miss --json
+python3 /Users/hd/openclaw/tools/chaos/runner.py --scenarios tool_unavailability heartbeat_miss --json
 
 # Scheduled mode
-python3 /Users/hd/clawd/tools/chaos/runner.py --mode scheduled --json
+python3 /Users/hd/openclaw/tools/chaos/runner.py --mode scheduled --json
 ```
 
 ## Follow-ups

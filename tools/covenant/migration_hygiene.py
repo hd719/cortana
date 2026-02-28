@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Migration hygiene checker for /Users/hd/clawd/migrations.
+"""Migration hygiene checker for /Users/hd/openclaw/migrations.
 
 Policy:
 - Existing migrations are immutable (no renames/rewrites).
@@ -16,7 +16,7 @@ import sys
 from collections import Counter
 from pathlib import Path
 
-WORKSPACE_ROOT = Path("/Users/hd/clawd")
+WORKSPACE_ROOT = Path("/Users/hd/openclaw")
 MIGRATIONS_DIR = WORKSPACE_ROOT / "migrations"
 MANIFEST_PATH = MIGRATIONS_DIR / "manifest.json"
 MIGRATION_RE = re.compile(r"^(?P<prefix>\d{3})_(?P<slug>[a-z0-9_]+)\.sql$")

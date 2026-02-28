@@ -27,7 +27,7 @@ Decision behavior:
 
 ### 2) Governor module
 
-Created: `~/clawd/tools/governor/risk_score.py`
+Created: `~/openclaw/tools/governor/risk_score.py`
 
 Responsibilities:
 - Load governor policy config
@@ -39,7 +39,7 @@ Responsibilities:
 CLI usage example:
 
 ```bash
-python3 ~/clawd/tools/governor/risk_score.py \
+python3 ~/openclaw/tools/governor/risk_score.py \
   --db cortana \
   --task-json '{"id":123,"execution_plan":"cat README.md","metadata":{}}' \
   --actor auto-executor \
@@ -51,7 +51,7 @@ python3 ~/clawd/tools/governor/risk_score.py \
 
 ### 3) Policy config
 
-Created: `~/clawd/tools/governor/policy.json`
+Created: `~/openclaw/tools/governor/policy.json`
 
 Contains:
 - canonical action types + risk scores
@@ -66,7 +66,7 @@ Override path at runtime via `--policy <path>`.
 
 ### 4) Decision logging table
 
-Migration added: `~/clawd/migrations/012_autonomy_governor_v2.sql`
+Migration added: `~/openclaw/migrations/012_autonomy_governor_v2.sql`
 
 Creates:
 - `cortana_governor_decisions`
@@ -78,7 +78,7 @@ Creates:
 
 ### 5) Integration into auto-execution path
 
-Updated: `~/clawd/tools/task-board/auto-executor.sh`
+Updated: `~/openclaw/tools/task-board/auto-executor.sh`
 
 Flow now:
 1. Select next dependency-ready `auto_executable` task.

@@ -21,7 +21,7 @@ chmod +x "$MOCK"
 export IDEMPOTENCY_LOG="$TMP/sql.log"
 
 # shellcheck source=/dev/null
-source /Users/hd/clawd/tools/lib/idempotency.sh
+source /Users/hd/openclaw/tools/lib/idempotency.sh
 IDEMPOTENCY_PSQL_BIN="$MOCK"
 IDEMPOTENCY_DB=test
 

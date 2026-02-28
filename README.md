@@ -1,4 +1,4 @@
-# Cortana Workspace (`~/clawd`)
+# Cortana Workspace (`~/openclaw`)
 
 This repo is **Cortana’s command brain** – memory, policy, orchestration, cron prompts, and internal automation.
 
@@ -167,7 +167,7 @@ graph TD
 ## 3. Directory structure (top level)
 
 ```text
-~/clawd
+~/openclaw
 ├── AGENTS.md           # Harness + delegation/routing rules
 ├── SOUL.md             # Persona, tone, mission
 ├── USER.md             # Hamel context + standing requests
@@ -450,7 +450,7 @@ export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 
 ### Symlinks (repo → runtime mappings)
 
-- `~/.openclaw/cron/jobs.json` ↔ `/Users/hd/clawd/config/cron/jobs.json`
+- `~/.openclaw/cron/jobs.json` ↔ `/Users/hd/openclaw/config/cron/jobs.json`
 
 Policy: any repo/runtime symlink must be listed in `TOOLS.md` and referenced here.
 
@@ -529,7 +529,7 @@ launchctl list | grep com.cortana.watchdog
 This repo is a **personal Cortana setup for one human on one machine**. It assumes:
 
 - macOS with local PostgreSQL and OpenClaw installed
-- Hamel’s directory layout (`~/clawd`, `~/Developer/cortana-external`, etc.)
+- Hamel’s directory layout (`~/openclaw`, `~/Developer/cortana-external`, etc.)
 - Local skills configured via OpenClaw (see `skills/`)
 
 It is **not** a generic framework or turnkey product. You can read it for ideas, but expect to adapt heavily if you try to replicate it elsewhere.

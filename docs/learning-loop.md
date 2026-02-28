@@ -46,7 +46,7 @@ Hamel: "Don't use heart emojis, we're not like that"
 ### Review Cycle
 Automated reflection loop now runs daily (heartbeat + cortical-loop):
 ```bash
-python3 /Users/hd/clawd/tools/reflection/reflect.py --mode sweep --trigger-source heartbeat --window-days 30
+python3 /Users/hd/openclaw/tools/reflection/reflect.py --mode sweep --trigger-source heartbeat --window-days 30
 ```
 
 It writes:

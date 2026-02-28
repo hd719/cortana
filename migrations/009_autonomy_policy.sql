@@ -130,7 +130,7 @@ INSERT INTO cortana_action_policies (
 )
 VALUES
 ('internal.read', 'internal_read', 'Read/explore local workspace resources', 'allow', FALSE, 5, 70, 95, FALSE, '{}'::jsonb),
-('internal.write.safe', 'internal_write', 'Low-impact local writes and organization', 'allow', FALSE, 20, 65, 90, FALSE, '{"paths": ["/Users/hd/clawd"]}'::jsonb),
+('internal.write.safe', 'internal_write', 'Low-impact local writes and organization', 'allow', FALSE, 20, 65, 90, FALSE, '{"paths": ["/Users/hd/openclaw"]}'::jsonb),
 ('internal.self_heal', 'internal_safe_fix', 'Tier 1 self-healing actions', 'allow', FALSE, 15, 65, 90, FALSE, '{}'::jsonb),
 ('internal.optimize.alert', 'internal_optimize', 'Tier 2 alert-and-suggest optimizations', 'alert', FALSE, 40, 60, 85, FALSE, '{}'::jsonb),
 ('external.message', 'external_message', 'Outbound messages/emails/posts', 'ask', TRUE, 70, 55, 80, FALSE, '{}'::jsonb),

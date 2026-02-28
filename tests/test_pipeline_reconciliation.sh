@@ -9,7 +9,7 @@ fi
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/feedback" "$TMP/mockbin"
-cp /Users/hd/clawd/tools/feedback/pipeline-reconciliation.sh "$TMP/feedback/"
+cp /Users/hd/openclaw/tools/feedback/pipeline-reconciliation.sh "$TMP/feedback/"
 chmod +x "$TMP/feedback/pipeline-reconciliation.sh"
 
 cat > "$TMP/mockbin/psql" <<'PSQL'

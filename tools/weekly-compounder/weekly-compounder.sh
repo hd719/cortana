@@ -4,7 +4,7 @@ set -euo pipefail
 # Weekly Compounder Scoreboard
 # Builds a Telegram-ready weekly brief for Time / Health / Wealth / Career.
 
-ROOT="/Users/hd/clawd"
+ROOT="/Users/hd/openclaw"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 

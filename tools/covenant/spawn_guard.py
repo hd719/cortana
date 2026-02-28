@@ -18,7 +18,7 @@ from dataclasses import dataclass, asdict
 from pathlib import Path
 from typing import Any
 
-WORKSPACE_ROOT = Path("/Users/hd/clawd")
+WORKSPACE_ROOT = Path("/Users/hd/openclaw")
 REGISTRY_PATH = WORKSPACE_ROOT / "tmp" / "spawn_guard_registry.json"
 LIFECYCLE_CLI = WORKSPACE_ROOT / "tools" / "covenant" / "lifecycle_events.py"
 DEFAULT_TTL_SECONDS = 3600

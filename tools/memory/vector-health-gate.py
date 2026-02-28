@@ -12,7 +12,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-WORKSPACE = Path("/Users/hd/clawd")
+WORKSPACE = Path("/Users/hd/openclaw")
 STATE_PATH = WORKSPACE / "memory" / "vector-memory-health-state.json"
 PSQL = "/opt/homebrew/opt/postgresql@17/bin/psql"
 DB = "cortana"

@@ -16,7 +16,7 @@ import subprocess
 from pathlib import Path
 from typing import Any
 
-WORKSPACE = Path("/Users/hd/clawd")
+WORKSPACE = Path("/Users/hd/openclaw")
 STATE_PATH = WORKSPACE / "memory" / "vector-memory-health-state.json"
 
 

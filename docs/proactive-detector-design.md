@@ -68,19 +68,19 @@ Script: `tools/proactive/detect.py`
 Examples:
 ```bash
 # Preview only
-python3 /Users/hd/clawd/tools/proactive/detect.py --dry-run
+python3 /Users/hd/openclaw/tools/proactive/detect.py --dry-run
 
 # Persist suggestions at default gate
-python3 /Users/hd/clawd/tools/proactive/detect.py
+python3 /Users/hd/openclaw/tools/proactive/detect.py
 
 # More selective + create actionable tasks for strongest signals
-python3 /Users/hd/clawd/tools/proactive/detect.py --min-confidence 0.72 --create-tasks
+python3 /Users/hd/openclaw/tools/proactive/detect.py --min-confidence 0.72 --create-tasks
 ```
 
 ## Heartbeat Integration
 Add a proactive check to heartbeat rotation (2-3x daily):
 ```bash
-python3 /Users/hd/clawd/tools/proactive/detect.py --min-confidence 0.66
+python3 /Users/hd/openclaw/tools/proactive/detect.py --min-confidence 0.66
 ```
 Heartbeat should surface top 1-2 high confidence new signals and suppress noise.
 

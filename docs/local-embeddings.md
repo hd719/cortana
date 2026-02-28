@@ -3,12 +3,12 @@
 ## Overview
 This implementation provides **fully local text embeddings** on the Mac mini (Apple Silicon) with no API dependency after initial model download.
 
-- Runtime: Python venv at `~/clawd/tools/embeddings/.venv`
+- Runtime: Python venv at `~/openclaw/tools/embeddings/.venv`
 - Engine: `fastembed` (ONNX Runtime)
 - Default model: `BAAI/bge-small-en-v1.5` (384-dim vectors)
 - Entry points:
-  - CLI wrapper: `~/clawd/tools/embeddings/embed`
-  - Python script: `~/clawd/tools/embeddings/embed.py`
+  - CLI wrapper: `~/openclaw/tools/embeddings/embed`
+  - Python script: `~/openclaw/tools/embeddings/embed.py`
   - Optional local HTTP service: `embed serve`
 
 ## Why this stack
@@ -24,12 +24,12 @@ I evaluated practical local options for Apple Silicon:
 Given the host environment, **fastembed is the fastest path to production-ready local embeddings**.
 
 ## Installed files
-- `~/clawd/tools/embeddings/embed.py` — embedding CLI + benchmark + HTTP server
-- `~/clawd/tools/embeddings/embed` — wrapper script that uses local venv Python
+- `~/openclaw/tools/embeddings/embed.py` — embedding CLI + benchmark + HTTP server
+- `~/openclaw/tools/embeddings/embed` — wrapper script that uses local venv Python
 
 ## Setup
 ```bash
-cd ~/clawd/tools/embeddings
+cd ~/openclaw/tools/embeddings
 python3 -m venv .venv
 .venv/bin/pip install --upgrade pip
 .venv/bin/pip install fastembed
@@ -39,27 +39,27 @@ chmod +x embed.py embed
 ## Usage
 ### 1) Embed direct text
 ```bash
-~/clawd/tools/embeddings/embed embed --text "hello world"
+~/openclaw/tools/embeddings/embed embed --text "hello world"
 ```
 
 ### 2) Embed from stdin
 ```bash
-echo "semantic search is local now" | ~/clawd/tools/embeddings/embed embed --stdin --pretty
+echo "semantic search is local now" | ~/openclaw/tools/embeddings/embed embed --stdin --pretty
 ```
 
 ### 3) Embed from file (one text per line)
 ```bash
-~/clawd/tools/embeddings/embed embed --text-file ./sentences.txt
+~/openclaw/tools/embeddings/embed embed --text-file ./sentences.txt
 ```
 
 ### 4) Benchmark
 ```bash
-~/clawd/tools/embeddings/embed benchmark --runs 40 --batch-multiplier 64 --pretty
+~/openclaw/tools/embeddings/embed benchmark --runs 40 --batch-multiplier 64 --pretty
 ```
 
 ### 5) Run local service
 ```bash
-~/clawd/tools/embeddings/embed serve --host 127.0.0.1 --port 8765
+~/openclaw/tools/embeddings/embed serve --host 127.0.0.1 --port 8765
 ```
 
 Health check:
@@ -77,7 +77,7 @@ curl -s -X POST http://127.0.0.1:8765/embed \
 ## Benchmark results (Mac mini M-series)
 Run command:
 ```bash
-~/clawd/tools/embeddings/embed benchmark --runs 40 --batch-multiplier 64 --pretty
+~/openclaw/tools/embeddings/embed benchmark --runs 40 --batch-multiplier 64 --pretty
 ```
 
 Observed output:
@@ -96,7 +96,7 @@ Observed output:
 For other tools, the easiest integration path is shelling out to the wrapper CLI:
 
 ```bash
-~/clawd/tools/embeddings/embed embed --stdin
+~/openclaw/tools/embeddings/embed embed --stdin
 ```
 
 and passing either line-delimited text or JSON array on stdin.

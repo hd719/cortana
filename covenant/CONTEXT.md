@@ -127,7 +127,7 @@ curl -s http://localhost:3033/tonal/health
 4. Prioritize by position weight (bigger = more attention)
 
 ### Full Portfolio Config
-See: `/Users/hd/clawd/tools/portfolio/config.md`
+See: `/Users/hd/openclaw/tools/portfolio/config.md`
 
 ### Upcoming Catalysts
 - **NVDA earnings:** Feb 25, 2026
@@ -162,7 +162,7 @@ See: `/Users/hd/clawd/tools/portfolio/config.md`
 ## Knowledge Base
 
 ### Location
-`/Users/hd/clawd/knowledge/`
+`/Users/hd/openclaw/knowledge/`
 
 ### Structure
 ```

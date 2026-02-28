@@ -84,5 +84,5 @@ If all task board result sets are empty, output: `📋 Task board clear - no pen
 
 These are NOT gathered by the World State Builder:
 - **News/RSS** — always fetch fresh via news-summary skill or web_search
-- **API usage stats** — run `node /Users/hd/clawd/skills/telegram-usage/handler.js`
+- **API usage stats** — run `node /Users/hd/openclaw/skills/telegram-usage/handler.js`
 - **Material stock news** — web_search for earnings, SEC filings, etc.

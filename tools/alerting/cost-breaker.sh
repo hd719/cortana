@@ -18,12 +18,12 @@ set -euo pipefail
 export PATH="/opt/homebrew/bin:/opt/homebrew/opt/postgresql@17/bin:/usr/local/bin:/usr/bin:/bin"
 
 DB="${CORTANA_DB:-cortana}"
-USAGE_CMD=(node /Users/hd/clawd/skills/telegram-usage/handler.js json)
+USAGE_CMD=(node /Users/hd/openclaw/skills/telegram-usage/handler.js json)
 SESSIONS_FILE="${OPENCLAW_SESSIONS_FILE:-$HOME/.openclaw/agents/main/sessions/sessions.json}"
 FLAG_FILE="${COST_ALERT_FLAG_FILE:-$HOME/.openclaw/cost-alert.flag}"
 MONTHLY_BUDGET_USD="${COST_BREAKER_MONTHLY_BUDGET_USD:-200}"
 RUNAWAY_TOKEN_LIMIT="${RUNAWAY_TOKEN_LIMIT:-200000}"
-TELEGRAM_GUARD="${TELEGRAM_GUARD:-/Users/hd/clawd/tools/notifications/telegram-delivery-guard.sh}"
+TELEGRAM_GUARD="${TELEGRAM_GUARD:-/Users/hd/openclaw/tools/notifications/telegram-delivery-guard.sh}"
 TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-8171372724}"
 
 KILL_SESSION_KEY=""

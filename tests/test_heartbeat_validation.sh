@@ -3,7 +3,7 @@ set -euo pipefail
 assert_true(){ "$@" || { echo "ASSERT FAILED: $*"; exit 1; }; }
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
-SCRIPT=/Users/hd/clawd/tools/heartbeat/validate-heartbeat-state.sh
+SCRIPT=/Users/hd/openclaw/tools/heartbeat/validate-heartbeat-state.sh
 
 make_valid() {
   python3 - <<'PY' "$1"

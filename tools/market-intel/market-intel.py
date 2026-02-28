@@ -22,7 +22,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-ROOT = Path("/Users/hd/clawd")
+ROOT = Path("/Users/hd/openclaw")
 STOCK_ANALYSIS_DIR = ROOT / "skills" / "stock-analysis"
 MARKET_STATUS_SCRIPT = ROOT / "skills" / "markets" / "check_market_status.sh"
 ALPACA_PORTFOLIO_URL = "http://localhost:3033/alpaca/portfolio"

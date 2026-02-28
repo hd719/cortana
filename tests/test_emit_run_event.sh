@@ -13,7 +13,7 @@ chmod +x "$MOCK"
 export RUN_SQL_LOG="$TMP/sql.log"
 
 # shellcheck source=/dev/null
-source /Users/hd/clawd/tools/task-board/emit-run-event.sh
+source /Users/hd/openclaw/tools/task-board/emit-run-event.sh
 PSQL_BIN="$MOCK"
 CORTANA_DB=test
 

@@ -64,7 +64,7 @@ prompt={
   "required_steps": [
     "Read session context.",
     "Choose one of: approve, reject, abstain.",
-    f"Run: ~/clawd/tools/council/council.sh vote --session {session_id} --voter {role} --vote <approve|reject|abstain> --confidence <0-1> --reasoning '<brief rationale>' --model '<model>'",
+    f"Run: ~/openclaw/tools/council/council.sh vote --session {session_id} --voter {role} --vote <approve|reject|abstain> --confidence <0-1> --reasoning '<brief rationale>' --model '<model>'",
     "Return a concise summary with vote + confidence."
   ],
   "session": {

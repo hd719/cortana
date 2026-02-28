@@ -7,7 +7,7 @@ assert_contains(){ [[ "$1" == *"$2"* ]] || { echo "ASSERT FAILED: expected '$2' 
 TMPROOT="$(mktemp -d)"
 trap 'rm -rf "$TMPROOT"' EXIT
 mkdir -p "$TMPROOT/tools/memory" "$TMPROOT/memory" "$TMPROOT/reports"
-cp /Users/hd/clawd/tools/memory/compact-memory.sh "$TMPROOT/tools/memory/compact-memory.sh"
+cp /Users/hd/openclaw/tools/memory/compact-memory.sh "$TMPROOT/tools/memory/compact-memory.sh"
 chmod +x "$TMPROOT/tools/memory/compact-memory.sh"
 
 python3 - <<'PY' "$TMPROOT"

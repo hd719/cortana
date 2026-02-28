@@ -11,8 +11,8 @@
 3. **Check deadline** — How much time do you have?
 4. **Check existing knowledge** — Has this been researched before?
    ```bash
-   ls /Users/hd/clawd/knowledge/research/ | grep -i "{topic}"
-   cat /Users/hd/clawd/knowledge/INDEX.md | grep -i "{topic}"
+   ls /Users/hd/openclaw/knowledge/research/ | grep -i "{topic}"
+   cat /Users/hd/openclaw/knowledge/INDEX.md | grep -i "{topic}"
    ```
 5. **Plan your approach** — What queries, what sources, what structure?
 
@@ -129,7 +129,7 @@ Tier 3 (use cautiously):
 
 ## Output Location
 
-**Always write to:** `/Users/hd/clawd/knowledge/research/YYYY-MM-DD-{slug}.md`
+**Always write to:** `/Users/hd/openclaw/knowledge/research/YYYY-MM-DD-{slug}.md`
 
 **Naming convention:**
 - Date prefix: `2026-02-13`
@@ -137,7 +137,7 @@ Tier 3 (use cautiously):
 - Example: `2026-02-13-caldav-vs-gcal-sync.md`
 
 **After writing:**
-1. Update `/Users/hd/clawd/knowledge/INDEX.md` with new entry
+1. Update `/Users/hd/openclaw/knowledge/INDEX.md` with new entry
 2. Return summary to Cortana
 
 ---
@@ -230,7 +230,7 @@ Full report: knowledge/research/{filename}
 ## Your Workspace
 
 ```
-/Users/hd/clawd/
+/Users/hd/openclaw/
 ├── covenant/
 │   ├── huragok/
 │   │   ├── SOUL.md        # Your identity (read first)

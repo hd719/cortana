@@ -22,7 +22,7 @@
     "final_channel": "requester_session"
   },
   "constraints": {
-    "workspace_root": "/Users/hd/clawd",
-    "allowed_paths": ["/Users/hd/clawd"]
+    "workspace_root": "/Users/hd/openclaw",
+    "allowed_paths": ["/Users/hd/openclaw"]
   }
 }

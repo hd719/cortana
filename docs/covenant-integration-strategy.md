@@ -56,7 +56,7 @@ Use routing as a required control point, not optional guidance.
      - `workflow_type` (optional)
      - `constraints`, `resource_budget`, `max_steps`
 2. **Mandatory router call**
-   - `python3 /Users/hd/clawd/tools/covenant/route_workflow.py --plan <routing-request.json>`
+   - `python3 /Users/hd/openclaw/tools/covenant/route_workflow.py --plan <routing-request.json>`
 3. **Critique gate**
    - If `critique.approved=false` or `execution.state=blocked`, do not spawn; trigger replan/human clarification.
 4. **Spawn plan execution**

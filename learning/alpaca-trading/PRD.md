@@ -797,11 +797,11 @@ IBD (Investor's Business Daily) provides CANSLIM data but:
 | Data | Location |
 |------|----------|
 | Auth tokens | `~/Desktop/services/alpaca_tokens.json` |
-| Strategies | `~/clawd/config/trading/strategies/` |
-| Backtest results | `~/clawd/memory/trading/backtests/` |
+| Strategies | `~/openclaw/config/trading/strategies/` |
+| Backtest results | `~/openclaw/memory/trading/backtests/` |
 | Paper trades | `cortana_events` (PostgreSQL) |
 | Live trades | `cortana_events` (PostgreSQL) |
-| Performance logs | `~/clawd/memory/trading/performance/` |
+| Performance logs | `~/openclaw/memory/trading/performance/` |
 
 ---
 

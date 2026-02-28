@@ -23,15 +23,15 @@ Owner: Huragok
 ## Runnable Verification
 ```bash
 # Chain routing
-python3 /Users/hd/clawd/tools/covenant/route_workflow.py --plan /Users/hd/clawd/tools/covenant/examples/routing.request.oracle-librarian-huragok.json
-python3 /Users/hd/clawd/tools/covenant/route_workflow.py --plan /Users/hd/clawd/tools/covenant/examples/routing.request.monitor-huragok-monitor.json
-python3 /Users/hd/clawd/tools/covenant/route_workflow.py --plan /Users/hd/clawd/tools/covenant/examples/routing.request.librarian-huragok-librarian.json
+python3 /Users/hd/openclaw/tools/covenant/route_workflow.py --plan /Users/hd/openclaw/tools/covenant/examples/routing.request.oracle-librarian-huragok.json
+python3 /Users/hd/openclaw/tools/covenant/route_workflow.py --plan /Users/hd/openclaw/tools/covenant/examples/routing.request.monitor-huragok-monitor.json
+python3 /Users/hd/openclaw/tools/covenant/route_workflow.py --plan /Users/hd/openclaw/tools/covenant/examples/routing.request.librarian-huragok-librarian.json
 
 # Failure playbook
-python3 /Users/hd/clawd/tools/covenant/route_workflow.py --failure /Users/hd/clawd/tools/covenant/examples/routing.failure.transient.retry.json
-python3 /Users/hd/clawd/tools/covenant/route_workflow.py --failure /Users/hd/clawd/tools/covenant/examples/routing.failure.hard.escalate.json
-python3 /Users/hd/clawd/tools/covenant/route_workflow.py --failure /Users/hd/clawd/tools/covenant/examples/routing.failure.retry_exhausted.escalate.json
+python3 /Users/hd/openclaw/tools/covenant/route_workflow.py --failure /Users/hd/openclaw/tools/covenant/examples/routing.failure.transient.retry.json
+python3 /Users/hd/openclaw/tools/covenant/route_workflow.py --failure /Users/hd/openclaw/tools/covenant/examples/routing.failure.hard.escalate.json
+python3 /Users/hd/openclaw/tools/covenant/route_workflow.py --failure /Users/hd/openclaw/tools/covenant/examples/routing.failure.retry_exhausted.escalate.json
 
 # Prep spawn using automatic route inference
-python3 /Users/hd/clawd/tools/covenant/prepare_spawn.py /Users/hd/clawd/tools/covenant/examples/handshake.no-agent.auto-route.json --auto-route --output-dir /tmp/covenant-spawn-routing
+python3 /Users/hd/openclaw/tools/covenant/prepare_spawn.py /Users/hd/openclaw/tools/covenant/examples/handshake.no-agent.auto-route.json --auto-route --output-dir /tmp/covenant-spawn-routing
 ```

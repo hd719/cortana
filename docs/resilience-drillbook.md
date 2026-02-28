@@ -44,7 +44,7 @@ Recover the full Cortana runtime stack in **< 15 minutes (900s)** after outage c
 
 ## Runbook Script
 
-Path: `~/clawd/tools/resilience/drillbook.sh`
+Path: `~/openclaw/tools/resilience/drillbook.sh`
 
 ### Modes
 
@@ -52,7 +52,7 @@ Path: `~/clawd/tools/resilience/drillbook.sh`
 Prints all critical services + live health status.
 
 ```bash
-~/clawd/tools/resilience/drillbook.sh inventory
+~/openclaw/tools/resilience/drillbook.sh inventory
 ```
 
 ### 2) Recover
@@ -62,14 +62,14 @@ Checks each critical service and auto-recovers unhealthy services in dependency 
 `postgres -> event_bus -> gateway -> fitness -> watchdog -> crons`
 
 ```bash
-~/clawd/tools/resilience/drillbook.sh recover
+~/openclaw/tools/resilience/drillbook.sh recover
 ```
 
 ### 3) Drill
 Runs a timed recovery drill and reports RTO + SLO pass/fail.
 
 ```bash
-~/clawd/tools/resilience/drillbook.sh drill --simulate-failure all
+~/openclaw/tools/resilience/drillbook.sh drill --simulate-failure all
 ```
 
 Options:
@@ -78,7 +78,7 @@ Options:
 
 Example (controlled live drill):
 ```bash
-~/clawd/tools/resilience/drillbook.sh drill --simulate-failure gateway --live-failure
+~/openclaw/tools/resilience/drillbook.sh drill --simulate-failure gateway --live-failure
 ```
 
 ---

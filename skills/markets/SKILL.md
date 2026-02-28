@@ -24,7 +24,7 @@ Quick reference for NYSE/NASDAQ trading holidays and early closes.
 
 Check if today is a market holiday:
 ```bash
-~/clawd/skills/markets/check_market_status.sh
+~/openclaw/skills/markets/check_market_status.sh
 ```
 
 Outputs:
@@ -38,7 +38,7 @@ Add this check to your morning brief routine:
 
 ```bash
 # Check market status
-MARKET_STATUS=$(~/clawd/skills/markets/check_market_status.sh)
+MARKET_STATUS=$(~/openclaw/skills/markets/check_market_status.sh)
 echo "📈 Market Status: $MARKET_STATUS"
 ```
 

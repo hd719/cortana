@@ -21,8 +21,8 @@
     "update_channel": "subagent_result_push"
   },
   "constraints": {
-    "workspace_root": "/Users/hd/clawd",
-    "allowed_paths": ["/Users/hd/clawd"],
+    "workspace_root": "/Users/hd/openclaw",
+    "allowed_paths": ["/Users/hd/openclaw"],
     "forbidden_actions": ["force_push", "destructive_delete", "external_message_without_approval"]
   }
 }

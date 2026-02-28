@@ -6,7 +6,7 @@ Use this helper to log Cortana decision traces into PostgreSQL (`cortana_decisio
 
 ### Script
 
-`/Users/hd/clawd/tools/log-decision.sh`
+`/Users/hd/openclaw/tools/log-decision.sh`
 
 ### Usage
 
@@ -32,7 +32,7 @@ Use this helper to log Cortana decision traces into PostgreSQL (`cortana_decisio
 ### Example
 
 ```bash
-/Users/hd/clawd/tools/log-decision.sh \
+/Users/hd/openclaw/tools/log-decision.sh \
   heartbeat email_triage "gmail-triage" success \
   "Checked email inbox — 3 unread, none urgent" \
   0.95 "" "" '{"inbox_unread":3,"urgent":0}'

@@ -20,7 +20,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-WORKSPACE_ROOT = Path("/Users/hd/clawd")
+WORKSPACE_ROOT = Path("/Users/hd/openclaw")
 HANDSHAKE_VALIDATOR = WORKSPACE_ROOT / "tools" / "covenant" / "validate_spawn_handshake.py"
 PROMPT_BUILDER = WORKSPACE_ROOT / "tools" / "covenant" / "build_identity_spawn_prompt.py"
 ROUTER = WORKSPACE_ROOT / "tools" / "covenant" / "route_workflow.py"

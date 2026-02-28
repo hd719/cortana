@@ -279,7 +279,7 @@ Payoff: Medium (safety + auditability)
 
 ## 5) Integration Opportunities for clawd workspace
 
-Current target: `/Users/hd/clawd`
+Current target: `/Users/hd/openclaw`
 
 ### Current state
 

@@ -17,8 +17,8 @@ from typing import Any
 
 
 FAIL_STATUSES = {"failed", "error", "aborted", "timeout", "timed_out", "cancelled"}
-TELEGRAM_GUARD = Path("/Users/hd/clawd/tools/notifications/telegram-delivery-guard.sh")
-COMPLETION_SYNC = Path("/Users/hd/clawd/tools/task-board/completion-sync.sh")
+TELEGRAM_GUARD = Path("/Users/hd/openclaw/tools/notifications/telegram-delivery-guard.sh")
+COMPLETION_SYNC = Path("/Users/hd/openclaw/tools/task-board/completion-sync.sh")
 DB_NAME = "cortana"
 
 
@@ -305,7 +305,7 @@ def main() -> int:
     parser.add_argument("--cooldown-seconds", type=int, default=21600)
     parser.add_argument(
         "--state-file",
-        default=os.path.expanduser("~/clawd/memory/heartbeat-state.json"),
+        default=os.path.expanduser("~/openclaw/memory/heartbeat-state.json"),
         help="Path to heartbeat state JSON (used for de-dup logging)",
     )
     parser.add_argument("--all-agents", action="store_true", default=True)

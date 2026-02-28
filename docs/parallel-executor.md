@@ -114,5 +114,5 @@ A mock plan with 3 parallel research steps validates:
 Run:
 
 ```bash
-python3 /Users/hd/clawd/tools/covenant/tests_parallel_executor.py
+python3 /Users/hd/openclaw/tools/covenant/tests_parallel_executor.py
 ```

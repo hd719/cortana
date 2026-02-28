@@ -20,7 +20,7 @@ except Exception:  # pragma: no cover
 
 PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql"
 DEFAULT_DB = "cortana"
-WORKSPACE_ROOT = Path("/Users/hd/clawd")
+WORKSPACE_ROOT = Path("/Users/hd/openclaw")
 
 
 class FanInError(Exception):

@@ -14,7 +14,7 @@ def load_module(path: Path, name: str):
 
 
 def test_chunks_zero_triggers_fallback_and_state_file(tmp_path, monkeypatch, capsys):
-    mod = load_module(Path('/Users/hd/clawd/tools/memory/vector-health-gate.py'), 'vector_health_gate_test1')
+    mod = load_module(Path('/Users/hd/openclaw/tools/memory/vector-health-gate.py'), 'vector_health_gate_test1')
     state_path = tmp_path / 'vector-state.json'
     monkeypatch.setattr(mod, 'STATE_PATH', state_path)
 
@@ -47,7 +47,7 @@ def test_chunks_zero_triggers_fallback_and_state_file(tmp_path, monkeypatch, cap
 
 
 def test_three_consecutive_429_triggers_alert_mode(tmp_path, monkeypatch, capsys):
-    mod = load_module(Path('/Users/hd/clawd/tools/memory/vector-health-gate.py'), 'vector_health_gate_test2')
+    mod = load_module(Path('/Users/hd/openclaw/tools/memory/vector-health-gate.py'), 'vector_health_gate_test2')
     state_path = tmp_path / 'vector-state.json'
     monkeypatch.setattr(mod, 'STATE_PATH', state_path)
 
@@ -82,7 +82,7 @@ def test_three_consecutive_429_triggers_alert_mode(tmp_path, monkeypatch, capsys
 
 
 def test_state_save_and_read(tmp_path, monkeypatch):
-    mod = load_module(Path('/Users/hd/clawd/tools/memory/vector-health-gate.py'), 'vector_health_gate_test3')
+    mod = load_module(Path('/Users/hd/openclaw/tools/memory/vector-health-gate.py'), 'vector_health_gate_test3')
     state_path = tmp_path / 'vector-state.json'
     monkeypatch.setattr(mod, 'STATE_PATH', state_path)
 

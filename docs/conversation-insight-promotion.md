@@ -75,7 +75,7 @@ Launchd job:
 ### Install / load
 
 ```bash
-cp /Users/hd/clawd/config/launchd/com.cortana.insight-promotion.plist ~/Library/LaunchAgents/
+cp /Users/hd/openclaw/config/launchd/com.cortana.insight-promotion.plist ~/Library/LaunchAgents/
 launchctl unload ~/Library/LaunchAgents/com.cortana.insight-promotion.plist 2>/dev/null || true
 launchctl load ~/Library/LaunchAgents/com.cortana.insight-promotion.plist
 launchctl start com.cortana.insight-promotion
@@ -83,5 +83,5 @@ launchctl start com.cortana.insight-promotion
 
 ### Logs
 
-- stdout: `/Users/hd/clawd/tmp/insight-promotion.stdout.log`
-- stderr: `/Users/hd/clawd/tmp/insight-promotion.stderr.log`
+- stdout: `/Users/hd/openclaw/tmp/insight-promotion.stdout.log`
+- stderr: `/Users/hd/openclaw/tmp/insight-promotion.stderr.log`

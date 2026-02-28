@@ -49,7 +49,7 @@ Current ingestion hooks:
 
 Heartbeat-callable command:
 ```bash
-python3 /Users/hd/clawd/tools/memory/ingest_unified_memory.py --since-hours 24
+python3 /Users/hd/openclaw/tools/memory/ingest_unified_memory.py --since-hours 24
 ```
 
 ## Retrieval policy

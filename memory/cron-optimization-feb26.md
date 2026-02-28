@@ -23,7 +23,7 @@ Token/runtime evidence was taken from `openclaw cron runs --id <id> --limit 3`.
 
 ### Changes made
 - Replaced bloated prompt with compact instruction (prompt size **1526 → 380 chars**).
-- Added precompute script: `~/clawd/tools/fitness/morning-brief-data.sh`
+- Added precompute script: `~/openclaw/tools/fitness/morning-brief-data.sh`
   - Fetches Whoop/Tonal once
   - Filters strictly to today
   - Emits compact JSON only
@@ -49,7 +49,7 @@ Token/runtime evidence was taken from `openclaw cron runs --id <id> --limit 3`.
 
 ### Changes made
 - Replaced prompt with compact workflow (size **925 → 450 chars**).
-- Added precompute script: `~/clawd/tools/monitoring/proprioception-metrics.sh`
+- Added precompute script: `~/openclaw/tools/monitoring/proprioception-metrics.sh`
   - Computes top cost crons from session files
   - Computes subagent 7d estimated cost
   - Computes brief engagement heuristic from available schema
@@ -104,7 +104,7 @@ Token/runtime evidence was taken from `openclaw cron runs --id <id> --limit 3`.
 
 ### Changes made
 - Replaced prompt with concise workflow (size **245 → 390 chars**, but dramatically less data loading behavior).
-- Added precompute snapshot script: `~/clawd/tools/sae/cross-domain-snapshot.sh`
+- Added precompute snapshot script: `~/openclaw/tools/sae/cross-domain-snapshot.sh`
   - Pulls current/previous sitrep JSON
   - Filters to key domains only
   - Caps keys/insight history for compactness

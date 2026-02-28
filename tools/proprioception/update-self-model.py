@@ -10,7 +10,7 @@ from pathlib import Path
 
 PSQL = "/opt/homebrew/opt/postgresql@17/bin/psql"
 DB = "cortana"
-USAGE_HANDLER = "/Users/hd/clawd/skills/telegram-usage/handler.js"
+USAGE_HANDLER = "/Users/hd/openclaw/skills/telegram-usage/handler.js"
 COOLDOWN_SEC = 15 * 60
 HYSTERESIS_STEPS = 2
 

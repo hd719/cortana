@@ -13,7 +13,7 @@ Quick recovery for OpenClaw's managed browser when Chrome crashes or needs resta
 
 ### Via Script
 ```bash
-~/clawd/tools/browser-recovery/restore-tabs.sh
+~/openclaw/tools/browser-recovery/restore-tabs.sh
 ```
 
 ### Via Cortana

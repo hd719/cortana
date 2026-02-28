@@ -24,7 +24,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-STATE_PATH = Path("/Users/hd/clawd/memory/circuit-breaker-state.json")
+STATE_PATH = Path("/Users/hd/openclaw/memory/circuit-breaker-state.json")
 WINDOW_SIZE = 50
 TRIP_THRESHOLD = 0.20
 DEFAULT_COOLDOWN_SEC = 60

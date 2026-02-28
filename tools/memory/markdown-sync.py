@@ -25,7 +25,7 @@ from pathlib import Path
 from typing import Any, Dict, List, Sequence, Tuple
 
 
-WORKSPACE = Path("/Users/hd/clawd")
+WORKSPACE = Path("/Users/hd/openclaw")
 DB_PATH_DEFAULT = os.path.expanduser("~/.openclaw/memory/lancedb")
 CONFIG_DEFAULT = os.path.expanduser("~/.openclaw/openclaw.json")
 TABLE_NAME = "memories"

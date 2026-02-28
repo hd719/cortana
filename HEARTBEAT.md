@@ -48,7 +48,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Skip if run in last **12h** and no major new events.
 
 - **Memory compaction (1× daily)**
-  - Run `~/clawd/tools/memory/compact-memory.sh`.
+  - Run `~/openclaw/tools/memory/compact-memory.sh`.
   - Archive daily notes older than 7 days; generate dedup/staleness findings for `MEMORY.md`; enforce size thresholds.
   - Skip if run in last **24h**.
 
@@ -58,21 +58,21 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Skip if run in last **12h**.
   - If `cortana_feedback` corrections not synced to `mc_feedback_items`, run:
     ```bash
-    python3 ~/clawd/tools/feedback/sync-feedback.py
+    python3 ~/openclaw/tools/feedback/sync-feedback.py
     ```
 
 - **Feedback triage (every heartbeat)**
-  - Run `~/clawd/tools/feedback/feedback-to-tasks.sh` to push verified/new corrections into `cortana_tasks`.
+  - Run `~/openclaw/tools/feedback/feedback-to-tasks.sh` to push verified/new corrections into `cortana_tasks`.
 
 - **Feedback pipeline reconciliation (every heartbeat)**
-  - Run `~/clawd/tools/feedback/pipeline-reconciliation.sh`.
+  - Run `~/openclaw/tools/feedback/pipeline-reconciliation.sh`.
   - Checks flow: `cortana_feedback` → `mc_feedback_items` → `cortana_tasks`.
   - Logs `feedback_pipeline_reconciliation` events for drift/stuck stages.
 
 - **Feedback logging during conversation (on new correction)**
   - Immediately log:
     ```bash
-    ~/clawd/tools/feedback/log-feedback.sh "correction" "<severity>" "<summary>" '{"context":"...","lesson":"..."}' "<agent_id>"
+    ~/openclaw/tools/feedback/log-feedback.sh "correction" "<severity>" "<summary>" '{"context":"...","lesson":"..."}' "<agent_id>"
     ```
   - Severity:
     - Contains "HARD RULE" / "MANDATORY" / "ZERO TOLERANCE" → `high`
@@ -81,7 +81,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
     - Preference/style → `low`
   - If fix is known, add remediation action:
     ```bash
-    ~/clawd/tools/feedback/add-feedback-action.sh "<feedback_id>" "prompt_patch" "<description of fix>" "<commit_hash>" "applied"
+    ~/openclaw/tools/feedback/add-feedback-action.sh "<feedback_id>" "prompt_patch" "<description of fix>" "<commit_hash>" "applied"
     ```
 
 - **Task board hygiene (every heartbeat)**
@@ -111,7 +111,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
 - **Sub-agent health monitoring (every heartbeat)**
   - Run:
     ```bash
-    ~/clawd/tools/subagent-watchdog/check-subagents.sh
+    ~/openclaw/tools/subagent-watchdog/check-subagents.sh
     ```
   - Emits JSON and logs failures to `cortana_events` (`event_type='subagent_failure'`, severity `warning`).
   - If failures/timeouts:
@@ -154,11 +154,11 @@ After each check, log a decision trace so Mission Control reflects what ran and 
 
 - Preferred wrapper:
   ```bash
-  ~/clawd/tools/log-heartbeat-decision.sh <check_name> <success|skipped|fail> "<reasoning>" <0.0-1.0> '{"optional":"inputs"}'
+  ~/openclaw/tools/log-heartbeat-decision.sh <check_name> <success|skipped|fail> "<reasoning>" <0.0-1.0> '{"optional":"inputs"}'
   ```
 - Under the hood:
   ```bash
-  python3 ~/clawd/tools/tracing/log_decision.py \
+  python3 ~/openclaw/tools/tracing/log_decision.py \
     --trigger heartbeat \
     --action-type <check_type> \
     --action-name <specific_check> \
@@ -174,7 +174,7 @@ After each check, log a decision trace so Mission Control reflects what ran and 
 
 ## Rules
 
-1. Validate state each heartbeat: `~/clawd/tools/heartbeat/validate-heartbeat-state.sh`.
+1. Validate state each heartbeat: `~/openclaw/tools/heartbeat/validate-heartbeat-state.sh`.
 2. Read/update `memory/heartbeat-state.json` on every heartbeat.
 3. Run the stalest 1–2 checks from the rotation.
 4. Always run proactive watchlist scan and task detection/queue execution.

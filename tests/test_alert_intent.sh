@@ -4,7 +4,7 @@ assert_true(){ "$@" || { echo "ASSERT FAILED: $*"; exit 1; }; }
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 SCRIPT_COPY="$TMP/emit-alert-intent.sh"
-cp /Users/hd/clawd/tools/alerting/emit-alert-intent.sh "$SCRIPT_COPY"
+cp /Users/hd/openclaw/tools/alerting/emit-alert-intent.sh "$SCRIPT_COPY"
 
 MOCK="$TMP/mock-psql"
 cat > "$MOCK" <<'PSQL'

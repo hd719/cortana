@@ -20,7 +20,7 @@ Analyze:
 - Deep sleep / REM thresholds for good recovery
 - Time to bed patterns and next-day recovery
 
-Create: ~/clawd/memory/fitness/analysis/sleep-recovery-correlation.md
+Create: ~/openclaw/memory/fitness/analysis/sleep-recovery-correlation.md
 ```
 
 ### 2. Strength Progression (Tonal Program)
@@ -37,7 +37,7 @@ Analyze:
 - Which muscle groups showing most gains
 - Compare early weeks to recent weeks
 
-Create: ~/clawd/memory/fitness/analysis/strength-progression.md
+Create: ~/openclaw/memory/fitness/analysis/strength-progression.md
 ```
 
 ### 3. Optimal Strain Analysis
@@ -53,7 +53,7 @@ Analyze:
 - Cumulative strain patterns (back-to-back high strain days)
 - Recovery time after different strain levels
 
-Create: ~/clawd/memory/fitness/analysis/optimal-strain.md
+Create: ~/openclaw/memory/fitness/analysis/optimal-strain.md
 ```
 
 ### 4. Weekly Performance Report
@@ -73,7 +73,7 @@ Report:
 - Standout performances and areas for improvement
 - Recommendations for next week
 
-Create: ~/clawd/memory/fitness/weekly/YYYY-WXX-deep-analysis.md
+Create: ~/openclaw/memory/fitness/weekly/YYYY-WXX-deep-analysis.md
 ```
 
 ### 5. Program Completion Forecast
@@ -90,7 +90,7 @@ Analyze:
 - Any skipped workouts or gaps
 - Recommendations to stay on track
 
-Create: ~/clawd/memory/fitness/analysis/program-forecast.md
+Create: ~/openclaw/memory/fitness/analysis/program-forecast.md
 ```
 
 ### 6. HRV Trend Analysis
@@ -107,7 +107,7 @@ Analyze:
 - Your personal HRV baseline and ranges
 - Warning signs to watch for
 
-Create: ~/clawd/memory/fitness/analysis/hrv-trends.md
+Create: ~/openclaw/memory/fitness/analysis/hrv-trends.md
 ```
 
 ---
@@ -125,4 +125,4 @@ Cortana will spawn the appropriate agent and deliver results.
 
 ## Output Location
 
-All analyses saved to: `~/clawd/memory/fitness/analysis/`
+All analyses saved to: `~/openclaw/memory/fitness/analysis/`

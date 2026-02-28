@@ -39,15 +39,15 @@ Based on both sources, precompute now targets:
 ## Implementation
 
 ### Script
-- Path: `~/clawd/tools/oracle/precompute.py`
+- Path: `~/openclaw/tools/oracle/precompute.py`
 - Command modes:
-  - `python3 ~/clawd/tools/oracle/precompute.py run`
-  - `python3 ~/clawd/tools/oracle/precompute.py status`
-  - `python3 ~/clawd/tools/oracle/precompute.py read`
-  - `python3 ~/clawd/tools/oracle/precompute.py read <weather|calendar|portfolio|recovery|email>`
+  - `python3 ~/openclaw/tools/oracle/precompute.py run`
+  - `python3 ~/openclaw/tools/oracle/precompute.py status`
+  - `python3 ~/openclaw/tools/oracle/precompute.py read`
+  - `python3 ~/openclaw/tools/oracle/precompute.py read <weather|calendar|portfolio|recovery|email>`
 
 ### Cache
-- Path: `~/clawd/tmp/oracle-cache.json`
+- Path: `~/openclaw/tmp/oracle-cache.json`
 - Format:
   - `generated_at`, `expires_at`, `ttl_seconds`
   - `sources.<name>.{ok,fetched_at,expires_at,ttl_seconds,data,error}`
@@ -74,12 +74,12 @@ Based on both sources, precompute now targets:
 ## launchd Schedule (5:30 AM daily)
 
 ### Plist files
-- Source-managed copy: `~/clawd/config/launchd/com.cortana.oracle-precompute.plist`
+- Source-managed copy: `~/openclaw/config/launchd/com.cortana.oracle-precompute.plist`
 - Installed copy: `~/Library/LaunchAgents/com.cortana.oracle-precompute.plist`
 
 ### Schedule
 - `StartCalendarInterval`: Hour `5`, Minute `30`
-- Runs: `python3 /Users/hd/clawd/tools/oracle/precompute.py run`
+- Runs: `python3 /Users/hd/openclaw/tools/oracle/precompute.py run`
 
 ### Load / reload commands
 ```bash
@@ -90,9 +90,9 @@ launchctl enable gui/$(id -u)/com.cortana.oracle-precompute
 
 ### Verify
 ```bash
-python3 ~/clawd/tools/oracle/precompute.py run
-python3 ~/clawd/tools/oracle/precompute.py status
-python3 ~/clawd/tools/oracle/precompute.py read weather
+python3 ~/openclaw/tools/oracle/precompute.py run
+python3 ~/openclaw/tools/oracle/precompute.py status
+python3 ~/openclaw/tools/oracle/precompute.py read weather
 ```
 
 ---
@@ -102,9 +102,9 @@ python3 ~/clawd/tools/oracle/precompute.py read weather
 The brief can read the cache directly and avoid live API/tool latency:
 
 ```bash
-python3 ~/clawd/tools/oracle/precompute.py read --allow-stale
-python3 ~/clawd/tools/oracle/precompute.py read weather
-python3 ~/clawd/tools/oracle/precompute.py read calendar
+python3 ~/openclaw/tools/oracle/precompute.py read --allow-stale
+python3 ~/openclaw/tools/oracle/precompute.py read weather
+python3 ~/openclaw/tools/oracle/precompute.py read calendar
 ```
 
 Use `--allow-stale` only if fallback display is preferred over hard failure.

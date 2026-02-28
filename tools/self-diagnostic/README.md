@@ -9,16 +9,16 @@ Unified Cortana health diagnostic command.
 3. `cortana_tool_health` last 24h (latest status per tool + outage highlighting)
 4. `cortana_budget_log` latest burn/projection snapshot
 5. Memory coherence:
-   - `~/clawd/MEMORY.md` size + last modified
-   - daily note existence for today and yesterday (`~/clawd/memory/YYYY-MM-DD.md`)
+   - `~/openclaw/MEMORY.md` size + last modified
+   - daily note existence for today and yesterday (`~/openclaw/memory/YYYY-MM-DD.md`)
 6. Session bloat in `~/.openclaw/agents/main/sessions/*.jsonl` (>400 KB)
 
 ## Usage
 
 ```bash
-~/clawd/tools/self-diagnostic/self-diagnostic.sh
-~/clawd/tools/self-diagnostic/self-diagnostic.sh --brief
-~/clawd/tools/self-diagnostic/self-diagnostic.sh --json
+~/openclaw/tools/self-diagnostic/self-diagnostic.sh
+~/openclaw/tools/self-diagnostic/self-diagnostic.sh --brief
+~/openclaw/tools/self-diagnostic/self-diagnostic.sh --json
 ```
 
 ## Output modes

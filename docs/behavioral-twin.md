@@ -54,16 +54,16 @@ Confidence is scaled by sample volume.
 ## CLI usage
 ```bash
 # Default (now, normal urgency)
-~/clawd/tools/behavioral-twin/predict
+~/openclaw/tools/behavioral-twin/predict
 
 # Urgent decision right now
-~/clawd/tools/behavioral-twin/predict --urgency urgent
+~/openclaw/tools/behavioral-twin/predict --urgency urgent
 
 # Predict at a specific time
-~/clawd/tools/behavioral-twin/predict --at "2026-02-25T23:15:00-05:00"
+~/openclaw/tools/behavioral-twin/predict --at "2026-02-25T23:15:00-05:00"
 
 # Increase historical window for trend smoothing
-~/clawd/tools/behavioral-twin/predict --days-back 120
+~/openclaw/tools/behavioral-twin/predict --days-back 120
 ```
 
 ## Example output

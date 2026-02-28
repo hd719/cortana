@@ -4,7 +4,7 @@ assert_true(){ "$@" || { echo "ASSERT FAILED: $*"; exit 1; }; }
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/monitoring" "$TMP/home/.openclaw/cron/quarantine"
-cp /Users/hd/clawd/tools/monitoring/quarantine-tracker.sh "$TMP/monitoring/quarantine-tracker.sh"
+cp /Users/hd/openclaw/tools/monitoring/quarantine-tracker.sh "$TMP/monitoring/quarantine-tracker.sh"
 chmod +x "$TMP/monitoring/quarantine-tracker.sh"
 
 cat > "$TMP/mock-psql" <<'PSQL'

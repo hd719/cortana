@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 
-LOG_DIR="/Users/hd/clawd/tools/mission-control/logs"
+LOG_DIR="/Users/hd/openclaw/tools/mission-control/logs"
 LOG_FILE="$LOG_DIR/deploy.log"
 TIMESTAMP="$(date '+%Y-%m-%d %H:%M:%S')"
 

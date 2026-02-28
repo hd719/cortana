@@ -3,7 +3,7 @@ import argparse, hashlib, json, subprocess
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-WORKSPACE = Path('/Users/hd/clawd')
+WORKSPACE = Path('/Users/hd/openclaw')
 MEMORY_DIR = WORKSPACE / 'memory'
 PSQL = '/opt/homebrew/opt/postgresql@17/bin/psql'
 DB = 'cortana'

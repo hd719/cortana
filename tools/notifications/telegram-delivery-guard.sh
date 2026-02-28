@@ -37,7 +37,7 @@ export PATH="/opt/homebrew/bin:/opt/homebrew/opt/postgresql@17/bin:/usr/local/bi
 DEFAULT_CHAT_ID="8171372724"
 DB_NAME="${CORTANA_DB:-cortana}"
 SOURCE="telegram-delivery-guard"
-INTENT_EMITTER="${ALERT_INTENT_EMITTER:-/Users/hd/clawd/tools/alerting/emit-alert-intent.sh}"
+INTENT_EMITTER="${ALERT_INTENT_EMITTER:-/Users/hd/openclaw/tools/alerting/emit-alert-intent.sh}"
 
 MESSAGE_TEXT="${1:-}"
 CHAT_ID="${2:-$DEFAULT_CHAT_ID}"

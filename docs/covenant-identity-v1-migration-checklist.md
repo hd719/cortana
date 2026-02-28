@@ -19,11 +19,11 @@ Owner: Huragok (Task #16 / Epic #4)
   - `agents/identities/CONTRACT.md`
 
 ## Pending
-- [ ] Wire Cortana runtime spawn callsite(s) to invoke `prepare_spawn.py` automatically pre-spawn if that callsite is outside `/Users/hd/clawd` repo scope.
+- [ ] Wire Cortana runtime spawn callsite(s) to invoke `prepare_spawn.py` automatically pre-spawn if that callsite is outside `/Users/hd/openclaw` repo scope.
 
 ## Verification Commands
 ```bash
-python3 /Users/hd/clawd/tools/covenant/prepare_spawn.py /Users/hd/clawd/tools/covenant/examples/handshake.valid.json --output-dir /tmp/covenant-spawn-e2e-valid
-python3 /Users/hd/clawd/tools/covenant/prepare_spawn.py /Users/hd/clawd/tools/covenant/examples/handshake.legacy.json --legacy-shim --output-dir /tmp/covenant-spawn-e2e-legacy
-python3 /Users/hd/clawd/tools/covenant/validate_agent_protocol.py --extract /Users/hd/clawd/tools/covenant/examples/protocol-output.valid.txt
+python3 /Users/hd/openclaw/tools/covenant/prepare_spawn.py /Users/hd/openclaw/tools/covenant/examples/handshake.valid.json --output-dir /tmp/covenant-spawn-e2e-valid
+python3 /Users/hd/openclaw/tools/covenant/prepare_spawn.py /Users/hd/openclaw/tools/covenant/examples/handshake.legacy.json --legacy-shim --output-dir /tmp/covenant-spawn-e2e-legacy
+python3 /Users/hd/openclaw/tools/covenant/validate_agent_protocol.py --extract /Users/hd/openclaw/tools/covenant/examples/protocol-output.valid.txt
 ```

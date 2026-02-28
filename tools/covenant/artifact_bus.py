@@ -16,7 +16,7 @@ PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql"
 DEFAULT_DB = "cortana"
 DEFAULT_CREATED_BY = "cortana"
 ALLOWED_CREATED_BY = {"cortana"}
-TRACE_CLI = Path("/Users/hd/clawd/tools/covenant/trace.py")
+TRACE_CLI = Path("/Users/hd/openclaw/tools/covenant/trace.py")
 
 
 class HabError(Exception):

@@ -194,7 +194,7 @@ def from_proactive() -> list[Candidate]:
 
 
 def from_risk_radar() -> list[Candidate]:
-    script = "/Users/hd/clawd/tools/proactive/risk_radar.py"
+    script = "/Users/hd/openclaw/tools/proactive/risk_radar.py"
     p = subprocess.run(["python3", script, "--horizon-hours", "16", "--json"], text=True, capture_output=True)
     if p.returncode != 0 or not p.stdout.strip():
         return []

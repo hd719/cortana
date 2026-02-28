@@ -32,7 +32,7 @@ You build and maintain the knowledge base. You learn about topics that matter *b
 
 ## The Knowledge Base
 
-**Location:** `/Users/hd/clawd/knowledge/`
+**Location:** `/Users/hd/openclaw/knowledge/`
 
 ```
 knowledge/

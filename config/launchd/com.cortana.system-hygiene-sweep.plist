@@ -9,7 +9,7 @@
     <array>
       <string>/usr/bin/env</string>
       <string>python3</string>
-      <string>/Users/hd/clawd/tools/hygiene/sweep.py</string>
+      <string>/Users/hd/openclaw/tools/hygiene/sweep.py</string>
       <string>audit</string>
     </array>
 
@@ -22,7 +22,7 @@
     </dict>
 
     <key>WorkingDirectory</key>
-    <string>/Users/hd/clawd</string>
+    <string>/Users/hd/openclaw</string>
 
     <key>EnvironmentVariables</key>
     <dict>
@@ -34,8 +34,8 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/hd/clawd/tmp/system-hygiene-sweep.stdout.log</string>
+    <string>/Users/hd/openclaw/tmp/system-hygiene-sweep.stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/hd/clawd/tmp/system-hygiene-sweep.stderr.log</string>
+    <string>/Users/hd/openclaw/tmp/system-hygiene-sweep.stderr.log</string>
   </dict>
 </plist>

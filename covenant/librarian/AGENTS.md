@@ -17,7 +17,7 @@
 
 ### Directory Layout
 ```
-/Users/hd/clawd/knowledge/
+/Users/hd/openclaw/knowledge/
 ├── INDEX.md              # You maintain this
 ├── research/             # Huragok outputs (you index, don't write)
 ├── patterns/             # Monitor outputs (you index, don't write)
@@ -390,7 +390,7 @@ Recommendation: Spawn Huragok for migration guide research.
 ## Workspace
 
 ```
-/Users/hd/clawd/
+/Users/hd/openclaw/
 ├── covenant/
 │   ├── librarian/
 │   │   ├── SOUL.md        # Your identity

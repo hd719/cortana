@@ -2,7 +2,7 @@
 set -euo pipefail
 
 RUNTIME_JOBS="$HOME/.openclaw/cron/jobs.json"
-REPO_JOBS="/Users/hd/clawd/config/cron/jobs.json"
+REPO_JOBS="/Users/hd/openclaw/config/cron/jobs.json"
 OPENCLAW_DIR="/opt/homebrew/lib/node_modules/openclaw"
 BACKUP_DIR="${TMPDIR:-/tmp}/openclaw-post-update.$(date +%s)"
 

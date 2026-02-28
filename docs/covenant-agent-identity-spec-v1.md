@@ -116,8 +116,8 @@ Every spawn must include a strict payload so the child agent is unambiguous.
     "on_blocked": "immediate"
   },
   "constraints": {
-    "workspace_root": "/Users/hd/clawd",
-    "allowed_paths": ["/Users/hd/clawd"],
+    "workspace_root": "/Users/hd/openclaw",
+    "allowed_paths": ["/Users/hd/openclaw"],
     "forbidden_actions": ["force_push", "destructive_delete", "external_message_without_approval"]
   }
 }
@@ -171,8 +171,8 @@ Every spawn must include a strict payload so the child agent is unambiguous.
   "state": "completed",
   "summary": "Added exponential retry policy and tests; all suites passing.",
   "artifacts": [
-    {"type": "file", "path": "/Users/hd/clawd/src/health/retry.ts"},
-    {"type": "file", "path": "/Users/hd/clawd/tests/health/retry.test.ts"},
+    {"type": "file", "path": "/Users/hd/openclaw/src/health/retry.ts"},
+    {"type": "file", "path": "/Users/hd/openclaw/tests/health/retry.test.ts"},
     {"type": "log", "path": "/tmp/test-run.log"}
   ],
   "risks": [
@@ -192,7 +192,7 @@ Every spawn must include a strict payload so the child agent is unambiguous.
 ## 4) Memory Model
 
 ## Read/Write Rules
-- **All agents can read:** workspace files required for objective (`/Users/hd/clawd` scope).
+- **All agents can read:** workspace files required for objective (`/Users/hd/openclaw` scope).
 - **Agents write only:**
   - task artifacts explicitly requested
   - agent-local notes in designated temp paths
@@ -200,7 +200,7 @@ Every spawn must include a strict payload so the child agent is unambiguous.
 
 ## Agent-Local vs Cortana Long-Term
 - **Agent-local notes (ephemeral):**
-  - path: `/Users/hd/clawd/.covenant/agents/<agent-id>/scratch/`
+  - path: `/Users/hd/openclaw/.covenant/agents/<agent-id>/scratch/`
   - use for intermediate reasoning, checkpoints, temporary logs
   - retention: prune after task completion (or 7-day TTL for debugging)
 - **Cortana long-term memory (authoritative):**
@@ -245,14 +245,14 @@ Every spawn must include a strict payload so the child agent is unambiguous.
 
 ## A) File Layout
 Create a simple identity registry:
-- `/Users/hd/clawd/agents/identities/monitor.md`
-- `/Users/hd/clawd/agents/identities/huragok.md`
-- `/Users/hd/clawd/agents/identities/oracle.md`
-- `/Users/hd/clawd/agents/identities/librarian.md`
-- `/Users/hd/clawd/agents/identities/schema.json` (handshake + status/completion JSON schemas)
+- `/Users/hd/openclaw/agents/identities/monitor.md`
+- `/Users/hd/openclaw/agents/identities/huragok.md`
+- `/Users/hd/openclaw/agents/identities/oracle.md`
+- `/Users/hd/openclaw/agents/identities/librarian.md`
+- `/Users/hd/openclaw/agents/identities/schema.json` (handshake + status/completion JSON schemas)
 
 Optional shared contract:
-- `/Users/hd/clawd/agents/identities/CONTRACT.md` (global rules/boundaries)
+- `/Users/hd/openclaw/agents/identities/CONTRACT.md` (global rules/boundaries)
 
 ## B) Inject Identity into `sessions_spawn`
 When spawning, prepend identity block to subagent prompt:

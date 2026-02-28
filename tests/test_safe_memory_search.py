@@ -14,7 +14,7 @@ def load_module(path: Path, name: str):
 
 
 def test_fallback_to_keyword_when_vector_unavailable(tmp_path, monkeypatch, capsys):
-    mod = load_module(Path('/Users/hd/clawd/tools/memory/safe-memory-search.py'), 'safe_memory_search_test1')
+    mod = load_module(Path('/Users/hd/openclaw/tools/memory/safe-memory-search.py'), 'safe_memory_search_test1')
 
     monkeypatch.setattr(mod, 'WORKSPACE', tmp_path)
     monkeypatch.setattr(mod, 'STATE_PATH', tmp_path / 'memory' / 'vector-memory-health-state.json')
@@ -34,7 +34,7 @@ def test_fallback_to_keyword_when_vector_unavailable(tmp_path, monkeypatch, caps
 
 
 def test_output_includes_mode_vector_and_keyword_fallback(tmp_path, monkeypatch, capsys):
-    mod = load_module(Path('/Users/hd/clawd/tools/memory/safe-memory-search.py'), 'safe_memory_search_test2')
+    mod = load_module(Path('/Users/hd/openclaw/tools/memory/safe-memory-search.py'), 'safe_memory_search_test2')
     monkeypatch.setattr(mod, 'WORKSPACE', tmp_path)
     monkeypatch.setattr(mod, 'STATE_PATH', tmp_path / 'memory' / 'vector-memory-health-state.json')
 

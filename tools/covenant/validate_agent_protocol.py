@@ -15,7 +15,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-WORKSPACE_ROOT = Path("/Users/hd/clawd")
+WORKSPACE_ROOT = Path("/Users/hd/openclaw")
 SCHEMA_PATH = WORKSPACE_ROOT / "agents" / "identities" / "schema.json"
 STATUS_PREFIX = "COVENANT_STATUS_JSON:"
 COMPLETION_PREFIX = "COVENANT_COMPLETION_JSON:"

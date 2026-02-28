@@ -12,7 +12,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-WORKSPACE_ROOT = Path("/Users/hd/clawd")
+WORKSPACE_ROOT = Path("/Users/hd/openclaw")
 IDENTITY_REGISTRY_PATH = WORKSPACE_ROOT / "agents" / "identities" / "registry.json"
 
 ALLOWED_FIELDS = {

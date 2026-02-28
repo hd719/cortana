@@ -18,7 +18,7 @@
 - May-Aug: Offseason content, team previews
 - Sep: Season starts — watch games with real knowledge
 
-**Resources:** ~/clawd/learning/football/
+**Resources:** ~/openclaw/learning/football/
 
 ---
 

@@ -5,7 +5,7 @@ Jobs file: `config/cron/jobs.json`
 Total jobs: **42**
 
 ## Symlink Check
-- Expected: `~/.openclaw/cron/jobs.json` -> `/Users/hd/clawd/config/cron/jobs.json`
+- Expected: `~/.openclaw/cron/jobs.json` -> `/Users/hd/openclaw/config/cron/jobs.json`
 - Actual: /Users/hd/.openclaw/cron/jobs.json is not a symlink
 - Status: ❌ BROKEN
 
@@ -16,8 +16,8 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '30 7 * * *'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (2):
-  - ✅ `/Users/hd/clawd/skills/telegram-usage/handler.js` (exists=True, exec=-, syntax=n/a)
-  - ✅ `/Users/hd/clawd/tools/earnings/check-earnings.sh` (exists=True, exec=x, syntax=ok)
+  - ✅ `/Users/hd/openclaw/skills/telegram-usage/handler.js` (exists=True, exec=-, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/tools/earnings/check-earnings.sh` (exists=True, exec=x, syntax=ok)
 
 ### 2. Daily Auto-Update (notify Hamel)
 - ID: `af9e1570-3ba2-4d10-a807-91cdfc2df18b`
@@ -39,7 +39,7 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '17 5,13,21 * * *', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd/skills/process-watch/process-watch` (exists=True, exec=x, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/skills/process-watch/process-watch` (exists=True, exec=x, syntax=n/a)
 
 ### 5. Calendar reminders → Telegram (ALL calendars)
 - ID: `9401d91c-5fa0-43a6-a18e-01030f9e5ba5`
@@ -47,7 +47,7 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '7 6-23 * * *', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd/memory/calendar-reminders-sent.json` (exists=True, exec=-, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/memory/calendar-reminders-sent.json` (exists=True, exec=-, syntax=n/a)
 
 ### 6. Fed FOMC statement watch (today)
 - ID: `37e128e9-e698-40b6-b5a9-3e7c355edea7`
@@ -70,8 +70,8 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '45 7 * * 1-5'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (2):
-  - ✅ `/Users/hd/clawd/skills/stock-analysis` (exists=True, exec=x, syntax=n/a)
-  - ✅ `/Users/hd/clawd/tools/portfolio/config.md` (exists=True, exec=-, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/skills/stock-analysis` (exists=True, exec=x, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/tools/portfolio/config.md` (exists=True, exec=-, syntax=n/a)
 
 ### 9. 📊 COIN Earnings Reminder (Feb 12 AMC)
 - ID: `bb1046bd-dc05-41df-acdb-c613aa180154`
@@ -93,7 +93,7 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '3 8 * * *', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd/tools/fitness/morning-brief-data.sh` (exists=True, exec=x, syntax=ok)
+  - ✅ `/Users/hd/openclaw/tools/fitness/morning-brief-data.sh` (exists=True, exec=x, syntax=ok)
 
 ### 12. 🌙 Fitness Evening Recap (Hamel)
 - ID: `e4db8a8d-945c-4af2-a8d5-e54f2fb4e792`
@@ -123,7 +123,7 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '*/30 6-16 * * *', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd/memory/newsletter-alerted.json` (exists=True, exec=-, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/memory/newsletter-alerted.json` (exists=True, exec=-, syntax=n/a)
 
 ### 16. 🌙 Bedtime Check (10pm ET)
 - ID: `f478d19f-d3ff-4649-87e0-3170560f618f`
@@ -152,7 +152,7 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '14 10 * * *', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd` (exists=True, exec=x, syntax=n/a)
+  - ✅ `/Users/hd/openclaw` (exists=True, exec=x, syntax=n/a)
 
 ### 20. Tonal Health Check
 - ID: `58db9015-b3bd-4be8-83ff-45ec5377b735`
@@ -168,7 +168,7 @@ Total jobs: **42**
 - Schedule: `every` `{'kind': 'every', 'everyMs': 28800000, 'anchorMs': 1770936710968}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd/skills/bird/SKILL.md` (exists=True, exec=-, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/skills/bird/SKILL.md` (exists=True, exec=-, syntax=n/a)
 
 ### 22. 🧠 Weekly Memory Consolidation
 - ID: `d624fa00-a244-4fab-a7e6-f79853adfabe`
@@ -176,9 +176,9 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '24 3 * * 0', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (3):
-  - ✅ `/Users/hd/clawd/MEMORY.md` (exists=True, exec=-, syntax=n/a)
-  - ✅ `/Users/hd/clawd/memory/archive/2026` (exists=True, exec=x, syntax=n/a)
-  - ✅ `/Users/hd/clawd/memory/archive/2026/` (exists=True, exec=x, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/MEMORY.md` (exists=True, exec=-, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/memory/archive/2026` (exists=True, exec=x, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/memory/archive/2026/` (exists=True, exec=x, syntax=n/a)
 
 ### 23. 🔍 Daily System Health Summary
 - ID: `e2d5451c-4fc3-455a-b7e0-4cbc6da7b745`
@@ -224,7 +224,7 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '0 7,13,21 * * *'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd/sae/world-state-builder.md` (exists=True, exec=-, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/sae/world-state-builder.md` (exists=True, exec=-, syntax=n/a)
 
 ### 29. 🧠 SAE Cross-Domain Reasoner
 - ID: `dad2a631-8af3-4a8a-aef4-d3450f2f44e0`
@@ -232,7 +232,7 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '15 7,13,21 * * *', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd/tools/sae/cross-domain-snapshot.sh` (exists=True, exec=x, syntax=ok)
+  - ✅ `/Users/hd/openclaw/tools/sae/cross-domain-snapshot.sh` (exists=True, exec=x, syntax=ok)
 
 ### 30. memory-consolidation
 - ID: `f7414f95-7795-4e5f-81c6-034e9609cac6`
@@ -248,8 +248,8 @@ Total jobs: **42**
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (3):
   - ✅ `/Users/hd/.openclaw/cron/jobs.json` (exists=True, exec=-, syntax=n/a)
-  - ✅ `/Users/hd/clawd` (exists=True, exec=x, syntax=n/a)
-  - ✅ `/Users/hd/clawd/proprioception/run_health_checks.py` (exists=True, exec=x, syntax=n/a)
+  - ✅ `/Users/hd/openclaw` (exists=True, exec=x, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/proprioception/run_health_checks.py` (exists=True, exec=x, syntax=n/a)
 
 ### 32. 📊 Proprioception: Budget & Self-Model
 - ID: `d583b511-b145-4bfd-8f63-ad7bc34ff1a3`
@@ -257,7 +257,7 @@ Total jobs: **42**
 - Schedule: `every` `{'kind': 'every', 'everyMs': 1800000, 'anchorMs': 1771323590473}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (2):
-  - ✅ `/Users/hd/clawd/skills/telegram-usage/handler.js` (exists=True, exec=-, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/skills/telegram-usage/handler.js` (exists=True, exec=-, syntax=n/a)
   - ✅ `/tmp/proprio_usage.json` (exists=True, exec=-, syntax=n/a)
 
 ### 33. 📈 Proprioception: Efficiency Analyzer
@@ -266,7 +266,7 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '30 2 * * *', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd/tools/monitoring/proprioception-metrics.sh` (exists=True, exec=x, syntax=ok)
+  - ✅ `/Users/hd/openclaw/tools/monitoring/proprioception-metrics.sh` (exists=True, exec=x, syntax=ok)
 
 ### 34. immune-scan
 - ID: `becbf6fc-066d-48c8-b8f2-05b2489ef91e`
@@ -283,8 +283,8 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '0 22 * * *', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (2):
-  - ✅ `/Users/hd/clawd/MEMORY.md` (exists=True, exec=-, syntax=n/a)
-  - ✅ `/Users/hd/clawd/SOUL.md` (exists=True, exec=-, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/MEMORY.md` (exists=True, exec=-, syntax=n/a)
+  - ✅ `/Users/hd/openclaw/SOUL.md` (exists=True, exec=-, syntax=n/a)
 
 ### 36. 📊 Weekly Monday Market Brief
 - ID: `6f73e040-f468-4238-93d8-a0ab6e0cad3f`
@@ -299,7 +299,7 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '0 7 * * *', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd/tools/market-intel/bird-healthcheck.sh` (exists=True, exec=x, syntax=ok)
+  - ✅ `/Users/hd/openclaw/tools/market-intel/bird-healthcheck.sh` (exists=True, exec=x, syntax=ok)
 
 ### 38. Earnings checker + calendar sync (daily)
 - ID: `eac7a31d-3c17-4d60-95a7-04cbb49ed71e`
@@ -307,7 +307,7 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '0 7 * * *', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd/tools/earnings/create-calendar-events.sh` (exists=True, exec=x, syntax=ok)
+  - ✅ `/Users/hd/openclaw/tools/earnings/create-calendar-events.sh` (exists=True, exec=x, syntax=ok)
 
 ### 39. Earnings T-minus alert (held positions)
 - ID: `92e4ae89-d486-4718-bb2f-9de86320e56e`
@@ -329,7 +329,7 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '0 */6 * * *', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd/tools/meta-monitor/meta-monitor.sh` (exists=True, exec=x, syntax=ok)
+  - ✅ `/Users/hd/openclaw/tools/meta-monitor/meta-monitor.sh` (exists=True, exec=x, syntax=ok)
 
 ### 42. Earnings calendar weekday alert
 - ID: `a7b2c3d4-e5f6-4a1b-8c9d-0e1f2a3b4c5d`
@@ -337,8 +337,8 @@ Total jobs: **42**
 - Schedule: `cron` `{'kind': 'cron', 'expr': '0 8 * * 1-5', 'tz': 'America/New_York'}`
 - Schedule validation: ✅ OK (ok)
 - Referenced local paths (1):
-  - ✅ `/Users/hd/clawd/tools/earnings-alert/earnings-alert.sh` (exists=True, exec=x, syntax=ok)
+  - ✅ `/Users/hd/openclaw/tools/earnings-alert/earnings-alert.sh` (exists=True, exec=x, syntax=ok)
 
 ## Findings
 **Issues found: 1**
-- ❌ Symlink invalid: /Users/hd/.openclaw/cron/jobs.json is not a symlink; expected /Users/hd/clawd/config/cron/jobs.json
+- ❌ Symlink invalid: /Users/hd/.openclaw/cron/jobs.json is not a symlink; expected /Users/hd/openclaw/config/cron/jobs.json

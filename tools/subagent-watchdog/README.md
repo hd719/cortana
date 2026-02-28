@@ -30,13 +30,13 @@ Closes the visibility gap where a sub-agent can fail/timeout silently unless man
 
 ```bash
 # Default: 5 min timeout, scan last 24h, de-dupe logs for 6h
-~/clawd/tools/subagent-watchdog/check-subagents.sh
+~/openclaw/tools/subagent-watchdog/check-subagents.sh
 
 # Custom timeout (10 min)
-~/clawd/tools/subagent-watchdog/check-subagents.sh --max-runtime-seconds 600
+~/openclaw/tools/subagent-watchdog/check-subagents.sh --max-runtime-seconds 600
 
 # Scan only last 4 hours
-~/clawd/tools/subagent-watchdog/check-subagents.sh --active-minutes 240
+~/openclaw/tools/subagent-watchdog/check-subagents.sh --active-minutes 240
 ```
 
 ## Output shape
@@ -67,7 +67,7 @@ Closes the visibility gap where a sub-agent can fail/timeout silently unless man
 
 ## De-dup behavior
 
-The script stores watchdog state in `~/clawd/memory/heartbeat-state.json` under `subagentWatchdog`:
+The script stores watchdog state in `~/openclaw/memory/heartbeat-state.json` under `subagentWatchdog`:
 
 - `lastRun` timestamp
 - `lastLogged` map (`<session_key>|<reason>` => timestamp)

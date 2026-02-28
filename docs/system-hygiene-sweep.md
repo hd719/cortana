@@ -85,7 +85,7 @@ Load and start:
 
 ```bash
 launchctl unload ~/Library/LaunchAgents/com.cortana.system-hygiene-sweep.plist 2>/dev/null || true
-cp /Users/hd/clawd/config/launchd/com.cortana.system-hygiene-sweep.plist ~/Library/LaunchAgents/
+cp /Users/hd/openclaw/config/launchd/com.cortana.system-hygiene-sweep.plist ~/Library/LaunchAgents/
 launchctl load ~/Library/LaunchAgents/com.cortana.system-hygiene-sweep.plist
 launchctl start com.cortana.system-hygiene-sweep
 ```

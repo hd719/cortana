@@ -4,7 +4,7 @@ set -euo pipefail
 export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 SOURCE="session-reconciler"
 # shellcheck disable=SC1091
-source "/Users/hd/clawd/tools/lib/idempotency.sh"
+source "/Users/hd/openclaw/tools/lib/idempotency.sh"
 trap 'rollback_transaction' ERR
 
 SESSIONS_JSON="${OPENCLAW_SESSIONS_FILE:-$HOME/.openclaw/agents/main/sessions/sessions.json}"

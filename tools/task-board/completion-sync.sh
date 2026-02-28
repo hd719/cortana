@@ -6,8 +6,8 @@ PSQL_BIN="/opt/homebrew/opt/postgresql@17/bin/psql"
 DB_NAME="${CORTANA_DB:-cortana}"
 SOURCE="task-board-completion-sync"
 # shellcheck disable=SC1091
-source "/Users/hd/clawd/tools/lib/idempotency.sh"
-EMIT_RUN_EVENT_SCRIPT="/Users/hd/clawd/tools/task-board/emit-run-event.sh"
+source "/Users/hd/openclaw/tools/lib/idempotency.sh"
+EMIT_RUN_EVENT_SCRIPT="/Users/hd/openclaw/tools/task-board/emit-run-event.sh"
 
 trap 'rollback_transaction' ERR
 

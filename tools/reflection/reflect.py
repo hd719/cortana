@@ -22,7 +22,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
-ROOT = Path("/Users/hd/clawd")
+ROOT = Path("/Users/hd/openclaw")
 DB_PATH = "/opt/homebrew/opt/postgresql@17/bin"
 
 TARGET_FILES = {

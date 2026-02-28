@@ -4,7 +4,7 @@ assert_true(){ "$@" || { echo "ASSERT FAILED: $*"; exit 1; }; }
 
 TMP="$(mktemp -d)"; trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/tools/cron" "$TMP/run" "$TMP/mockbin"
-cp /Users/hd/clawd/tools/cron/rotate-cron-artifacts.sh "$TMP/tools/cron/"
+cp /Users/hd/openclaw/tools/cron/rotate-cron-artifacts.sh "$TMP/tools/cron/"
 chmod +x "$TMP/tools/cron/rotate-cron-artifacts.sh"
 
 cat > "$TMP/mockbin/psql" <<'PSQL'

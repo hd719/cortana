@@ -1,7 +1,7 @@
 -- Seed decision traces from recent events + synthetic timeline activity.
 -- Usage:
 --   export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
---   psql cortana -f /Users/hd/clawd/tools/tracing/seed-decision-traces.sql
+--   psql cortana -f /Users/hd/openclaw/tools/tracing/seed-decision-traces.sql
 
 BEGIN;
 

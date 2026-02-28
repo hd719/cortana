@@ -33,7 +33,7 @@ All checks are best-effort and fail-soft: if a file is missing or a tool is unav
 
 ## Usage
 
-From the repo root (`~/clawd`):
+From the repo root (`~/openclaw`):
 
 ```bash
 # Dry run: report only
@@ -67,13 +67,13 @@ Example (truncated):
 ```text
 ========================================
 Doc Gardener Report - 2026-02-26T11:30:00-0500
-Repo: /Users/hd/clawd
+Repo: /Users/hd/openclaw
 ========================================
 
 ----------------------------------------
 MEMORY.md analysis
 ----------------------------------------
-File: /Users/hd/clawd/MEMORY.md
+File: /Users/hd/openclaw/MEMORY.md
 
 Potential duplicate lines (same content appears >1x):
   DUPLICATE x2: **No heart emojis** — We're Cortana/Chief, not a Hallmark card.
@@ -122,7 +122,7 @@ This keeps automated commits scoped and predictable, while still allowing manual
 - Execute the script from the repo root, e.g.:
 
 ```bash
-cd /Users/hd/clawd && ./tools/doc-gardener/doc-gardener.sh
+cd /Users/hd/openclaw && ./tools/doc-gardener/doc-gardener.sh
 ```
 
 If/when you are comfortable with auto-fixes running unattended, the cron payload can be updated to include `--auto-fix`.

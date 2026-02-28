@@ -21,8 +21,8 @@ brew install tesseract
 
 ### 2) Tool files
 
-- Python implementation: `~/clawd/tools/ops-eye/capture.py`
-- CLI wrapper: `~/clawd/tools/ops-eye/capture`
+- Python implementation: `~/openclaw/tools/ops-eye/capture.py`
+- CLI wrapper: `~/openclaw/tools/ops-eye/capture`
 
 Both are executable.
 
@@ -31,31 +31,31 @@ Both are executable.
 ### Full-screen capture + OCR
 
 ```bash
-~/clawd/tools/ops-eye/capture
+~/openclaw/tools/ops-eye/capture
 ```
 
 ### Full-screen + UI state detection
 
 ```bash
-~/clawd/tools/ops-eye/capture --ui-state
+~/openclaw/tools/ops-eye/capture --ui-state
 ```
 
 ### Save screenshot file
 
 ```bash
-~/clawd/tools/ops-eye/capture --output-image ~/clawd/tmp/ops-eye.png
+~/openclaw/tools/ops-eye/capture --output-image ~/openclaw/tmp/ops-eye.png
 ```
 
 ### Capture specific window
 
 ```bash
-~/clawd/tools/ops-eye/capture --mode window --window-id 12345 --ui-state
+~/openclaw/tools/ops-eye/capture --mode window --window-id 12345 --ui-state
 ```
 
 ### Keep temp screenshot (default temp files are cleaned)
 
 ```bash
-~/clawd/tools/ops-eye/capture --keep-temp
+~/openclaw/tools/ops-eye/capture --keep-temp
 ```
 
 ## JSON Output Shape

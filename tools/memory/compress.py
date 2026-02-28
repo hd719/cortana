@@ -21,7 +21,7 @@ from typing import Any
 
 PSQL = "/opt/homebrew/opt/postgresql@17/bin/psql"
 DB = "cortana"
-WORKSPACE = Path("/Users/hd/clawd")
+WORKSPACE = Path("/Users/hd/openclaw")
 
 GENERIC_TAGS = {
     "memory",

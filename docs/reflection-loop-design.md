@@ -63,14 +63,14 @@ Automate Cortana's learning loop so corrections become durable behavior changes 
 ## Heartbeat integration
 Added to `HEARTBEAT.md` as a periodic sweep:
 - Run once daily (typically evening):
-  - `python3 /Users/hd/clawd/tools/reflection/reflect.py --mode sweep --trigger-source heartbeat --window-days 30`
+  - `python3 /Users/hd/openclaw/tools/reflection/reflect.py --mode sweep --trigger-source heartbeat --window-days 30`
 - If repeated correction rate rises, surface to Hamel and recommend stronger policy edits.
 
 ## Operational commands
 
 ### Full sweep
 ```bash
-python3 /Users/hd/clawd/tools/reflection/reflect.py \
+python3 /Users/hd/openclaw/tools/reflection/reflect.py \
   --mode sweep \
   --trigger-source manual \
   --window-days 30
@@ -78,7 +78,7 @@ python3 /Users/hd/clawd/tools/reflection/reflect.py \
 
 ### Post-task reflection for a specific task
 ```bash
-python3 /Users/hd/clawd/tools/reflection/reflect.py \
+python3 /Users/hd/openclaw/tools/reflection/reflect.py \
   --mode task \
   --task-id 53 \
   --trigger-source post_task

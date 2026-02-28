@@ -22,7 +22,7 @@ from typing import Any
 DB_NAME = "cortana"
 DB_PATH = "/opt/homebrew/opt/postgresql@17/bin"
 SOURCE = "capability_marketplace"
-SKILLS_DIR = Path("/Users/hd/clawd/skills")
+SKILLS_DIR = Path("/Users/hd/openclaw/skills")
 
 
 @dataclass

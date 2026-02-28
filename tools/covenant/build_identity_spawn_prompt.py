@@ -14,7 +14,7 @@ import sys
 from pathlib import Path
 from typing import Any
 
-WORKSPACE_ROOT = Path("/Users/hd/clawd")
+WORKSPACE_ROOT = Path("/Users/hd/openclaw")
 REGISTRY_PATH = WORKSPACE_ROOT / "agents" / "identities" / "registry.json"
 HANDSHAKE_VALIDATOR = WORKSPACE_ROOT / "tools" / "covenant" / "validate_spawn_handshake.py"
 FEEDBACK_COMPILER = WORKSPACE_ROOT / "tools" / "covenant" / "feedback_compiler.py"
@@ -269,8 +269,8 @@ def build_prompt(
 - on_blocked: {callback.get('on_blocked', 'immediate')}
 
 ## Constraints
-- workspace_root: {constraints.get('workspace_root', '/Users/hd/clawd')}
-- allowed_paths: {', '.join(constraints.get('allowed_paths', ['/Users/hd/clawd']))}
+- workspace_root: {constraints.get('workspace_root', '/Users/hd/openclaw')}
+- allowed_paths: {', '.join(constraints.get('allowed_paths', ['/Users/hd/openclaw']))}
 - forbidden_actions: {', '.join(constraints.get('forbidden_actions', [])) if constraints.get('forbidden_actions') else 'none specified'}
 
 ## Required Protocol Emission (machine-parseable)
@@ -293,8 +293,8 @@ Emit status/completion JSON lines exactly once each (single-line JSON object per
 
 The lines above are parsed by tooling and must be valid JSON. Do not wrap in markdown.
 Use:
-- `python3 /Users/hd/clawd/tools/covenant/validate_agent_protocol.py --type status <status.json>`
-- `python3 /Users/hd/clawd/tools/covenant/validate_agent_protocol.py --type completion <completion.json>`
+- `python3 /Users/hd/openclaw/tools/covenant/validate_agent_protocol.py --type status <status.json>`
+- `python3 /Users/hd/openclaw/tools/covenant/validate_agent_protocol.py --type completion <completion.json>`
 for pre-flight checks when needed.
 
 If requirements are ambiguous or conflict with contract boundaries, stop and escalate.

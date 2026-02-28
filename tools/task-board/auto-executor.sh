@@ -9,11 +9,11 @@ DB="${CORTANA_DB:-cortana}"
 ROOT="${CORTANA_ROOT:-/Users/hd}"
 ALLOW_PREFIX_1="$ROOT/Developer/cortana"
 ALLOW_PREFIX_2="$ROOT/Developer/cortana-external"
-LOG_DECISION_SCRIPT="/Users/hd/clawd/tools/log-decision.sh"
+LOG_DECISION_SCRIPT="/Users/hd/openclaw/tools/log-decision.sh"
 SOURCE="task-board-auto-executor"
 # shellcheck disable=SC1091
-source "/Users/hd/clawd/tools/lib/idempotency.sh"
-EMIT_RUN_EVENT_SCRIPT="/Users/hd/clawd/tools/task-board/emit-run-event.sh"
+source "/Users/hd/openclaw/tools/lib/idempotency.sh"
+EMIT_RUN_EVENT_SCRIPT="/Users/hd/openclaw/tools/task-board/emit-run-event.sh"
 MAX_FAILURES_PER_HOUR="${AUTO_EXEC_MAX_FAILURES_PER_HOUR:-3}"
 PAUSE_MINUTES="${AUTO_EXEC_PAUSE_MINUTES:-60}"
 ALLOW_TASK_TYPES="${AUTO_EXEC_ALLOW_TASK_TYPES:-research,analysis,maintenance,monitoring,reporting}"
@@ -195,7 +195,7 @@ if ! is_type_allowed "$TASK_TYPE"; then
 fi
 
 # Autonomy Governor v2 gate: risk-score before execution.
-GOVERNOR_JSON="$(python3 /Users/hd/clawd/tools/governor/risk_score.py --db "$DB" --task-json "$TASK_ROW" --actor "$ASSIGNED" --log --apply-task-state)"
+GOVERNOR_JSON="$(python3 /Users/hd/openclaw/tools/governor/risk_score.py --db "$DB" --task-json "$TASK_ROW" --actor "$ASSIGNED" --log --apply-task-state)"
 GOVERNOR_DECISION="$(echo "$GOVERNOR_JSON" | jq -r '.decision')"
 GOVERNOR_RISK="$(echo "$GOVERNOR_JSON" | jq -r '.risk_score')"
 GOVERNOR_ACTION_TYPE="$(echo "$GOVERNOR_JSON" | jq -r '.action_type')"

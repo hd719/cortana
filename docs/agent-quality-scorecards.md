@@ -37,7 +37,7 @@ Table:
 ## CLI Usage
 
 ```bash
-cd ~/clawd
+cd ~/openclaw
 python3 tools/covenant/quality_scorecard.py score 136
 python3 tools/covenant/quality_scorecard.py report --period 7d
 python3 tools/covenant/quality_scorecard.py trends --period 7d
@@ -70,5 +70,5 @@ Compares the last period vs the previous same-length period and labels trend:
 
 ```bash
 export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
-psql cortana -f ~/clawd/migrations/019_agent_quality_scores.sql
+psql cortana -f ~/openclaw/migrations/019_agent_quality_scores.sql
 ```

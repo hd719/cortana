@@ -68,7 +68,7 @@ Note: Service is mounted by Gin in `main.go` and bound to `127.0.0.1:3033`.
 
 ### Integration points with other services
 
-- Used heavily by scripts/automation in `/Users/hd/clawd`:
+- Used heavily by scripts/automation in `/Users/hd/openclaw`:
   - `tools/fitness/*`, `skills/fitness-coach/*`, watchdog health checks, cron jobs.
 - Launchd-managed service (`com.cortana.fitness-service`) is dependency for daily briefs/health automations.
 - Watchdog checks `GET /tonal/health` and `GET /whoop/data` for uptime.

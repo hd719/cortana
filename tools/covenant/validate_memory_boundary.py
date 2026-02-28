@@ -10,7 +10,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-WORKSPACE_ROOT = Path("/Users/hd/clawd").resolve()
+WORKSPACE_ROOT = Path("/Users/hd/openclaw").resolve()
 LONG_TERM_MEMORY_FILES = {
     (WORKSPACE_ROOT / "MEMORY.md").resolve(),
 }

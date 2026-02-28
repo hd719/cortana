@@ -8,7 +8,7 @@ Runs at 5:30 AM (launchd) to prefetch likely morning asks:
 - fitness recovery
 - email highlights
 
-Cache is stored at ~/clawd/tmp/oracle-cache.json with per-source TTL.
+Cache is stored at ~/openclaw/tmp/oracle-cache.json with per-source TTL.
 Also exposes a lightweight read API:
   python3 precompute.py run
   python3 precompute.py read [weather|calendar|portfolio|recovery|email]
@@ -28,7 +28,7 @@ from typing import Any
 from urllib.error import URLError
 from urllib.request import Request, urlopen
 
-ROOT = Path("/Users/hd/clawd")
+ROOT = Path("/Users/hd/openclaw")
 CACHE_PATH = ROOT / "tmp" / "oracle-cache.json"
 LOG_PATH = ROOT / "tmp" / "oracle-precompute.log"
 ET_TZ = "America/New_York"

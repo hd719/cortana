@@ -11,9 +11,9 @@ Monitors the monitors.
 ## Usage
 
 ```bash
-/Users/hd/clawd/tools/meta-monitor/meta-monitor.sh
-/Users/hd/clawd/tools/meta-monitor/meta-monitor.sh --brief
-/Users/hd/clawd/tools/meta-monitor/meta-monitor.sh --json
+/Users/hd/openclaw/tools/meta-monitor/meta-monitor.sh
+/Users/hd/openclaw/tools/meta-monitor/meta-monitor.sh --brief
+/Users/hd/openclaw/tools/meta-monitor/meta-monitor.sh --json
 ```
 
 Modes:

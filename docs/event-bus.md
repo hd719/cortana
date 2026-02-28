@@ -51,13 +51,13 @@ Path: `tools/event-bus/listener.py`
 Features:
 - Tails durable `cortana_event_bus_events` table for all core event types
 - Near-real-time polling (default 1s) to avoid dropped notifications
-- Writes JSONL logs to `~/clawd/tmp/event-bus-listener.log`
+- Writes JSONL logs to `~/openclaw/tmp/event-bus-listener.log`
 - Optional `--mark-delivered` to mark seen events
 
 Run:
 
 ```bash
-python3 ~/clawd/tools/event-bus/listener.py --db cortana --mark-delivered
+python3 ~/openclaw/tools/event-bus/listener.py --db cortana --mark-delivered
 ```
 
 ### Publisher helper
@@ -68,10 +68,10 @@ Examples:
 
 ```bash
 # Minimal publish
-python3 ~/clawd/tools/event-bus/publish.py task_created --source manual --payload '{"task_id":123}'
+python3 ~/openclaw/tools/event-bus/publish.py task_created --source manual --payload '{"task_id":123}'
 
 # Health update from file
-python3 ~/clawd/tools/event-bus/publish.py health_update --source heartbeat --payload-file /tmp/health.json
+python3 ~/openclaw/tools/event-bus/publish.py health_update --source heartbeat --payload-file /tmp/health.json
 ```
 
 ## SQL examples

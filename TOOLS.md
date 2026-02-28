@@ -86,18 +86,18 @@ psql cortana -c "SELECT * FROM cortana_feedback WHERE applied = FALSE;"
 ## OpenClaw Update Procedure
 
 After `npm update -g openclaw`:
-1. `bash ~/clawd/tools/openclaw/post-update.sh`
+1. `bash ~/openclaw/tools/openclaw/post-update.sh`
 2. Verify: `openclaw status | grep "app"` (CLI and gateway versions must match)
 
 Post-update script handles:
-- Syncing `~/.openclaw/cron/jobs.json` ↔ `/Users/hd/clawd/config/cron/jobs.json` (copy runtime → repo when content differs, then restore symlink)
+- Syncing `~/.openclaw/cron/jobs.json` ↔ `/Users/hd/openclaw/config/cron/jobs.json` (copy runtime → repo when content differs, then restore symlink)
 - `openclaw gateway install --force`
 - `cd /opt/homebrew/lib/node_modules/openclaw && pnpm add @lancedb/lancedb`
 - `openclaw gateway restart`
 
 ## Symlinks (Repo → Runtime)
 
-- `~/.openclaw/cron/jobs.json` → `/Users/hd/clawd/config/cron/jobs.json`
+- `~/.openclaw/cron/jobs.json` → `/Users/hd/openclaw/config/cron/jobs.json`
 - Any new repo↔runtime symlink must be added here.
 
 ## Weather
@@ -113,14 +113,14 @@ See `skills/weather/SKILL.md` for details and code reference.
 
 ## Market Intelligence Tool
 
-- Script: `~/clawd/tools/market-intel/market-intel.sh`
-- README: `~/clawd/tools/market-intel/README.md`
+- Script: `~/openclaw/tools/market-intel/market-intel.sh`
+- README: `~/openclaw/tools/market-intel/README.md`
 
 Usage:
 ```bash
-~/clawd/tools/market-intel/market-intel.sh --ticker NVDA
-~/clawd/tools/market-intel/market-intel.sh --portfolio
-~/clawd/tools/market-intel/market-intel.sh --pulse
+~/openclaw/tools/market-intel/market-intel.sh --ticker NVDA
+~/openclaw/tools/market-intel/market-intel.sh --portfolio
+~/openclaw/tools/market-intel/market-intel.sh --pulse
 ```
 
 Notes:

@@ -18,7 +18,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-WORKSPACE = Path("/Users/hd/clawd")
+WORKSPACE = Path("/Users/hd/openclaw")
 PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql"
 DB_NAME = "cortana"
 PROMPT_FILE = WORKSPACE / "tools" / "memory" / "prompts" / "fact_extraction.txt"

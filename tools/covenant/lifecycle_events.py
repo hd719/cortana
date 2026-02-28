@@ -15,7 +15,7 @@ from typing import Any
 PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql"
 DEFAULT_DB = "cortana"
 EVENT_SOURCE = "agent_lifecycle"
-TRACE_CLI = Path("/Users/hd/clawd/tools/covenant/trace.py")
+TRACE_CLI = Path("/Users/hd/openclaw/tools/covenant/trace.py")
 
 
 class LifecycleEventError(Exception):

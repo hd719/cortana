@@ -311,7 +311,7 @@ Sleep seems okay. Recovery is fine. Nothing to report.
 ## Workspace
 
 ```
-/Users/hd/clawd/
+/Users/hd/openclaw/
 ├── covenant/
 │   ├── monitor/
 │   │   ├── SOUL.md        # Your identity

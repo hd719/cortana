@@ -42,12 +42,12 @@ fidelity_score IS NULL OR (fidelity_score >= 0 AND fidelity_score <= 1)
 
 ## Run manually
 ```bash
-python3 /Users/hd/clawd/tools/memory/compress.py --since-hours 36
+python3 /Users/hd/openclaw/tools/memory/compress.py --since-hours 36
 ```
 
 Dry run:
 ```bash
-python3 /Users/hd/clawd/tools/memory/compress.py --since-hours 36 --dry-run
+python3 /Users/hd/openclaw/tools/memory/compress.py --since-hours 36 --dry-run
 ```
 
 ## Scheduling (launchd @ 2:00 AM)
@@ -58,8 +58,8 @@ Loaded with launchd label:
 - `com.cortana.memory-compression`
 
 Log files:
-- `/Users/hd/clawd/logs/memory-compress.log`
-- `/Users/hd/clawd/logs/memory-compress.err.log`
+- `/Users/hd/openclaw/logs/memory-compress.log`
+- `/Users/hd/openclaw/logs/memory-compress.err.log`
 
 Common commands:
 ```bash

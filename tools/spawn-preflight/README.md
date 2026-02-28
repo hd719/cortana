@@ -23,13 +23,13 @@
 ## Usage
 
 ```bash
-tools/spawn-preflight/preflight.sh --model openai-codex/gpt-5.3-codex --repo ~/clawd
+tools/spawn-preflight/preflight.sh --model openai-codex/gpt-5.3-codex --repo ~/openclaw
 ```
 
 You can also pass env vars:
 
 ```bash
-MODEL=openai-codex/gpt-5.3-codex REPO_PATH=~/clawd tools/spawn-preflight/preflight.sh
+MODEL=openai-codex/gpt-5.3-codex REPO_PATH=~/openclaw tools/spawn-preflight/preflight.sh
 ```
 
 ## Retry Engine (`retry-engine.sh`)
