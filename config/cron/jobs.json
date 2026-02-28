@@ -985,7 +985,7 @@
       "name": "🔍 Proprioception: Cron & Tool Health",
       "enabled": true,
       "createdAtMs": 1771323577113,
-      "updatedAtMs": 1772298762712,
+      "updatedAtMs": 1772299646151,
       "schedule": {
         "kind": "every",
         "everyMs": 900000,
@@ -1004,10 +1004,10 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772299642105,
-        "lastRunAtMs": 1772298742105,
+        "nextRunAtMs": 1772300542135,
+        "lastRunAtMs": 1772299642135,
         "lastStatus": "ok",
-        "lastDurationMs": 20607,
+        "lastDurationMs": 4016,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
@@ -1063,9 +1063,9 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Run the efficiency pre-compute script and update self-model:\n1. npx tsx /Users/hd/openclaw/proprioception/efficiency_precompute.ts\n2. Read /tmp/efficiency_analysis.json\n3. Update cortana_self_model metadata with the analysis results:\n   psql cortana -c \"UPDATE cortana_self_model SET metadata = COALESCE(metadata, '{}'::jsonb) || (SELECT pg_read_file('/tmp/efficiency_analysis.json')::jsonb) WHERE id=1;\"\n4. Output NOTHING unless anomalies array is non-empty. If anomalies found, output them (max 3 lines).",
+        "message": "Run these two commands in sequence:\n1. npx tsx /Users/hd/openclaw/proprioception/efficiency_precompute.ts\n2. /opt/homebrew/opt/postgresql@17/bin/psql cortana -c \"UPDATE cortana_self_model SET metadata = COALESCE(metadata, '{}'::jsonb) || (SELECT pg_read_file('/tmp/efficiency_analysis.json')::jsonb) WHERE id=1;\"\nOutput NOTHING unless errors occurred.",
         "model": "openai-codex/gpt-5.3-codex",
-        "timeoutSeconds": 120
+        "timeoutSeconds": 180
       },
       "delivery": {
         "mode": "none",
