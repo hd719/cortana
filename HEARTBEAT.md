@@ -191,6 +191,7 @@ After each check, log a decision trace so Mission Control reflects what ran and 
 6. If something needs attention → alert with concise context; auto-heal silently when safe.
 7. Raise budget alerts if API usage >50% before day 15 or >75% anytime.
 8. Cron delivery failures are P1 — never ignore `lastDelivered: false`.
+9. **Channel routing (MANDATORY):** The heartbeat session runs on an internal `heartbeat` messageChannel — this is NOT a real delivery channel. When sending alerts via the `message` tool, you MUST explicitly set `channel: "telegram"` and `target: "8171372724"`. Never omit the channel or it will fail with "Unknown channel: heartbeat".
 
 ## Quiet Hours
 
