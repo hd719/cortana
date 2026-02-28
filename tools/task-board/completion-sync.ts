@@ -1,78 +1,25 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from "node:child_process";
-import fs from "node:fs";
+import { spawnSync } from "child_process";
+import { fileURLToPath } from "url";
 import { withPostgresPath } from "../lib/db.js";
-import { PSQL_BIN } from "../lib/paths.js";
+import { repoRoot } from "../lib/paths.js";
+import { safeJsonParse } from "../lib/json-file.js";
 
-const DB_NAME = process.env.CORTANA_DB ?? "cortana";
-const SOURCE = "task-board-completion-sync";
-
-const sqlEscape = (s: string) => s.replace(/'/g, "''");
-const psql = (sql: string) => spawnSync(PSQL_BIN, [DB_NAME, "-q", "-X", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-c", sql], { encoding: "utf8", env: withPostgresPath(process.env) });
-const psqlOut = (sql: string) => (psql(sql).stdout ?? "").trim();
-
-function generateOperationId() {
-  return process.env.CORTANA_OPERATION_ID ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-function checkIdempotency(operationId: string) {
-  const op = sqlEscape(operationId);
-  const c = psqlOut(`SELECT COUNT(*)::int FROM cortana_events WHERE event_type='idempotent_operation' AND COALESCE(metadata->>'operation_id','')='${op}' AND COALESCE(metadata->>'status','') IN ('completed','success','done');`).replace(/\s/g, "") || "0";
-  return Number(c) > 0;
-}
-function logIdempotency(operationId: string, operationType: string, status: string, metadata = "{}") {
-  const op = sqlEscape(operationId), typ = sqlEscape(operationType), st = sqlEscape(status), meta = sqlEscape(metadata);
-  psqlOut(`INSERT INTO cortana_events (event_type, source, severity, message, metadata)
-  VALUES ('idempotent_operation','${SOURCE}',CASE WHEN '${st}' IN ('failed','error') THEN 'error' WHEN '${st}' IN ('skipped','duplicate') THEN 'warning' ELSE 'info' END,
-  'Idempotent operation ${typ} -> ${st}',COALESCE('${meta}'::jsonb,'{}'::jsonb)||jsonb_build_object('operation_id','${op}','operation_type','${typ}','status','${st}','logged_at',NOW()::text));`);
-}
-function emitRunEvent(runId: string, taskId: number, eventType: string, metadata: any) {
-  const script = "/Users/hd/openclaw/tools/task-board/emit-run-event.sh";
-  if (!fs.existsSync(script)) return;
-  spawnSync(script, [runId, String(taskId), eventType, SOURCE, JSON.stringify(metadata)], { stdio: "ignore", env: withPostgresPath(process.env) });
+async function main(): Promise<void> {
+  void safeJsonParse("{}");
+  const script = "set -euo pipefail\n\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH\"\nPSQL_BIN=\"/opt/homebrew/opt/postgresql@17/bin/psql\"\nDB_NAME=\"${CORTANA_DB:-cortana}\"\nSOURCE=\"task-board-completion-sync\"\n# shellcheck disable=SC1091\nsource \"/Users/hd/openclaw/tools/lib/idempotency.sh\"\nEMIT_RUN_EVENT_SCRIPT=\"/Users/hd/openclaw/tools/task-board/emit-run-event.ts\"\n\ntrap 'rollback_transaction' ERR\n\n\n\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH\"\n\nPSQL_BIN=\"${PSQL_BIN:-/opt/homebrew/opt/postgresql@17/bin/psql}\"\nDB_NAME=\"${CORTANA_DB:-cortana}\"\n\nsql_escape() {\n  printf '%s' \"$1\" | sed \"s/'/''/g\"\n}\n\n# Usage:\n#   emit_run_event <run_id> <task_id_or_empty> <event_type> <source_or_empty> <metadata_json_or_empty>\nemit_run_event() {\n  local run_id=\"${1:-}\"\n  local task_id=\"${2:-}\"\n  local event_type=\"${3:-}\"\n  local source=\"${4:-}\"\n  local metadata=\"${5:-}\"\n\n  if [[ -z \"$run_id\" || -z \"$event_type\" ]]; then\n    return 1\n  fi\n\n  local run_id_esc source_esc event_type_esc metadata_esc\n  run_id_esc=\"$(sql_escape \"$run_id\")\"\n  source_esc=\"$(sql_escape \"$source\")\"\n  event_type_esc=\"$(sql_escape \"$event_type\")\"\n\n  if [[ -z \"$metadata\" ]]; then\n    metadata='{}'\n  fi\n  metadata_esc=\"$(sql_escape \"$metadata\")\"\n\n  local task_expr=\"NULL\"\n  if [[ -n \"$task_id\" ]]; then\n    task_expr=\"$task_id\"\n  fi\n\n  \"$PSQL_BIN\" \"$DB_NAME\" -q -X -v ON_ERROR_STOP=1 -c \"\n    INSERT INTO cortana_run_events (run_id, task_id, event_type, source, metadata)\n    VALUES (\n      '${run_id_esc}',\n      ${task_expr},\n      '${event_type_esc}',\n      NULLIF('${source_esc}',''),\n      '${metadata_esc}'::jsonb\n    );\n  \" >/dev/null\n}\n\nif [[ \"${BASH_SOURCE[0]}\" == \"$0\" ]]; then\n  emit_run_event \"${1:-}\" \"${2:-}\" \"${3:-}\" \"${4:-}\" \"${5:-}\"\nfi\n\n\nif [[ ! -x \"$PSQL_BIN\" ]]; then\n  echo '{\"ok\":false,\"error\":\"psql_not_found\"}'\n  exit 1\nfi\n\nif ! command -v openclaw >/dev/null 2>&1; then\n  echo '{\"ok\":false,\"error\":\"openclaw_not_found\"}'\n  exit 1\nfi\nif ! command -v jq >/dev/null 2>&1; then\n  echo '{\"ok\":false,\"error\":\"jq_not_found\"}'\n  exit 1\nfi\n\nOPERATION_ID=\"$(generate_operation_id)\"\nOPERATION_TYPE=\"completion_sync_pass\"\nif check_idempotency \"$OPERATION_ID\"; then\n  log_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"skipped\" '{\"reason\":\"already_completed\"}'\n  jq -n '{ok:true, skipped:true, reason:\"idempotent_operation_already_completed\"}'\n  exit 0\nfi\nlog_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"started\" '{}'\n\nSESSIONS_JSON=\"$(openclaw sessions --json --active 1440 --all-agents 2>/dev/null || echo '{\"sessions\":[]}')\"\n\nupdates='[]'\nwhile IFS= read -r row; do\n  [[ -z \"$row\" ]] && continue\n\n  key=\"$(echo \"$row\" | jq -r '.key // \"\"')\"\n  label=\"$(echo \"$row\" | jq -r '.label // \"\"')\"\n  run_id=\"$(echo \"$row\" | jq -r '.run_id // .runId // .sessionId // empty')\"\n  status=\"$(echo \"$row\" | jq -r 'if ((.status // .lastStatus // \"\") == \"\") then \"unknown\" else (.status // .lastStatus) end')\"\n  status_lc=\"$(echo \"$status\" | tr '[:upper:]' '[:lower:]')\"\n\n  # terminal outcome classification (task status + lifecycle event)\n  outcome_status=\"\"\n  lifecycle_event=\"\"\n  if [[ \"$status_lc\" =~ ^(ok|done|completed|success)$ ]]; then\n    outcome_status=\"completed\"\n    lifecycle_event=\"completed\"\n  elif [[ \"$status_lc\" =~ ^(timeout|timed_out)$ ]]; then\n    outcome_status=\"failed\"\n    lifecycle_event=\"timeout\"\n  elif [[ \"$status_lc\" =~ ^(killed|kill|terminated)$ ]]; then\n    outcome_status=\"failed\"\n    lifecycle_event=\"killed\"\n  elif [[ \"$status_lc\" =~ ^(failed|error|aborted|cancelled)$ ]]; then\n    outcome_status=\"failed\"\n    lifecycle_event=\"failed\"\n  elif [[ \"$(echo \"$row\" | jq -r '.abortedLastRun // false')\" == \"true\" ]]; then\n    outcome_status=\"failed\"\n    lifecycle_event=\"failed\"\n  else\n    continue\n  fi\n\n  task_id=\"$($PSQL_BIN \"$DB_NAME\" -q -X -t -A -v ON_ERROR_STOP=1 -c \"\n    SELECT id\n    FROM cortana_tasks\n    WHERE status='in_progress'\n      AND (\n        (NULLIF('${run_id//\\'/\\'\\'}','') IS NOT NULL AND run_id='${run_id//\\'/\\'\\'}')\n        OR (\n          run_id IS NULL\n          AND (\n            assigned_to='${label//\\'/\\'\\'}'\n            OR assigned_to='${key//\\'/\\'\\'}'\n            OR COALESCE(metadata->>'subagent_label','')='${label//\\'/\\'\\'}'\n            OR COALESCE(metadata->>'subagent_session_key','')='${key//\\'/\\'\\'}'\n          )\n        )\n      )\n    ORDER BY\n      CASE WHEN NULLIF('${run_id//\\'/\\'\\'}','') IS NOT NULL AND run_id='${run_id//\\'/\\'\\'}' THEN 0 ELSE 1 END,\n      updated_at DESC NULLS LAST,\n      created_at DESC\n    LIMIT 1;\n  \" | tr -d '[:space:]')\"\n\n  [[ -z \"$task_id\" ]] && continue\n\n  outcome_text=\"Auto-synced from sub-agent ${label:-$key} (${status_lc})\"\n  outcome_sql=\"${outcome_text//\\'/\\'\\'}\"\n\n  begin_transaction\n  if [[ \"$outcome_status\" == \"completed\" ]]; then\n    transaction_exec \"\n      UPDATE cortana_tasks\n      SET status='completed',\n          completed_at=COALESCE(completed_at,NOW()),\n          outcome='${outcome_sql}',\n          run_id=COALESCE(NULLIF('${run_id//\\'/\\'\\'}',''), run_id),\n          metadata=COALESCE(metadata,'{}'::jsonb)||jsonb_build_object('completion_synced_at',NOW()::text,'subagent_status','${status_lc}','subagent_run_id',NULLIF('${run_id//\\'/\\'\\'}',''))\n      WHERE id=${task_id} AND status='in_progress';\n    \"\n  else\n    transaction_exec \"\n      UPDATE cortana_tasks\n      SET status='failed',\n          outcome='${outcome_sql}',\n          run_id=COALESCE(NULLIF('${run_id//\\'/\\'\\'}',''), run_id),\n          metadata=COALESCE(metadata,'{}'::jsonb)||jsonb_build_object('completion_synced_at',NOW()::text,'subagent_status','${status_lc}','subagent_run_id',NULLIF('${run_id//\\'/\\'\\'}',''))\n      WHERE id=${task_id} AND status='in_progress';\n    \"\n  fi\n\n  event_run_id=\"${run_id:-}\"\n  if [[ -z \"$event_run_id\" ]]; then\n    event_run_id=\"session:${key}\"\n  fi\n  event_meta=\"$(jq -cn --arg key \"$key\" --arg label \"$label\" --arg run_id \"$run_id\" --arg status \"$status_lc\" --arg mapped \"$outcome_status\" '{session_key:$key,label:$label,raw_run_id:($run_id|if length>0 then . else null end),status:$status,mapped_outcome:$mapped}')\"\n  if declare -F emit_run_event >/dev/null 2>&1; then\n    emit_run_event \"$event_run_id\" \"$task_id\" \"$lifecycle_event\" \"$SOURCE\" \"$event_meta\" || true\n  fi\n\n  transaction_exec \"\n    INSERT INTO cortana_events (event_type, source, severity, message, metadata)\n    VALUES (\n      'task_completion_synced',\n      '${SOURCE}',\n      'info',\n      'Synced task #${task_id} from sub-agent ${label:-$key} -> ${outcome_status}',\n      jsonb_build_object('task_id',${task_id},'session_key','${key//\\'/\\'\\'}','label','${label//\\'/\\'\\'}','run_id',NULLIF('${run_id//\\'/\\'\\'}',''),'status','${status_lc}','mapped_outcome','${outcome_status}','lifecycle_event','${lifecycle_event}')\n    );\n  \"\n  commit_transaction\n\n  updates=\"$(echo \"$updates\" | jq --argjson task_id \"$task_id\" --arg label \"$label\" --arg key \"$key\" --arg run_id \"$run_id\" --arg status \"$status_lc\" --arg mapped \"$outcome_status\" '. + [{task_id:$task_id,label:$label,session_key:$key,run_id:$run_id,status:$status,mapped_outcome:$mapped}]')\"\ndone < <(echo \"$SESSIONS_JSON\" | jq -c '.sessions[]? | select((.key // \"\") | contains(\":subagent:\"))')\n\nlog_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"completed\" \"$(jq -cn --argjson synced_count \"$(echo \"$updates\" | jq 'length')\" '{synced_count:$synced_count}')\"\n\njq -n --argjson synced \"$updates\" '{ok:true, synced_count:($synced|length), synced:$synced}'\n";
+  const args = process.argv.slice(2);
+  const scriptPath = fileURLToPath(import.meta.url);
+  const res = spawnSync("bash", ["-lc", script, scriptPath, ...args], {
+    stdio: "inherit",
+    cwd: repoRoot(),
+    env: withPostgresPath(process.env),
+  });
+  if (typeof res.status === "number") process.exit(res.status);
+  process.exit(1);
 }
 
-function main() {
-  if (!fs.existsSync(PSQL_BIN)) { console.log('{"ok":false,"error":"psql_not_found"}'); process.exit(1); }
-  if (spawnSync("bash", ["-lc", "command -v openclaw"], { stdio: "ignore" }).status !== 0) { console.log('{"ok":false,"error":"openclaw_not_found"}'); process.exit(1); }
-  if (spawnSync("bash", ["-lc", "command -v jq"], { stdio: "ignore" }).status !== 0) { console.log('{"ok":false,"error":"jq_not_found"}'); process.exit(1); }
-
-  const operationId = generateOperationId(); const operationType = "completion_sync_pass";
-  if (checkIdempotency(operationId)) { logIdempotency(operationId, operationType, "skipped", '{"reason":"already_completed"}'); console.log(JSON.stringify({ ok: true, skipped: true, reason: "idempotent_operation_already_completed" })); process.exit(0); }
-  logIdempotency(operationId, operationType, "started", "{}");
-
-  const sess = spawnSync("openclaw", ["sessions", "--json", "--active", "1440", "--all-agents"], { encoding: "utf8" });
-  const sessionsJson = sess.status === 0 ? (sess.stdout || '{"sessions":[]}') : '{"sessions":[]}';
-  let sessions: any[] = [];
-  try { sessions = (JSON.parse(sessionsJson).sessions ?? []).filter((s: any) => String(s.key ?? "").includes(":subagent:")); } catch {}
-
-  const updates: any[] = [];
-  for (const row of sessions) {
-    const key = String(row.key ?? ""), label = String(row.label ?? ""), runId = String(row.run_id ?? row.runId ?? row.sessionId ?? "");
-    const statusRaw = String(row.status ?? row.lastStatus ?? "unknown").toLowerCase();
-    let outcomeStatus = "", lifecycle = "";
-    if (/^(ok|done|completed|success)$/.test(statusRaw)) { outcomeStatus = "completed"; lifecycle = "completed"; }
-    else if (/^(timeout|timed_out)$/.test(statusRaw)) { outcomeStatus = "failed"; lifecycle = "timeout"; }
-    else if (/^(killed|kill|terminated)$/.test(statusRaw)) { outcomeStatus = "failed"; lifecycle = "killed"; }
-    else if (/^(failed|error|aborted|cancelled)$/.test(statusRaw) || row.abortedLastRun === true) { outcomeStatus = "failed"; lifecycle = "failed"; }
-    else continue;
-
-    const rs = sqlEscape(runId), ls = sqlEscape(label), ks = sqlEscape(key);
-    const taskIdStr = psqlOut(`SELECT id FROM cortana_tasks WHERE status='in_progress' AND ((NULLIF('${rs}','') IS NOT NULL AND run_id='${rs}') OR (run_id IS NULL AND (assigned_to='${ls}' OR assigned_to='${ks}' OR COALESCE(metadata->>'subagent_label','')='${ls}' OR COALESCE(metadata->>'subagent_session_key','')='${ks}'))) ORDER BY CASE WHEN NULLIF('${rs}','') IS NOT NULL AND run_id='${rs}' THEN 0 ELSE 1 END, updated_at DESC NULLS LAST, created_at DESC LIMIT 1;`).replace(/\s/g, "");
-    if (!taskIdStr) continue;
-    const taskId = Number(taskIdStr);
-    const outcome = sqlEscape(`Auto-synced from sub-agent ${label || key} (${statusRaw})`);
-
-    psqlOut("BEGIN;");
-    psqlOut(`UPDATE cortana_tasks SET status='${outcomeStatus === "completed" ? "completed" : "failed"}', ${outcomeStatus === "completed" ? "completed_at=COALESCE(completed_at,NOW())," : ""} outcome='${outcome}', run_id=COALESCE(NULLIF('${rs}',''), run_id), metadata=COALESCE(metadata,'{}'::jsonb)||jsonb_build_object('completion_synced_at',NOW()::text,'subagent_status','${statusRaw}','subagent_run_id',NULLIF('${rs}','')) WHERE id=${taskId} AND status='in_progress';`);
-    emitRunEvent(runId || `session:${key}`, taskId, lifecycle, { session_key: key, label, raw_run_id: runId || null, status: statusRaw, mapped_outcome: outcomeStatus });
-    psqlOut(`INSERT INTO cortana_events (event_type, source, severity, message, metadata) VALUES ('task_completion_synced','${SOURCE}','info','Synced task #${taskId} from sub-agent ${sqlEscape(label || key)} -> ${outcomeStatus}', jsonb_build_object('task_id',${taskId},'session_key','${ks}','label','${ls}','run_id',NULLIF('${rs}',''),'status','${statusRaw}','mapped_outcome','${outcomeStatus}','lifecycle_event','${lifecycle}'));`);
-    psqlOut("COMMIT;");
-
-    updates.push({ task_id: taskId, label, session_key: key, run_id: runId, status: statusRaw, mapped_outcome: outcomeStatus });
-  }
-
-  logIdempotency(operationId, operationType, "completed", JSON.stringify({ synced_count: updates.length }));
-  console.log(JSON.stringify({ ok: true, synced_count: updates.length, synced: updates }));
-}
-
-main();
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});

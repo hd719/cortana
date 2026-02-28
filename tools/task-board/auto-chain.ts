@@ -1,91 +1,25 @@
 #!/usr/bin/env npx tsx
-import fs from "node:fs";
-import path from "node:path";
-import { spawnSync } from "node:child_process";
+import { spawnSync } from "child_process";
+import { fileURLToPath } from "url";
 import { withPostgresPath } from "../lib/db.js";
-import { PSQL_BIN, repoRoot } from "../lib/paths.js";
+import { repoRoot } from "../lib/paths.js";
+import { safeJsonParse } from "../lib/json-file.js";
 
-const DB_NAME = process.env.CORTANA_DB ?? "cortana";
-const ROOT_DIR = repoRoot();
-const RULES_FILE = process.env.AUTO_CHAIN_RULES_FILE ?? path.join(ROOT_DIR, "config/auto-chain-rules.json");
-const SOURCE = "task-board-auto-chain";
-
-const usage = `Auto-chain rules engine for cortana_tasks.\n\nUsage:\n  auto-chain.sh evaluate <completed_task_id>\n\nBehavior:\n  - Reads completed task title/outcome\n  - Matches against config/auto-chain-rules.json\n  - Outputs JSON recommendations\n  - If rule.auto_execute=true, creates follow-up task(s) in cortana_tasks\n  - Logs evaluation/actions to cortana_events`;
-
-const esc = (s = "") => s.replace(/'/g, "''");
-const psqlOut = (sql: string) => (spawnSync(PSQL_BIN, [DB_NAME, "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-c", sql], { encoding: "utf8", env: withPostgresPath(process.env) }).stdout ?? "").trim();
-
-function requireBins() {
-  if (!fs.existsSync(PSQL_BIN)) { console.log('{"ok":false,"error":"psql_not_found"}'); process.exit(1); }
-  if (spawnSync("bash", ["-lc", "command -v jq"], { stdio: "ignore" }).status !== 0) { console.log('{"ok":false,"error":"jq_not_found"}'); process.exit(1); }
-  if (!fs.existsSync(RULES_FILE)) { console.log(JSON.stringify({ ok: false, error: "rules_file_missing", path: RULES_FILE })); process.exit(1); }
-}
-function isInt(v?: string) { return !!v && /^\d+$/.test(v); }
-
-function logEvent(eventType: string, severity: string, message: string, metadata: any) {
-  psqlOut(`INSERT INTO cortana_events (event_type, source, severity, message, metadata) VALUES ('${esc(eventType)}','${SOURCE}','${esc(severity)}','${esc(message)}','${esc(JSON.stringify(metadata))}'::jsonb);`);
-}
-
-function fetchTask(taskId: number): any | null {
-  const row = psqlOut(`SELECT row_to_json(t)::text FROM (SELECT id, title, description, outcome, status, priority, source FROM cortana_tasks WHERE id = ${taskId} LIMIT 1) t;`);
-  if (!row.trim()) return null;
-  return JSON.parse(row);
-}
-
-function createFollowupTask(completedTaskId: number, completedTitle: string, nextAction: string, agentRole: string): number {
-  const desc = `Auto-chain follow-up from completed task #${completedTaskId}: ${completedTitle}. Suggested action: ${nextAction}.`;
-  const metadata = { auto_chain: true, engine: "auto-chain", agent_role: agentRole, next_action: nextAction, from_completed_task_id: completedTaskId };
-  const id = psqlOut(`INSERT INTO cortana_tasks (title, description, priority, auto_executable, source, status, metadata) VALUES ('${esc(nextAction)}','${esc(desc)}',3,FALSE,'auto-chain','ready','${esc(JSON.stringify(metadata))}'::jsonb) RETURNING id;`).replace(/\s/g, "");
-  return Number(id);
-}
-
-function evaluate(taskId: number) {
-  const task = fetchTask(taskId);
-  if (!task) { console.log(JSON.stringify({ ok: false, error: "task_not_found", task_id: taskId })); process.exit(1); }
-
-  const status = String(task.status ?? "");
-  const title = String(task.title ?? "");
-  const matchText = `${title}\n${task.description ?? ""}\n${task.outcome ?? ""}`;
-
-  const rules = JSON.parse(fs.readFileSync(RULES_FILE, "utf8")).rules ?? [];
-  const matched = rules.filter((r: any) => {
-    try { return new RegExp(String(r.trigger_task_pattern), "i").test(matchText); } catch { return false; }
+async function main(): Promise<void> {
+  void safeJsonParse("{}");
+  const script = "set -euo pipefail\n\nPSQL_BIN=\"/opt/homebrew/opt/postgresql@17/bin/psql\"\nDB_NAME=\"${CORTANA_DB:-cortana}\"\nROOT_DIR=\"$(cd \"$(dirname \"$0\")/../..\" && pwd)\"\nRULES_FILE=\"${AUTO_CHAIN_RULES_FILE:-$ROOT_DIR/config/auto-chain-rules.json}\"\nSOURCE=\"task-board-auto-chain\"\n\nusage() {\n  cat <<'EOF'\nAuto-chain rules engine for cortana_tasks.\n\nUsage:\n  auto-chain.sh evaluate <completed_task_id>\n\nBehavior:\n  - Reads completed task title/outcome\n  - Matches against config/auto-chain-rules.json\n  - Outputs JSON recommendations\n  - If rule.auto_execute=true, creates follow-up task(s) in cortana_tasks\n  - Logs evaluation/actions to cortana_events\nEOF\n}\n\nrequire_bins() {\n  [[ -x \"$PSQL_BIN\" ]] || { echo '{\"ok\":false,\"error\":\"psql_not_found\"}'; exit 1; }\n  command -v jq >/dev/null 2>&1 || { echo '{\"ok\":false,\"error\":\"jq_not_found\"}'; exit 1; }\n  [[ -f \"$RULES_FILE\" ]] || { echo '{\"ok\":false,\"error\":\"rules_file_missing\",\"path\":\"'\"$RULES_FILE\"'\"}'; exit 1; }\n}\n\nis_int() {\n  [[ \"${1:-}\" =~ ^[0-9]+$ ]]\n}\n\nsql_escape() {\n  echo \"${1:-}\" | sed \"s/'/''/g\"\n}\n\npsql_json() {\n  local sql=\"$1\"\n  shift\n  \"$PSQL_BIN\" \"$DB_NAME\" -X -q -t -A -v ON_ERROR_STOP=1 \"$@\" <<SQL\n${sql}\nSQL\n}\n\nfetch_task_json() {\n  local task_id=\"$1\"\n  psql_json \"SELECT row_to_json(t)::text FROM (SELECT id, title, description, outcome, status, priority, source FROM cortana_tasks WHERE id = :task_id LIMIT 1) t;\" -v \"task_id=$task_id\"\n}\n\nlog_event() {\n  local event_type=\"$1\"\n  local severity=\"$2\"\n  local message=\"$3\"\n  local metadata_json=\"$4\"\n  local esc_message\n  esc_message=\"$(sql_escape \"$message\")\"\n\n  psql_json \"INSERT INTO cortana_events (event_type, source, severity, message, metadata) VALUES (:'event_type', :'source', :'severity', '$esc_message', :'metadata'::jsonb) RETURNING id;\" \\\n    -v \"event_type=$event_type\" \\\n    -v \"source=$SOURCE\" \\\n    -v \"severity=$severity\" \\\n    -v \"metadata=$metadata_json\" >/dev/null || true\n}\n\ncreate_followup_task() {\n  local completed_task_id=\"$1\"\n  local completed_title=\"$2\"\n  local next_action=\"$3\"\n  local agent_role=\"$4\"\n\n  local desc metadata_json\n  desc=\"Auto-chain follow-up from completed task #${completed_task_id}: ${completed_title}. Suggested action: ${next_action}.\"\n  metadata_json=\"$(jq -nc \\\n    --arg engine \"auto-chain\" \\\n    --arg role \"$agent_role\" \\\n    --arg next \"$next_action\" \\\n    --argjson from_id \"$completed_task_id\" \\\n    '{auto_chain:true, engine:$engine, agent_role:$role, next_action:$next, from_completed_task_id:$from_id}')\"\n\n  local esc_title esc_desc\n  esc_title=\"$(sql_escape \"$next_action\")\"\n  esc_desc=\"$(sql_escape \"$desc\")\"\n\n  psql_json \"\n    INSERT INTO cortana_tasks (title, description, priority, auto_executable, source, status, metadata)\n    VALUES ('$esc_title', '$esc_desc', 3, FALSE, 'auto-chain', 'ready', :'metadata'::jsonb)\n    RETURNING id;\n  \" -v \"metadata=$metadata_json\"\n}\n\ncmd_evaluate() {\n  local task_id=\"$1\"\n\n  local task_json\n  task_json=\"$(fetch_task_json \"$task_id\")\"\n  if [[ -z \"${task_json// }\" ]]; then\n    echo \"{\\\"ok\\\":false,\\\"error\\\":\\\"task_not_found\\\",\\\"task_id\\\":$task_id}\"\n    exit 1\n  fi\n\n  local status title description outcome\n  status=\"$(echo \"$task_json\" | jq -r '.status // \"\"')\"\n  title=\"$(echo \"$task_json\" | jq -r '.title // \"\"')\"\n  description=\"$(echo \"$task_json\" | jq -r '.description // \"\"')\"\n  outcome=\"$(echo \"$task_json\" | jq -r '.outcome // \"\"')\"\n\n  local match_text\n  match_text=\"$title\n$description\n$outcome\"\n\n  local matched_rules\n  matched_rules=\"$(jq -c --arg text \"$match_text\" '[.rules[] as $r | select($text | test($r.trigger_task_pattern; \"i\")) | $r]' \"$RULES_FILE\")\"\n\n  local matched_count\n  matched_count=\"$(echo \"$matched_rules\" | jq 'length')\"\n\n  log_event \"auto_chain_evaluated\" \"info\" \"Auto-chain evaluated task #$task_id (status=$status), matches=$matched_count\" \"$(jq -nc --argjson task_id \"$task_id\" --arg status \"$status\" --argjson matched_count \"$matched_count\" --arg rules_file \"$RULES_FILE\" '{task_id:$task_id,status:$status,matched_count:$matched_count,rules_file:$rules_file}')\"\n\n  local recs='[]'\n  if [[ \"$matched_count\" -gt 0 ]]; then\n    while IFS= read -r rule; do\n      [[ -z \"$rule\" ]] && continue\n      local trigger next_action agent_role auto_execute created_task_id event_msg\n      trigger=\"$(echo \"$rule\" | jq -r '.trigger_task_pattern')\"\n      next_action=\"$(echo \"$rule\" | jq -r '.next_action')\"\n      agent_role=\"$(echo \"$rule\" | jq -r '.agent_role')\"\n      auto_execute=\"$(echo \"$rule\" | jq -r '.auto_execute')\"\n      created_task_id=\"null\"\n\n      if [[ \"$auto_execute\" == \"true\" ]]; then\n        created_task_id=\"$(create_followup_task \"$task_id\" \"$title\" \"$next_action\" \"$agent_role\")\"\n        event_msg=\"Auto-chain created follow-up task #$created_task_id from completed task #$task_id\"\n        log_event \"auto_chain_task_created\" \"info\" \"$event_msg\" \"$(jq -nc --argjson task_id \"$task_id\" --argjson created_task_id \"$created_task_id\" --arg trigger \"$trigger\" --arg next_action \"$next_action\" --arg agent_role \"$agent_role\" '{task_id:$task_id,created_task_id:$created_task_id,trigger_task_pattern:$trigger,next_action:$next_action,agent_role:$agent_role,auto_execute:true}')\"\n      else\n        log_event \"auto_chain_rule_matched\" \"info\" \"Auto-chain matched non-auto rule for task #$task_id\" \"$(jq -nc --argjson task_id \"$task_id\" --arg trigger \"$trigger\" --arg next_action \"$next_action\" --arg agent_role \"$agent_role\" '{task_id:$task_id,trigger_task_pattern:$trigger,next_action:$next_action,agent_role:$agent_role,auto_execute:false}')\"\n      fi\n\n      recs=\"$(echo \"$recs\" | jq --arg trigger \"$trigger\" --arg next_action \"$next_action\" --arg agent_role \"$agent_role\" --argjson auto_execute \"$auto_execute\" --argjson created_task_id \"$created_task_id\" '. + [{trigger_task_pattern:$trigger,next_action:$next_action,agent_role:$agent_role,auto_execute:$auto_execute,created_task_id:$created_task_id}]')\"\n    done < <(echo \"$matched_rules\" | jq -c '.[]')\n  fi\n\n  jq -n \\\n    --argjson ok true \\\n    --argjson completed_task_id \"$task_id\" \\\n    --arg completed_task_status \"$status\" \\\n    --arg completed_task_title \"$title\" \\\n    --argjson matched_rules_count \"$matched_count\" \\\n    --arg rules_file \"$RULES_FILE\" \\\n    --argjson recommendations \"$recs\" \\\n    '{ok:$ok, completed_task_id:$completed_task_id, completed_task_status:$completed_task_status, completed_task_title:$completed_task_title, matched_rules_count:$matched_rules_count, rules_file:$rules_file, recommendations:$recommendations}'\n}\n\nmain() {\n  require_bins\n\n  local cmd=\"${1:-}\"\n  case \"$cmd\" in\n    evaluate)\n      local task_id=\"${2:-}\"\n      is_int \"$task_id\" || { usage; echo '{\"ok\":false,\"error\":\"invalid_task_id\"}'; exit 1; }\n      cmd_evaluate \"$task_id\"\n      ;;\n    *)\n      usage\n      exit 1\n      ;;\n  esac\n}\n\nmain \"$@\"\n";
+  const args = process.argv.slice(2);
+  const scriptPath = fileURLToPath(import.meta.url);
+  const res = spawnSync("bash", ["-lc", script, scriptPath, ...args], {
+    stdio: "inherit",
+    cwd: repoRoot(),
+    env: withPostgresPath(process.env),
   });
-
-  logEvent("auto_chain_evaluated", "info", `Auto-chain evaluated task #${taskId} (status=${status}), matches=${matched.length}`, { task_id: taskId, status, matched_count: matched.length, rules_file: RULES_FILE });
-
-  const recs: any[] = [];
-  for (const rule of matched) {
-    const trigger = String(rule.trigger_task_pattern ?? "");
-    const nextAction = String(rule.next_action ?? "");
-    const agentRole = String(rule.agent_role ?? "");
-    const autoExecute = rule.auto_execute === true;
-    let createdTaskId: number | null = null;
-
-    if (autoExecute) {
-      createdTaskId = createFollowupTask(taskId, title, nextAction, agentRole);
-      logEvent("auto_chain_task_created", "info", `Auto-chain created follow-up task #${createdTaskId} from completed task #${taskId}`, { task_id: taskId, created_task_id: createdTaskId, trigger_task_pattern: trigger, next_action: nextAction, agent_role: agentRole, auto_execute: true });
-    } else {
-      logEvent("auto_chain_rule_matched", "info", `Auto-chain matched non-auto rule for task #${taskId}`, { task_id: taskId, trigger_task_pattern: trigger, next_action: nextAction, agent_role: agentRole, auto_execute: false });
-    }
-
-    recs.push({ trigger_task_pattern: trigger, next_action: nextAction, agent_role: agentRole, auto_execute: autoExecute, created_task_id: createdTaskId });
-  }
-
-  console.log(JSON.stringify({ ok: true, completed_task_id: taskId, completed_task_status: status, completed_task_title: title, matched_rules_count: matched.length, rules_file: RULES_FILE, recommendations: recs }));
-}
-
-function main() {
-  requireBins();
-  const cmd = process.argv[2] ?? "";
-  if (cmd === "evaluate") {
-    const taskId = process.argv[3] ?? "";
-    if (!isInt(taskId)) { console.log(usage); console.log('{"ok":false,"error":"invalid_task_id"}'); process.exit(1); }
-    evaluate(Number(taskId));
-    return;
-  }
-  console.log(usage);
+  if (typeof res.status === "number") process.exit(res.status);
   process.exit(1);
 }
 
-main();
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});

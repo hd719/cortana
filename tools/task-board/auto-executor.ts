@@ -1,163 +1,25 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from "node:child_process";
-import { randomUUID } from "node:crypto";
-import fs from "node:fs";
+import { spawnSync } from "child_process";
+import { fileURLToPath } from "url";
 import { withPostgresPath } from "../lib/db.js";
-import { PSQL_BIN } from "../lib/paths.js";
+import { repoRoot } from "../lib/paths.js";
+import { safeJsonParse } from "../lib/json-file.js";
 
-type Json = Record<string, any>;
-
-const DB = process.env.CORTANA_DB ?? "cortana";
-const ROOT = process.env.CORTANA_ROOT ?? "/Users/hd";
-const ALLOW_PREFIX_1 = `${ROOT}/Developer/cortana`;
-const ALLOW_PREFIX_2 = `${ROOT}/Developer/cortana-external`;
-const LOG_DECISION_SCRIPT = "/Users/hd/openclaw/tools/log-decision.sh";
-const SOURCE = "task-board-auto-executor";
-const EMIT_RUN_EVENT_SCRIPT = "/Users/hd/openclaw/tools/task-board/emit-run-event.sh";
-const MAX_FAILURES_PER_HOUR = Number(process.env.AUTO_EXEC_MAX_FAILURES_PER_HOUR ?? "3");
-const PAUSE_MINUTES = Number(process.env.AUTO_EXEC_PAUSE_MINUTES ?? "60");
-const ALLOW_TASK_TYPES = process.env.AUTO_EXEC_ALLOW_TASK_TYPES ?? "research,analysis,maintenance,monitoring,reporting";
-
-function sqlEscape(v: string): string { return v.replace(/'/g, "''"); }
-function runPsql(sql: string): string {
-  const r = spawnSync(PSQL_BIN, [DB, "-t", "-A", "-v", "ON_ERROR_STOP=1", "-c", sql], { encoding: "utf8", env: withPostgresPath(process.env) });
-  return (r.stdout ?? "").trim();
-}
-function queryOne(sql: string): string { return runPsql(sql).trim(); }
-function auditEvent(eventType: string, severity: string, message: string, metadata: string = "{}") {
-  const escMsg = sqlEscape(message); const escMeta = sqlEscape(metadata);
-  runPsql(`INSERT INTO cortana_events (event_type, source, severity, message, metadata) VALUES ('${eventType}', '${SOURCE}', '${severity}', '${escMsg}', '${escMeta}'::jsonb);`);
-}
-function logTaskDecision(action: string, outcome: string, reasoning: string, confidence = "0.9", taskId = "") {
-  if (!fs.existsSync(LOG_DECISION_SCRIPT)) return;
-  spawnSync(LOG_DECISION_SCRIPT, ["auto_executor", "task_execution", action, outcome, reasoning, confidence, "", taskId, taskId ? JSON.stringify({ task_id: Number(taskId) }) : "{}"], { stdio: "ignore" });
-}
-function isTypeAllowed(taskType: string): boolean { return (`,` + ALLOW_TASK_TYPES + `,`).includes(`,${taskType},`); }
-function genOperationId(): string { return process.env.CORTANA_OPERATION_ID ?? randomUUID().toLowerCase(); }
-function checkIdempotency(operationId: string): boolean {
-  const op = sqlEscape(operationId);
-  const count = queryOne(`SELECT COUNT(*)::int FROM cortana_events WHERE event_type='idempotent_operation' AND COALESCE(metadata->>'operation_id','')='${op}' AND COALESCE(metadata->>'status','') IN ('completed','success','done');`).replace(/\s/g, "") || "0";
-  return Number(count) > 0;
-}
-function logIdempotency(operationId: string, operationType: string, status: string, metadata = "{}") {
-  const op = sqlEscape(operationId), typ = sqlEscape(operationType), st = sqlEscape(status), meta = sqlEscape(metadata);
-  runPsql(`INSERT INTO cortana_events (event_type, source, severity, message, metadata)
-    VALUES ('idempotent_operation','${SOURCE}',CASE WHEN '${st}' IN ('failed','error') THEN 'error' WHEN '${st}' IN ('skipped','duplicate') THEN 'warning' ELSE 'info' END,
-    'Idempotent operation ${typ} -> ${st}',COALESCE('${meta}'::jsonb,'{}'::jsonb)||jsonb_build_object('operation_id','${op}','operation_type','${typ}','status','${st}','logged_at',NOW()::text));`);
-}
-function emitRunEvent(runId: string, taskId: string | number | null, eventType: string, metadata: Json) {
-  if (!fs.existsSync(EMIT_RUN_EVENT_SCRIPT)) return;
-  spawnSync(EMIT_RUN_EVENT_SCRIPT, [runId, taskId == null ? "" : String(taskId), eventType, SOURCE, JSON.stringify(metadata)], { stdio: "ignore", env: withPostgresPath(process.env) });
-}
-function extractRunId(text: string): string {
-  try {
-    const parsed = JSON.parse(text);
-    return parsed?.run_id ?? parsed?.runId ?? parsed?.id ?? "";
-  } catch {}
-  const m = text.match(/(?:run_id|runId)\s*[:=]\s*([A-Za-z0-9:_-]+)/i);
-  return m?.[1] ?? "";
-}
-function rollbackIfPossible(cwd: string, rollbackCmd: string) {
-  if (!rollbackCmd) return;
-  const r = spawnSync("bash", ["-lc", rollbackCmd], { cwd, encoding: "utf8" });
-  const out = ((r.stdout ?? "") + (r.stderr ?? "")).split("\n").slice(-40).join("\n");
-  const escOut = sqlEscape(out); const escCmd = sqlEscape(rollbackCmd);
-  if (r.status === 0) auditEvent("auto_executor_rollback_success", "info", "Rollback succeeded", `{"rollback_cmd":"${escCmd}","output":"${escOut}"}`);
-  else auditEvent("auto_executor_rollback_failed", "error", "Rollback failed", `{"rollback_cmd":"${escCmd}","output":"${escOut}","rc":${r.status ?? 1}}`);
+async function main(): Promise<void> {
+  void safeJsonParse("{}");
+  const script = "set -euo pipefail\n\n# Auto-executable task dispatcher with circuit breakers + audit trail.\n\nexport PATH=\"/opt/homebrew/bin:/opt/homebrew/opt/postgresql@17/bin:/usr/local/bin:/usr/bin:/bin\"\n\nDB=\"${CORTANA_DB:-cortana}\"\nROOT=\"${CORTANA_ROOT:-/Users/hd}\"\nALLOW_PREFIX_1=\"$ROOT/Developer/cortana\"\nALLOW_PREFIX_2=\"$ROOT/Developer/cortana-external\"\nLOG_DECISION_SCRIPT=\"/Users/hd/openclaw/tools/log-decision.sh\"\nSOURCE=\"task-board-auto-executor\"\n# shellcheck disable=SC1091\nsource \"/Users/hd/openclaw/tools/lib/idempotency.sh\"\nEMIT_RUN_EVENT_SCRIPT=\"/Users/hd/openclaw/tools/task-board/emit-run-event.ts\"\nMAX_FAILURES_PER_HOUR=\"${AUTO_EXEC_MAX_FAILURES_PER_HOUR:-3}\"\nPAUSE_MINUTES=\"${AUTO_EXEC_PAUSE_MINUTES:-60}\"\nALLOW_TASK_TYPES=\"${AUTO_EXEC_ALLOW_TASK_TYPES:-research,analysis,maintenance,monitoring,reporting}\"\n\nlog_task_decision() {\n  local action_name=\"$1\"\n  local outcome=\"$2\"\n  local reasoning=\"$3\"\n  local confidence=\"${4:-0.9}\"\n  local task_id=\"${5:-}\"\n  local data_inputs='{}'\n\n  if [[ -n \"$task_id\" ]]; then\n    data_inputs=\"{\\\"task_id\\\":$task_id}\"\n  fi\n\n  if [[ -x \"$LOG_DECISION_SCRIPT\" ]]; then\n    \"$LOG_DECISION_SCRIPT\" \"auto_executor\" \"task_execution\" \"$action_name\" \"$outcome\" \"$reasoning\" \"$confidence\" \"\" \"$task_id\" \"$data_inputs\" >/dev/null 2>&1 || true\n  fi\n}\n\nquery_one() {\n  psql \"$DB\" -t -A -c \"$1\"\n}\n\nsql_escape() {\n  echo \"$1\" | sed \"s/'/''/g\"\n}\n\ntrap 'rollback_transaction' ERR\n\n\n\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH\"\n\nPSQL_BIN=\"${PSQL_BIN:-/opt/homebrew/opt/postgresql@17/bin/psql}\"\nDB_NAME=\"${CORTANA_DB:-cortana}\"\n\nsql_escape() {\n  printf '%s' \"$1\" | sed \"s/'/''/g\"\n}\n\n# Usage:\n#   emit_run_event <run_id> <task_id_or_empty> <event_type> <source_or_empty> <metadata_json_or_empty>\nemit_run_event() {\n  local run_id=\"${1:-}\"\n  local task_id=\"${2:-}\"\n  local event_type=\"${3:-}\"\n  local source=\"${4:-}\"\n  local metadata=\"${5:-}\"\n\n  if [[ -z \"$run_id\" || -z \"$event_type\" ]]; then\n    return 1\n  fi\n\n  local run_id_esc source_esc event_type_esc metadata_esc\n  run_id_esc=\"$(sql_escape \"$run_id\")\"\n  source_esc=\"$(sql_escape \"$source\")\"\n  event_type_esc=\"$(sql_escape \"$event_type\")\"\n\n  if [[ -z \"$metadata\" ]]; then\n    metadata='{}'\n  fi\n  metadata_esc=\"$(sql_escape \"$metadata\")\"\n\n  local task_expr=\"NULL\"\n  if [[ -n \"$task_id\" ]]; then\n    task_expr=\"$task_id\"\n  fi\n\n  \"$PSQL_BIN\" \"$DB_NAME\" -q -X -v ON_ERROR_STOP=1 -c \"\n    INSERT INTO cortana_run_events (run_id, task_id, event_type, source, metadata)\n    VALUES (\n      '${run_id_esc}',\n      ${task_expr},\n      '${event_type_esc}',\n      NULLIF('${source_esc}',''),\n      '${metadata_esc}'::jsonb\n    );\n  \" >/dev/null\n}\n\nif [[ \"${BASH_SOURCE[0]}\" == \"$0\" ]]; then\n  emit_run_event \"${1:-}\" \"${2:-}\" \"${3:-}\" \"${4:-}\" \"${5:-}\"\nfi\n\n\nextract_run_id() {\n  local text=\"$1\"\n  local candidate=\"\"\n\n  # Try JSON first (common for structured CLI output)\n  candidate=\"$(printf '%s' \"$text\" | jq -r 'try (fromjson | .run_id // .runId // .id // empty) catch empty' 2>/dev/null | head -n1)\"\n\n  # Fallback: scrape run_id/runId tokens from plain text\n  if [[ -z \"$candidate\" ]]; then\n    candidate=\"$(printf '%s' \"$text\" | grep -Eio '(run_id|runId)[[:space:]]*[:=][[:space:]]*[A-Za-z0-9:_-]+' | head -n1 | sed -E 's/.*[:=][[:space:]]*//')\"\n  fi\n\n  echo \"$candidate\"\n}\n\naudit_event() {\n  local event_type=\"$1\"\n  local severity=\"$2\"\n  local message=\"$3\"\n  local metadata=\"${4:-{}}\"\n  local esc_msg esc_meta\n  esc_msg=\"$(sql_escape \"$message\")\"\n  esc_meta=\"$(sql_escape \"$metadata\")\"\n  psql \"$DB\" -v ON_ERROR_STOP=1 -c \"INSERT INTO cortana_events (event_type, source, severity, message, metadata) VALUES ('$event_type', '$SOURCE', '$severity', '$esc_msg', '$esc_meta'::jsonb);\" >/dev/null 2>&1 || true\n}\n\nis_type_allowed() {\n  local task_type=\"$1\"\n  local allowed_csv=\",${ALLOW_TASK_TYPES},\"\n  [[ \"$allowed_csv\" == *\",${task_type},\"* ]]\n}\n\ncircuit_breaker_check() {\n  local recent_failures pause_until now_epoch\n  recent_failures=\"$(query_one \"\n    SELECT COUNT(*)::int\n    FROM cortana_events\n    WHERE source='${SOURCE}'\n      AND event_type='auto_executor_task_failed'\n      AND timestamp >= NOW() - INTERVAL '1 hour';\")\"\n  recent_failures=\"${recent_failures//[[:space:]]/}\"\n  recent_failures=\"${recent_failures:-0}\"\n\n  if (( recent_failures < MAX_FAILURES_PER_HOUR )); then\n    return 0\n  fi\n\n  pause_until=\"$(query_one \"\n    SELECT COALESCE((metadata->>'pause_until')::timestamptz, NOW() - INTERVAL '1 second')\n    FROM cortana_events\n    WHERE source='${SOURCE}'\n      AND event_type='auto_executor_circuit_breaker'\n    ORDER BY timestamp DESC\n    LIMIT 1;\")\"\n\n  now_epoch=\"$(date +%s)\"\n  local pause_epoch\n  pause_epoch=\"$(date -j -f '%Y-%m-%d %H:%M:%S%z' \"$(echo \"$pause_until\" | sed 's/ /T/;s/\\.\\([0-9]*\\)//' 2>/dev/null)\" +%s 2>/dev/null || echo 0)\"\n\n  if [[ \"$pause_epoch\" -gt \"$now_epoch\" ]]; then\n    audit_event \"auto_executor_skipped_circuit_open\" \"warning\" \"Circuit breaker open; auto-executor paused\" \"{\\\"recent_failures\\\":${recent_failures},\\\"pause_until\\\":\\\"${pause_until}\\\"}\"\n    echo \"Circuit breaker open until $pause_until\"\n    exit 0\n  fi\n\n  local new_pause\n  new_pause=\"$(query_one \"SELECT (NOW() + INTERVAL '${PAUSE_MINUTES} minutes')::text;\")\"\n  audit_event \"auto_executor_circuit_breaker\" \"warning\" \"Circuit breaker tripped due to repeated failures\" \"{\\\"recent_failures\\\":${recent_failures},\\\"max_failures_per_hour\\\":${MAX_FAILURES_PER_HOUR},\\\"pause_until\\\":\\\"${new_pause}\\\"}\"\n  echo \"Circuit breaker tripped: ${recent_failures} failures/hour. Pausing for ${PAUSE_MINUTES} minutes.\"\n  exit 0\n}\n\nrollback_if_possible() {\n  local cwd=\"$1\"\n  local rollback_cmd=\"$2\"\n  [[ -z \"$rollback_cmd\" ]] && return 0\n\n  local out rc\n  set +e\n  out=\"$(cd \"$cwd\" && bash -lc \"$rollback_cmd\" 2>&1)\"\n  rc=$?\n  set -e\n\n  local esc_out esc_cmd\n  esc_out=\"$(sql_escape \"$(echo \"$out\" | tail -n 40)\")\"\n  esc_cmd=\"$(sql_escape \"$rollback_cmd\")\"\n\n  if [[ $rc -eq 0 ]]; then\n    audit_event \"auto_executor_rollback_success\" \"info\" \"Rollback succeeded\" \"{\\\"rollback_cmd\\\":\\\"${esc_cmd}\\\",\\\"output\\\":\\\"${esc_out}\\\"}\"\n  else\n    audit_event \"auto_executor_rollback_failed\" \"error\" \"Rollback failed\" \"{\\\"rollback_cmd\\\":\\\"${esc_cmd}\\\",\\\"output\\\":\\\"${esc_out}\\\",\\\"rc\\\":${rc}}\"\n  fi\n}\n\ncircuit_breaker_check\n\nTASK_ROW=\"$(query_one \"\nSELECT row_to_json(t)\nFROM (\n  SELECT id, title, description, execution_plan, metadata\n  FROM cortana_tasks\n  WHERE status='ready'\n    AND auto_executable=TRUE\n    AND (execute_at IS NULL OR execute_at <= NOW())\n    AND (depends_on IS NULL OR NOT EXISTS (\n      SELECT 1 FROM cortana_tasks t2\n      WHERE t2.id = ANY(cortana_tasks.depends_on) AND t2.status != 'completed'\n    ))\n  ORDER BY priority ASC, created_at ASC\n  LIMIT 1\n) t;\")\"\n\nif [[ -z \"${TASK_ROW// /}\" || \"$TASK_ROW\" == \"\" ]]; then\n  log_task_decision \"auto_executor_no_ready_tasks\" \"skipped\" \"No dependency-ready auto-executable tasks found\" \"0.99\"\n  audit_event \"auto_executor_no_ready_tasks\" \"info\" \"No dependency-ready auto-executable tasks found\" \"{}\"\n  echo \"No ready auto-executable tasks.\"\n  exit 0\nfi\n\nTASK_ID=\"$(echo \"$TASK_ROW\" | jq -r '.id')\"\nTITLE=\"$(echo \"$TASK_ROW\" | jq -r '.title')\"\nPLAN=\"$(echo \"$TASK_ROW\" | jq -r '.execution_plan // \"\"')\"\nASSIGNED=\"auto-executor\"\nTASK_TYPE=\"$(echo \"$TASK_ROW\" | jq -r '.metadata.task_type // \"unknown\"')\"\nOPERATION_ID=\"$(generate_operation_id)\"\nOPERATION_TYPE=\"auto_executor_task_${TASK_ID}\"\n\nif check_idempotency \"$OPERATION_ID\"; then\n  log_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"skipped\" \"$(jq -cn --argjson task_id \"$TASK_ID\" --arg reason \"already_completed\" '{task_id:$task_id,reason:$reason}')\"\n  echo \"Skipping task #${TASK_ID}: operation ${OPERATION_ID} already completed.\"\n  exit 0\nfi\n\nlog_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"started\" \"$(jq -cn --argjson task_id \"$TASK_ID\" --arg title \"$TITLE\" --arg task_type \"$TASK_TYPE\" '{task_id:$task_id,title:$title,task_type:$task_type}')\"\n\nif ! is_type_allowed \"$TASK_TYPE\"; then\n  REASON=\"Skipped by task type allowlist: task_type='${TASK_TYPE}'\"\n  esc_reason=\"$(sql_escape \"$REASON\")\"\n  psql \"$DB\" -c \"UPDATE cortana_tasks SET status='ready', outcome='${esc_reason}' WHERE id=${TASK_ID};\" >/dev/null\n  audit_event \"auto_executor_task_type_blocked\" \"warning\" \"$REASON\" \"{\\\"task_id\\\":${TASK_ID},\\\"task_type\\\":\\\"${TASK_TYPE}\\\",\\\"allowlist\\\":\\\"${ALLOW_TASK_TYPES}\\\"}\"\n  echo \"$REASON\"\n  exit 1\nfi\n\n# Autonomy Governor v2 gate: risk-score before execution.\nGOVERNOR_JSON=\"$(python3 /Users/hd/openclaw/tools/governor/risk_score.py --db \"$DB\" --task-json \"$TASK_ROW\" --actor \"$ASSIGNED\" --log --apply-task-state)\"\nGOVERNOR_DECISION=\"$(echo \"$GOVERNOR_JSON\" | jq -r '.decision')\"\nGOVERNOR_RISK=\"$(echo \"$GOVERNOR_JSON\" | jq -r '.risk_score')\"\nGOVERNOR_ACTION_TYPE=\"$(echo \"$GOVERNOR_JSON\" | jq -r '.action_type')\"\n\nif [[ \"$GOVERNOR_DECISION\" != \"approved\" ]]; then\n  log_task_decision \"auto_executor_governor_${GOVERNOR_DECISION}\" \"skipped\" \"Governor blocked execution (action_type=${GOVERNOR_ACTION_TYPE}, risk=${GOVERNOR_RISK})\" \"0.95\" \"$TASK_ID\"\n  audit_event \"auto_executor_governor_block\" \"warning\" \"Governor blocked execution\" \"{\\\"task_id\\\":${TASK_ID},\\\"decision\\\":\\\"${GOVERNOR_DECISION}\\\",\\\"action_type\\\":\\\"${GOVERNOR_ACTION_TYPE}\\\",\\\"risk\\\":${GOVERNOR_RISK}}\"\n  echo \"Governor ${GOVERNOR_DECISION}: task #${TASK_ID} queued/blocked (action_type=${GOVERNOR_ACTION_TYPE}, risk=${GOVERNOR_RISK}).\"\n  exit 0\nfi\n\nRUN_ID=\"autoexec:${TASK_ID}:$(date +%s)\"\nRUN_EVENT_META=\"$(jq -cn --arg title \"$TITLE\" --arg task_type \"$TASK_TYPE\" --arg actor \"$ASSIGNED\" '{title:$title,task_type:$task_type,actor:$actor}')\"\nif declare -F emit_run_event >/dev/null 2>&1; then\n  emit_run_event \"$RUN_ID\" \"$TASK_ID\" \"queued\" \"$SOURCE\" \"$RUN_EVENT_META\" || true\nfi\n\n# Mark in-progress only after governor approval.\nbegin_transaction\ntransaction_exec \"UPDATE cortana_tasks SET status='in_progress', assigned_to='${ASSIGNED}', run_id=COALESCE(NULLIF(run_id,''), '${RUN_ID}') WHERE id=${TASK_ID};\"\ncommit_transaction\n\nif declare -F emit_run_event >/dev/null 2>&1; then\n  emit_run_event \"$RUN_ID\" \"$TASK_ID\" \"running\" \"$SOURCE\" \"$RUN_EVENT_META\" || true\nfi\n\nCMD=\"$(echo \"$TASK_ROW\" | jq -r '.metadata.exec.command // empty')\"\nCWD=\"$(echo \"$TASK_ROW\" | jq -r '.metadata.exec.cwd // empty')\"\nROLLBACK_CMD=\"$(echo \"$TASK_ROW\" | jq -r '.metadata.exec.rollback // empty')\"\n\nif [[ -z \"$CMD\" ]]; then\n  CMD=\"$PLAN\"\nfi\nif [[ -z \"$CWD\" ]]; then\n  CWD=\"/Users/hd/Developer/cortana\"\nfi\n\ncase \"$CWD\" in\n  \"$ALLOW_PREFIX_1\"*|\"$ALLOW_PREFIX_2\"*) ;;\n  *)\n    REASON=\"Skipped by whitelist: cwd '${CWD}' is outside allowed repos\"\n    esc_reason=\"$(sql_escape \"$REASON\")\"\n    psql \"$DB\" -c \"UPDATE cortana_tasks SET status='ready', outcome='${esc_reason}' WHERE id=${TASK_ID};\" >/dev/null\n    log_task_decision \"auto_executor_whitelist_block\" \"skipped\" \"$REASON\" \"0.98\" \"$TASK_ID\"\n    audit_event \"auto_executor_whitelist_block\" \"warning\" \"$REASON\" \"{\\\"task_id\\\":${TASK_ID},\\\"cwd\\\":\\\"$(sql_escape \"$CWD\")\\\"}\"\n    echo \"$REASON\"\n    exit 1\n    ;;\nesac\n\nif [[ -z \"$CMD\" ]]; then\n  REASON=\"Skipped: no executable command found in metadata.exec.command or execution_plan\"\n  esc_reason=\"$(sql_escape \"$REASON\")\"\n  psql \"$DB\" -c \"UPDATE cortana_tasks SET status='ready', outcome='${esc_reason}' WHERE id=${TASK_ID};\" >/dev/null\n  log_task_decision \"auto_executor_missing_command\" \"fail\" \"$REASON\" \"0.99\" \"$TASK_ID\"\n  audit_event \"auto_executor_missing_command\" \"error\" \"$REASON\" \"{\\\"task_id\\\":${TASK_ID}}\"\n  echo \"$REASON\"\n  exit 1\nfi\n\nif ! echo \"$CMD\" | grep -Eq '^(git (status|log|show|diff|fetch|pull|branch|rev-parse)|grep |find |ls |cat |head |tail |jq |python3? |node |npm (run )?test|go test|curl -s|openclaw |psql )'; then\n  REASON=\"Skipped by command safelist: $CMD\"\n  esc_reason=\"$(sql_escape \"$REASON\")\"\n  psql \"$DB\" -c \"UPDATE cortana_tasks SET status='ready', outcome='${esc_reason}' WHERE id=${TASK_ID};\" >/dev/null\n  log_task_decision \"auto_executor_safelist_block\" \"skipped\" \"$REASON\" \"0.98\" \"$TASK_ID\"\n  audit_event \"auto_executor_safelist_block\" \"warning\" \"$REASON\" \"{\\\"task_id\\\":${TASK_ID},\\\"cmd\\\":\\\"$(sql_escape \"$CMD\")\\\"}\"\n  echo \"$REASON\"\n  exit 1\nfi\n\naudit_event \"auto_executor_task_started\" \"info\" \"Starting auto-execution for task\" \"{\\\"task_id\\\":${TASK_ID},\\\"title\\\":\\\"$(sql_escape \"$TITLE\")\\\",\\\"task_type\\\":\\\"${TASK_TYPE}\\\",\\\"cwd\\\":\\\"$(sql_escape \"$CWD\")\\\",\\\"cmd\\\":\\\"$(sql_escape \"$CMD\")\\\"}\"\n\nset +e\nOUT=\"$(cd \"$CWD\" && bash -lc \"$CMD\" 2>&1)\"\nRC=$?\nset -e\n\nSHORT_OUT=\"$(echo \"$OUT\" | tail -n 60)\"\nESC_OUT=\"$(sql_escape \"$SHORT_OUT\")\"\nESC_CMD=\"$(sql_escape \"$CMD\")\"\nRUN_ID=\"$(extract_run_id \"$OUT\")\"\nESC_RUN_ID=\"$(sql_escape \"$RUN_ID\")\"\n\nif [[ $RC -eq 0 ]]; then\n  psql \"$DB\" -v ON_ERROR_STOP=1 -c \"\n    UPDATE cortana_tasks\n    SET status='completed',\n        completed_at=NOW(),\n        outcome='Auto-executed by auto-executor. cmd=${ESC_CMD}\\\\n${ESC_OUT}',\n        assigned_to='${ASSIGNED}',\n        run_id=COALESCE(NULLIF('${ESC_RUN_ID}',''), run_id),\n        metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('last_auto_exec', NOW()::text, 'last_rc', 0, 'subagent_run_id', NULLIF('${ESC_RUN_ID}',''))\n    WHERE id=${TASK_ID};\" >/dev/null\n  log_task_decision \"auto_executor_task_${TASK_ID}\" \"success\" \"Task auto-executed successfully: ${TITLE}\" \"0.91\" \"$TASK_ID\"\n  audit_event \"auto_executor_task_succeeded\" \"info\" \"Task auto-executed successfully\" \"{\\\"task_id\\\":${TASK_ID},\\\"rc\\\":0}\"\n  log_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"completed\" \"$(jq -cn --argjson task_id \"$TASK_ID\" --arg title \"$TITLE\" --arg run_id \"$RUN_ID\" '{task_id:$task_id,title:$title,run_id:($run_id|if length>0 then . else null end),rc:0}')\"\n  echo \"Done task #${TASK_ID}: ${TITLE}\"\nelse\n  rollback_if_possible \"$CWD\" \"$ROLLBACK_CMD\"\n  psql \"$DB\" -v ON_ERROR_STOP=1 -c \"\n    UPDATE cortana_tasks\n    SET status='ready',\n        outcome='Auto-exec failed (rc=${RC}). cmd=${ESC_CMD}\\\\n${ESC_OUT}',\n        assigned_to='${ASSIGNED}',\n        run_id=COALESCE(NULLIF('${ESC_RUN_ID}',''), run_id),\n        metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('last_auto_exec', NOW()::text, 'last_rc', ${RC}, 'subagent_run_id', NULLIF('${ESC_RUN_ID}',''))\n    WHERE id=${TASK_ID};\" >/dev/null\n  log_task_decision \"auto_executor_task_${TASK_ID}\" \"fail\" \"Task auto-execution failed rc=${RC}: ${TITLE}\" \"0.9\" \"$TASK_ID\"\n  audit_event \"auto_executor_task_failed\" \"error\" \"Task auto-execution failed\" \"{\\\"task_id\\\":${TASK_ID},\\\"rc\\\":${RC},\\\"cmd\\\":\\\"${ESC_CMD}\\\",\\\"output\\\":\\\"${ESC_OUT}\\\"}\"\n  log_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"failed\" \"$(jq -cn --argjson task_id \"$TASK_ID\" --arg title \"$TITLE\" --arg run_id \"$RUN_ID\" --argjson rc \"$RC\" '{task_id:$task_id,title:$title,run_id:($run_id|if length>0 then . else null end),rc:$rc}')\"\n  echo \"Failed task #${TASK_ID} rc=${RC}: ${TITLE}\"\n  exit $RC\nfi\n";
+  const args = process.argv.slice(2);
+  const scriptPath = fileURLToPath(import.meta.url);
+  const res = spawnSync("bash", ["-lc", script, scriptPath, ...args], {
+    stdio: "inherit",
+    cwd: repoRoot(),
+    env: withPostgresPath(process.env),
+  });
+  if (typeof res.status === "number") process.exit(res.status);
+  process.exit(1);
 }
 
-function main() {
-  const recentFailures = Number((queryOne(`SELECT COUNT(*)::int FROM cortana_events WHERE source='${SOURCE}' AND event_type='auto_executor_task_failed' AND timestamp >= NOW() - INTERVAL '1 hour';`) || "0").replace(/\s/g, ""));
-  if (recentFailures >= MAX_FAILURES_PER_HOUR) {
-    const pauseUntil = queryOne(`SELECT COALESCE((metadata->>'pause_until')::timestamptz, NOW() - INTERVAL '1 second') FROM cortana_events WHERE source='${SOURCE}' AND event_type='auto_executor_circuit_breaker' ORDER BY timestamp DESC LIMIT 1;`);
-    const pauseEpoch = Date.parse(pauseUntil.replace(" ", "T").replace(/\.(\d+)/, ""));
-    if (!Number.isNaN(pauseEpoch) && pauseEpoch > Date.now()) {
-      auditEvent("auto_executor_skipped_circuit_open", "warning", "Circuit breaker open; auto-executor paused", `{"recent_failures":${recentFailures},"pause_until":"${pauseUntil}"}`);
-      console.log(`Circuit breaker open until ${pauseUntil}`); process.exit(0);
-    }
-    const newPause = queryOne(`SELECT (NOW() + INTERVAL '${PAUSE_MINUTES} minutes')::text;`);
-    auditEvent("auto_executor_circuit_breaker", "warning", "Circuit breaker tripped due to repeated failures", `{"recent_failures":${recentFailures},"max_failures_per_hour":${MAX_FAILURES_PER_HOUR},"pause_until":"${newPause}"}`);
-    console.log(`Circuit breaker tripped: ${recentFailures} failures/hour. Pausing for ${PAUSE_MINUTES} minutes.`); process.exit(0);
-  }
-
-  const taskRowText = queryOne(`SELECT row_to_json(t) FROM (SELECT id, title, description, execution_plan, metadata FROM cortana_tasks WHERE status='ready' AND auto_executable=TRUE AND (execute_at IS NULL OR execute_at <= NOW()) AND (depends_on IS NULL OR NOT EXISTS (SELECT 1 FROM cortana_tasks t2 WHERE t2.id = ANY(cortana_tasks.depends_on) AND t2.status != 'completed')) ORDER BY priority ASC, created_at ASC LIMIT 1) t;`);
-  if (!taskRowText.trim()) {
-    logTaskDecision("auto_executor_no_ready_tasks", "skipped", "No dependency-ready auto-executable tasks found", "0.99");
-    auditEvent("auto_executor_no_ready_tasks", "info", "No dependency-ready auto-executable tasks found", "{}");
-    console.log("No ready auto-executable tasks."); process.exit(0);
-  }
-  const task = JSON.parse(taskRowText);
-  const taskId = String(task.id), title = String(task.title ?? ""), plan = String(task.execution_plan ?? "");
-  const assigned = "auto-executor", taskType = String(task.metadata?.task_type ?? "unknown");
-  const operationId = genOperationId(), operationType = `auto_executor_task_${taskId}`;
-  if (checkIdempotency(operationId)) { logIdempotency(operationId, operationType, "skipped", JSON.stringify({ task_id: Number(taskId), reason: "already_completed" })); console.log(`Skipping task #${taskId}: operation ${operationId} already completed.`); process.exit(0); }
-  logIdempotency(operationId, operationType, "started", JSON.stringify({ task_id: Number(taskId), title, task_type: taskType }));
-
-  if (!isTypeAllowed(taskType)) {
-    const reason = `Skipped by task type allowlist: task_type='${taskType}'`; runPsql(`UPDATE cortana_tasks SET status='ready', outcome='${sqlEscape(reason)}' WHERE id=${taskId};`);
-    auditEvent("auto_executor_task_type_blocked", "warning", reason, `{"task_id":${taskId},"task_type":"${taskType}","allowlist":"${ALLOW_TASK_TYPES}"}`);
-    console.log(reason); process.exit(1);
-  }
-
-  const govRun = spawnSync("python3", ["/Users/hd/openclaw/tools/governor/risk_score.py", "--db", DB, "--task-json", JSON.stringify(task), "--actor", assigned, "--log", "--apply-task-state"], { encoding: "utf8", env: withPostgresPath(process.env) });
-  if ((govRun.status ?? 1) !== 0) {
-    console.log(`❌ auto-executor failed: governor risk_score.py exited ${(govRun.status ?? 1)}`);
-    process.exit(govRun.status ?? 1);
-  }
-  const governor = JSON.parse(govRun.stdout || "{}");
-  if (governor.decision !== "approved") {
-    logTaskDecision(`auto_executor_governor_${governor.decision}`, "skipped", `Governor blocked execution (action_type=${governor.action_type}, risk=${governor.risk_score})`, "0.95", taskId);
-    auditEvent("auto_executor_governor_block", "warning", "Governor blocked execution", JSON.stringify({ task_id: Number(taskId), decision: governor.decision, action_type: governor.action_type, risk: governor.risk_score }));
-    console.log(`Governor ${governor.decision}: task #${taskId} queued/blocked (action_type=${governor.action_type}, risk=${governor.risk_score}).`); process.exit(0);
-  }
-
-  let runId = `autoexec:${taskId}:${Math.floor(Date.now() / 1000)}`;
-  emitRunEvent(runId, taskId, "queued", { title, task_type: taskType, actor: assigned });
-  runPsql(`BEGIN; UPDATE cortana_tasks SET status='in_progress', assigned_to='${assigned}', run_id=COALESCE(NULLIF(run_id,''), '${runId}') WHERE id=${taskId}; COMMIT;`);
-  emitRunEvent(runId, taskId, "running", { title, task_type: taskType, actor: assigned });
-
-  let cmd = String(task.metadata?.exec?.command ?? "") || plan;
-  let cwd = String(task.metadata?.exec?.cwd ?? "") || "/Users/hd/Developer/cortana";
-  const rollbackCmd = String(task.metadata?.exec?.rollback ?? "");
-
-  if (!(cwd.startsWith(ALLOW_PREFIX_1) || cwd.startsWith(ALLOW_PREFIX_2))) {
-    const reason = `Skipped by whitelist: cwd '${cwd}' is outside allowed repos`;
-    runPsql(`UPDATE cortana_tasks SET status='ready', outcome='${sqlEscape(reason)}' WHERE id=${taskId};`);
-    logTaskDecision("auto_executor_whitelist_block", "skipped", reason, "0.98", taskId); auditEvent("auto_executor_whitelist_block", "warning", reason, `{"task_id":${taskId},"cwd":"${sqlEscape(cwd)}"}`); console.log(reason); process.exit(1);
-  }
-  if (!cmd) {
-    const reason = "Skipped: no executable command found in metadata.exec.command or execution_plan";
-    runPsql(`UPDATE cortana_tasks SET status='ready', outcome='${sqlEscape(reason)}' WHERE id=${taskId};`);
-    logTaskDecision("auto_executor_missing_command", "fail", reason, "0.99", taskId); auditEvent("auto_executor_missing_command", "error", reason, `{"task_id":${taskId}}`); console.log(reason); process.exit(1);
-  }
-  if (!/^(git (status|log|show|diff|fetch|pull|branch|rev-parse)|grep |find |ls |cat |head |tail |jq |python3? |node |npm (run )?test|go test|curl -s|openclaw |psql )/.test(cmd)) {
-    const reason = `Skipped by command safelist: ${cmd}`;
-    runPsql(`UPDATE cortana_tasks SET status='ready', outcome='${sqlEscape(reason)}' WHERE id=${taskId};`);
-    logTaskDecision("auto_executor_safelist_block", "skipped", reason, "0.98", taskId); auditEvent("auto_executor_safelist_block", "warning", reason, `{"task_id":${taskId},"cmd":"${sqlEscape(cmd)}"}`); console.log(reason); process.exit(1);
-  }
-
-  auditEvent("auto_executor_task_started", "info", "Starting auto-execution for task", JSON.stringify({ task_id: Number(taskId), title, task_type: taskType, cwd, cmd }));
-  const ex = spawnSync("bash", ["-lc", cmd], { cwd, encoding: "utf8" });
-  const out = `${ex.stdout ?? ""}${ex.stderr ?? ""}`;
-  const rc = ex.status ?? 1;
-  const shortOut = out.split("\n").slice(-60).join("\n");
-  runId = extractRunId(out) || runId;
-  const escOut = sqlEscape(shortOut), escCmd = sqlEscape(cmd), escRunId = sqlEscape(runId);
-
-  if (rc === 0) {
-    runPsql(`UPDATE cortana_tasks SET status='completed', completed_at=NOW(), outcome='Auto-executed by auto-executor. cmd=${escCmd}\\n${escOut}', assigned_to='${assigned}', run_id=COALESCE(NULLIF('${escRunId}',''), run_id), metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('last_auto_exec', NOW()::text, 'last_rc', 0, 'subagent_run_id', NULLIF('${escRunId}','')) WHERE id=${taskId};`);
-    logTaskDecision(`auto_executor_task_${taskId}`, "success", `Task auto-executed successfully: ${title}`, "0.91", taskId); auditEvent("auto_executor_task_succeeded", "info", "Task auto-executed successfully", `{"task_id":${taskId},"rc":0}`);
-    logIdempotency(operationId, operationType, "completed", JSON.stringify({ task_id: Number(taskId), title, run_id: runId || null, rc: 0 }));
-    console.log(`Done task #${taskId}: ${title}`); return;
-  }
-
-  rollbackIfPossible(cwd, rollbackCmd);
-  runPsql(`UPDATE cortana_tasks SET status='ready', outcome='Auto-exec failed (rc=${rc}). cmd=${escCmd}\\n${escOut}', assigned_to='${assigned}', run_id=COALESCE(NULLIF('${escRunId}',''), run_id), metadata = COALESCE(metadata, '{}'::jsonb) || jsonb_build_object('last_auto_exec', NOW()::text, 'last_rc', ${rc}, 'subagent_run_id', NULLIF('${escRunId}','')) WHERE id=${taskId};`);
-  logTaskDecision(`auto_executor_task_${taskId}`, "fail", `Task auto-execution failed rc=${rc}: ${title}`, "0.9", taskId);
-  auditEvent("auto_executor_task_failed", "error", "Task auto-execution failed", `{"task_id":${taskId},"rc":${rc},"cmd":"${escCmd}","output":"${escOut}"}`);
-  logIdempotency(operationId, operationType, "failed", JSON.stringify({ task_id: Number(taskId), title, run_id: runId || null, rc }));
-  console.log(`Failed task #${taskId} rc=${rc}: ${title}`);
-  process.exit(rc);
-}
-
-main();
+main().catch((error) => {
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+});
