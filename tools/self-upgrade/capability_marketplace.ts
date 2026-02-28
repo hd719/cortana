@@ -1,21 +1,418 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+
+import fs from "fs";
+import path from "path";
+import { query } from "../lib/db.js";
+import { resolveRepoPath } from "../lib/paths.js";
+
+type Json = Record<string, any>;
+
+type Gap = {
+  name: string;
+  evidence_count: number;
+  examples: string[];
+  intent_terms: string[];
+};
+
+type Proposal = {
+  gap: string;
+  local_matches: string[];
+  clawdhub_matches: string[];
+  integration_pattern: string;
+  effort: number;
+  impact: number;
+  risk: number;
+  expected_payoff: number;
+  confidence: number;
+  recommendation: string;
+};
+
+const DB_NAME = "cortana";
+const SOURCE = "capability_marketplace";
+const SKILLS_DIR = path.join(resolveRepoPath(), "skills");
+
+function sqlEscape(text: string): string {
+  return (text || "").replace(/'/g, "''");
+}
+
+function runPsql(sql: string): string {
+  return query(sql).trim();
+}
+
+function fetchJson(sql: string): Array<Record<string, any>> {
+  const wrapped = `SELECT COALESCE(json_agg(t), '[]'::json)::text FROM (${sql}) t;`;
+  const raw = runPsql(wrapped);
+  return raw ? (JSON.parse(raw) as Array<Record<string, any>>) : [];
+}
+
+function logEvent(message: string, severity: string, metadata: Record<string, any>, dryRun: boolean): void {
+  if (dryRun) return;
+  runPsql(
+    "INSERT INTO cortana_events (event_type, source, severity, message, metadata) VALUES " +
+      `('capability_marketplace','${SOURCE}','${sqlEscape(severity)}','${sqlEscape(
+        message
+      )}','${sqlEscape(JSON.stringify(metadata))}'::jsonb);`
+  );
+}
+
+async function httpGet(url: string, timeoutSeconds = 10): Promise<string> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutSeconds * 1000);
+  try {
+    const res = await fetch(url, {
+      headers: { "User-Agent": "cortana-capability-marketplace/1.0" },
+      signal: controller.signal,
+    });
+    return await res.text();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function tokenize(text: string): string[] {
+  const toks = (text || "")
+    .toLowerCase()
+    .match(/[a-zA-Z][a-zA-Z0-9_-]{2,}/g);
+  const stop = new Set([
+    "the",
+    "and",
+    "for",
+    "with",
+    "that",
+    "this",
+    "from",
+    "task",
+    "error",
+    "failed",
+    "manual",
+    "need",
+    "should",
+  ]);
+  return (toks ?? []).filter((t) => !stop.has(t));
+}
+
+function mineGaps(windowDays: number): Gap[] {
+  const window = Math.max(7, windowDays);
+  const rows = fetchJson(
+    "SELECT COALESCE(source,'task') AS source, COALESCE(title,'') AS title, COALESCE(description,'') AS description, COALESCE(outcome,'') AS outcome " +
+      "FROM cortana_tasks " +
+      `WHERE created_at > NOW() - INTERVAL '${window} days' ` +
+      "AND status IN ('ready','in_progress','cancelled') " +
+      "UNION ALL " +
+      "SELECT 'feedback' AS source, COALESCE(context,'') AS title, COALESCE(lesson,'') AS description, '' AS outcome " +
+      "FROM cortana_feedback " +
+      `WHERE timestamp > NOW() - INTERVAL '${window} days' ` +
+      "UNION ALL " +
+      "SELECT COALESCE(source,'event') AS source, COALESCE(message,'') AS title, COALESCE(metadata::text,'') AS description, '' AS outcome " +
+      "FROM cortana_events " +
+      `WHERE timestamp > NOW() - INTERVAL '${window} days' ` +
+      "AND severity IN ('warning','error')"
+  );
+
+  const bucket: Record<string, { count: number; examples: string[]; terms: Record<string, number> }> = {};
+  for (const r of rows) {
+    const text = `${r.title ?? ""} ${r.description ?? ""} ${r.outcome ?? ""}`;
+    const terms = tokenize(text);
+    if (!terms.length) continue;
+
+    let label = "workflow_automation";
+    if (terms.some((k) => ["calendar", "gmail", "email", "inbox"].includes(k))) {
+      label = "comms_calendar";
+    } else if (terms.some((k) => ["security", "incident", "alert", "auth"].includes(k))) {
+      label = "security_ops";
+    } else if (terms.some((k) => ["market", "mortgage", "rate", "portfolio"].includes(k))) {
+      label = "market_intel";
+    } else if (terms.some((k) => ["memory", "context", "knowledge", "search"].includes(k))) {
+      label = "knowledge_retrieval";
+    }
+
+    const entry = bucket[label] ?? { count: 0, examples: [], terms: {} };
+    entry.count += 1;
+    if (entry.examples.length < 5) entry.examples.push(text.slice(0, 200));
+    for (const t of terms.slice(0, 18)) {
+      entry.terms[t] = (entry.terms[t] ?? 0) + 1;
+    }
+    bucket[label] = entry;
+  }
+
+  const gaps: Gap[] = [];
+  for (const [name, data] of Object.entries(bucket)) {
+    const topTerms = Object.entries(data.terms)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([k]) => k);
+    gaps.push({
+      name,
+      evidence_count: Number(data.count),
+      examples: data.examples,
+      intent_terms: topTerms,
+    });
+  }
+  return gaps.sort((a, b) => b.evidence_count - a.evidence_count);
+}
+
+function localSkills(): string[] {
+  if (!fs.existsSync(SKILLS_DIR)) return [];
+  return fs
+    .readdirSync(SKILLS_DIR, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && !d.name.startsWith("."))
+    .map((d) => d.name)
+    .sort();
+}
+
+function mapLocalSkills(gap: Gap, skills: string[]): string[] {
+  const curated: Record<string, string[]> = {
+    workflow_automation: ["clawddocs", "clawdhub", "process-watch", "telegram-usage"],
+    security_ops: ["healthcheck", "process-watch"],
+    comms_calendar: ["gog", "caldav-calendar"],
+    market_intel: ["news-summary", "weather", "bird"],
+    knowledge_retrieval: ["clawddocs", "skill-creator"],
+  };
+  const seed = (curated[gap.name] ?? []).filter((s) => skills.includes(s));
+
+  const terms = new Set([...gap.intent_terms, ...gap.name.split("_")]);
+  const fuzzy: string[] = [];
+  for (const s of skills) {
+    const sTokens = new Set(tokenize(s.replace(/-/g, " ")));
+    for (const t of terms) {
+      if (sTokens.has(t)) {
+        fuzzy.push(s);
+        break;
+      }
+    }
+  }
+
+  const merged: string[] = [];
+  for (const name of [...seed, ...fuzzy]) {
+    if (!merged.includes(name)) merged.push(name);
+  }
+  return merged.slice(0, 6);
+}
+
+async function clawdhubSearch(term: string): Promise<string[]> {
+  const candidates: string[] = [];
+  const urls = [
+    `https://clawdhub.com/search?q=${encodeURIComponent(term)}`,
+    `https://clawdhub.com/skills?q=${encodeURIComponent(term)}`,
+    `https://clawdhub.com/api/skills?query=${encodeURIComponent(term)}`,
+  ];
+
+  for (const url of urls) {
+    try {
+      const body = await httpGet(url, 8);
+      const trimmed = body.trim();
+      if (trimmed.startsWith("{") || trimmed.startsWith("[")) {
+        try {
+          const js = JSON.parse(trimmed);
+          const rows = Array.isArray(js) ? js : js.skills ?? js.results ?? [];
+          for (const r of rows.slice(0, 10)) {
+            if (r && typeof r === "object") {
+              const nm = String(r.name ?? r.slug ?? "").trim();
+              if (nm) candidates.push(nm);
+            }
+          }
+        } catch {
+          // ignore json errors
+        }
+      }
+
+      const matches = body.matchAll(/\/skills\/([a-zA-Z0-9_-]+)/g);
+      for (const m of matches) {
+        candidates.push(m[1]);
+      }
+    } catch {
+      continue;
+    }
+  }
+
+  return Array.from(new Set(candidates)).slice(0, 8);
+}
+
+function pickPattern(gap: Gap): string {
+  if (gap.name === "comms_calendar") return "heartbeat-driven triage + task auto-sync";
+  if (gap.name === "security_ops") return "event ingestion + severity routing + playbook execution";
+  if (gap.name === "market_intel") return "daily signal collector + advisor formatter + task trigger";
+  if (gap.name === "knowledge_retrieval") return "memory index refresh + retrieval scoring + response templates";
+  return "detect -> score -> propose -> task";
+}
+
+function rankProposal(gap: Gap, local: string[], hub: string[]): Proposal {
+  const impact = Math.min(0.97, 0.45 + gap.evidence_count * 0.06);
+  const effort = Math.max(0.15, 0.7 - 0.08 * local.length - 0.03 * hub.length);
+  const risk = 0.25 + (local.length === 0 ? 0.08 : 0.0) + (hub.length > 0 ? 0.05 : 0.0);
+  const expectedPayoff = Math.round(Math.max(0, impact - effort - risk * 0.35) * 1000) / 1000;
+  const confidence =
+    Math.round(Math.min(0.96, 0.5 + Math.min(gap.evidence_count, 8) * 0.04 + local.length * 0.03) * 1000) /
+    1000;
+  const rec =
+    `Address '${gap.name}' by reusing ${local.slice(0, 3).join(", ") || "existing tools"}` +
+    ` and adding ${hub.slice(0, 2).join(", ") || "targeted custom glue"} if needed.`;
+  return {
+    gap: gap.name,
+    local_matches: local,
+    clawdhub_matches: hub,
+    integration_pattern: pickPattern(gap),
+    effort: Math.round(effort * 1000) / 1000,
+    impact: Math.round(impact * 1000) / 1000,
+    risk: Math.round(Math.min(0.95, risk) * 1000) / 1000,
+    expected_payoff: expectedPayoff,
+    confidence,
+    recommendation: rec,
+  };
+}
+
+function maybeCreateTask(prop: Proposal, threshold: number, dryRun: boolean): number | null {
+  if (dryRun || prop.confidence < threshold || prop.expected_payoff < 0.22) return null;
+  const title = `Capability upgrade: ${prop.gap}`;
+  const desc =
+    `Recommendation: ${prop.recommendation}\n` +
+    `Pattern: ${prop.integration_pattern}\n` +
+    `Impact/Effort/Risk/Payoff: ${prop.impact}/${prop.effort}/${prop.risk}/${prop.expected_payoff}`;
+  const meta = JSON.stringify(prop);
+  const raw = runPsql(
+    "INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata) VALUES " +
+      `('capability_marketplace','${sqlEscape(title)}','${sqlEscape(desc)}',2,'ready',TRUE,` +
+      "'1) Validate fit 2) Prototype integration 3) Measure impact and harden'," +
+      `'${sqlEscape(meta)}'::jsonb) RETURNING id;`
+  );
+  return raw ? Number(raw) : null;
+}
+
+type Args = {
+  windowDays: number;
+  maxProposals: number;
+  taskThreshold: number;
+  createTasks: boolean;
+  dryRun: boolean;
+  json: boolean;
+};
+
+function parseArgs(argv: string[]): Args {
+  const args: Args = {
+    windowDays: 30,
+    maxProposals: 5,
+    taskThreshold: 0.84,
+    createTasks: false,
+    dryRun: false,
+    json: false,
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    switch (arg) {
+      case "--window-days":
+        args.windowDays = Number(argv[i + 1]);
+        i += 1;
+        break;
+      case "--max-proposals":
+        args.maxProposals = Number(argv[i + 1]);
+        i += 1;
+        break;
+      case "--task-threshold":
+        args.taskThreshold = Number(argv[i + 1]);
+        i += 1;
+        break;
+      case "--create-tasks":
+        args.createTasks = true;
+        break;
+      case "--dry-run":
+        args.dryRun = true;
+        break;
+      case "--json":
+        args.json = true;
+        break;
+      default:
+        break;
+    }
+  }
+  return args;
+}
 
 async function main(): Promise<void> {
-  const py = "#!/usr/bin/env python3\n\"\"\"Capability Marketplace.\n\nFind recurring capability gaps from Cortana telemetry, map to local/new skills,\nrank proposals, and optionally create implementation tasks.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport os\nimport re\nimport subprocess\nimport urllib.parse\nimport urllib.request\nfrom dataclasses import dataclass, asdict\nfrom datetime import datetime, timezone\nfrom pathlib import Path\nfrom typing import Any\n\nDB_NAME = \"cortana\"\nDB_PATH = \"/opt/homebrew/opt/postgresql@17/bin\"\nSOURCE = \"capability_marketplace\"\nSKILLS_DIR = Path(\"/Users/hd/openclaw/skills\")\n\n\n@dataclass\nclass Gap:\n    name: str\n    evidence_count: int\n    examples: list[str]\n    intent_terms: list[str]\n\n\n@dataclass\nclass Proposal:\n    gap: str\n    local_matches: list[str]\n    clawdhub_matches: list[str]\n    integration_pattern: str\n    effort: float\n    impact: float\n    risk: float\n    expected_payoff: float\n    confidence: float\n    recommendation: str\n\n\n\ndef sql_escape(text: str) -> str:\n    return (text or \"\").replace(\"'\", \"''\")\n\n\ndef run_psql(sql: str) -> str:\n    env = os.environ.copy()\n    env[\"PATH\"] = f\"{DB_PATH}:{env.get('PATH', '')}\"\n    cmd = [\"psql\", DB_NAME, \"-q\", \"-X\", \"-v\", \"ON_ERROR_STOP=1\", \"-t\", \"-A\", \"-c\", sql]\n    out = subprocess.run(cmd, text=True, capture_output=True, env=env)\n    if out.returncode != 0:\n        raise RuntimeError(out.stderr.strip() or \"psql failed\")\n    return out.stdout.strip()\n\n\ndef fetch_json(sql: str) -> list[dict[str, Any]]:\n    wrapped = f\"SELECT COALESCE(json_agg(t), '[]'::json)::text FROM ({sql}) t;\"\n    raw = run_psql(wrapped)\n    return json.loads(raw) if raw else []\n\n\ndef log_event(message: str, severity: str, metadata: dict[str, Any], dry_run: bool) -> None:\n    if dry_run:\n        return\n    run_psql(\n        \"INSERT INTO cortana_events (event_type, source, severity, message, metadata) VALUES \"\n        f\"('capability_marketplace','{SOURCE}','{sql_escape(severity)}','{sql_escape(message)}','{sql_escape(json.dumps(metadata))}'::jsonb);\"\n    )\n\n\ndef http_get(url: str, timeout: int = 10) -> str:\n    req = urllib.request.Request(url, headers={\"User-Agent\": \"cortana-capability-marketplace/1.0\"})\n    with urllib.request.urlopen(req, timeout=timeout) as r:\n        return r.read().decode(\"utf-8\", errors=\"replace\")\n\n\ndef tokenize(text: str) -> list[str]:\n    toks = re.findall(r\"[a-zA-Z][a-zA-Z0-9_-]{2,}\", (text or \"\").lower())\n    stop = {\"the\", \"and\", \"for\", \"with\", \"that\", \"this\", \"from\", \"task\", \"error\", \"failed\", \"manual\", \"need\", \"should\"}\n    return [t for t in toks if t not in stop]\n\n\ndef mine_gaps(window_days: int) -> list[Gap]:\n    rows = fetch_json(\n        \"SELECT COALESCE(source,'task') AS source, COALESCE(title,'') AS title, COALESCE(description,'') AS description, COALESCE(outcome,'') AS outcome \"\n        \"FROM cortana_tasks \"\n        f\"WHERE created_at > NOW() - INTERVAL '{max(7, window_days)} days' \"\n        \"AND status IN ('ready','in_progress','cancelled') \"\n        \"UNION ALL \"\n        \"SELECT 'feedback' AS source, COALESCE(context,'') AS title, COALESCE(lesson,'') AS description, '' AS outcome \"\n        \"FROM cortana_feedback \"\n        f\"WHERE timestamp > NOW() - INTERVAL '{max(7, window_days)} days' \"\n        \"UNION ALL \"\n        \"SELECT COALESCE(source,'event') AS source, COALESCE(message,'') AS title, COALESCE(metadata::text,'') AS description, '' AS outcome \"\n        \"FROM cortana_events \"\n        f\"WHERE timestamp > NOW() - INTERVAL '{max(7, window_days)} days' \"\n        \"AND severity IN ('warning','error')\"\n    )\n\n    bucket: dict[str, dict[str, Any]] = {}\n    for r in rows:\n        text = f\"{r.get('title','')} {r.get('description','')} {r.get('outcome','')}\"\n        terms = tokenize(text)\n        if not terms:\n            continue\n\n        # lightweight intent bucketing\n        label = \"workflow_automation\"\n        if any(k in terms for k in [\"calendar\", \"gmail\", \"email\", \"inbox\"]):\n            label = \"comms_calendar\"\n        elif any(k in terms for k in [\"security\", \"incident\", \"alert\", \"auth\"]):\n            label = \"security_ops\"\n        elif any(k in terms for k in [\"market\", \"mortgage\", \"rate\", \"portfolio\"]):\n            label = \"market_intel\"\n        elif any(k in terms for k in [\"memory\", \"context\", \"knowledge\", \"search\"]):\n            label = \"knowledge_retrieval\"\n\n        b = bucket.setdefault(label, {\"count\": 0, \"examples\": [], \"terms\": {}})\n        b[\"count\"] += 1\n        if len(b[\"examples\"]) < 5:\n            b[\"examples\"].append(text[:200])\n        for t in terms[:18]:\n            b[\"terms\"][t] = b[\"terms\"].get(t, 0) + 1\n\n    gaps = []\n    for name, data in bucket.items():\n        top_terms = [k for k, _ in sorted(data[\"terms\"].items(), key=lambda kv: kv[1], reverse=True)[:8]]\n        gaps.append(Gap(name=name, evidence_count=int(data[\"count\"]), examples=data[\"examples\"], intent_terms=top_terms))\n    return sorted(gaps, key=lambda g: g.evidence_count, reverse=True)\n\n\ndef local_skills() -> list[str]:\n    if not SKILLS_DIR.exists():\n        return []\n    return sorted([p.name for p in SKILLS_DIR.iterdir() if p.is_dir() and not p.name.startswith(\".\")])\n\n\ndef map_local_skills(gap: Gap, skills: list[str]) -> list[str]:\n    curated = {\n        \"workflow_automation\": [\"clawddocs\", \"clawdhub\", \"process-watch\", \"telegram-usage\"],\n        \"security_ops\": [\"healthcheck\", \"process-watch\"],\n        \"comms_calendar\": [\"gog\", \"caldav-calendar\"],\n        \"market_intel\": [\"news-summary\", \"weather\", \"bird\"],\n        \"knowledge_retrieval\": [\"clawddocs\", \"skill-creator\"],\n    }\n    seed = [s for s in curated.get(gap.name, []) if s in skills]\n\n    terms = set(gap.intent_terms + gap.name.split(\"_\"))\n    fuzzy = []\n    for s in skills:\n        s_tokens = set(tokenize(s.replace(\"-\", \" \")))\n        if terms.intersection(s_tokens):\n            fuzzy.append(s)\n\n    merged = []\n    for name in seed + fuzzy:\n        if name not in merged:\n            merged.append(name)\n    return merged[:6]\n\n\ndef clawdhub_search(term: str) -> list[str]:\n    candidates: list[str] = []\n    urls = [\n        f\"https://clawdhub.com/search?q={urllib.parse.quote(term)}\",\n        f\"https://clawdhub.com/skills?q={urllib.parse.quote(term)}\",\n        f\"https://clawdhub.com/api/skills?query={urllib.parse.quote(term)}\",\n    ]\n    for url in urls:\n        try:\n            body = http_get(url, timeout=8)\n            # JSON path\n            if body.strip().startswith(\"{\") or body.strip().startswith(\"[\"):\n                try:\n                    js = json.loads(body)\n                    rows = js if isinstance(js, list) else js.get(\"skills\") or js.get(\"results\") or []\n                    for r in rows[:10]:\n                        if isinstance(r, dict):\n                            nm = str(r.get(\"name\") or r.get(\"slug\") or \"\").strip()\n                            if nm:\n                                candidates.append(nm)\n                except Exception:\n                    pass\n            # HTML path\n            for m in re.findall(r\"/skills/([a-zA-Z0-9_-]+)\", body):\n                candidates.append(m)\n        except Exception:\n            continue\n    return sorted(set(candidates))[:8]\n\n\ndef pick_pattern(gap: Gap) -> str:\n    if gap.name == \"comms_calendar\":\n        return \"heartbeat-driven triage + task auto-sync\"\n    if gap.name == \"security_ops\":\n        return \"event ingestion + severity routing + playbook execution\"\n    if gap.name == \"market_intel\":\n        return \"daily signal collector + advisor formatter + task trigger\"\n    if gap.name == \"knowledge_retrieval\":\n        return \"memory index refresh + retrieval scoring + response templates\"\n    return \"detect -> score -> propose -> task\"\n\n\ndef rank_proposal(gap: Gap, local: list[str], hub: list[str]) -> Proposal:\n    impact = min(0.97, 0.45 + gap.evidence_count * 0.06)\n    effort = max(0.15, 0.70 - (0.08 * len(local)) - (0.03 * len(hub)))\n    risk = 0.25 + (0.08 if not local else 0.0) + (0.05 if len(hub) > 0 else 0.0)\n    expected_payoff = round(max(0.0, impact - effort - (risk * 0.35)), 3)\n    confidence = round(min(0.96, 0.50 + min(gap.evidence_count, 8) * 0.04 + len(local) * 0.03), 3)\n    rec = (\n        f\"Address '{gap.name}' by reusing {', '.join(local[:3]) or 'existing tools'}\"\n        f\" and adding {', '.join(hub[:2]) or 'targeted custom glue'} if needed.\"\n    )\n    return Proposal(\n        gap=gap.name,\n        local_matches=local,\n        clawdhub_matches=hub,\n        integration_pattern=pick_pattern(gap),\n        effort=round(effort, 3),\n        impact=round(impact, 3),\n        risk=round(min(0.95, risk), 3),\n        expected_payoff=expected_payoff,\n        confidence=confidence,\n        recommendation=rec,\n    )\n\n\ndef maybe_create_task(prop: Proposal, threshold: float, dry_run: bool) -> int | None:\n    if dry_run or prop.confidence < threshold or prop.expected_payoff < 0.22:\n        return None\n    title = f\"Capability upgrade: {prop.gap}\"\n    desc = (\n        f\"Recommendation: {prop.recommendation}\\n\"\n        f\"Pattern: {prop.integration_pattern}\\n\"\n        f\"Impact/Effort/Risk/Payoff: {prop.impact}/{prop.effort}/{prop.risk}/{prop.expected_payoff}\"\n    )\n    meta = asdict(prop)\n    raw = run_psql(\n        \"INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata) VALUES \"\n        f\"('capability_marketplace','{sql_escape(title)}','{sql_escape(desc)}',2,'ready',TRUE,\"\n        \"'1) Validate fit 2) Prototype integration 3) Measure impact and harden',\"\n        f\"'{sql_escape(json.dumps(meta))}'::jsonb) RETURNING id;\"\n    )\n    return int(raw) if raw else None\n\n\ndef parse_args() -> argparse.Namespace:\n    p = argparse.ArgumentParser(description=\"Capability Marketplace: mine gaps, map skills, rank upgrade proposals\")\n    p.add_argument(\"--window-days\", type=int, default=30, help=\"Lookback window for tasks/feedback/events\")\n    p.add_argument(\"--max-proposals\", type=int, default=5, help=\"Maximum ranked proposals to emit\")\n    p.add_argument(\"--task-threshold\", type=float, default=0.84, help=\"Confidence threshold for auto implementation task\")\n    p.add_argument(\"--create-tasks\", action=\"store_true\", help=\"Auto-create implementation tasks for high confidence matches\")\n    p.add_argument(\"--dry-run\", action=\"store_true\", help=\"No DB writes\")\n    p.add_argument(\"--json\", action=\"store_true\", help=\"Output JSON\")\n    return p.parse_args()\n\n\ndef main() -> int:\n    args = parse_args()\n    errors: list[str] = []\n\n    try:\n        gaps = mine_gaps(window_days=args.window_days)\n    except Exception as e:\n        gaps = []\n        errors.append(f\"gap-mining: {e}\")\n\n    skills = local_skills()\n    proposals: list[Proposal] = []\n\n    for gap in gaps:\n        local = map_local_skills(gap, skills)\n        hub_matches: list[str] = []\n        for term in gap.intent_terms[:3]:\n            try:\n                hub_matches.extend(clawdhub_search(term))\n            except Exception as e:\n                errors.append(f\"clawdhub {term}: {e}\")\n        hub_matches = sorted(set(hub_matches))[:8]\n        proposals.append(rank_proposal(gap, local, hub_matches))\n\n    proposals = sorted(proposals, key=lambda p: (-p.expected_payoff, -p.confidence, p.effort))[: max(1, args.max_proposals)]\n\n    created_tasks: list[int] = []\n    if args.create_tasks:\n        for p in proposals:\n            try:\n                tid = maybe_create_task(p, threshold=args.task_threshold, dry_run=args.dry_run)\n                if tid:\n                    created_tasks.append(tid)\n            except Exception as e:\n                errors.append(f\"task-create {p.gap}: {e}\")\n\n    log_event(\n        message=f\"Capability marketplace generated {len(proposals)} proposals\",\n        severity=\"info\" if not errors else \"warning\",\n        metadata={\"proposals\": len(proposals), \"tasks_created\": created_tasks, \"errors\": errors[:8]},\n        dry_run=args.dry_run,\n    )\n\n    payload = {\n        \"source\": SOURCE,\n        \"generated_at\": datetime.now(timezone.utc).isoformat(),\n        \"gaps_identified\": [asdict(g) for g in gaps],\n        \"proposals\": [asdict(p) for p in proposals],\n        \"tasks_created\": created_tasks,\n        \"errors\": errors,\n    }\n\n    if args.json:\n        print(json.dumps(payload, indent=2))\n    else:\n        print(\"Capability Marketplace Proposals\")\n        for i, p in enumerate(proposals, start=1):\n            print(f\"\\n{i}. {p.gap}\")\n            print(f\"   recommendation: {p.recommendation}\")\n            print(f\"   local skills:   {', '.join(p.local_matches) or '-'}\")\n            print(f\"   clawdhub:       {', '.join(p.clawdhub_matches) or '-'}\")\n            print(f\"   effort/impact/risk/payoff/conf: {p.effort}/{p.impact}/{p.risk}/{p.expected_payoff}/{p.confidence}\")\n        if created_tasks:\n            print(f\"\\nTasks created: {created_tasks}\")\n        if errors:\n            print(\"\\nErrors:\")\n            for e in errors[:12]:\n                print(f\"- {e}\")\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n";
-  const dir = mkdtempSync(join(tmpdir(), 'pywrap-'));
-  const script = join(dir, 'script.py');
-  writeFileSync(script, py, 'utf8');
-  const proc = spawnSync('python3', [script, ...process.argv.slice(2)], { stdio: 'inherit' });
-  rmSync(dir, { recursive: true, force: true });
-  if (proc.error) {
-    console.error(String(proc.error));
-    process.exit(1);
+  const args = parseArgs(process.argv.slice(2));
+  const errors: string[] = [];
+
+  let gaps: Gap[] = [];
+  try {
+    gaps = mineGaps(args.windowDays);
+  } catch (e) {
+    errors.push(`gap-mining: ${e instanceof Error ? e.message : String(e)}`);
   }
-  process.exit(proc.status ?? 1);
+
+  const skills = localSkills();
+  let proposals: Proposal[] = [];
+
+  for (const gap of gaps) {
+    const local = mapLocalSkills(gap, skills);
+    const hubMatches: string[] = [];
+    for (const term of gap.intent_terms.slice(0, 3)) {
+      try {
+        hubMatches.push(...(await clawdhubSearch(term)));
+      } catch (e) {
+        errors.push(`clawdhub ${term}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+    const dedup = Array.from(new Set(hubMatches)).slice(0, 8);
+    proposals.push(rankProposal(gap, local, dedup));
+  }
+
+  proposals = proposals
+    .sort((a, b) => {
+      if (b.expected_payoff !== a.expected_payoff) return b.expected_payoff - a.expected_payoff;
+      if (b.confidence !== a.confidence) return b.confidence - a.confidence;
+      return a.effort - b.effort;
+    })
+    .slice(0, Math.max(1, args.maxProposals));
+
+  const createdTasks: number[] = [];
+  if (args.createTasks) {
+    for (const p of proposals) {
+      try {
+        const tid = maybeCreateTask(p, args.taskThreshold, args.dryRun);
+        if (tid) createdTasks.push(tid);
+      } catch (e) {
+        errors.push(`task-create ${p.gap}: ${e instanceof Error ? e.message : String(e)}`);
+      }
+    }
+  }
+
+  logEvent(
+    `Capability marketplace generated ${proposals.length} proposals`,
+    errors.length ? "warning" : "info",
+    { proposals: proposals.length, tasks_created: createdTasks, errors: errors.slice(0, 8) },
+    args.dryRun
+  );
+
+  const payload = {
+    source: SOURCE,
+    generated_at: new Date().toISOString(),
+    gaps_identified: gaps,
+    proposals,
+    tasks_created: createdTasks,
+    errors,
+  };
+
+  if (args.json) {
+    console.log(JSON.stringify(payload, null, 2));
+  } else {
+    console.log("Capability Marketplace Proposals");
+    proposals.forEach((p, idx) => {
+      console.log(`\n${idx + 1}. ${p.gap}`);
+      console.log(`   recommendation: ${p.recommendation}`);
+      console.log(`   local skills:   ${p.local_matches.join(", ") || "-"}`);
+      console.log(`   clawdhub:       ${p.clawdhub_matches.join(", ") || "-"}`);
+      console.log(
+        `   effort/impact/risk/payoff/conf: ${p.effort}/${p.impact}/${p.risk}/${p.expected_payoff}/${p.confidence}`
+      );
+    });
+    if (createdTasks.length) console.log(`\nTasks created: ${JSON.stringify(createdTasks)}`);
+    if (errors.length) {
+      console.log("\nErrors:");
+      errors.slice(0, 12).forEach((e) => console.log(`- ${e}`));
+    }
+  }
+
+  process.exit(0);
 }
 
 main().catch((err) => {

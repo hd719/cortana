@@ -171,7 +171,7 @@ function score(taskId: number): Json {
 
   const [compileOk, compileTargetsOrFailed, compileDetails] = compilePythonFiles(changedFiles);
 
-  const commitsPreview = `[$${commits
+  const commitsPreview = `[${commits
     .slice(0, 5)
     .map((c) => `'${c}'`)
     .join(", ")}]`;

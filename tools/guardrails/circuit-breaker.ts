@@ -1,24 +1,365 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
-async function main(): Promise<void> {
-  const py = "#!/usr/bin/env python3\n\"\"\"LLM provider circuit breaker with simple failover recommendation.\n\nFeatures:\n- Sliding window (last 50 requests) per provider\n- Open on >=20% non-retryable error rate\n- Retryable: 429, 500, 502, 503, 529\n- Fatal: 401, 403 (flags provider for human page)\n- Recovery: after cooldown, allow ~1% probe traffic\n- Close only after 50 consecutive successes in half-open\n- Tier rule: never downgrade from Tier 1 to Tier 2 in recommendations\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport hashlib\nimport json\nimport os\nimport random\nimport sys\nimport time\nfrom datetime import datetime, timezone\nfrom pathlib import Path\nfrom typing import Any\n\nSTATE_PATH = Path(\"/Users/hd/openclaw/memory/circuit-breaker-state.json\")\nWINDOW_SIZE = 50\nTRIP_THRESHOLD = 0.20\nDEFAULT_COOLDOWN_SEC = 60\nRECOVERY_PROBE_PCT = 0.01\nSUCCESS_TO_CLOSE = 50\n\nRETRYABLE_CODES = {429, 500, 502, 503, 529}\nFATAL_CODES = {401, 403}\n\nTIER_MAP = {\n    \"opus\": 1,\n    \"codex\": 1,\n    \"sonnet\": 2,\n    \"4o-mini\": 2,\n}\nDEFAULT_ORDER = [\"opus\", \"codex\", \"sonnet\", \"4o-mini\"]\n\n\ndef now_ts() -> float:\n    return time.time()\n\n\ndef iso(ts: float | None = None) -> str:\n    dt = datetime.fromtimestamp(ts or now_ts(), tz=timezone.utc)\n    return dt.isoformat()\n\n\ndef load_state() -> dict[str, Any]:\n    if not STATE_PATH.exists():\n        return {\n            \"version\": 1,\n            \"updated_at\": iso(),\n            \"config\": {\n                \"window_size\": WINDOW_SIZE,\n                \"trip_threshold\": TRIP_THRESHOLD,\n                \"cooldown_sec\": DEFAULT_COOLDOWN_SEC,\n                \"recovery_probe_pct\": RECOVERY_PROBE_PCT,\n                \"success_to_close\": SUCCESS_TO_CLOSE,\n            },\n            \"providers\": {},\n        }\n    try:\n        data = json.loads(STATE_PATH.read_text())\n        if not isinstance(data, dict):\n            raise ValueError(\"invalid state\")\n        data.setdefault(\"config\", {})\n        data[\"config\"].setdefault(\"window_size\", WINDOW_SIZE)\n        data[\"config\"].setdefault(\"trip_threshold\", TRIP_THRESHOLD)\n        data[\"config\"].setdefault(\"cooldown_sec\", DEFAULT_COOLDOWN_SEC)\n        data[\"config\"].setdefault(\"recovery_probe_pct\", RECOVERY_PROBE_PCT)\n        data[\"config\"].setdefault(\"success_to_close\", SUCCESS_TO_CLOSE)\n        data.setdefault(\"providers\", {})\n        return data\n    except Exception:\n        return {\n            \"version\": 1,\n            \"updated_at\": iso(),\n            \"config\": {\n                \"window_size\": WINDOW_SIZE,\n                \"trip_threshold\": TRIP_THRESHOLD,\n                \"cooldown_sec\": DEFAULT_COOLDOWN_SEC,\n                \"recovery_probe_pct\": RECOVERY_PROBE_PCT,\n                \"success_to_close\": SUCCESS_TO_CLOSE,\n            },\n            \"providers\": {},\n        }\n\n\ndef save_state(state: dict[str, Any]) -> None:\n    STATE_PATH.parent.mkdir(parents=True, exist_ok=True)\n    state[\"updated_at\"] = iso()\n    tmp = STATE_PATH.with_suffix(\".tmp\")\n    tmp.write_text(json.dumps(state, indent=2, sort_keys=True))\n    os.replace(tmp, STATE_PATH)\n\n\ndef classify(status_code: int) -> str:\n    if 200 <= status_code < 400:\n        return \"success\"\n    if status_code in FATAL_CODES:\n        return \"fatal\"\n    if status_code in RETRYABLE_CODES:\n        return \"retryable\"\n    if status_code >= 400:\n        return \"non_retryable\"\n    return \"non_retryable\"\n\n\ndef provider_state(state: dict[str, Any], provider: str) -> dict[str, Any]:\n    providers = state[\"providers\"]\n    if provider not in providers:\n        providers[provider] = {\n            \"provider\": provider,\n            \"tier\": TIER_MAP.get(provider, 2),\n            \"circuit\": \"closed\",  # closed|open|half_open\n            \"opened_at\": None,\n            \"half_open_since\": None,\n            \"window\": [],\n            \"metrics\": {\n                \"total\": 0,\n                \"retryable\": 0,\n                \"non_retryable\": 0,\n                \"fatal\": 0,\n                \"success\": 0,\n                \"non_retryable_rate\": 0.0,\n            },\n            \"consecutive_successes\": 0,\n            \"needs_human_page\": False,\n            \"last_error_code\": None,\n            \"updated_at\": iso(),\n        }\n    return providers[provider]\n\n\ndef recompute_metrics(p: dict[str, Any]) -> None:\n    window = p.get(\"window\", [])[-WINDOW_SIZE:]\n    p[\"window\"] = window\n    total = len(window)\n    retryable = sum(1 for x in window if x[\"kind\"] == \"retryable\")\n    non_retryable = sum(1 for x in window if x[\"kind\"] in {\"non_retryable\", \"fatal\"})\n    fatal = sum(1 for x in window if x[\"kind\"] == \"fatal\")\n    success = sum(1 for x in window if x[\"kind\"] == \"success\")\n\n    p[\"metrics\"] = {\n        \"total\": total,\n        \"retryable\": retryable,\n        \"non_retryable\": non_retryable,\n        \"fatal\": fatal,\n        \"success\": success,\n        \"non_retryable_rate\": (non_retryable / total) if total else 0.0,\n    }\n\n\ndef maybe_transition_for_time(p: dict[str, Any], cooldown_sec: int) -> None:\n    if p[\"circuit\"] != \"open\" or not p.get(\"opened_at\"):\n        return\n    if now_ts() - float(p[\"opened_at\"]) >= cooldown_sec:\n        p[\"circuit\"] = \"half_open\"\n        p[\"half_open_since\"] = now_ts()\n        p[\"consecutive_successes\"] = 0\n\n\ndef record_request(state: dict[str, Any], provider: str, status_code: int) -> dict[str, Any]:\n    p = provider_state(state, provider)\n    cfg = state[\"config\"]\n    cooldown_sec = int(cfg.get(\"cooldown_sec\", DEFAULT_COOLDOWN_SEC))\n    trip_threshold = float(cfg.get(\"trip_threshold\", TRIP_THRESHOLD))\n    success_to_close = int(cfg.get(\"success_to_close\", SUCCESS_TO_CLOSE))\n\n    maybe_transition_for_time(p, cooldown_sec)\n\n    kind = classify(status_code)\n    if kind == \"fatal\":\n        p[\"needs_human_page\"] = True\n        p[\"last_error_code\"] = status_code\n\n    p[\"window\"].append({\n        \"ts\": now_ts(),\n        \"status_code\": status_code,\n        \"kind\": kind,\n    })\n    recompute_metrics(p)\n\n    if p[\"circuit\"] == \"closed\":\n        if p[\"metrics\"][\"non_retryable_rate\"] >= trip_threshold and p[\"metrics\"][\"total\"] >= 5:\n            p[\"circuit\"] = \"open\"\n            p[\"opened_at\"] = now_ts()\n            p[\"half_open_since\"] = None\n            p[\"consecutive_successes\"] = 0\n    elif p[\"circuit\"] == \"open\":\n        maybe_transition_for_time(p, cooldown_sec)\n    elif p[\"circuit\"] == \"half_open\":\n        if kind == \"success\":\n            p[\"consecutive_successes\"] += 1\n            if p[\"consecutive_successes\"] >= success_to_close:\n                p[\"circuit\"] = \"closed\"\n                p[\"opened_at\"] = None\n                p[\"half_open_since\"] = None\n                p[\"consecutive_successes\"] = 0\n                p[\"needs_human_page\"] = False\n        else:\n            p[\"circuit\"] = \"open\"\n            p[\"opened_at\"] = now_ts()\n            p[\"half_open_since\"] = None\n            p[\"consecutive_successes\"] = 0\n\n    p[\"updated_at\"] = iso()\n    return p\n\n\ndef probe_allowed(provider: str, pct: float) -> bool:\n    # Stable-ish 1% gate per second/provider.\n    seed = f\"{provider}:{int(time.time())}\"\n    h = hashlib.sha256(seed.encode()).hexdigest()\n    bucket = int(h[:8], 16) / 0xFFFFFFFF\n    return bucket < pct\n\n\ndef recommendation(state: dict[str, Any]) -> dict[str, Any]:\n    cfg = state.get(\"config\", {})\n    cooldown_sec = int(cfg.get(\"cooldown_sec\", DEFAULT_COOLDOWN_SEC))\n    probe_pct = float(cfg.get(\"recovery_probe_pct\", RECOVERY_PROBE_PCT))\n\n    # Keep provider states time-fresh.\n    for name in list(state.get(\"providers\", {}).keys()):\n        maybe_transition_for_time(state[\"providers\"][name], cooldown_sec)\n\n    # Never downgrade: only consider Tier 1 providers.\n    tier1 = [p for p in DEFAULT_ORDER if TIER_MAP.get(p, 2) == 1]\n    candidates = []\n    for name in tier1:\n        p = provider_state(state, name)\n        c = p.get(\"circuit\", \"closed\")\n        if c == \"closed\":\n            candidates.append((name, 0, p))\n        elif c == \"half_open\" and probe_allowed(name, probe_pct):\n            candidates.append((name, 1, p))\n\n    if candidates:\n        candidates.sort(key=lambda x: (x[1], -x[2].get(\"metrics\", {}).get(\"success\", 0), x[0]))\n        chosen = candidates[0][0]\n        return {\n            \"recommended_provider\": chosen,\n            \"tier\": 1,\n            \"reason\": \"tier1_available\",\n            \"tier2_blocked_by_policy\": True,\n        }\n\n    return {\n        \"recommended_provider\": None,\n        \"tier\": 1,\n        \"reason\": \"all_tier1_open_or_probe_not_allowed\",\n        \"tier2_blocked_by_policy\": True,\n    }\n\n\ndef cmd_record(args: argparse.Namespace) -> int:\n    state = load_state()\n    if args.cooldown is not None:\n        state[\"config\"][\"cooldown_sec\"] = int(args.cooldown)\n\n    provider = args.provider.strip()\n    status_code = int(args.status_code)\n    p = record_request(state, provider, status_code)\n    rec = recommendation(state)\n    save_state(state)\n\n    out = {\n        \"provider\": provider,\n        \"status_code\": status_code,\n        \"classification\": classify(status_code),\n        \"circuit\": p[\"circuit\"],\n        \"consecutive_successes\": p[\"consecutive_successes\"],\n        \"metrics\": p[\"metrics\"],\n        \"needs_human_page\": p[\"needs_human_page\"],\n        \"recommendation\": rec,\n    }\n    print(json.dumps(out, indent=2))\n\n    if status_code in FATAL_CODES:\n        print(\n            f\"FATAL_AUTH_ERROR provider={provider} code={status_code} -> page human immediately\",\n            file=sys.stderr,\n        )\n    return 0\n\n\ndef cmd_status(_: argparse.Namespace) -> int:\n    state = load_state()\n    rec = recommendation(state)\n    providers = state.get(\"providers\", {})\n    ordered = sorted(providers.keys(), key=lambda n: (TIER_MAP.get(n, 99), n))\n    payload = {\n        \"state_path\": str(STATE_PATH),\n        \"updated_at\": state.get(\"updated_at\"),\n        \"config\": state.get(\"config\", {}),\n        \"providers\": [{\"name\": n, **providers[n]} for n in ordered],\n        \"recommendation\": rec,\n    }\n    print(json.dumps(payload, indent=2))\n    return 0\n\n\ndef cmd_recommend(_: argparse.Namespace) -> int:\n    state = load_state()\n    rec = recommendation(state)\n    save_state(state)\n    print(json.dumps(rec, indent=2))\n    return 0\n\n\ndef build_parser() -> argparse.ArgumentParser:\n    p = argparse.ArgumentParser(description=\"LLM circuit breaker\")\n    g = p.add_mutually_exclusive_group(required=True)\n    g.add_argument(\"--record\", nargs=2, metavar=(\"PROVIDER\", \"STATUS_CODE\"), help=\"record request result\")\n    g.add_argument(\"--status\", action=\"store_true\", help=\"show circuit states\")\n    g.add_argument(\"--recommend\", action=\"store_true\", help=\"get current recommended provider\")\n    p.add_argument(\"--cooldown\", type=int, default=None, help=\"override cooldown seconds for this run\")\n    return p\n\n\ndef main() -> int:\n    args = build_parser().parse_args()\n    if args.record:\n        args.provider = args.record[0]\n        args.status_code = int(args.record[1])\n        return cmd_record(args)\n    if args.status:\n        return cmd_status(args)\n    return cmd_recommend(args)\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n";
-  const dir = mkdtempSync(join(tmpdir(), 'pywrap-'));
-  const script = join(dir, 'script.py');
-  writeFileSync(script, py, 'utf8');
-  const proc = spawnSync('python3', [script, ...process.argv.slice(2)], { stdio: 'inherit' });
-  rmSync(dir, { recursive: true, force: true });
-  if (proc.error) {
-    console.error(String(proc.error));
-    process.exit(1);
-  }
-  process.exit(proc.status ?? 1);
+import fs from "node:fs";
+import path from "node:path";
+import crypto from "node:crypto";
+import { readJsonFile } from "../lib/json-file.js";
+
+const STATE_PATH = "/Users/hd/openclaw/memory/circuit-breaker-state.json";
+const WINDOW_SIZE = 50;
+const TRIP_THRESHOLD = 0.2;
+const DEFAULT_COOLDOWN_SEC = 60;
+const RECOVERY_PROBE_PCT = 0.01;
+const SUCCESS_TO_CLOSE = 50;
+
+const RETRYABLE_CODES = new Set([429, 500, 502, 503, 529]);
+const FATAL_CODES = new Set([401, 403]);
+
+const TIER_MAP: Record<string, number> = {
+  opus: 1,
+  codex: 1,
+  sonnet: 2,
+  "4o-mini": 2,
+};
+const DEFAULT_ORDER = ["opus", "codex", "sonnet", "4o-mini"];
+
+type CircuitState = {
+  version: number;
+  updated_at: string;
+  config: {
+    window_size: number;
+    trip_threshold: number;
+    cooldown_sec: number;
+    recovery_probe_pct: number;
+    success_to_close: number;
+  };
+  providers: Record<string, any>;
+};
+
+function nowTs(): number {
+  return Date.now() / 1000;
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? err.message : String(err));
-  process.exit(1);
-});
+function iso(ts?: number): string {
+  return new Date((ts ?? nowTs()) * 1000).toISOString();
+}
+
+function stableStringify(value: any, indent = 2): string {
+  const seen = new WeakSet();
+  const sorter = (val: any): any => {
+    if (val && typeof val === "object") {
+      if (seen.has(val)) return val;
+      seen.add(val);
+      if (Array.isArray(val)) return val.map((v) => sorter(v));
+      const out: Record<string, any> = {};
+      for (const key of Object.keys(val).sort()) {
+        out[key] = sorter(val[key]);
+      }
+      return out;
+    }
+    return val;
+  };
+  return JSON.stringify(sorter(value), null, indent);
+}
+
+function writeJsonAtomic(filePath: string, data: any): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  const tmp = `${filePath}.tmp`;
+  fs.writeFileSync(tmp, stableStringify(data, 2), "utf8");
+  fs.renameSync(tmp, filePath);
+}
+
+function defaultState(): CircuitState {
+  return {
+    version: 1,
+    updated_at: iso(),
+    config: {
+      window_size: WINDOW_SIZE,
+      trip_threshold: TRIP_THRESHOLD,
+      cooldown_sec: DEFAULT_COOLDOWN_SEC,
+      recovery_probe_pct: RECOVERY_PROBE_PCT,
+      success_to_close: SUCCESS_TO_CLOSE,
+    },
+    providers: {},
+  };
+}
+
+function loadState(): CircuitState {
+  if (!fs.existsSync(STATE_PATH)) return defaultState();
+  try {
+    const data = readJsonFile<Record<string, any>>(STATE_PATH);
+    if (!data || typeof data !== "object") return defaultState();
+    data.config = data.config ?? {};
+    data.config.window_size ??= WINDOW_SIZE;
+    data.config.trip_threshold ??= TRIP_THRESHOLD;
+    data.config.cooldown_sec ??= DEFAULT_COOLDOWN_SEC;
+    data.config.recovery_probe_pct ??= RECOVERY_PROBE_PCT;
+    data.config.success_to_close ??= SUCCESS_TO_CLOSE;
+    data.providers = data.providers ?? {};
+    return data as CircuitState;
+  } catch {
+    return defaultState();
+  }
+}
+
+function saveState(state: CircuitState): void {
+  state.updated_at = iso();
+  writeJsonAtomic(STATE_PATH, state);
+}
+
+function classify(statusCode: number): string {
+  if (statusCode >= 200 && statusCode < 400) return "success";
+  if (FATAL_CODES.has(statusCode)) return "fatal";
+  if (RETRYABLE_CODES.has(statusCode)) return "retryable";
+  if (statusCode >= 400) return "non_retryable";
+  return "non_retryable";
+}
+
+function providerState(state: CircuitState, provider: string): Record<string, any> {
+  if (!state.providers[provider]) {
+    state.providers[provider] = {
+      provider,
+      tier: TIER_MAP[provider] ?? 2,
+      circuit: "closed",
+      opened_at: null,
+      half_open_since: null,
+      window: [],
+      metrics: {
+        total: 0,
+        retryable: 0,
+        non_retryable: 0,
+        fatal: 0,
+        success: 0,
+        non_retryable_rate: 0.0,
+      },
+      consecutive_successes: 0,
+      needs_human_page: false,
+      last_error_code: null,
+      updated_at: iso(),
+    };
+  }
+  return state.providers[provider];
+}
+
+function recomputeMetrics(p: Record<string, any>): void {
+  const window = (p.window ?? []).slice(-WINDOW_SIZE);
+  p.window = window;
+  const total = window.length;
+  const retryable = window.filter((x: any) => x.kind === "retryable").length;
+  const nonRetryable = window.filter((x: any) => x.kind === "non_retryable" || x.kind === "fatal").length;
+  const fatal = window.filter((x: any) => x.kind === "fatal").length;
+  const success = window.filter((x: any) => x.kind === "success").length;
+  p.metrics = {
+    total,
+    retryable,
+    non_retryable: nonRetryable,
+    fatal,
+    success,
+    non_retryable_rate: total ? nonRetryable / total : 0.0,
+  };
+}
+
+function maybeTransitionForTime(p: Record<string, any>, cooldownSec: number): void {
+  if (p.circuit !== "open" || !p.opened_at) return;
+  if (nowTs() - Number(p.opened_at) >= cooldownSec) {
+    p.circuit = "half_open";
+    p.half_open_since = nowTs();
+    p.consecutive_successes = 0;
+  }
+}
+
+function recordRequest(state: CircuitState, provider: string, statusCode: number): Record<string, any> {
+  const p = providerState(state, provider);
+  const cfg = state.config;
+  const cooldownSec = Number(cfg.cooldown_sec ?? DEFAULT_COOLDOWN_SEC);
+  const tripThreshold = Number(cfg.trip_threshold ?? TRIP_THRESHOLD);
+  const successToClose = Number(cfg.success_to_close ?? SUCCESS_TO_CLOSE);
+
+  maybeTransitionForTime(p, cooldownSec);
+
+  const kind = classify(statusCode);
+  if (kind === "fatal") {
+    p.needs_human_page = true;
+    p.last_error_code = statusCode;
+  }
+
+  p.window.push({ ts: nowTs(), status_code: statusCode, kind });
+  recomputeMetrics(p);
+
+  if (p.circuit === "closed") {
+    if (p.metrics.non_retryable_rate >= tripThreshold && p.metrics.total >= 5) {
+      p.circuit = "open";
+      p.opened_at = nowTs();
+      p.half_open_since = null;
+      p.consecutive_successes = 0;
+    }
+  } else if (p.circuit === "open") {
+    maybeTransitionForTime(p, cooldownSec);
+  } else if (p.circuit === "half_open") {
+    if (kind === "success") {
+      p.consecutive_successes += 1;
+      if (p.consecutive_successes >= successToClose) {
+        p.circuit = "closed";
+        p.opened_at = null;
+        p.half_open_since = null;
+        p.consecutive_successes = 0;
+        p.needs_human_page = false;
+      }
+    } else {
+      p.circuit = "open";
+      p.opened_at = nowTs();
+      p.half_open_since = null;
+      p.consecutive_successes = 0;
+    }
+  }
+
+  p.updated_at = iso();
+  return p;
+}
+
+function probeAllowed(provider: string, pct: number): boolean {
+  const seed = `${provider}:${Math.floor(Date.now() / 1000)}`;
+  const hash = crypto.createHash("sha256").update(seed).digest("hex");
+  const bucket = Number.parseInt(hash.slice(0, 8), 16) / 0xffffffff;
+  return bucket < pct;
+}
+
+function recommendation(state: CircuitState): Record<string, any> {
+  const cfg = state.config ?? {};
+  const cooldownSec = Number(cfg.cooldown_sec ?? DEFAULT_COOLDOWN_SEC);
+  const probePct = Number(cfg.recovery_probe_pct ?? RECOVERY_PROBE_PCT);
+
+  for (const name of Object.keys(state.providers ?? {})) {
+    maybeTransitionForTime(state.providers[name], cooldownSec);
+  }
+
+  const tier1 = DEFAULT_ORDER.filter((p) => (TIER_MAP[p] ?? 2) === 1);
+  const candidates: Array<[string, number, Record<string, any>]> = [];
+  for (const name of tier1) {
+    const p = providerState(state, name);
+    const circuit = p.circuit ?? "closed";
+    if (circuit === "closed") {
+      candidates.push([name, 0, p]);
+    } else if (circuit === "half_open" && probeAllowed(name, probePct)) {
+      candidates.push([name, 1, p]);
+    }
+  }
+
+  if (candidates.length) {
+    candidates.sort((a, b) => {
+      if (a[1] !== b[1]) return a[1] - b[1];
+      const sa = Number(a[2]?.metrics?.success ?? 0);
+      const sb = Number(b[2]?.metrics?.success ?? 0);
+      if (sa !== sb) return sb - sa;
+      return a[0].localeCompare(b[0]);
+    });
+    const chosen = candidates[0][0];
+    return {
+      recommended_provider: chosen,
+      tier: 1,
+      reason: "tier1_available",
+      tier2_blocked_by_policy: true,
+    };
+  }
+
+  return {
+    recommended_provider: null,
+    tier: 1,
+    reason: "all_tier1_open_or_probe_not_allowed",
+    tier2_blocked_by_policy: true,
+  };
+}
+
+function cmdRecord(provider: string, statusCode: number, cooldownOverride: number | null): number {
+  const state = loadState();
+  if (cooldownOverride !== null) state.config.cooldown_sec = cooldownOverride;
+  const p = recordRequest(state, provider, statusCode);
+  const rec = recommendation(state);
+  saveState(state);
+
+  const out = {
+    provider,
+    status_code: statusCode,
+    classification: classify(statusCode),
+    circuit: p.circuit,
+    consecutive_successes: p.consecutive_successes,
+    metrics: p.metrics,
+    needs_human_page: p.needs_human_page,
+    recommendation: rec,
+  };
+  console.log(JSON.stringify(out, null, 2));
+
+  if (FATAL_CODES.has(statusCode)) {
+    console.error(`FATAL_AUTH_ERROR provider=${provider} code=${statusCode} -> page human immediately`);
+  }
+  return 0;
+}
+
+function cmdStatus(): number {
+  const state = loadState();
+  const rec = recommendation(state);
+  const providers = state.providers ?? {};
+  const ordered = Object.keys(providers).sort((a, b) => {
+    const ta = TIER_MAP[a] ?? 99;
+    const tb = TIER_MAP[b] ?? 99;
+    if (ta !== tb) return ta - tb;
+    return a.localeCompare(b);
+  });
+  const payload = {
+    state_path: STATE_PATH,
+    updated_at: state.updated_at,
+    config: state.config ?? {},
+    providers: ordered.map((n) => ({ name: n, ...providers[n] })),
+    recommendation: rec,
+  };
+  console.log(JSON.stringify(payload, null, 2));
+  return 0;
+}
+
+function cmdRecommend(): number {
+  const state = loadState();
+  const rec = recommendation(state);
+  saveState(state);
+  console.log(JSON.stringify(rec, null, 2));
+  return 0;
+}
+
+function parseArgs(argv: string[]): {
+  record: [string, number] | null;
+  status: boolean;
+  recommend: boolean;
+  cooldown: number | null;
+} {
+  const args = { record: null as [string, number] | null, status: false, recommend: false, cooldown: null as number | null };
+  for (let i = 0; i < argv.length; i += 1) {
+    const a = argv[i];
+    if (a === "--record") {
+      const provider = argv[++i];
+      const code = argv[++i];
+      if (provider && code) args.record = [provider, Number.parseInt(code, 10)];
+    } else if (a === "--status") {
+      args.status = true;
+    } else if (a === "--recommend") {
+      args.recommend = true;
+    } else if (a === "--cooldown") {
+      args.cooldown = Number.parseInt(argv[++i] ?? "0", 10);
+    }
+  }
+  return args;
+}
+
+async function main(): Promise<number> {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.record) {
+    return cmdRecord(args.record[0], args.record[1], args.cooldown);
+  }
+  if (args.status) return cmdStatus();
+  return cmdRecommend();
+}
+
+main()
+  .then((code) => process.exit(code))
+  .catch((err) => {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });

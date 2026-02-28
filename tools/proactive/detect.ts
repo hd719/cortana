@@ -747,9 +747,16 @@ async function main(): Promise<number> {
   const allSignals: Signal[] = [];
   const errors: string[] = [];
 
-  for (const collector of [collectCalendar, collectPortfolio, collectEmail, collectBehavioral]) {
+  const collectors = [
+    { name: "collect_calendar", fn: collectCalendar },
+    { name: "collect_portfolio", fn: collectPortfolio },
+    { name: "collect_email", fn: collectEmail },
+    { name: "collect_behavioral", fn: collectBehavioral },
+  ];
+
+  for (const collector of collectors) {
     try {
-      allSignals.push(...(await collector(now)));
+      allSignals.push(...(await collector.fn(now)));
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       errors.push(`${collector.name}: ${msg}`);

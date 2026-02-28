@@ -1,24 +1,195 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
-async function main(): Promise<void> {
-  const py = "#!/usr/bin/env python3\n\"\"\"Durable listener daemon for Cortana event bus events.\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport datetime as dt\nimport json\nimport os\nimport subprocess\nimport sys\nimport time\nfrom pathlib import Path\n\nPSQL_BIN = \"/opt/homebrew/opt/postgresql@17/bin/psql\"\nDEFAULT_EVENT_TYPES = [\n    \"email_received\",\n    \"task_created\",\n    \"calendar_approaching\",\n    \"portfolio_alert\",\n    \"health_update\",\n]\n\n\ndef now_iso() -> str:\n    return dt.datetime.now(dt.timezone.utc).isoformat()\n\n\ndef parse_args() -> argparse.Namespace:\n    parser = argparse.ArgumentParser(description=\"Listen to Cortana event bus (durable table tailer)\")\n    parser.add_argument(\"--db\", default=\"cortana\", help=\"PostgreSQL database name\")\n    parser.add_argument(\n        \"--event-types\",\n        nargs=\"+\",\n        default=DEFAULT_EVENT_TYPES,\n        help=\"Event types to consume\",\n    )\n    parser.add_argument(\"--poll-seconds\", type=float, default=1.0, help=\"Polling interval\")\n    parser.add_argument(\n        \"--from-id\",\n        type=int,\n        default=None,\n        help=\"Start from specific event id (default: latest, then only new events)\",\n    )\n    parser.add_argument(\n        \"--from-beginning\",\n        action=\"store_true\",\n        help=\"Consume from event id 0\",\n    )\n    parser.add_argument(\n        \"--log-file\",\n        default=str(Path.home() / \"clawd\" / \"tmp\" / \"event-bus-listener.log\"),\n        help=\"Append-only JSONL log file\",\n    )\n    parser.add_argument(\n        \"--mark-delivered\",\n        action=\"store_true\",\n        help=\"Mark consumed events as delivered\",\n    )\n    return parser.parse_args()\n\n\ndef append_jsonl(path: str, obj: dict) -> None:\n    log_path = Path(path)\n    log_path.parent.mkdir(parents=True, exist_ok=True)\n    with log_path.open(\"a\", encoding=\"utf-8\") as f:\n        f.write(json.dumps(obj, ensure_ascii=False) + \"\\n\")\n\n\ndef run_psql(db: str, sql: str) -> tuple[int, str, str]:\n    env = os.environ.copy()\n    env[\"PATH\"] = \"/opt/homebrew/opt/postgresql@17/bin:\" + env.get(\"PATH\", \"\")\n    proc = subprocess.run(\n        [PSQL_BIN, db, \"-X\", \"-q\", \"-At\", \"-c\", sql],\n        capture_output=True,\n        text=True,\n        env=env,\n    )\n    return proc.returncode, proc.stdout.strip(), proc.stderr.strip()\n\n\ndef initial_cursor(args: argparse.Namespace) -> int:\n    if args.from_beginning:\n        return 0\n    if args.from_id is not None:\n        return args.from_id\n\n    rc, out, err = run_psql(args.db, \"SELECT COALESCE(MAX(id), 0) FROM cortana_event_bus_events;\")\n    if rc != 0:\n        raise RuntimeError(f\"failed to read initial cursor: {err}\")\n    return int(out or 0)\n\n\ndef fetch_new_events(db: str, last_id: int, event_types: list[str]) -> list[dict]:\n    quoted_types = \",\".join(f\"'{t.replace(\"'\", \"''\")}'\" for t in event_types)\n    sql = f\"\"\"\n        SELECT jsonb_build_object(\n            'id', id,\n            'created_at', created_at,\n            'event_type', event_type,\n            'source', source,\n            'payload', payload,\n            'correlation_id', correlation_id,\n            'delivered', delivered\n        )::text\n        FROM cortana_event_bus_events\n        WHERE id > {last_id}\n          AND event_type IN ({quoted_types})\n        ORDER BY id ASC;\n    \"\"\"\n    rc, out, err = run_psql(db, sql)\n    if rc != 0:\n        raise RuntimeError(err)\n\n    events: list[dict] = []\n    if not out:\n        return events\n\n    for line in out.splitlines():\n        line = line.strip()\n        if not line:\n            continue\n        events.append(json.loads(line))\n    return events\n\n\ndef mark_delivered(db: str, event_id: int) -> None:\n    sql = f\"SELECT cortana_event_bus_mark_delivered({event_id});\"\n    rc, _, err = run_psql(db, sql)\n    if rc != 0:\n        print(f\"WARN mark_delivered failed for event {event_id}: {err}\", file=sys.stderr)\n\n\ndef run(args: argparse.Namespace) -> int:\n    last_id = initial_cursor(args)\n    startup = {\n        \"ts\": now_iso(),\n        \"type\": \"listener_started\",\n        \"db\": args.db,\n        \"last_id\": last_id,\n        \"event_types\": args.event_types,\n        \"poll_seconds\": args.poll_seconds,\n    }\n    append_jsonl(args.log_file, startup)\n    print(json.dumps(startup, ensure_ascii=False), flush=True)\n\n    try:\n        while True:\n            events = fetch_new_events(args.db, last_id, args.event_types)\n            for event in events:\n                envelope = {\n                    \"ts\": now_iso(),\n                    \"channel\": f\"cortana_{event['event_type']}\",\n                    \"envelope\": event,\n                }\n                append_jsonl(args.log_file, envelope)\n                print(json.dumps(envelope, ensure_ascii=False), flush=True)\n                last_id = max(last_id, int(event[\"id\"]))\n                if args.mark_delivered:\n                    mark_delivered(args.db, int(event[\"id\"]))\n            time.sleep(args.poll_seconds)\n    except KeyboardInterrupt:\n        shutdown = {\"ts\": now_iso(), \"type\": \"listener_stopped\", \"last_id\": last_id}\n        append_jsonl(args.log_file, shutdown)\n        print(json.dumps(shutdown, ensure_ascii=False), flush=True)\n        return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(run(parse_args()))\n";
-  const dir = mkdtempSync(join(tmpdir(), 'pywrap-'));
-  const script = join(dir, 'script.py');
-  writeFileSync(script, py, 'utf8');
-  const proc = spawnSync('python3', [script, ...process.argv.slice(2)], { stdio: 'inherit' });
-  rmSync(dir, { recursive: true, force: true });
-  if (proc.error) {
-    console.error(String(proc.error));
-    process.exit(1);
-  }
-  process.exit(proc.status ?? 1);
+import fs from "node:fs";
+import path from "node:path";
+import os from "node:os";
+import { runPsql } from "../lib/db.js";
+
+const DEFAULT_EVENT_TYPES = [
+  "email_received",
+  "task_created",
+  "calendar_approaching",
+  "portfolio_alert",
+  "health_update",
+];
+
+type Args = {
+  db: string;
+  eventTypes: string[];
+  pollSeconds: number;
+  fromId: number | null;
+  fromBeginning: boolean;
+  logFile: string;
+  markDelivered: boolean;
+};
+
+function nowIso(): string {
+  return new Date().toISOString();
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? err.message : String(err));
-  process.exit(1);
-});
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function parseArgs(argv: string[]): Args {
+  const args: Args = {
+    db: "cortana",
+    eventTypes: [...DEFAULT_EVENT_TYPES],
+    pollSeconds: 1.0,
+    fromId: null,
+    fromBeginning: false,
+    logFile: path.join(os.homedir(), "clawd", "tmp", "event-bus-listener.log"),
+    markDelivered: false,
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const a = argv[i];
+    if (a === "--db") {
+      args.db = argv[++i] ?? args.db;
+    } else if (a === "--event-types") {
+      const vals: string[] = [];
+      let j = i + 1;
+      while (j < argv.length && !argv[j].startsWith("--")) {
+        vals.push(argv[j]);
+        j += 1;
+      }
+      if (vals.length) args.eventTypes = vals;
+      i = j - 1;
+    } else if (a === "--poll-seconds") {
+      args.pollSeconds = Number.parseFloat(argv[++i] ?? "1");
+    } else if (a === "--from-id") {
+      const raw = argv[++i];
+      args.fromId = raw ? Number.parseInt(raw, 10) : null;
+    } else if (a === "--from-beginning") {
+      args.fromBeginning = true;
+    } else if (a === "--log-file") {
+      args.logFile = argv[++i] ?? args.logFile;
+    } else if (a === "--mark-delivered") {
+      args.markDelivered = true;
+    }
+  }
+
+  return args;
+}
+
+function appendJsonl(filePath: string, obj: Record<string, unknown>): void {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.appendFileSync(filePath, `${JSON.stringify(obj)}\n`, "utf8");
+}
+
+function sqlEscape(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+function runPsqlText(db: string, sql: string): string {
+  const proc = runPsql(sql, {
+    db,
+    args: ["-X", "-q", "-At"],
+    stdio: "pipe",
+  });
+  if (proc.status !== 0) {
+    throw new Error((proc.stderr || "").trim() || "psql failed");
+  }
+  return (proc.stdout || "").trim();
+}
+
+function initialCursor(args: Args): number {
+  if (args.fromBeginning) return 0;
+  if (args.fromId !== null && !Number.isNaN(args.fromId)) return args.fromId;
+  const out = runPsqlText(args.db, "SELECT COALESCE(MAX(id), 0) FROM cortana_event_bus_events;");
+  return Number.parseInt(out || "0", 10);
+}
+
+function fetchNewEvents(db: string, lastId: number, eventTypes: string[]): Array<Record<string, any>> {
+  const quoted = eventTypes.map((t) => `'${sqlEscape(t)}'`).join(",");
+  const sql = `
+        SELECT jsonb_build_object(
+            'id', id,
+            'created_at', created_at,
+            'event_type', event_type,
+            'source', source,
+            'payload', payload,
+            'correlation_id', correlation_id,
+            'delivered', delivered
+        )::text
+        FROM cortana_event_bus_events
+        WHERE id > ${lastId}
+          AND event_type IN (${quoted})
+        ORDER BY id ASC;
+    `;
+  const out = runPsqlText(db, sql);
+  if (!out) return [];
+  const events: Array<Record<string, any>> = [];
+  for (const line of out.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    events.push(JSON.parse(trimmed));
+  }
+  return events;
+}
+
+function markDelivered(db: string, eventId: number): void {
+  const sql = `SELECT cortana_event_bus_mark_delivered(${eventId});`;
+  const proc = runPsql(sql, { db, args: ["-X", "-q", "-At"], stdio: "pipe" });
+  if (proc.status !== 0) {
+    const msg = (proc.stderr || "").trim();
+    console.error(`WARN mark_delivered failed for event ${eventId}: ${msg}`);
+  }
+}
+
+async function main(): Promise<number> {
+  const args = parseArgs(process.argv.slice(2));
+  const lastIdStart = initialCursor(args);
+  let lastId = lastIdStart;
+
+  const startup = {
+    ts: nowIso(),
+    type: "listener_started",
+    db: args.db,
+    last_id: lastId,
+    event_types: args.eventTypes,
+    poll_seconds: args.pollSeconds,
+  };
+  appendJsonl(args.logFile, startup);
+  console.log(JSON.stringify(startup));
+
+  let interrupted = false;
+  process.on("SIGINT", () => {
+    interrupted = true;
+  });
+
+  try {
+    while (!interrupted) {
+      const events = fetchNewEvents(args.db, lastId, args.eventTypes);
+      for (const event of events) {
+        const envelope = {
+          ts: nowIso(),
+          channel: `cortana_${event.event_type}`,
+          envelope: event,
+        };
+        appendJsonl(args.logFile, envelope);
+        console.log(JSON.stringify(envelope));
+        lastId = Math.max(lastId, Number.parseInt(String(event.id), 10));
+        if (args.markDelivered) {
+          markDelivered(args.db, Number.parseInt(String(event.id), 10));
+        }
+      }
+      await sleep(Math.max(0, args.pollSeconds) * 1000);
+    }
+  } finally {
+    if (interrupted) {
+      const shutdown = { ts: nowIso(), type: "listener_stopped", last_id: lastId };
+      appendJsonl(args.logFile, shutdown);
+      console.log(JSON.stringify(shutdown));
+    }
+  }
+
+  return 0;
+}
+
+main()
+  .then((code) => process.exit(code))
+  .catch((err) => {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });

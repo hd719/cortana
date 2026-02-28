@@ -2,18 +2,16 @@
 
 import fs from "fs";
 import path from "path";
-import os from "os";
 import { spawnSync } from "child_process";
-import { fileURLToPath } from "url";
 import { computeAndStoreScorecard } from "./autonomy_scorecard.js";
+import { PSQL_BIN, resolveHomePath, resolveRepoPath } from "../tools/lib/paths.js";
+import { readJsonFile } from "../tools/lib/json-file.js";
 
-const PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql";
-const JOBS_FILE = path.join(os.homedir(), ".openclaw/cron/jobs.json");
-const HEARTBEAT_STATE_FILE = path.join(os.homedir(), "clawd/memory/heartbeat-state.json");
-const HEARTBEAT_VALIDATOR = path.join(os.homedir(), "clawd/tools/heartbeat/validate-heartbeat-state.sh");
-const REMEDIATION_STATE_FILE = path.join(os.homedir(), "clawd/proprioception/state/heartbeat-remediation.json");
-const scriptDir = path.dirname(fileURLToPath(import.meta.url));
-const CRON_DELIVERY_CHECK = path.resolve(scriptDir, "..", "tools/alerting/check-cron-delivery.sh");
+const JOBS_FILE = resolveHomePath(".openclaw/cron/jobs.json");
+const HEARTBEAT_STATE_FILE = resolveHomePath("clawd/memory/heartbeat-state.json");
+const HEARTBEAT_VALIDATOR = resolveHomePath("clawd/tools/heartbeat/validate-heartbeat-state.sh");
+const REMEDIATION_STATE_FILE = resolveHomePath("clawd/proprioception/state/heartbeat-remediation.json");
+const CRON_DELIVERY_CHECK = resolveRepoPath("tools/alerting/check-cron-delivery.sh");
 
 const REMEDIATION_COOLDOWN_SEC = 30 * 60;
 const MAX_REMEDIATIONS_PER_DAY = 3;
@@ -111,7 +109,7 @@ function validateHeartbeatState(data: unknown, now: number): HeartbeatState {
       const lastLogged = s.lastLogged;
       clean.subagentWatchdog = {
         lastRun: Number(s.lastRun ?? 0),
-        lastLogged: (lastLogged && typeof lastLogged === "object" && !Array.isArray(lastLogged))
+        lastLogged: lastLogged && typeof lastLogged === "object" && !Array.isArray(lastLogged)
           ? (lastLogged as Record<string, number>)
           : {},
       };
@@ -139,24 +137,29 @@ function loadHeartbeatState(now: number): [HeartbeatState, boolean, string] {
 
 function runCmd(cmd: string, timeout: number): { ok: boolean; duration_ms: number; error: string | null } {
   const start = Date.now();
-  try {
-    const proc = spawnSync(cmd, {
-      shell: true,
-      encoding: "utf8",
-      timeout: timeout * 1000,
-    });
-    const durationMs = Date.now() - start;
-    const ok = proc.status === 0;
-    let output = (proc.stderr || "").trim();
-    if (!output && !ok) {
-      output = (proc.stdout || "").trim();
-    }
-    return { ok, duration_ms: durationMs, error: output ? output.slice(0, 500) : null };
-  } catch (error) {
-    const durationMs = Date.now() - start;
-    const msg = error instanceof Error ? error.message : String(error);
-    return { ok: false, duration_ms: durationMs, error: msg.slice(0, 500) };
+  const proc = spawnSync(cmd, {
+    shell: true,
+    encoding: "utf8",
+    timeout: timeout * 1000,
+  });
+  const durationMs = Date.now() - start;
+  const ok = proc.status === 0;
+
+  let output = (proc.stderr || "").trim();
+  if (!output && !ok) {
+    output = (proc.stdout || "").trim();
   }
+
+  if (!output && proc.error) {
+    const err = proc.error as NodeJS.ErrnoException;
+    if (err.code === "ETIMEDOUT") {
+      output = "timeout";
+    } else {
+      output = err.message || "error";
+    }
+  }
+
+  return { ok, duration_ms: durationMs, error: output ? output.slice(0, 500) : null };
 }
 
 function sqlEscape(val: string): string {
@@ -286,20 +289,18 @@ function collectToolHealth(): ToolHealthRow[] {
 }
 
 function loadJobs(): Array<Record<string, unknown>> {
-  if (!fs.existsSync(JOBS_FILE)) {
-    return [];
-  }
-  const payload = JSON.parse(fs.readFileSync(JOBS_FILE, "utf8"));
-  return (payload?.jobs as Array<Record<string, unknown>>) ?? [];
+  const payload = readJsonFile<{ jobs?: Array<Record<string, unknown>> }>(JOBS_FILE);
+  if (!payload || !Array.isArray(payload.jobs)) return [];
+  return payload.jobs;
 }
 
 function estimateIntervalMs(job: Record<string, unknown>, state: Record<string, unknown>, sched: Record<string, unknown>): number {
   if (sched.kind === "every") {
-    return Number(sched.everyMs ?? 0);
+    return Number(sched.everyMs || 0);
   }
   if (sched.kind === "cron") {
-    const nextRun = state.nextRunAtMs as number | undefined;
-    const lastRun = (state.lastRunAtMs as number | undefined) ?? (state.lastRunAt as number | undefined);
+    const nextRun = (state.nextRunAtMs as number | undefined) || 0;
+    const lastRun = (state.lastRunAtMs as number | undefined) || (state.lastRunAt as number | undefined) || 0;
     if (nextRun && lastRun) {
       return Math.max(nextRun - lastRun, 0);
     }
@@ -313,12 +314,12 @@ function collectCronHealth(jobs: Array<Record<string, unknown>>, nowMs: number):
 
   for (const job of jobs) {
     if (!job.enabled) continue;
-    const state = (job.state as Record<string, unknown>) ?? {};
-    const sched = (job.schedule as Record<string, unknown>) ?? {};
-    const lastRun = (state.lastRunAtMs as number | undefined) ?? (state.lastRunAt as number | undefined);
-    const lastStatus = (state.lastStatus as string | undefined) ?? (state.lastRunStatus as string | undefined);
+    const state = (job.state as Record<string, unknown>) || {};
+    const sched = (job.schedule as Record<string, unknown>) || {};
+    const lastRun = (state.lastRunAtMs as number | undefined) || (state.lastRunAt as number | undefined);
+    const lastStatus = (state.lastStatus as string | undefined) || (state.lastRunStatus as string | undefined);
     const durationMs = state.lastDurationMs as number | undefined;
-    const consecutiveErrors = Number(state.consecutiveErrors ?? 0);
+    const consecutiveErrors = Number(state.consecutiveErrors || 0);
 
     let status = "ok";
     const intervalMs = estimateIntervalMs(job, state, sched);
@@ -369,16 +370,12 @@ function isHeartbeatJob(job: Record<string, unknown>): boolean {
 }
 
 function loadRemediationState(): Record<string, unknown> {
-  if (!fs.existsSync(REMEDIATION_STATE_FILE)) {
-    return { jobs: {} };
-  }
-  try {
-    const data = JSON.parse(fs.readFileSync(REMEDIATION_STATE_FILE, "utf8"));
-    if (data && typeof data === "object" && !Array.isArray(data) && typeof (data as any).jobs === "object") {
+  const data = readJsonFile<Record<string, unknown>>(REMEDIATION_STATE_FILE);
+  if (data && typeof data === "object" && !Array.isArray(data)) {
+    const jobs = (data as any).jobs;
+    if (jobs && typeof jobs === "object" && !Array.isArray(jobs)) {
       return data as Record<string, unknown>;
     }
-  } catch {
-    return { jobs: {} };
   }
   return { jobs: {} };
 }
@@ -410,7 +407,7 @@ function remediateHeartbeatMisses(
   if (!hbJobs.length) return [[], false];
 
   const remState = loadRemediationState();
-  const remJobs = (remState.jobs as Record<string, any>) ?? {};
+  const remJobs = (remState.jobs as Record<string, any>) || {};
   const nowSec = Math.floor(nowMs / 1000);
   let changedJobsFile = false;
   const events: EventRow[] = [];
@@ -423,10 +420,10 @@ function remediateHeartbeatMisses(
     const status = cronRow?.status ?? "ok";
     const consecutive = cronRow?.consecutive_failures ?? 0;
 
-    const state = (job.state as Record<string, unknown>) ?? {};
+    const state = (job.state as Record<string, unknown>) || {};
     job.state = state;
 
-    const intervalMs = estimateIntervalMs(job, state, (job.schedule as Record<string, unknown>) ?? {});
+    const intervalMs = estimateIntervalMs(job, state, (job.schedule as Record<string, unknown>) || {});
     const runningAt = state.runningAtMs as number | undefined;
     const staleRunning = Boolean(runningAt && (nowMs - Number(runningAt)) > Math.max(intervalMs * 2, STALE_RUNNING_FALLBACK_MS));
 

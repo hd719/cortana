@@ -6,32 +6,38 @@ import { randomUUID } from "crypto";
 const DB = "cortana";
 const PSQL = ["psql", DB, "-v", "ON_ERROR_STOP=1"];
 
+type Row = Record<string, string>;
+
+type MappedRow = {
+  id: string;
+  source: string;
+  category: string;
+  severity: string;
+  summary: string;
+  details: string;
+  recurrence_key: string;
+  status: string;
+  applied: boolean;
+  lesson: string;
+};
+
 function parseCsv(text: string): string[][] {
   const rows: string[][] = [];
   let row: string[] = [];
   let field = "";
   let inQuotes = false;
 
-  const pushField = () => {
-    row.push(field);
-    field = "";
-  };
-
-  const pushRow = () => {
-    rows.push(row);
-    row = [];
-  };
-
   for (let i = 0; i < text.length; i += 1) {
     const ch = text[i];
-    const next = text[i + 1];
-
     if (inQuotes) {
-      if (ch === '"' && next === '"') {
-        field += '"';
-        i += 1;
-      } else if (ch === '"') {
-        inQuotes = false;
+      if (ch === '"') {
+        const next = text[i + 1];
+        if (next === '"') {
+          field += '"';
+          i += 1;
+        } else {
+          inQuotes = false;
+        }
       } else {
         field += ch;
       }
@@ -40,41 +46,61 @@ function parseCsv(text: string): string[][] {
 
     if (ch === '"') {
       inQuotes = true;
-    } else if (ch === ",") {
-      pushField();
-    } else if (ch === "\n") {
-      pushField();
-      pushRow();
-    } else if (ch === "\r") {
-      // ignore, handled by \n
-    } else {
-      field += ch;
+      continue;
     }
+
+    if (ch === ",") {
+      row.push(field);
+      field = "";
+      continue;
+    }
+
+    if (ch === "\n") {
+      row.push(field);
+      rows.push(row);
+      row = [];
+      field = "";
+      continue;
+    }
+
+    if (ch === "\r") {
+      continue;
+    }
+
+    field += ch;
   }
 
-  pushField();
-  pushRow();
+  if (field.length || row.length) {
+    row.push(field);
+    rows.push(row);
+  }
 
-  return rows.filter((r) => r.length > 1 || r[0] !== "");
+  return rows;
 }
 
-function runPsqlCsv(query: string): Array<Record<string, string>> {
+function parseCsvWithHeader(text: string): Row[] {
+  const rows = parseCsv(text);
+  if (!rows.length) return [];
+  const header = rows[0];
+  const out: Row[] = [];
+  for (const row of rows.slice(1)) {
+    if (row.length === 1 && row[0] === "") continue;
+    const obj: Row = {};
+    for (let i = 0; i < header.length; i += 1) {
+      obj[header[i]] = row[i] ?? "";
+    }
+    out.push(obj);
+  }
+  return out;
+}
+
+function runPsqlCsv(query: string): Row[] {
   const cmd = [...PSQL, "-c", `COPY (${query}) TO STDOUT WITH CSV HEADER`];
   const out = spawnSync(cmd[0], cmd.slice(1), { encoding: "utf8" });
   if (out.status !== 0) {
     throw new Error(out.stderr || out.stdout || "psql failed");
   }
-  const raw = out.stdout || "";
-  const rows = parseCsv(raw);
-  if (!rows.length) return [];
-  const headers = rows[0];
-  return rows.slice(1).map((row) => {
-    const obj: Record<string, string> = {};
-    for (let i = 0; i < headers.length; i += 1) {
-      obj[headers[i]] = row[i] ?? "";
-    }
-    return obj;
-  });
+  return parseCsvWithHeader(out.stdout || "");
 }
 
 function runSql(sql: string): void {
@@ -97,13 +123,12 @@ function normalizeRecurrence(lesson: string): string {
   return s.slice(0, 50).trim();
 }
 
-function mapRow(row: Record<string, string>) {
-  const ftype = (row.feedback_type || "").trim().toLowerCase();
-  const lesson = row.lesson || "";
+function mapRow(row: Row): MappedRow | null {
+  const ftype = String(row.feedback_type ?? "").trim().toLowerCase();
+  const lesson = row.lesson ?? "";
 
-  let category: string | null = null;
-  let severity: string | null = null;
-
+  let category: string;
+  let severity: string;
   if (ftype === "correction") {
     category = "correction";
     severity = /HARD RULE|MANDATORY|ZERO TOLERANCE/i.test(lesson) ? "high" : "medium";
@@ -120,8 +145,9 @@ function mapRow(row: Record<string, string>) {
     return null;
   }
 
-  const context = row.context || "";
-  const applied = ["t", "true", "1"].includes((row.applied || "").trim().toLowerCase());
+  const context = row.context ?? "";
+  const applied = String(row.applied ?? "").trim().toLowerCase();
+  const appliedFlag = ["t", "true", "1"].includes(applied);
 
   return {
     id: randomUUID(),
@@ -131,13 +157,24 @@ function mapRow(row: Record<string, string>) {
     summary: context.slice(0, 200),
     details: JSON.stringify({ context, lesson }),
     recurrence_key: normalizeRecurrence(lesson),
-    status: applied ? "verified" : "new",
-    applied,
+    status: appliedFlag ? "verified" : "new",
+    applied: appliedFlag,
     lesson,
   };
 }
 
-function main(): void {
+function printHelp(): void {
+  const text = `usage: sync-feedback.ts [-h]\n\noptions:\n  -h, --help  show this help message and exit`;
+  console.log(text);
+}
+
+async function main(): Promise<void> {
+  const argv = process.argv.slice(2);
+  if (argv.includes("-h") || argv.includes("--help")) {
+    printHelp();
+    return;
+  }
+
   const feedbackRows = runPsqlCsv(
     "SELECT id, feedback_type, context, lesson, applied, timestamp FROM cortana_feedback ORDER BY id"
   );
@@ -145,12 +182,11 @@ function main(): void {
   const existingKeysRows = runPsqlCsv(
     "SELECT recurrence_key FROM mc_feedback_items WHERE recurrence_key IS NOT NULL"
   );
-
-  const existingKeys = new Set<string>();
-  for (const row of existingKeysRows) {
-    const key = (row.recurrence_key || "").trim();
-    if (key) existingKeys.add(key);
-  }
+  const existingKeys = new Set(
+    existingKeysRows
+      .map((r) => (r.recurrence_key ?? "").trim())
+      .filter((k) => k)
+  );
 
   const seenNewKeys = new Set<string>();
   let inserts = 0;
@@ -160,8 +196,8 @@ function main(): void {
 
   const sqlLines: string[] = ["BEGIN;"];
 
-  for (const row of feedbackRows) {
-    const mapped = mapRow(row);
+  for (const r of feedbackRows) {
+    const mapped = mapRow(r);
     if (!mapped) {
       skippedUnmapped += 1;
       continue;
@@ -201,4 +237,8 @@ function main(): void {
   console.log(`- Skipped unmapped feedback_type: ${skippedUnmapped}`);
 }
 
-main();
+main().catch((err) => {
+  const msg = err instanceof Error ? err.message : String(err);
+  console.error(msg);
+  process.exit(1);
+});

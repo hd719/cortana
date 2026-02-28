@@ -1,21 +1,293 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+
+import { spawnSync } from "child_process";
+import { PSQL_BIN, POSTGRES_PATH } from "../lib/paths.js";
+import { withPostgresPath } from "../lib/db.js";
+
+const DB = "cortana";
+const USAGE_HANDLER = "/Users/hd/openclaw/skills/telegram-usage/handler.js";
+const COOLDOWN_SEC = 15 * 60;
+const HYSTERESIS_STEPS = 2;
+
+type UsageParsed = {
+  spend: number;
+  burn: number;
+  projected: number;
+  pct: number;
+  parser: string;
+};
+
+function sh(cmd: string[], env?: NodeJS.ProcessEnv) {
+  return spawnSync(cmd[0], cmd.slice(1), {
+    encoding: "utf8",
+    env: env ?? process.env,
+  });
+}
+
+function psql(sql: string, at = false): string {
+  const args = [DB, "-v", "ON_ERROR_STOP=1"];
+  if (at) args.push("-A", "-t", "-q", "-X");
+  args.push("-c", sql);
+  const env = withPostgresPath(process.env);
+  const proc = spawnSync(PSQL_BIN, args, { encoding: "utf8", env });
+  if (proc.status !== 0) {
+    const msg = (proc.stderr || proc.stdout || "psql failed").trim();
+    throw new Error(msg || "psql failed");
+  }
+  return (proc.stdout ?? "").trim();
+}
+
+function sqlEscape(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+function parseUsage(raw: string): UsageParsed {
+  let spend = 0.0;
+  let burn = 0.0;
+  let projected = 0.0;
+  let pct = 0.0;
+  let parser = "default_zero";
+
+  const txt = (raw || "").trim();
+  if (!txt) {
+    return { spend, burn, projected, pct, parser };
+  }
+
+  try {
+    const d = JSON.parse(txt);
+    parser = "json";
+    const pick = (...keys: string[]): number | null => {
+      for (const k of keys) {
+        if (d && typeof d === "object" && k in d && d[k] != null) {
+          const v = Number(d[k]);
+          if (!Number.isNaN(v)) return v;
+        }
+      }
+      return null;
+    };
+
+    spend = pick("spend_to_date", "spend", "cost", "total_spend") ?? 0.0;
+    burn = pick("burn_rate", "daily_burn", "rate") ?? 0.0;
+    projected = pick("projected", "projected_monthly", "forecast") ?? 0.0;
+    pct = pick("pct_used", "percent_used", "usage_pct") ?? 0.0;
+    return { spend, burn, projected, pct, parser };
+  } catch {
+    // fallthrough
+  }
+
+  parser = "text";
+  const mQuota = /quota\s*:\s*[^\d]*(\d+(?:\.\d+)?)%/i.exec(txt);
+  if (mQuota) {
+    const remaining = Number(mQuota[1]);
+    if (!Number.isNaN(remaining)) {
+      pct = Math.max(0, Math.min(100, Math.round((100 - remaining) * 100) / 100));
+    }
+  }
+
+  const mSpend = /(?:spend|cost|used)\s*[:=]?\s*\$?\s*(\d+(?:\.\d+)?)/i.exec(txt);
+  if (mSpend) {
+    const val = Number(mSpend[1]);
+    if (!Number.isNaN(val)) spend = val;
+  }
+
+  if (spend === 0 && pct > 0) {
+    projected = pct;
+  }
+
+  return { spend, burn, projected, pct, parser };
+}
+
+function targetTier(pct: number): number {
+  if (pct >= 90) return 3;
+  if (pct >= 75) return 2;
+  if (pct >= 50) return 1;
+  return 0;
+}
 
 async function main(): Promise<void> {
-  const py = "#!/usr/bin/env python3\nfrom __future__ import annotations\n\nimport json\nimport os\nimport re\nimport subprocess\nimport time\nfrom pathlib import Path\n\nPSQL = \"/opt/homebrew/opt/postgresql@17/bin/psql\"\nDB = \"cortana\"\nUSAGE_HANDLER = \"/Users/hd/openclaw/skills/telegram-usage/handler.js\"\nCOOLDOWN_SEC = 15 * 60\nHYSTERESIS_STEPS = 2\n\n\ndef sh(cmd: list[str]) -> subprocess.CompletedProcess:\n    return subprocess.run(cmd, capture_output=True, text=True)\n\n\ndef psql(sql: str, at: bool = False) -> str:\n    cmd = [PSQL, DB, \"-v\", \"ON_ERROR_STOP=1\"]\n    if at:\n        cmd.extend([\"-At\", \"-q\", \"-X\"])\n    cmd.extend([\"-c\", sql])\n    proc = sh(cmd)\n    if proc.returncode != 0:\n        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or \"psql failed\")\n    return proc.stdout.strip()\n\n\ndef sql_escape(s: str) -> str:\n    return s.replace(\"'\", \"''\")\n\n\ndef parse_usage(raw: str) -> dict:\n    spend = burn = projected = pct = 0.0\n    parser = \"default_zero\"\n\n    txt = (raw or \"\").strip()\n    if not txt:\n        return {\"spend\": 0.0, \"burn\": 0.0, \"projected\": 0.0, \"pct\": 0.0, \"parser\": parser}\n\n    try:\n        d = json.loads(txt)\n        parser = \"json\"\n\n        def pick(*keys):\n            for k in keys:\n                if isinstance(d, dict) and k in d and d[k] is not None:\n                    try:\n                        return float(d[k])\n                    except Exception:\n                        pass\n            return None\n\n        spend = pick(\"spend_to_date\", \"spend\", \"cost\", \"total_spend\") or 0.0\n        burn = pick(\"burn_rate\", \"daily_burn\", \"rate\") or 0.0\n        projected = pick(\"projected\", \"projected_monthly\", \"forecast\") or 0.0\n        pct = pick(\"pct_used\", \"percent_used\", \"usage_pct\") or 0.0\n        return {\"spend\": spend, \"burn\": burn, \"projected\": projected, \"pct\": pct, \"parser\": parser}\n    except Exception:\n        pass\n\n    parser = \"text\"\n    m_quota = re.search(r\"quota\\s*:\\s*[^\\d]*(\\d+(?:\\.\\d+)?)%\", txt, flags=re.I)\n    if m_quota:\n        # handler shows remaining quota; convert to used pct.\n        remaining = float(m_quota.group(1))\n        pct = max(0.0, min(100.0, round(100.0 - remaining, 2)))\n\n    m_spend = re.search(r\"(?:spend|cost|used)\\s*[:=]?\\s*\\$?\\s*(\\d+(?:\\.\\d+)?)\", txt, flags=re.I)\n    if m_spend:\n        spend = float(m_spend.group(1))\n\n    # If only percent exists, derive projected from a $100 nominal cap so downstream math remains sane.\n    if spend == 0 and pct > 0:\n        projected = pct\n    return {\"spend\": spend, \"burn\": burn, \"projected\": projected, \"pct\": pct, \"parser\": parser}\n\n\ndef target_tier(pct: float) -> int:\n    if pct >= 90:\n        return 3\n    if pct >= 75:\n        return 2\n    if pct >= 50:\n        return 1\n    return 0\n\n\ndef main() -> None:\n    os.environ[\"PATH\"] = \"/opt/homebrew/opt/postgresql@17/bin:\" + os.environ.get(\"PATH\", \"\")\n\n    usage_proc = sh([\"node\", USAGE_HANDLER])\n    usage_raw = usage_proc.stdout or \"\"\n    parsed = parse_usage(usage_raw)\n\n    breakdown = {\n        \"parser\": parsed[\"parser\"],\n        \"raw\": usage_raw[:4000],\n        \"stderr\": (usage_proc.stderr or \"\")[:800],\n    }\n\n    psql(\n        \"INSERT INTO cortana_budget_log (spend_to_date, burn_rate, projected, breakdown, pct_used) VALUES (\"\n        f\"{parsed['spend']}, {parsed['burn']}, {parsed['projected']}, '{sql_escape(json.dumps(breakdown))}'::jsonb, {parsed['pct']});\"\n    )\n\n    row = psql(\n        \"SELECT row_to_json(t)::text FROM (\"\n        \"SELECT id, health_score, status, budget_pct_used, throttle_tier, COALESCE(metadata,'{}'::jsonb) AS metadata \"\n        \"FROM cortana_self_model WHERE id=1) t;\",\n        at=True,\n    )\n    current = json.loads(row) if row else {\"throttle_tier\": 0, \"metadata\": {}}\n    metadata = current.get(\"metadata\") or {}\n    control = metadata.get(\"throttle_control\") if isinstance(metadata.get(\"throttle_control\"), dict) else {}\n\n    pct = float(parsed[\"pct\"])\n    candidate = target_tier(pct)\n    current_tier = int(current.get(\"throttle_tier\") or 0)\n\n    last_change_epoch = int(control.get(\"last_change_epoch\") or 0)\n    if not last_change_epoch:\n        latest_change = psql(\n            \"SELECT EXTRACT(EPOCH FROM COALESCE(MAX(timestamp), NOW() - INTERVAL '365 days'))::bigint \"\n            \"FROM cortana_throttle_log;\",\n            at=True,\n        )\n        try:\n            last_change_epoch = int((latest_change or \"0\").strip())\n        except Exception:\n            last_change_epoch = 0\n\n    now = int(time.time())\n    pending_tier = int(control.get(\"pending_tier\", current_tier))\n    pending_hits = int(control.get(\"pending_hits\", 0))\n\n    tier_to_apply = current_tier\n    throttle_reason = \"stable\"\n\n    if candidate == current_tier:\n        pending_tier = candidate\n        pending_hits = 0\n        throttle_reason = \"within_current_band\"\n    else:\n        if now - last_change_epoch < COOLDOWN_SEC:\n            throttle_reason = \"cooldown_hold\"\n            pending_tier = candidate\n            pending_hits = 1 if pending_tier != int(control.get(\"pending_tier\", -1)) else max(1, pending_hits)\n        else:\n            if pending_tier == candidate:\n                pending_hits += 1\n            else:\n                pending_tier = candidate\n                pending_hits = 1\n            throttle_reason = \"hysteresis_tracking\"\n            if pending_hits >= HYSTERESIS_STEPS:\n                tier_to_apply = candidate\n                pending_hits = 0\n                pending_tier = candidate\n                last_change_epoch = now\n                throttle_reason = \"hysteresis_commit\"\n\n    crons_total = int(psql(\"SELECT COUNT(*) FROM (SELECT DISTINCT ON (cron_name) cron_name FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t;\", at=True) or \"0\")\n    crons_healthy = int(psql(\"SELECT COUNT(*) FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t WHERE status='ok';\", at=True) or \"0\")\n\n    crons_failing = psql(\"SELECT COALESCE(array_agg(cron_name), '{}') FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t WHERE status='failed';\", at=True) or \"{}\"\n    crons_missed = psql(\"SELECT COALESCE(array_agg(cron_name), '{}') FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t WHERE status='missed';\", at=True) or \"{}\"\n    tools_up = psql(\"SELECT COALESCE(array_agg(tool_name), '{}') FROM (SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ORDER BY tool_name, timestamp DESC) t WHERE status='up';\", at=True) or \"{}\"\n    tools_down = psql(\"SELECT COALESCE(array_agg(tool_name), '{}') FROM (SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ORDER BY tool_name, timestamp DESC) t WHERE status<>'up';\", at=True) or \"{}\"\n\n    tools_down_count = int(psql(\"SELECT COUNT(*) FROM (SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ORDER BY tool_name, timestamp DESC) t WHERE status<>'up';\", at=True) or \"0\")\n    crons_fail_count = int(psql(\"SELECT COUNT(*) FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t WHERE status IN ('failed','missed');\", at=True) or \"0\")\n\n    budget_penalty = 30 if pct >= 90 else 20 if pct >= 75 else 10 if pct >= 50 else 0\n    health = max(0, int(100 - 10 * tools_down_count - 5 * crons_fail_count - budget_penalty))\n    status = \"nominal\" if health >= 80 else \"degraded\" if health >= 50 else \"critical\"\n\n    metadata[\"throttle_control\"] = {\n        \"pending_tier\": pending_tier,\n        \"pending_hits\": pending_hits,\n        \"last_change_epoch\": last_change_epoch,\n        \"cooldown_sec\": COOLDOWN_SEC,\n        \"hysteresis_steps\": HYSTERESIS_STEPS,\n        \"last_reason\": throttle_reason,\n    }\n    metadata[\"budget_parser\"] = {\n        \"mode\": parsed[\"parser\"],\n        \"captured_at\": int(time.time()),\n    }\n\n    psql(\n        \"INSERT INTO cortana_self_model (\"\n        \"id, health_score, status, budget_used, budget_pct_used, budget_burn_rate, budget_projected, throttle_tier, \"\n        \"crons_total, crons_healthy, crons_failing, crons_missed, tools_up, tools_down, metadata, updated_at\"\n        \") VALUES (\"\n        f\"1, {health}, '{status}', {parsed['spend']}, {pct}, {parsed['burn']}, {parsed['projected']}, {tier_to_apply}, \"\n        f\"{crons_total}, {crons_healthy}, '{sql_escape(crons_failing)}'::text[], '{sql_escape(crons_missed)}'::text[], \"\n        f\"'{sql_escape(tools_up)}'::text[], '{sql_escape(tools_down)}'::text[], '{sql_escape(json.dumps(metadata))}'::jsonb, NOW()\"\n        \") ON CONFLICT (id) DO UPDATE SET \"\n        \"health_score=EXCLUDED.health_score, status=EXCLUDED.status, budget_used=EXCLUDED.budget_used, \"\n        \"budget_pct_used=EXCLUDED.budget_pct_used, budget_burn_rate=EXCLUDED.budget_burn_rate, budget_projected=EXCLUDED.budget_projected, \"\n        \"throttle_tier=EXCLUDED.throttle_tier, crons_total=EXCLUDED.crons_total, crons_healthy=EXCLUDED.crons_healthy, \"\n        \"crons_failing=EXCLUDED.crons_failing, crons_missed=EXCLUDED.crons_missed, tools_up=EXCLUDED.tools_up, tools_down=EXCLUDED.tools_down, \"\n        \"metadata=EXCLUDED.metadata, updated_at=NOW();\"\n    )\n\n    if tier_to_apply != current_tier:\n        psql(\n            \"INSERT INTO cortana_throttle_log (tier_from, tier_to, reason, actions_taken) VALUES (\"\n            f\"{current_tier}, {tier_to_apply}, 'budget threshold evaluation ({throttle_reason})', ARRAY['auto-check']);\"\n        )\n\n    print(json.dumps({\n        \"ok\": True,\n        \"budget_pct_used\": pct,\n        \"throttle_before\": current_tier,\n        \"throttle_after\": tier_to_apply,\n        \"throttle_reason\": throttle_reason,\n        \"health\": health,\n        \"status\": status,\n    }))\n\n\nif __name__ == \"__main__\":\n    main()\n";
-  const dir = mkdtempSync(join(tmpdir(), 'pywrap-'));
-  const script = join(dir, 'script.py');
-  writeFileSync(script, py, 'utf8');
-  const proc = spawnSync('python3', [script, ...process.argv.slice(2)], { stdio: 'inherit' });
-  rmSync(dir, { recursive: true, force: true });
-  if (proc.error) {
-    console.error(String(proc.error));
-    process.exit(1);
+  const usageEnv = { ...process.env, PATH: `${POSTGRES_PATH}:${process.env.PATH ?? ""}` };
+  const usageProc = sh(["node", USAGE_HANDLER], usageEnv);
+  const usageRaw = usageProc.stdout ?? "";
+  const parsed = parseUsage(usageRaw);
+
+  const breakdown = {
+    parser: parsed.parser,
+    raw: usageRaw.slice(0, 4000),
+    stderr: (usageProc.stderr ?? "").slice(0, 800),
+  };
+
+  psql(
+    "INSERT INTO cortana_budget_log (spend_to_date, burn_rate, projected, breakdown, pct_used) VALUES (" +
+      `${parsed.spend}, ${parsed.burn}, ${parsed.projected}, '${sqlEscape(
+        JSON.stringify(breakdown)
+      )}'::jsonb, ${parsed.pct});`
+  );
+
+  const row = psql(
+    "SELECT row_to_json(t)::text FROM (" +
+      "SELECT id, health_score, status, budget_pct_used, throttle_tier, COALESCE(metadata,'{}'::jsonb) AS metadata " +
+      "FROM cortana_self_model WHERE id=1) t;",
+    true
+  );
+
+  const current = row ? (JSON.parse(row) as Record<string, any>) : { throttle_tier: 0, metadata: {} };
+  const metadata = (current.metadata && typeof current.metadata === "object" ? current.metadata : {}) as Record<
+    string,
+    any
+  >;
+  const control =
+    metadata.throttle_control && typeof metadata.throttle_control === "object" ? metadata.throttle_control : {};
+
+  const pct = Number(parsed.pct);
+  const candidate = targetTier(pct);
+  const currentTier = Number(current.throttle_tier ?? 0);
+
+  let lastChangeEpoch = Number(control.last_change_epoch ?? 0);
+  if (!lastChangeEpoch) {
+    const latestChange = psql(
+      "SELECT EXTRACT(EPOCH FROM COALESCE(MAX(timestamp), NOW() - INTERVAL '365 days'))::bigint " +
+        "FROM cortana_throttle_log;",
+      true
+    );
+    const val = Number((latestChange || "0").trim());
+    lastChangeEpoch = Number.isNaN(val) ? 0 : val;
   }
-  process.exit(proc.status ?? 1);
+
+  const now = Math.floor(Date.now() / 1000);
+  let pendingTier = Number(control.pending_tier ?? currentTier);
+  let pendingHits = Number(control.pending_hits ?? 0);
+
+  let tierToApply = currentTier;
+  let throttleReason = "stable";
+
+  if (candidate === currentTier) {
+    pendingTier = candidate;
+    pendingHits = 0;
+    throttleReason = "within_current_band";
+  } else if (now - lastChangeEpoch < COOLDOWN_SEC) {
+    throttleReason = "cooldown_hold";
+    pendingTier = candidate;
+    const priorPending = Number(control.pending_tier ?? -1);
+    pendingHits = pendingTier !== priorPending ? 1 : Math.max(1, pendingHits);
+  } else {
+    if (pendingTier === candidate) {
+      pendingHits += 1;
+    } else {
+      pendingTier = candidate;
+      pendingHits = 1;
+    }
+    throttleReason = "hysteresis_tracking";
+    if (pendingHits >= HYSTERESIS_STEPS) {
+      tierToApply = candidate;
+      pendingHits = 0;
+      pendingTier = candidate;
+      lastChangeEpoch = now;
+      throttleReason = "hysteresis_commit";
+    }
+  }
+
+  const cronsTotal = Number(
+    psql(
+      "SELECT COUNT(*) FROM (SELECT DISTINCT ON (cron_name) cron_name FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t;",
+      true
+    ) || "0"
+  );
+  const cronsHealthy = Number(
+    psql(
+      "SELECT COUNT(*) FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t WHERE status='ok';",
+      true
+    ) || "0"
+  );
+
+  const cronsFailing =
+    psql(
+      "SELECT COALESCE(array_agg(cron_name), '{}') FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t WHERE status='failed';",
+      true
+    ) || "{}";
+  const cronsMissed =
+    psql(
+      "SELECT COALESCE(array_agg(cron_name), '{}') FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t WHERE status='missed';",
+      true
+    ) || "{}";
+  const toolsUp =
+    psql(
+      "SELECT COALESCE(array_agg(tool_name), '{}') FROM (SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ORDER BY tool_name, timestamp DESC) t WHERE status='up';",
+      true
+    ) || "{}";
+  const toolsDown =
+    psql(
+      "SELECT COALESCE(array_agg(tool_name), '{}') FROM (SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ORDER BY tool_name, timestamp DESC) t WHERE status<>'up';",
+      true
+    ) || "{}";
+
+  const toolsDownCount = Number(
+    psql(
+      "SELECT COUNT(*) FROM (SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ORDER BY tool_name, timestamp DESC) t WHERE status<>'up';",
+      true
+    ) || "0"
+  );
+  const cronsFailCount = Number(
+    psql(
+      "SELECT COUNT(*) FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t WHERE status IN ('failed','missed');",
+      true
+    ) || "0"
+  );
+
+  const budgetPenalty = pct >= 90 ? 30 : pct >= 75 ? 20 : pct >= 50 ? 10 : 0;
+  const health = Math.max(0, Math.trunc(100 - 10 * toolsDownCount - 5 * cronsFailCount - budgetPenalty));
+  const status = health >= 80 ? "nominal" : health >= 50 ? "degraded" : "critical";
+
+  metadata.throttle_control = {
+    pending_tier: pendingTier,
+    pending_hits: pendingHits,
+    last_change_epoch: lastChangeEpoch,
+    cooldown_sec: COOLDOWN_SEC,
+    hysteresis_steps: HYSTERESIS_STEPS,
+    last_reason: throttleReason,
+  };
+  metadata.budget_parser = {
+    mode: parsed.parser,
+    captured_at: Math.floor(Date.now() / 1000),
+  };
+
+  psql(
+    "INSERT INTO cortana_self_model (" +
+      "id, health_score, status, budget_used, budget_pct_used, budget_burn_rate, budget_projected, throttle_tier, " +
+      "crons_total, crons_healthy, crons_failing, crons_missed, tools_up, tools_down, metadata, updated_at" +
+      ") VALUES (" +
+      `1, ${health}, '${status}', ${parsed.spend}, ${pct}, ${parsed.burn}, ${parsed.projected}, ${tierToApply}, ` +
+      `${cronsTotal}, ${cronsHealthy}, '${sqlEscape(cronsFailing)}'::text[], '${sqlEscape(
+        cronsMissed
+      )}'::text[], ` +
+      `'${sqlEscape(toolsUp)}'::text[], '${sqlEscape(toolsDown)}'::text[], '${sqlEscape(
+        JSON.stringify(metadata)
+      )}'::jsonb, NOW()` +
+      ") ON CONFLICT (id) DO UPDATE SET " +
+      "health_score=EXCLUDED.health_score, status=EXCLUDED.status, budget_used=EXCLUDED.budget_used, " +
+      "budget_pct_used=EXCLUDED.budget_pct_used, budget_burn_rate=EXCLUDED.budget_burn_rate, budget_projected=EXCLUDED.budget_projected, " +
+      "throttle_tier=EXCLUDED.throttle_tier, crons_total=EXCLUDED.crons_total, crons_healthy=EXCLUDED.crons_healthy, " +
+      "crons_failing=EXCLUDED.crons_failing, crons_missed=EXCLUDED.crons_missed, tools_up=EXCLUDED.tools_up, tools_down=EXCLUDED.tools_down, " +
+      "metadata=EXCLUDED.metadata, updated_at=NOW();"
+  );
+
+  if (tierToApply !== currentTier) {
+    psql(
+      "INSERT INTO cortana_throttle_log (tier_from, tier_to, reason, actions_taken) VALUES (" +
+        `${currentTier}, ${tierToApply}, 'budget threshold evaluation (${throttleReason})', ARRAY['auto-check']);`
+    );
+  }
+
+  console.log(
+    JSON.stringify({
+      ok: true,
+      budget_pct_used: pct,
+      throttle_before: currentTier,
+      throttle_after: tierToApply,
+      throttle_reason: throttleReason,
+      health,
+      status,
+    })
+  );
 }
 
 main().catch((err) => {

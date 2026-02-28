@@ -1,24 +1,236 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
-async function main(): Promise<void> {
-  const py = "#!/usr/bin/env python3\n\"\"\"\nTone Drift Sentinel\n\nPurpose:\n- Score candidate replies against Cortana tone rules from SOUL.md/MEMORY.md\n- Detect banned patterns (heart emojis, filler openings, robotic/transactional phrasing)\n- Emit machine-readable JSON decisions to stdout for event logging pipelines\n\nUsage examples:\n  python3 tools/guardrails/tone_drift_sentinel.py --text \"Use this plan. It cuts risk and buys us time.\"\n  python3 tools/guardrails/tone_drift_sentinel.py --file /tmp/reply.txt --pretty\n  python3 tools/guardrails/tone_drift_sentinel.py --run-fixtures\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport re\nimport sys\nfrom dataclasses import dataclass\nfrom pathlib import Path\nfrom typing import Any\n\nFIXTURES_PATH = Path(__file__).with_name(\"tone_drift_fixtures.json\")\n\nHEART_EMOJI_RE = re.compile(\n    r\"[\\u2764\\u2665\\U0001F90D-\\U0001F90F\\U0001F493-\\U0001F49F\\U0001F5A4\\U0001FA75\\U0001FA76]\"\n)\n\nFILLER_OPENINGS = [\n    r\"^\\s*great question[\\s,!.]*\",\n    r\"^\\s*happy to help[\\s,!.]*\",\n    r\"^\\s*absolutely[\\s,!.]*\",\n    r\"^\\s*certainly[\\s,!.]*\",\n    r\"^\\s*thanks for asking[\\s,!.]*\",\n]\n\nROBOTIC_PATTERNS = [\n    r\"\\bas an ai\\b\",\n    r\"\\bi cannot\\b\",\n    r\"\\bi am unable to\\b\",\n    r\"\\bplease let me know if you have any further questions\\b\",\n    r\"\\bin conclusion\\b\",\n    r\"\\bhere(?:'s| is) a (?:summary|breakdown)\\b\",\n    r\"\\bfirst,\\s+second,\\s+third\\b\",\n]\n\nWARMTH_MARKERS = {\n    \"you\",\n    \"we\",\n    \"us\",\n    \"let's\",\n    \"nice\",\n    \"solid\",\n    \"good\",\n    \"proud\",\n    \"got this\",\n    \"on it\",\n}\n\nWIT_MARKERS = {\n    \"plot twist\",\n    \"clean kill\",\n    \"spicy\",\n    \"wild\",\n    \"brutal\",\n    \"ship it\",\n    \"hot mess\",\n    \"weird\",\n    \"nope\",\n}\n\nPERSONALITY_MARKERS = {\n    \"recommend\",\n    \"do this\",\n    \"skip\",\n    \"instead\",\n    \"chief\",\n    \"on it\",\n    \"course correction\",\n    \"this breaks\",\n}\n\nVAGUE_OPENINGS = [\n    r\"^\\s*hello[\\s,!.]*\",\n    r\"^\\s*hi there[\\s,!.]*\",\n]\n\n\n@dataclass\nclass Flag:\n    code: str\n    severity: float\n    message: str\n\n\ndef _normalize(text: str) -> str:\n    return re.sub(r\"\\s+\", \" \", text.strip().lower())\n\n\ndef _contains_any(text: str, patterns: list[str]) -> bool:\n    return any(re.search(p, text, re.IGNORECASE) for p in patterns)\n\n\ndef score_reply(text: str) -> dict[str, Any]:\n    normalized = _normalize(text)\n    flags: list[Flag] = []\n    score = 1.0\n\n    def penalize(code: str, severity: float, message: str) -> None:\n        nonlocal score\n        flags.append(Flag(code=code, severity=severity, message=message))\n        score -= severity\n\n    if not normalized:\n        penalize(\"empty_reply\", 0.9, \"Reply is empty.\")\n\n    if HEART_EMOJI_RE.search(text):\n        penalize(\"banned_heart_emoji\", 0.6, \"Heart emoji detected (policy ban).\")\n\n    if _contains_any(normalized, FILLER_OPENINGS):\n        penalize(\"filler_opening\", 0.25, \"Reply opens with filler phrase.\")\n\n    if _contains_any(normalized, VAGUE_OPENINGS):\n        penalize(\"weak_opening\", 0.1, \"Opening is generic instead of answer-first.\")\n\n    if _contains_any(normalized, ROBOTIC_PATTERNS):\n        penalize(\"robotic_phrase\", 0.35, \"Robotic/transactional phrase detected.\")\n\n    if len(normalized.split()) > 120:\n        penalize(\"too_verbose_default\", 0.15, \"Reply is verbose; default style should be brief.\")\n\n    if \"?\" in normalized[:90]:\n        penalize(\"question_first\", 0.1, \"Reply likely opens with a question, not an answer.\")\n\n    warmth_hits = sum(1 for marker in WARMTH_MARKERS if marker in normalized)\n    wit_hits = sum(1 for marker in WIT_MARKERS if marker in normalized)\n    personality_hits = sum(1 for marker in PERSONALITY_MARKERS if marker in normalized)\n\n    warmth_score = min(1.0, warmth_hits / 2)\n    wit_score = min(1.0, wit_hits / 1)\n    personality_score = min(1.0, personality_hits / 2)\n\n    if warmth_score < 0.2:\n        penalize(\"low_warmth\", 0.12, \"Low warmth/presence signal.\")\n    if wit_score < 0.1:\n        penalize(\"low_wit\", 0.08, \"No wit/playful signal detected.\")\n    if personality_score < 0.2:\n        penalize(\"low_personality\", 0.12, \"Weak recommendation/personality signature.\")\n\n    score = max(0.0, min(1.0, score))\n\n    return {\n        \"score\": round(score, 4),\n        \"dimensions\": {\n            \"warmth\": round(warmth_score, 4),\n            \"wit\": round(wit_score, 4),\n            \"personality_presence\": round(personality_score, 4),\n        },\n        \"flags\": [flag.__dict__ for flag in flags],\n        \"reply_length\": len(text),\n        \"word_count\": len(normalized.split()) if normalized else 0,\n        \"pass\": score >= 0.7 and not any(f.code == \"banned_heart_emoji\" for f in flags),\n    }\n\n\ndef emit(event: str, payload: dict[str, Any], pretty: bool = False) -> None:\n    out = {\"event\": event, **payload}\n    if pretty:\n        print(json.dumps(out, indent=2, ensure_ascii=False))\n    else:\n        print(json.dumps(out, ensure_ascii=False))\n\n\ndef run_fixtures(pretty: bool = False) -> int:\n    fixtures = json.loads(FIXTURES_PATH.read_text())\n    passed = 0\n    total = 0\n\n    for group_name, tests in fixtures.items():\n        for test in tests:\n            total += 1\n            result = score_reply(test[\"text\"])\n\n            expected_min = test.get(\"expected_min_score\", 0.0)\n            expected_max = test.get(\"expected_max_score\", 1.0)\n            expected_flags = set(test.get(\"expected_flags\", []))\n            actual_flags = {f[\"code\"] for f in result[\"flags\"]}\n\n            ok = expected_min <= result[\"score\"] <= expected_max and expected_flags.issubset(actual_flags)\n            if ok:\n                passed += 1\n\n            emit(\n                \"tone_fixture_result\",\n                {\n                    \"group\": group_name,\n                    \"name\": test[\"name\"],\n                    \"ok\": ok,\n                    \"expected_min_score\": expected_min,\n                    \"expected_max_score\": expected_max,\n                    \"actual_score\": result[\"score\"],\n                    \"expected_flags\": sorted(expected_flags),\n                    \"actual_flags\": sorted(actual_flags),\n                },\n                pretty=pretty,\n            )\n\n    emit(\"tone_fixture_summary\", {\"passed\": passed, \"total\": total, \"success\": passed == total}, pretty=pretty)\n    return 0 if passed == total else 1\n\n\ndef parse_args() -> argparse.Namespace:\n    parser = argparse.ArgumentParser(description=\"Score reply text for tone drift against Cortana guardrails.\")\n    input_group = parser.add_mutually_exclusive_group(required=False)\n    input_group.add_argument(\"--text\", help=\"Candidate reply text\")\n    input_group.add_argument(\"--file\", type=Path, help=\"Path to file containing candidate reply\")\n    parser.add_argument(\"--run-fixtures\", action=\"store_true\", help=\"Run regression fixtures\")\n    parser.add_argument(\"--pretty\", action=\"store_true\", help=\"Pretty-print JSON\")\n    return parser.parse_args()\n\n\ndef main() -> int:\n    args = parse_args()\n\n    if args.run_fixtures:\n        return run_fixtures(pretty=args.pretty)\n\n    if not args.text and not args.file:\n        print(\"Provide --text or --file (or --run-fixtures).\", file=sys.stderr)\n        return 2\n\n    text = args.text or args.file.read_text()\n    result = score_reply(text)\n    emit(\"tone_drift_decision\", result, pretty=args.pretty)\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n";
-  const dir = mkdtempSync(join(tmpdir(), 'pywrap-'));
-  const script = join(dir, 'script.py');
-  writeFileSync(script, py, 'utf8');
-  const proc = spawnSync('python3', [script, ...process.argv.slice(2)], { stdio: 'inherit' });
-  rmSync(dir, { recursive: true, force: true });
-  if (proc.error) {
-    console.error(String(proc.error));
-    process.exit(1);
-  }
-  process.exit(proc.status ?? 1);
+import fs from "node:fs";
+import path from "node:path";
+import { getScriptDir } from "../lib/paths.js";
+
+type Flag = {
+  code: string;
+  severity: number;
+  message: string;
+};
+
+const FIXTURES_PATH = path.join(getScriptDir(import.meta.url), "tone_drift_fixtures.json");
+
+const HEART_EMOJI_RE = /[\u2764\u2665\u{1F90D}-\u{1F90F}\u{1F493}-\u{1F49F}\u{1F5A4}\u{1FA75}\u{1FA76}]/u;
+
+const FILLER_OPENINGS = [
+  "^\\s*great question[\\s,!.]*",
+  "^\\s*happy to help[\\s,!.]*",
+  "^\\s*absolutely[\\s,!.]*",
+  "^\\s*certainly[\\s,!.]*",
+  "^\\s*thanks for asking[\\s,!.]*",
+];
+
+const ROBOTIC_PATTERNS = [
+  "\\bas an ai\\b",
+  "\\bi cannot\\b",
+  "\\bi am unable to\\b",
+  "\\bplease let me know if you have any further questions\\b",
+  "\\bin conclusion\\b",
+  "\\bhere(?:'s| is) a (?:summary|breakdown)\\b",
+  "\\bfirst,\\s+second,\\s+third\\b",
+];
+
+const WARMTH_MARKERS = new Set(["you", "we", "us", "let's", "nice", "solid", "good", "proud", "got this", "on it"]);
+
+const WIT_MARKERS = new Set(["plot twist", "clean kill", "spicy", "wild", "brutal", "ship it", "hot mess", "weird", "nope"]);
+
+const PERSONALITY_MARKERS = new Set([
+  "recommend",
+  "do this",
+  "skip",
+  "instead",
+  "chief",
+  "on it",
+  "course correction",
+  "this breaks",
+]);
+
+const VAGUE_OPENINGS = ["^\\s*hello[\\s,!.]*", "^\\s*hi there[\\s,!.]*"];
+
+function normalize(text: string): string {
+  return text.trim().toLowerCase().replace(/\s+/g, " ");
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? err.message : String(err));
-  process.exit(1);
-});
+function containsAny(text: string, patterns: string[]): boolean {
+  return patterns.some((p) => new RegExp(p, "i").test(text));
+}
+
+function scoreReply(text: string): Record<string, unknown> {
+  const normalized = normalize(text);
+  const flags: Flag[] = [];
+  let score = 1.0;
+
+  const penalize = (code: string, severity: number, message: string) => {
+    flags.push({ code, severity, message });
+    score -= severity;
+  };
+
+  if (!normalized) {
+    penalize("empty_reply", 0.9, "Reply is empty.");
+  }
+
+  if (HEART_EMOJI_RE.test(text)) {
+    penalize("banned_heart_emoji", 0.6, "Heart emoji detected (policy ban).");
+  }
+
+  if (containsAny(normalized, FILLER_OPENINGS)) {
+    penalize("filler_opening", 0.25, "Reply opens with filler phrase.");
+  }
+
+  if (containsAny(normalized, VAGUE_OPENINGS)) {
+    penalize("weak_opening", 0.1, "Opening is generic instead of answer-first.");
+  }
+
+  if (containsAny(normalized, ROBOTIC_PATTERNS)) {
+    penalize("robotic_phrase", 0.35, "Robotic/transactional phrase detected.");
+  }
+
+  if (normalized.split(" ").filter(Boolean).length > 120) {
+    penalize("too_verbose_default", 0.15, "Reply is verbose; default style should be brief.");
+  }
+
+  if (normalized.slice(0, 90).includes("?")) {
+    penalize("question_first", 0.1, "Reply likely opens with a question, not an answer.");
+  }
+
+  const warmthHits = [...WARMTH_MARKERS].filter((m) => normalized.includes(m)).length;
+  const witHits = [...WIT_MARKERS].filter((m) => normalized.includes(m)).length;
+  const personalityHits = [...PERSONALITY_MARKERS].filter((m) => normalized.includes(m)).length;
+
+  const warmthScore = Math.min(1.0, warmthHits / 2);
+  const witScore = Math.min(1.0, witHits / 1);
+  const personalityScore = Math.min(1.0, personalityHits / 2);
+
+  if (warmthScore < 0.2) {
+    penalize("low_warmth", 0.12, "Low warmth/presence signal.");
+  }
+  if (witScore < 0.1) {
+    penalize("low_wit", 0.08, "No wit/playful signal detected.");
+  }
+  if (personalityScore < 0.2) {
+    penalize("low_personality", 0.12, "Weak recommendation/personality signature.");
+  }
+
+  score = Math.max(0.0, Math.min(1.0, score));
+
+  return {
+    score: Number(score.toFixed(4)),
+    dimensions: {
+      warmth: Number(warmthScore.toFixed(4)),
+      wit: Number(witScore.toFixed(4)),
+      personality_presence: Number(personalityScore.toFixed(4)),
+    },
+    flags: flags.map((f) => ({ ...f })),
+    reply_length: text.length,
+    word_count: normalized ? normalized.split(" ").filter(Boolean).length : 0,
+    pass: score >= 0.7 && !flags.some((f) => f.code === "banned_heart_emoji"),
+  };
+}
+
+function emit(event: string, payload: Record<string, unknown>, pretty: boolean): void {
+  const out = { event, ...payload };
+  if (pretty) {
+    console.log(JSON.stringify(out, null, 2));
+  } else {
+    console.log(JSON.stringify(out));
+  }
+}
+
+function runFixtures(pretty: boolean): number {
+  const raw = fs.readFileSync(FIXTURES_PATH, "utf8");
+  const fixtures = JSON.parse(raw) as Record<string, Array<Record<string, any>>>;
+  let passed = 0;
+  let total = 0;
+
+  for (const [groupName, tests] of Object.entries(fixtures)) {
+    for (const test of tests) {
+      total += 1;
+      const result = scoreReply(String(test.text ?? "")) as Record<string, any>;
+
+      const expectedMin = Number(test.expected_min_score ?? 0.0);
+      const expectedMax = Number(test.expected_max_score ?? 1.0);
+      const expectedFlags = new Set<string>(test.expected_flags ?? []);
+      const actualFlags = new Set<string>((result.flags ?? []).map((f: any) => f.code));
+
+      const ok =
+        result.score >= expectedMin &&
+        result.score <= expectedMax &&
+        [...expectedFlags].every((f) => actualFlags.has(f));
+      if (ok) passed += 1;
+
+      emit(
+        "tone_fixture_result",
+        {
+          group: groupName,
+          name: test.name,
+          ok,
+          expected_min_score: expectedMin,
+          expected_max_score: expectedMax,
+          actual_score: result.score,
+          expected_flags: [...expectedFlags].sort(),
+          actual_flags: [...actualFlags].sort(),
+        },
+        pretty,
+      );
+    }
+  }
+
+  emit("tone_fixture_summary", { passed, total, success: passed === total }, pretty);
+  return passed === total ? 0 : 1;
+}
+
+function parseArgs(argv: string[]): {
+  text: string | null;
+  file: string | null;
+  runFixtures: boolean;
+  pretty: boolean;
+} {
+  const args = {
+    text: null as string | null,
+    file: null as string | null,
+    runFixtures: false,
+    pretty: false,
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const a = argv[i];
+    if (a === "--text") {
+      args.text = argv[++i] ?? null;
+    } else if (a === "--file") {
+      args.file = argv[++i] ?? null;
+    } else if (a === "--run-fixtures") {
+      args.runFixtures = true;
+    } else if (a === "--pretty") {
+      args.pretty = true;
+    }
+  }
+
+  return args;
+}
+
+async function main(): Promise<number> {
+  const args = parseArgs(process.argv.slice(2));
+
+  if (args.runFixtures) {
+    return runFixtures(args.pretty);
+  }
+
+  if (!args.text && !args.file) {
+    console.error("Provide --text or --file (or --run-fixtures).");
+    return 2;
+  }
+
+  const text = args.text ?? fs.readFileSync(args.file as string, "utf8");
+  const result = scoreReply(text);
+  emit("tone_drift_decision", result as Record<string, unknown>, args.pretty);
+  return 0;
+}
+
+main()
+  .then((code) => process.exit(code))
+  .catch((err) => {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });

@@ -1,38 +1,40 @@
 #!/usr/bin/env npx tsx
-
+import path from "path";
 import { randomUUID } from "crypto";
 import { runPsql, withPostgresPath } from "./lib/db.js";
-import { stringifyJson } from "./lib/json-file.js";
 
-const args = process.argv.slice(2);
-
-if (args.length < 4) {
-  console.error(
-    `Usage: ${process.argv[1] ?? "log-decision.ts"} <trigger_type> <action_type> <action_name> <outcome> [reasoning] [confidence] [event_id] [task_id] [data_inputs_json]`
+function usage(): void {
+  const script = path.basename(process.argv[1] ?? "log-decision.ts");
+  process.stderr.write(
+    `Usage: ${script} <trigger_type> <action_type> <action_name> <outcome> [reasoning] [confidence] [event_id] [task_id] [data_inputs_json]\n`
   );
-  process.exit(1);
 }
 
-const [
-  triggerType,
-  actionType,
-  actionName,
-  outcome,
-  reasoningRaw = "",
-  confidenceRaw = "",
-  eventIdRaw = "",
-  taskIdRaw = "",
-  dataInputsRaw = "",
-] = args;
+async function main(): Promise<number> {
+  const argv = process.argv.slice(2);
+  if (argv.length < 4) {
+    usage();
+    return 1;
+  }
 
-const traceId = randomUUID().toLowerCase();
-const reasoning = reasoningRaw ?? "";
-const confidence = confidenceRaw ?? "";
-const eventId = eventIdRaw ?? "";
-const taskId = taskIdRaw ?? "";
-const dataInputs = dataInputsRaw && dataInputsRaw.trim() !== "" ? dataInputsRaw : stringifyJson({});
+  const triggerType = argv[0] ?? "";
+  const actionType = argv[1] ?? "";
+  const actionName = argv[2] ?? "";
+  const outcome = argv[3] ?? "";
+  const reasoning = argv[4] ?? "";
+  const confidence = argv[5] ?? "";
+  const eventId = argv[6] ?? "";
+  const taskId = argv[7] ?? "";
+  const dataInputsJson = argv[8] ?? "";
 
-const sql = `
+  const traceId = randomUUID().toLowerCase();
+
+  const safeConfidence = confidence || "";
+  const safeEventId = eventId || "";
+  const safeTaskId = taskId || "";
+  const safeDataInputs = dataInputsJson || "{}";
+
+  const sql = `
 INSERT INTO cortana_decision_traces (
   trace_id,
   trigger_type,
@@ -62,38 +64,45 @@ INSERT INTO cortana_decision_traces (
 );
 `;
 
-const result = runPsql(sql, {
-  db: "cortana",
-  args: [
-    "-v",
-    "ON_ERROR_STOP=1",
-    "-v",
-    `trace_id=${traceId}`,
-    "-v",
-    `trigger_type=${triggerType}`,
-    "-v",
-    `action_type=${actionType}`,
-    "-v",
-    `action_name=${actionName}`,
-    "-v",
-    `outcome=${outcome}`,
-    "-v",
-    `reasoning=${reasoning}`,
-    "-v",
-    `confidence=${confidence}`,
-    "-v",
-    `event_id=${eventId}`,
-    "-v",
-    `task_id=${taskId}`,
-    "-v",
-    `data_inputs=${dataInputs}`,
-  ],
-  env: withPostgresPath(process.env),
-  stdio: "ignore",
-});
+  const res = runPsql(sql, {
+    db: "cortana",
+    args: [
+      "-v",
+      `trace_id=${traceId}`,
+      "-v",
+      `trigger_type=${triggerType}`,
+      "-v",
+      `action_type=${actionType}`,
+      "-v",
+      `action_name=${actionName}`,
+      "-v",
+      `outcome=${outcome}`,
+      "-v",
+      `reasoning=${reasoning}`,
+      "-v",
+      `confidence=${safeConfidence}`,
+      "-v",
+      `event_id=${safeEventId}`,
+      "-v",
+      `task_id=${safeTaskId}`,
+      "-v",
+      `data_inputs=${safeDataInputs}`,
+    ],
+    env: withPostgresPath(process.env),
+    stdio: ["ignore", "ignore", "inherit"],
+  });
 
-if (result.status !== 0) {
-  process.exit(result.status);
+  if (res.status !== 0) {
+    return 1;
+  }
+
+  process.stdout.write(`${traceId}\n`);
+  return 0;
 }
 
-console.log(traceId);
+main()
+  .then((code) => process.exit(code))
+  .catch((error) => {
+    process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
+    process.exit(1);
+  });

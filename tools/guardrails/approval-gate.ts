@@ -1,24 +1,252 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
-async function main(): Promise<void> {
-  const py = "#!/usr/bin/env python3\n\"\"\"\nApproval gate for high-risk actions using Telegram inline buttons.\n\nImport:\n  from approval_gate import request_approval\n\nCLI:\n  python3 tools/guardrails/approval-gate.py --action \"git push origin main\" --risk high --timeout 300\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport os\nimport time\nimport urllib.parse\nimport urllib.request\nfrom dataclasses import dataclass\nfrom typing import Any, Dict, Optional, Tuple\nfrom uuid import uuid4\n\n\nDEFAULT_CONFIG = os.path.expanduser(\"~/.openclaw/openclaw.json\")\nHIGH_RISK_KEYWORDS = (\n    \"external email\",\n    \"send email\",\n    \"git push\",\n    \"push to main\",\n    \"public post\",\n    \"tweet\",\n    \"x post\",\n    \"linkedin\",\n)\n\n\n@dataclass\nclass ApprovalResult:\n    approved: bool\n    reason: str\n\n\ndef _load_openclaw_config(path: str = DEFAULT_CONFIG) -> Dict[str, Any]:\n    with open(path, \"r\", encoding=\"utf-8\") as f:\n        return json.load(f)\n\n\ndef _telegram_token(config_path: str = DEFAULT_CONFIG) -> str:\n    env_token = os.getenv(\"TELEGRAM_BOT_TOKEN\")\n    if env_token:\n        return env_token\n    cfg = _load_openclaw_config(config_path)\n    token = cfg.get(\"channels\", {}).get(\"telegram\", {}).get(\"botToken\")\n    if not token:\n        raise RuntimeError(\"Telegram bot token not found. Set TELEGRAM_BOT_TOKEN or channels.telegram.botToken in ~/.openclaw/openclaw.json\")\n    return token\n\n\ndef _http_json(url: str, payload: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:\n    data = None\n    headers = {}\n    if payload is not None:\n        data = json.dumps(payload).encode(\"utf-8\")\n        headers[\"Content-Type\"] = \"application/json\"\n    req = urllib.request.Request(url, data=data, headers=headers, method=\"POST\" if payload is not None else \"GET\")\n    with urllib.request.urlopen(req, timeout=60) as resp:\n        return json.loads(resp.read().decode(\"utf-8\"))\n\n\ndef _infer_chat_id(token: str) -> Optional[str]:\n    res = _http_json(f\"https://api.telegram.org/bot{token}/getUpdates\")\n    if not res.get(\"ok\"):\n        return None\n    for upd in reversed(res.get(\"result\", [])):\n        msg = upd.get(\"message\") or upd.get(\"callback_query\", {}).get(\"message\")\n        if msg and msg.get(\"chat\", {}).get(\"id\") is not None:\n            return str(msg[\"chat\"][\"id\"])\n    return None\n\n\ndef _send_approval_message(token: str, chat_id: str, action_desc: str, risk: str, req_id: str) -> int:\n    text = (\n        f\"\ud83d\uded1 Approval required\\n\"\n        f\"Risk: {risk.upper()}\\n\"\n        f\"Action: {action_desc}\\n\\n\"\n        f\"Request ID: {req_id}\\n\"\n        f\"Choose Approve or Reject.\"\n    )\n    payload = {\n        \"chat_id\": chat_id,\n        \"text\": text,\n        \"reply_markup\": {\n            \"inline_keyboard\": [[\n                {\"text\": \"\u2705 Approve\", \"callback_data\": f\"approve:{req_id}\"},\n                {\"text\": \"\u274c Reject\", \"callback_data\": f\"reject:{req_id}\"},\n            ]]\n        },\n    }\n    res = _http_json(f\"https://api.telegram.org/bot{token}/sendMessage\", payload)\n    if not res.get(\"ok\"):\n        raise RuntimeError(f\"Telegram sendMessage failed: {res}\")\n    return int(res[\"result\"][\"message_id\"])\n\n\ndef _answer_callback(token: str, callback_query_id: str, text: str) -> None:\n    payload = {\"callback_query_id\": callback_query_id, \"text\": text, \"show_alert\": False}\n    _http_json(f\"https://api.telegram.org/bot{token}/answerCallbackQuery\", payload)\n\n\ndef _strip_keyboard(token: str, chat_id: str, message_id: int, suffix: str) -> None:\n    payload = {\n        \"chat_id\": chat_id,\n        \"message_id\": message_id,\n        \"reply_markup\": {\"inline_keyboard\": []},\n    }\n    _http_json(f\"https://api.telegram.org/bot{token}/editMessageReplyMarkup\", payload)\n    if suffix:\n        _http_json(\n            f\"https://api.telegram.org/bot{token}/sendMessage\",\n            {\"chat_id\": chat_id, \"text\": suffix},\n        )\n\n\ndef _poll_decision(token: str, req_id: str, timeout_s: int, start_offset: int = 0) -> Tuple[Optional[bool], str, int]:\n    deadline = time.time() + timeout_s\n    offset = start_offset\n\n    while time.time() < deadline:\n        wait = min(25, max(1, int(deadline - time.time())))\n        url = f\"https://api.telegram.org/bot{token}/getUpdates?timeout={wait}&allowed_updates={urllib.parse.quote(json.dumps(['callback_query']))}\"\n        if offset:\n            url += f\"&offset={offset}\"\n\n        res = _http_json(url)\n        if not res.get(\"ok\"):\n            time.sleep(2)\n            continue\n\n        for upd in res.get(\"result\", []):\n            offset = max(offset, int(upd.get(\"update_id\", 0)) + 1)\n            cb = upd.get(\"callback_query\")\n            if not cb:\n                continue\n            data = str(cb.get(\"data\", \"\"))\n            if data == f\"approve:{req_id}\":\n                _answer_callback(token, cb[\"id\"], \"Approved\")\n                return True, \"approved\", offset\n            if data == f\"reject:{req_id}\":\n                _answer_callback(token, cb[\"id\"], \"Rejected\")\n                return False, \"rejected\", offset\n\n    return None, \"timeout\", offset\n\n\ndef is_high_risk(action_desc: str, risk: str) -> bool:\n    r = (risk or \"\").strip().lower()\n    if r in {\"high\", \"critical\", \"p1\"}:\n        return True\n    low = (action_desc or \"\").strip().lower()\n    return any(k in low for k in HIGH_RISK_KEYWORDS)\n\n\ndef request_approval(\n    action_desc: str,\n    risk: str,\n    timeout_s: int = 300,\n    chat_id: Optional[str] = None,\n    token: Optional[str] = None,\n    config_path: str = DEFAULT_CONFIG,\n) -> ApprovalResult:\n    if not is_high_risk(action_desc, risk):\n        return ApprovalResult(approved=True, reason=\"not_high_risk\")\n\n    token = token or _telegram_token(config_path)\n    chat_id = chat_id or os.getenv(\"TELEGRAM_CHAT_ID\") or _infer_chat_id(token)\n    if not chat_id:\n        return ApprovalResult(approved=False, reason=\"no_chat_id\")\n\n    req_id = uuid4().hex[:12]\n    msg_id = _send_approval_message(token, chat_id, action_desc, risk, req_id)\n    decided, reason, _ = _poll_decision(token, req_id, timeout_s)\n\n    if decided is True:\n        _strip_keyboard(token, chat_id, msg_id, f\"\u2705 Approved: {action_desc}\")\n        return ApprovalResult(approved=True, reason=\"approved\")\n\n    if decided is False:\n        _strip_keyboard(token, chat_id, msg_id, f\"\u274c Rejected: {action_desc}\")\n        return ApprovalResult(approved=False, reason=\"rejected\")\n\n    _strip_keyboard(token, chat_id, msg_id, f\"\u23f1\ufe0f Approval timed out: {action_desc}\")\n    return ApprovalResult(approved=False, reason=\"timeout\")\n\n\ndef main() -> int:\n    ap = argparse.ArgumentParser()\n    ap.add_argument(\"--action\", required=True, help=\"Action description\")\n    ap.add_argument(\"--risk\", required=True, help=\"Risk level (low/medium/high)\")\n    ap.add_argument(\"--timeout\", type=int, default=300, help=\"Timeout in seconds (default: 300)\")\n    ap.add_argument(\"--chat-id\", default=None, help=\"Telegram chat ID override\")\n    ap.add_argument(\"--config\", default=DEFAULT_CONFIG)\n    args = ap.parse_args()\n\n    result = request_approval(\n        action_desc=args.action,\n        risk=args.risk,\n        timeout_s=args.timeout,\n        chat_id=args.chat_id,\n        config_path=args.config,\n    )\n\n    if result.approved:\n        print(\"APPROVED\")\n        return 0\n\n    print(f\"DENIED ({result.reason})\")\n    return 1\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n";
-  const dir = mkdtempSync(join(tmpdir(), 'pywrap-'));
-  const script = join(dir, 'script.py');
-  writeFileSync(script, py, 'utf8');
-  const proc = spawnSync('python3', [script, ...process.argv.slice(2)], { stdio: 'inherit' });
-  rmSync(dir, { recursive: true, force: true });
-  if (proc.error) {
-    console.error(String(proc.error));
-    process.exit(1);
-  }
-  process.exit(proc.status ?? 1);
+import path from "node:path";
+import crypto from "node:crypto";
+import { readJsonFile } from "../lib/json-file.js";
+
+const DEFAULT_CONFIG = path.join(process.env.HOME ?? "~", ".openclaw", "openclaw.json");
+
+const HIGH_RISK_KEYWORDS = [
+  "external email",
+  "send email",
+  "git push",
+  "push to main",
+  "public post",
+  "tweet",
+  "x post",
+  "linkedin",
+];
+
+type ApprovalResult = {
+  approved: boolean;
+  reason: string;
+};
+
+async function httpJson(url: string, payload?: Record<string, unknown>): Promise<any> {
+  const init: RequestInit = payload
+    ? {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      }
+    : { method: "GET" };
+  const res = await fetch(url, init);
+  const data = await res.json();
+  return data;
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? err.message : String(err));
-  process.exit(1);
-});
+function loadOpenclawConfig(configPath: string): Record<string, any> {
+  const cfg = readJsonFile<Record<string, any>>(configPath);
+  if (!cfg) {
+    throw new Error(`Unable to read config at ${configPath}`);
+  }
+  return cfg;
+}
+
+function telegramToken(configPath: string): string {
+  const envToken = process.env.TELEGRAM_BOT_TOKEN;
+  if (envToken) return envToken;
+  const cfg = loadOpenclawConfig(configPath);
+  const token = cfg?.channels?.telegram?.botToken;
+  if (!token) {
+    throw new Error(
+      "Telegram bot token not found. Set TELEGRAM_BOT_TOKEN or channels.telegram.botToken in ~/.openclaw/openclaw.json",
+    );
+  }
+  return String(token);
+}
+
+async function inferChatId(token: string): Promise<string | null> {
+  const res = await httpJson(`https://api.telegram.org/bot${token}/getUpdates`);
+  if (!res?.ok) return null;
+  const result = Array.isArray(res.result) ? res.result : [];
+  for (let i = result.length - 1; i >= 0; i -= 1) {
+    const upd = result[i];
+    const msg = upd?.message ?? upd?.callback_query?.message;
+    const chatId = msg?.chat?.id;
+    if (chatId !== undefined && chatId !== null) return String(chatId);
+  }
+  return null;
+}
+
+async function sendApprovalMessage(
+  token: string,
+  chatId: string,
+  actionDesc: string,
+  risk: string,
+  reqId: string,
+): Promise<number> {
+  const text =
+    `\ud83d\uded1 Approval required\n` +
+    `Risk: ${risk.toUpperCase()}\n` +
+    `Action: ${actionDesc}\n\n` +
+    `Request ID: ${reqId}\n` +
+    "Choose Approve or Reject.";
+  const payload = {
+    chat_id: chatId,
+    text,
+    reply_markup: {
+      inline_keyboard: [
+        [
+          { text: "\u2705 Approve", callback_data: `approve:${reqId}` },
+          { text: "\u274c Reject", callback_data: `reject:${reqId}` },
+        ],
+      ],
+    },
+  };
+  const res = await httpJson(`https://api.telegram.org/bot${token}/sendMessage`, payload);
+  if (!res?.ok) throw new Error(`Telegram sendMessage failed: ${JSON.stringify(res)}`);
+  return Number(res.result?.message_id ?? 0);
+}
+
+async function answerCallback(token: string, callbackQueryId: string, text: string): Promise<void> {
+  const payload = { callback_query_id: callbackQueryId, text, show_alert: false };
+  await httpJson(`https://api.telegram.org/bot${token}/answerCallbackQuery`, payload);
+}
+
+async function stripKeyboard(token: string, chatId: string, messageId: number, suffix: string): Promise<void> {
+  const payload = {
+    chat_id: chatId,
+    message_id: messageId,
+    reply_markup: { inline_keyboard: [] },
+  };
+  await httpJson(`https://api.telegram.org/bot${token}/editMessageReplyMarkup`, payload);
+  if (suffix) {
+    await httpJson(`https://api.telegram.org/bot${token}/sendMessage`, { chat_id: chatId, text: suffix });
+  }
+}
+
+async function pollDecision(
+  token: string,
+  reqId: string,
+  timeoutSec: number,
+  startOffset = 0,
+): Promise<[boolean | null, string, number]> {
+  const deadline = Date.now() + timeoutSec * 1000;
+  let offset = startOffset;
+
+  while (Date.now() < deadline) {
+    const wait = Math.min(25, Math.max(1, Math.floor((deadline - Date.now()) / 1000)));
+    let url = `https://api.telegram.org/bot${token}/getUpdates?timeout=${wait}&allowed_updates=${encodeURIComponent(
+      JSON.stringify(["callback_query"]),
+    )}`;
+    if (offset) url += `&offset=${offset}`;
+
+    const res = await httpJson(url);
+    if (!res?.ok) {
+      await new Promise((r) => setTimeout(r, 2000));
+      continue;
+    }
+
+    const updates = Array.isArray(res.result) ? res.result : [];
+    for (const upd of updates) {
+      offset = Math.max(offset, Number(upd?.update_id ?? 0) + 1);
+      const cb = upd?.callback_query;
+      if (!cb) continue;
+      const data = String(cb?.data ?? "");
+      if (data === `approve:${reqId}`) {
+        await answerCallback(token, cb.id, "Approved");
+        return [true, "approved", offset];
+      }
+      if (data === `reject:${reqId}`) {
+        await answerCallback(token, cb.id, "Rejected");
+        return [false, "rejected", offset];
+      }
+    }
+  }
+
+  return [null, "timeout", offset];
+}
+
+function isHighRisk(actionDesc: string, risk: string): boolean {
+  const r = (risk || "").trim().toLowerCase();
+  if (r === "high" || r === "critical" || r === "p1") return true;
+  const low = (actionDesc || "").trim().toLowerCase();
+  return HIGH_RISK_KEYWORDS.some((k) => low.includes(k));
+}
+
+async function requestApproval(
+  actionDesc: string,
+  risk: string,
+  timeoutS = 300,
+  chatId?: string | null,
+  token?: string | null,
+  configPath = DEFAULT_CONFIG,
+): Promise<ApprovalResult> {
+  if (!isHighRisk(actionDesc, risk)) {
+    return { approved: true, reason: "not_high_risk" };
+  }
+
+  const tok = token ?? telegramToken(configPath);
+  const resolvedChat = chatId ?? process.env.TELEGRAM_CHAT_ID ?? (await inferChatId(tok));
+  if (!resolvedChat) return { approved: false, reason: "no_chat_id" };
+
+  const reqId = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
+  const msgId = await sendApprovalMessage(tok, resolvedChat, actionDesc, risk, reqId);
+  const [decided, reason] = await pollDecision(tok, reqId, timeoutS);
+
+  if (decided === true) {
+    await stripKeyboard(tok, resolvedChat, msgId, `\u2705 Approved: ${actionDesc}`);
+    return { approved: true, reason: "approved" };
+  }
+
+  if (decided === false) {
+    await stripKeyboard(tok, resolvedChat, msgId, `\u274c Rejected: ${actionDesc}`);
+    return { approved: false, reason: "rejected" };
+  }
+
+  await stripKeyboard(tok, resolvedChat, msgId, `\u23f1\ufe0f Approval timed out: ${actionDesc}`);
+  return { approved: false, reason: "timeout" };
+}
+
+function parseArgs(argv: string[]) {
+  const args = {
+    action: "",
+    risk: "",
+    timeout: 300,
+    chatId: null as string | null,
+    config: DEFAULT_CONFIG,
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const a = argv[i];
+    if (a === "--action") {
+      args.action = argv[++i] ?? "";
+    } else if (a === "--risk") {
+      args.risk = argv[++i] ?? "";
+    } else if (a === "--timeout") {
+      args.timeout = Number.parseInt(argv[++i] ?? "300", 10);
+    } else if (a === "--chat-id") {
+      args.chatId = argv[++i] ?? null;
+    } else if (a === "--config") {
+      args.config = argv[++i] ?? args.config;
+    }
+  }
+
+  return args;
+}
+
+async function main(): Promise<number> {
+  const args = parseArgs(process.argv.slice(2));
+  if (!args.action || !args.risk) {
+    console.error("--action and --risk are required");
+    return 2;
+  }
+
+  const result = await requestApproval(args.action, args.risk, args.timeout, args.chatId, null, args.config);
+
+  if (result.approved) {
+    console.log("APPROVED");
+    return 0;
+  }
+
+  console.log(`DENIED (${result.reason})`);
+  return 1;
+}
+
+main()
+  .then((code) => process.exit(code))
+  .catch((err) => {
+    console.error(err instanceof Error ? err.message : String(err));
+    process.exit(1);
+  });

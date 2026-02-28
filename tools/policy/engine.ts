@@ -1,21 +1,427 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+
+import fs from "fs";
+import path from "path";
+import { createRequire } from "module";
+import { getScriptDir } from "../lib/paths.js";
+
+type Json = Record<string, any>;
+
+type ActionRequest = {
+  action_key: string;
+  action_category?: string | null;
+  operation?: string | null;
+  target?: string | null;
+  confidence: number;
+  tags: string[];
+  projected_cost: Record<string, number>;
+  metadata: Record<string, any>;
+};
+
+type Override = {
+  override_key: string;
+  decision_override?: string | null;
+  max_risk_allowed?: number | null;
+  active: boolean;
+  starts_at?: string | null;
+  expires_at?: string | null;
+  action_key?: string | null;
+  action_category?: string | null;
+  budget_adjustments: Record<string, number>;
+};
+
+const DECISION_ORDER: Record<string, number> = {
+  allow: 0,
+  alert: 1,
+  ask: 2,
+  deny: 3,
+};
+
+function sortObject(value: any): any {
+  if (Array.isArray(value)) return value.map(sortObject);
+  if (!value || typeof value !== "object") return value;
+  const out: Json = {};
+  Object.keys(value)
+    .sort()
+    .forEach((key) => {
+      out[key] = sortObject(value[key]);
+    });
+  return out;
+}
+
+function tryYamlParse(text: string): any {
+  const require = createRequire(import.meta.url);
+  try {
+    // Optional dependency.
+    const yaml = require("yaml");
+    if (yaml && typeof yaml.parse === "function") {
+      const parsed = yaml.parse(text);
+      return parsed ?? {};
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function loadPolicy(policyFile: string): Json {
+  const raw = fs.readFileSync(policyFile, "utf8");
+  const yamlParsed = tryYamlParse(raw);
+  if (yamlParsed) return yamlParsed as Json;
+  return JSON.parse(raw) as Json;
+}
+
+function parseDate(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return null;
+  return d;
+}
+
+function appliesTo(override: Override, req: ActionRequest, now: Date): boolean {
+  if (!override.active) return false;
+  const startsAt = parseDate(override.starts_at ?? undefined);
+  if (startsAt && now < startsAt) return false;
+  const expiresAt = parseDate(override.expires_at ?? undefined);
+  if (expiresAt && now > expiresAt) return false;
+  if (override.action_key && override.action_key !== req.action_key) return false;
+  if (override.action_category && override.action_category !== req.action_category) return false;
+  return true;
+}
+
+class PolicyEngine {
+  private policyFile: string;
+  private policy: Json;
+  private actionPolicies: Json[];
+  private budgetPolicies: Json[];
+  private thresholds: Json;
+  private defaults: Json;
+  private modifiers: Json;
+  private immutableCategories: Set<string>;
+
+  constructor(policyFile: string) {
+    this.policyFile = policyFile;
+    this.policy = loadPolicy(policyFile);
+    this.actionPolicies = this.policy.action_policies ?? [];
+    this.budgetPolicies = this.policy.budget_policies ?? [];
+    this.thresholds = this.policy.thresholds ?? { low: 35, medium: 65, high: 85 };
+    this.defaults = this.policy.defaults ?? {};
+    this.modifiers = this.policy.risk_modifiers ?? {};
+    const imm = this.policy.overrides?.immutable_categories ?? [];
+    this.immutableCategories = new Set(Array.isArray(imm) ? imm : []);
+  }
+
+  private findActionPolicy(req: ActionRequest): Json {
+    for (const p of this.actionPolicies) {
+      if (p?.key === req.action_key) return p;
+    }
+    if (req.action_category) {
+      for (const p of this.actionPolicies) {
+        if (p?.category === req.action_category) return p;
+      }
+    }
+    throw new Error(
+      `No action policy found for key=${JSON.stringify(req.action_key)} category=${JSON.stringify(
+        req.action_category
+      )}`
+    );
+  }
+
+  private riskScore(req: ActionRequest, policy: Json): number {
+    let score = Number(policy.risk_base ?? 0);
+    const tags = new Set<string>([...req.tags, ...(policy.tags ?? [])]);
+
+    if (tags.has("external")) score += Number(this.modifiers.external ?? 0);
+    if (tags.has("destructive")) score += Number(this.modifiers.destructive ?? 0);
+    if (tags.has("infra")) score += Number(this.modifiers.infra ?? 0);
+    if (tags.has("finance")) score += Number(this.modifiers.finance ?? 0);
+    if (tags.has("privacy")) score += Number(this.modifiers.privacy ?? 0);
+
+    const confDefault = Number(this.defaults.confidence_default ?? 0.75);
+    const confRaw = typeof req.confidence === "number" ? req.confidence : confDefault;
+    const conf = Math.max(0, Math.min(1, confRaw || confDefault));
+    const confPenalty = Number(this.defaults.risk?.confidence_penalty_weight ?? 20);
+    score += (1 - conf) * confPenalty;
+
+    if (!req.target) score += Number(this.defaults.risk?.unknown_target_penalty ?? 10);
+    if (req.metadata?.bulk) score += Number(this.defaults.risk?.bulk_operation_penalty ?? 15);
+
+    const maxScore = Number(this.defaults.risk?.max_score ?? 100);
+    const bounded = Math.max(0, Math.min(maxScore, score));
+    return Math.round(bounded * 100) / 100;
+  }
+
+  private budgetEval(
+    req: ActionRequest,
+    usageSnapshot: Record<string, number>,
+    override?: Override | null
+  ): Record<string, any> {
+    const results: Record<string, any>[] = [];
+    let worstDecision = "allow";
+
+    for (const b of this.budgetPolicies) {
+      if (!b?.hard_stop && (b?.on_exceed ?? "allow") === "allow") {
+        // no-op, but preserve loop
+      }
+
+      const scope = b?.scope ?? "global";
+      const scopeValue = b?.scope_value;
+      if (scope === "category" && scopeValue !== req.action_category) continue;
+      if (scope === "action" && scopeValue !== req.action_key) continue;
+
+      const costType = b?.cost_type;
+      const current = Number(usageSnapshot?.[costType] ?? 0);
+      const projected = Number(req.projected_cost?.[costType] ?? 0);
+      let limit = Number(b?.limit ?? 0);
+
+      if (override?.budget_adjustments) {
+        limit += Number(override.budget_adjustments[costType] ?? 0);
+      }
+
+      const nextTotal = current + projected;
+      const pct = limit > 0 ? (nextTotal / limit) * 100 : 0;
+      const warnAtPct = Number(b?.warn_at_pct ?? 80);
+
+      let status = "ok";
+      let decision = "allow";
+      if (pct >= 100) {
+        status = "exceeded";
+        decision = b?.on_exceed ?? "ask";
+        if (b?.hard_stop ?? true) {
+          decision = decision === "deny" ? "deny" : "ask";
+        }
+      } else if (pct >= warnAtPct) {
+        status = "warn";
+        decision = "alert";
+      }
+
+      if (DECISION_ORDER[decision] > DECISION_ORDER[worstDecision]) {
+        worstDecision = decision;
+      }
+
+      results.push({
+        budget_key: b?.key,
+        cost_type: costType,
+        current: Math.round(current * 10000) / 10000,
+        projected: Math.round(projected * 10000) / 10000,
+        next_total: Math.round(nextTotal * 10000) / 10000,
+        limit: Math.round(limit * 10000) / 10000,
+        pct: Math.round(pct * 100) / 100,
+        status,
+        decision,
+      });
+    }
+
+    return { decision: worstDecision, checks: results };
+  }
+
+  private selectOverride(req: ActionRequest, overrides: Override[], now: Date): Override | null {
+    for (const o of overrides) {
+      if (appliesTo(o, req, now)) return o;
+    }
+    return null;
+  }
+
+  evaluate(
+    req: ActionRequest,
+    usageSnapshot?: Record<string, number> | null,
+    overrides?: Override[] | null,
+    now?: Date | null
+  ): Record<string, any> {
+    const nowDate = now ?? new Date();
+    const usage = usageSnapshot ?? {};
+    const overrideList = overrides ?? [];
+
+    const actionPolicy = this.findActionPolicy(req);
+    req.action_category = req.action_category ?? actionPolicy.category;
+
+    const riskScore = this.riskScore(req, actionPolicy);
+    let decision = actionPolicy.base_decision ?? "ask";
+    const rationale: string[] = [`base:${decision}`];
+
+    if (actionPolicy.requires_approval) {
+      decision = DECISION_ORDER[decision] < DECISION_ORDER.ask ? "ask" : decision;
+      rationale.push("requires_approval");
+    }
+
+    const riskAsk = Number(actionPolicy.risk_threshold_ask ?? this.thresholds.medium ?? 65);
+    const riskDeny = Number(actionPolicy.risk_threshold_deny ?? this.thresholds.high ?? 85);
+    if (riskScore >= riskDeny) {
+      decision = DECISION_ORDER[decision] < DECISION_ORDER.deny ? "deny" : decision;
+      rationale.push(`risk>=${riskDeny}`);
+    } else if (riskScore >= riskAsk) {
+      decision = DECISION_ORDER[decision] < DECISION_ORDER.ask ? "ask" : decision;
+      rationale.push(`risk>=${riskAsk}`);
+    }
+
+    let budgetResult = this.budgetEval(req, usage);
+    if (DECISION_ORDER[budgetResult.decision] > DECISION_ORDER[decision]) {
+      decision = budgetResult.decision;
+      rationale.push(`budget:${budgetResult.decision}`);
+    }
+
+    const selectedOverride = this.selectOverride(req, overrideList, nowDate);
+    if (selectedOverride) {
+      const isImmutable =
+        (req.action_category && this.immutableCategories.has(req.action_category)) ||
+        Boolean(actionPolicy.immutable);
+      if (isImmutable) {
+        rationale.push("override_blocked_immutable");
+      } else if (
+        selectedOverride.max_risk_allowed != null &&
+        riskScore > Number(selectedOverride.max_risk_allowed)
+      ) {
+        rationale.push("override_max_risk_exceeded");
+      } else {
+        if (selectedOverride.decision_override) {
+          decision = selectedOverride.decision_override;
+          rationale.push(`override:${selectedOverride.override_key}`);
+        }
+        const budgetWithOverride = this.budgetEval(req, usage, selectedOverride);
+        if (DECISION_ORDER[budgetWithOverride.decision] > DECISION_ORDER[decision]) {
+          decision = budgetWithOverride.decision;
+          rationale.push(`budget_after_override:${budgetWithOverride.decision}`);
+        }
+        budgetResult = budgetWithOverride;
+      }
+    }
+
+    const escalationTier = Number(actionPolicy.escalation_tier ?? 3);
+    if (decision === "allow" && escalationTier === 2) {
+      decision = "alert";
+      rationale.push("tier2_alert");
+    }
+
+    return {
+      timestamp: nowDate.toISOString(),
+      action_key: req.action_key,
+      action_category: req.action_category ?? null,
+      policy_key: actionPolicy.key,
+      override_key: selectedOverride ? selectedOverride.override_key : null,
+      risk_score: riskScore,
+      confidence: req.confidence,
+      decision,
+      escalation_tier: escalationTier,
+      rationale: rationale.join(";"),
+      budget: budgetResult,
+      request: {
+        action_key: req.action_key,
+        action_category: req.action_category ?? null,
+        operation: req.operation ?? null,
+        target: req.target ?? null,
+        confidence: req.confidence,
+        tags: req.tags,
+        projected_cost: req.projected_cost,
+        metadata: req.metadata,
+      },
+    };
+  }
+}
+
+function usage(): string {
+  return (
+    "Usage: engine.ts --action-key <key> [--policies <file>] [--category <cat>] " +
+    "[--operation <op>] [--target <target>] [--confidence <float>] [--tags a,b] " +
+    "[--projected <json>] [--usage <json>]"
+  );
+}
+
+type ParsedArgs = {
+  policies: string;
+  actionKey: string | null;
+  category: string | null;
+  operation: string | null;
+  target: string | null;
+  confidence: number;
+  tags: string;
+  projected: string;
+  usage: string;
+};
+
+function parseArgs(argv: string[]): ParsedArgs {
+  const defaults: ParsedArgs = {
+    policies: path.join(getScriptDir(import.meta.url), "policies.yaml"),
+    actionKey: null,
+    category: null,
+    operation: null,
+    target: null,
+    confidence: 0.75,
+    tags: "",
+    projected: "{}",
+    usage: "{}",
+  };
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    switch (arg) {
+      case "--policies":
+        defaults.policies = argv[i + 1] ?? defaults.policies;
+        i += 1;
+        break;
+      case "--action-key":
+        defaults.actionKey = argv[i + 1] ?? null;
+        i += 1;
+        break;
+      case "--category":
+        defaults.category = argv[i + 1] ?? null;
+        i += 1;
+        break;
+      case "--operation":
+        defaults.operation = argv[i + 1] ?? null;
+        i += 1;
+        break;
+      case "--target":
+        defaults.target = argv[i + 1] ?? null;
+        i += 1;
+        break;
+      case "--confidence":
+        defaults.confidence = Number(argv[i + 1]);
+        i += 1;
+        break;
+      case "--tags":
+        defaults.tags = argv[i + 1] ?? "";
+        i += 1;
+        break;
+      case "--projected":
+        defaults.projected = argv[i + 1] ?? "{}";
+        i += 1;
+        break;
+      case "--usage":
+        defaults.usage = argv[i + 1] ?? "{}";
+        i += 1;
+        break;
+      default:
+        break;
+    }
+  }
+
+  return defaults;
+}
 
 async function main(): Promise<void> {
-  const py = "#!/usr/bin/env python3\n\"\"\"Autonomy Policy Engine.\n\nEvaluates whether an action can execute autonomously using:\n- action policy rules\n- budget windows\n- risk scoring\n- optional temporary overrides\n- auditable decision output\n\"\"\"\n\nfrom __future__ import annotations\n\nfrom dataclasses import dataclass, field, asdict\nfrom datetime import datetime, timezone\nfrom pathlib import Path\nfrom typing import Any, Dict, List, Optional\nimport json\n\ntry:\n    import yaml  # type: ignore\nexcept Exception:\n    yaml = None\n\n\nDECISION_ORDER = {\"allow\": 0, \"alert\": 1, \"ask\": 2, \"deny\": 3}\n\n\n@dataclass\nclass ActionRequest:\n    action_key: str\n    action_category: Optional[str] = None\n    operation: Optional[str] = None\n    target: Optional[str] = None\n    confidence: float = 0.75\n    tags: List[str] = field(default_factory=list)\n    projected_cost: Dict[str, float] = field(default_factory=dict)  # tokens/api_usd/tool_calls\n    metadata: Dict[str, Any] = field(default_factory=dict)\n\n\n@dataclass\nclass Override:\n    override_key: str\n    decision_override: Optional[str] = None\n    max_risk_allowed: Optional[float] = None\n    active: bool = True\n    starts_at: Optional[datetime] = None\n    expires_at: Optional[datetime] = None\n    action_key: Optional[str] = None\n    action_category: Optional[str] = None\n    budget_adjustments: Dict[str, float] = field(default_factory=dict)\n\n    def applies_to(self, req: ActionRequest, now: datetime) -> bool:\n        if not self.active:\n            return False\n        if self.starts_at and now < self.starts_at:\n            return False\n        if self.expires_at and now > self.expires_at:\n            return False\n        if self.action_key and self.action_key != req.action_key:\n            return False\n        if self.action_category and self.action_category != req.action_category:\n            return False\n        return True\n\n\nclass PolicyEngine:\n    def __init__(self, policy_file: str | Path):\n        self.policy_file = Path(policy_file)\n        self.policy = self._load_policy()\n        self.action_policies = self.policy.get(\"action_policies\", [])\n        self.budget_policies = self.policy.get(\"budget_policies\", [])\n        self.thresholds = self.policy.get(\"thresholds\", {\"low\": 35, \"medium\": 65, \"high\": 85})\n        self.defaults = self.policy.get(\"defaults\", {})\n        self.modifiers = self.policy.get(\"risk_modifiers\", {})\n        self.immutable_categories = set(self.policy.get(\"overrides\", {}).get(\"immutable_categories\", []))\n\n    def _load_policy(self) -> Dict[str, Any]:\n        text = self.policy_file.read_text(encoding=\"utf-8\")\n        if yaml is not None:\n            return yaml.safe_load(text) or {}\n        return json.loads(text)\n\n    def _find_action_policy(self, req: ActionRequest) -> Dict[str, Any]:\n        for p in self.action_policies:\n            if p.get(\"key\") == req.action_key:\n                return p\n        if req.action_category:\n            for p in self.action_policies:\n                if p.get(\"category\") == req.action_category:\n                    return p\n        raise ValueError(f\"No action policy found for key={req.action_key!r} category={req.action_category!r}\")\n\n    def _risk_score(self, req: ActionRequest, policy: Dict[str, Any]) -> float:\n        score = float(policy.get(\"risk_base\", 0))\n        tags = set(req.tags) | set(policy.get(\"tags\", []))\n\n        if \"external\" in tags:\n            score += self.modifiers.get(\"external\", 0)\n        if \"destructive\" in tags:\n            score += self.modifiers.get(\"destructive\", 0)\n        if \"infra\" in tags:\n            score += self.modifiers.get(\"infra\", 0)\n        if \"finance\" in tags:\n            score += self.modifiers.get(\"finance\", 0)\n        if \"privacy\" in tags:\n            score += self.modifiers.get(\"privacy\", 0)\n\n        conf = max(0.0, min(1.0, req.confidence or self.defaults.get(\"confidence_default\", 0.75)))\n        score += (1.0 - conf) * float(self.defaults.get(\"risk\", {}).get(\"confidence_penalty_weight\", 20))\n\n        if not req.target:\n            score += float(self.defaults.get(\"risk\", {}).get(\"unknown_target_penalty\", 10))\n\n        if req.metadata.get(\"bulk\", False):\n            score += float(self.defaults.get(\"risk\", {}).get(\"bulk_operation_penalty\", 15))\n\n        max_score = float(self.defaults.get(\"risk\", {}).get(\"max_score\", 100))\n        return round(max(0.0, min(max_score, score)), 2)\n\n    def _budget_eval(\n        self,\n        req: ActionRequest,\n        usage_snapshot: Dict[str, float],\n        override: Optional[Override] = None,\n    ) -> Dict[str, Any]:\n        results: List[Dict[str, Any]] = []\n        worst_decision = \"allow\"\n\n        for b in self.budget_policies:\n            if not b.get(\"hard_stop\", True) and b.get(\"on_exceed\", \"allow\") == \"allow\":\n                pass\n\n            scope = b.get(\"scope\", \"global\")\n            scope_value = b.get(\"scope_value\")\n            if scope == \"category\" and scope_value != req.action_category:\n                continue\n            if scope == \"action\" and scope_value != req.action_key:\n                continue\n\n            cost_type = b.get(\"cost_type\")\n            current = float(usage_snapshot.get(cost_type, 0.0))\n            projected = float(req.projected_cost.get(cost_type, 0.0))\n            limit = float(b.get(\"limit\", 0.0))\n\n            if override and override.budget_adjustments:\n                limit += float(override.budget_adjustments.get(cost_type, 0.0))\n\n            next_total = current + projected\n            pct = (next_total / limit * 100.0) if limit > 0 else 0.0\n            warn_at_pct = float(b.get(\"warn_at_pct\", 80.0))\n\n            status = \"ok\"\n            decision = \"allow\"\n            if pct >= 100:\n                status = \"exceeded\"\n                decision = b.get(\"on_exceed\", \"ask\")\n                if b.get(\"hard_stop\", True):\n                    decision = \"deny\" if decision == \"deny\" else \"ask\"\n            elif pct >= warn_at_pct:\n                status = \"warn\"\n                decision = \"alert\"\n\n            if DECISION_ORDER[decision] > DECISION_ORDER[worst_decision]:\n                worst_decision = decision\n\n            results.append(\n                {\n                    \"budget_key\": b.get(\"key\"),\n                    \"cost_type\": cost_type,\n                    \"current\": round(current, 4),\n                    \"projected\": round(projected, 4),\n                    \"next_total\": round(next_total, 4),\n                    \"limit\": round(limit, 4),\n                    \"pct\": round(pct, 2),\n                    \"status\": status,\n                    \"decision\": decision,\n                }\n            )\n\n        return {\"decision\": worst_decision, \"checks\": results}\n\n    def _select_override(self, req: ActionRequest, overrides: List[Override], now: datetime) -> Optional[Override]:\n        for o in overrides:\n            if o.applies_to(req, now):\n                return o\n        return None\n\n    def evaluate(\n        self,\n        req: ActionRequest,\n        usage_snapshot: Optional[Dict[str, float]] = None,\n        overrides: Optional[List[Override]] = None,\n        now: Optional[datetime] = None,\n    ) -> Dict[str, Any]:\n        now = now or datetime.now(timezone.utc)\n        usage_snapshot = usage_snapshot or {}\n        overrides = overrides or []\n\n        action_policy = self._find_action_policy(req)\n        req.action_category = req.action_category or action_policy.get(\"category\")\n\n        risk_score = self._risk_score(req, action_policy)\n        decision = action_policy.get(\"base_decision\", \"ask\")\n        rationale: List[str] = [f\"base:{decision}\"]\n\n        if action_policy.get(\"requires_approval\", False):\n            decision = max(decision, \"ask\", key=lambda d: DECISION_ORDER[d])\n            rationale.append(\"requires_approval\")\n\n        # Risk threshold escalation\n        risk_ask = float(action_policy.get(\"risk_threshold_ask\", self.thresholds.get(\"medium\", 65)))\n        risk_deny = float(action_policy.get(\"risk_threshold_deny\", self.thresholds.get(\"high\", 85)))\n        if risk_score >= risk_deny:\n            decision = max(decision, \"deny\", key=lambda d: DECISION_ORDER[d])\n            rationale.append(f\"risk>={risk_deny}\")\n        elif risk_score >= risk_ask:\n            decision = max(decision, \"ask\", key=lambda d: DECISION_ORDER[d])\n            rationale.append(f\"risk>={risk_ask}\")\n\n        # Budget evaluation\n        budget_result = self._budget_eval(req, usage_snapshot)\n        if DECISION_ORDER[budget_result[\"decision\"]] > DECISION_ORDER[decision]:\n            decision = budget_result[\"decision\"]\n            rationale.append(f\"budget:{budget_result['decision']}\")\n\n        # Override handling\n        selected_override = self._select_override(req, overrides, now)\n        if selected_override:\n            if req.action_category in self.immutable_categories or action_policy.get(\"immutable\", False):\n                rationale.append(\"override_blocked_immutable\")\n            else:\n                if selected_override.max_risk_allowed is not None and risk_score > selected_override.max_risk_allowed:\n                    rationale.append(\"override_max_risk_exceeded\")\n                else:\n                    if selected_override.decision_override:\n                        decision = selected_override.decision_override\n                        rationale.append(f\"override:{selected_override.override_key}\")\n                    # recompute budget with override adjustments\n                    budget_with_override = self._budget_eval(req, usage_snapshot, selected_override)\n                    if DECISION_ORDER[budget_with_override[\"decision\"]] > DECISION_ORDER[decision]:\n                        decision = budget_with_override[\"decision\"]\n                        rationale.append(f\"budget_after_override:{budget_with_override['decision']}\")\n                    budget_result = budget_with_override\n\n        escalation_tier = int(action_policy.get(\"escalation_tier\", 3))\n        if decision == \"allow\" and escalation_tier == 2:\n            decision = \"alert\"\n            rationale.append(\"tier2_alert\")\n\n        result = {\n            \"timestamp\": now.isoformat(),\n            \"action_key\": req.action_key,\n            \"action_category\": req.action_category,\n            \"policy_key\": action_policy.get(\"key\"),\n            \"override_key\": selected_override.override_key if selected_override else None,\n            \"risk_score\": risk_score,\n            \"confidence\": req.confidence,\n            \"decision\": decision,\n            \"escalation_tier\": escalation_tier,\n            \"rationale\": \";\".join(rationale),\n            \"budget\": budget_result,\n            \"request\": asdict(req),\n        }\n        return result\n\n\ndef main() -> None:\n    import argparse\n\n    parser = argparse.ArgumentParser(description=\"Evaluate a single autonomy policy decision\")\n    parser.add_argument(\"--policies\", default=str(Path(__file__).with_name(\"policies.yaml\")))\n    parser.add_argument(\"--action-key\", required=True)\n    parser.add_argument(\"--category\")\n    parser.add_argument(\"--operation\")\n    parser.add_argument(\"--target\")\n    parser.add_argument(\"--confidence\", type=float, default=0.75)\n    parser.add_argument(\"--tags\", default=\"\")\n    parser.add_argument(\"--projected\", default=\"{}\", help=\"JSON dict, e.g. '{\\\"tokens\\\":1200}'\")\n    parser.add_argument(\"--usage\", default=\"{}\", help=\"JSON dict, e.g. '{\\\"tokens\\\":50000}'\")\n    args = parser.parse_args()\n\n    engine = PolicyEngine(args.policies)\n    req = ActionRequest(\n        action_key=args.action_key,\n        action_category=args.category,\n        operation=args.operation,\n        target=args.target,\n        confidence=args.confidence,\n        tags=[t.strip() for t in args.tags.split(\",\") if t.strip()],\n        projected_cost=json.loads(args.projected),\n    )\n    result = engine.evaluate(req, usage_snapshot=json.loads(args.usage))\n    print(json.dumps(result, indent=2, sort_keys=True))\n\n\nif __name__ == \"__main__\":\n    main()\n";
-  const dir = mkdtempSync(join(tmpdir(), 'pywrap-'));
-  const script = join(dir, 'script.py');
-  writeFileSync(script, py, 'utf8');
-  const proc = spawnSync('python3', [script, ...process.argv.slice(2)], { stdio: 'inherit' });
-  rmSync(dir, { recursive: true, force: true });
-  if (proc.error) {
-    console.error(String(proc.error));
-    process.exit(1);
+  const args = parseArgs(process.argv.slice(2));
+  if (!args.actionKey) {
+    console.error(usage());
+    process.exit(2);
   }
-  process.exit(proc.status ?? 1);
+
+  const engine = new PolicyEngine(args.policies);
+  const req: ActionRequest = {
+    action_key: args.actionKey,
+    action_category: args.category,
+    operation: args.operation,
+    target: args.target,
+    confidence: args.confidence,
+    tags: args.tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean),
+    projected_cost: JSON.parse(args.projected),
+    metadata: {},
+  };
+
+  const result = engine.evaluate(req, JSON.parse(args.usage));
+  console.log(JSON.stringify(sortObject(result), null, 2));
 }
 
 main().catch((err) => {
