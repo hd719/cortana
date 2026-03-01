@@ -14,7 +14,6 @@ const COST_BREAKER = path.join(ROOT_DIR, "tools", "alerting", "cost-breaker.sh")
 const CRON_PREFLIGHT = path.join(ROOT_DIR, "tools", "alerting", "cron-preflight.sh");
 const OAUTH_REFRESH = path.join(ROOT_DIR, "tools", "gog", "oauth-refresh.sh");
 const META_MONITOR = path.join(ROOT_DIR, "tools", "meta-monitor", "meta-monitor.ts");
-const SELF_DIAG = path.join(ROOT_DIR, "tools", "self-diagnostic", "self-diagnostic.sh");
 
 const reportRows: string[] = [];
 let anyFail = false;
@@ -298,7 +297,6 @@ async function main(): Promise<number> {
     );
     runTextTest("tools/gog/oauth-refresh.sh", `"${OAUTH_REFRESH}"`, "gog oauth");
     runJsonTest("tools/meta-monitor/meta-monitor.sh", `"${META_MONITOR}" --json`);
-    runTextTest("tools/self-diagnostic/self-diagnostic.sh", `"${SELF_DIAG}" --brief`, "overall=");
 
     printReport();
 

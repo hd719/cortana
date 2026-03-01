@@ -104,4 +104,4 @@ For high-throughput pipelines, run the local server once and call `POST /embed`.
 ## Notes
 - First run downloads model artifacts into `~/.cache/local-embeddings`.
 - Subsequent runs are offline/local.
-- Output vectors are JSON arrays of floats, ready for pgvector/Qdrant/LanceDB/etc.
+- Output vectors are JSON arrays of floats, ready for pgvector, Qdrant, or similar vector stores.
