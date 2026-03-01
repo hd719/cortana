@@ -17,6 +17,11 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
 - **Portfolio + market (1–2× daily, market hours)**
   - Use Alpaca on port **3033** and `tools/market-intel/market-intel.sh --pulse`.
   - Watch for >3% movers, earnings surprises, >60% bearish sentiment on held positions.
+  - **X sentiment scan** (via `bird` skill + @Cortana356047 browser session):
+    - Scan X for sentiment on held positions (TSLA, NVDA, and any active CANSLIM candidates).
+    - Track key finance accounts for trade ideas, earnings surprises, sector rotation signals.
+    - Flag >60% bearish sentiment or unusual volume of negative posts on held positions.
+    - Use `bird` CLI for search/mentions; fall back to browser if needed.
   - Only 09:30–16:00 ET weekdays; skip weekends/holidays and if run within **6h**.
 
 - **Fitness (1× daily, morning)**
@@ -192,7 +197,7 @@ After each check, log a decision trace so Mission Control reflects what ran and 
 ## Rules
 
 1. Validate state each heartbeat: `~/openclaw/tools/heartbeat/validate-heartbeat-state.sh`.
-2. Read/update `memory/heartbeat-state.json` on every heartbeat.
+2. Read/update `memory/heartbeat-state.json` on every heartbeat. **Always set `lastHeartbeat` to the current epoch-ms timestamp** (`Date.now()`) at the start of every run so Mission Control tracks freshness.
 3. Run the stalest 1–2 checks from the rotation.
 4. Always run proactive watchlist scan and task detection/queue execution.
 5. If nothing urgent → reply `HEARTBEAT_OK`.
