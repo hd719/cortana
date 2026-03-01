@@ -45,6 +45,14 @@ Don't ask permission. Just do it.
 
 **Why:** Keeps main context clean, enables parallel work, and results come back async. The main session stays lean — a command bridge, not a workshop.
 
+## Agent Spawn Guardrail (MANDATORY)
+
+- **Hard rule:** ALL agent work MUST go through `sessions_spawn`.
+- Direct CLI usage of `claude`, `codex`, or any other agent CLI is forbidden.
+- Guardrail detection runs every heartbeat via `tools/guardrails/detect-cli-spawns.ts`.
+- Violations are logged to `cortana_immune_incidents` (severity: `warning`) and `cortana_feedback` with corrective guidance.
+- Zero tolerance: repeat violations trigger an alert to Hamel.
+
 ## ⚠️ The Covenant — Agent Routing (MANDATORY)
 
 **Every sub-agent spawn MUST use the correct Covenant agent.** Do NOT default to Huragok for everything. Match the task to the agent's role.
