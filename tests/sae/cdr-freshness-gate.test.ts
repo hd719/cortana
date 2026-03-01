@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import { evaluateFreshnessGate } from "../../tools/sae/cdr-freshness-gate";
 
@@ -42,28 +42,25 @@ function seedRun(args: {
   `);
 }
 
-beforeAll(() => {
-  const migration = "/Users/hd/openclaw/migrations/001_sae_sitrep_run_consistency.sql";
-  const proc = spawnSync(PSQL_BIN, [DB_NAME, "-X", "-v", "ON_ERROR_STOP=1", "-f", migration], {
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      PATH: `/opt/homebrew/opt/postgresql@17/bin:${process.env.PATH ?? ""}`,
-    },
-  });
-  if ((proc.status ?? 1) !== 0) throw new Error((proc.stderr || proc.stdout || "migration apply failed").trim());
+// Hide all production completed runs before each test, restore after
+beforeEach(() => {
+  psql("UPDATE cortana_sitrep_runs SET status = '_test_hidden' WHERE status = 'completed' AND run_id NOT LIKE 'gate-test-%';");
+  psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'gate-test-%';");
+});
+
+afterEach(() => {
+  psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'gate-test-%';");
+  psql("UPDATE cortana_sitrep_runs SET status = 'completed' WHERE status = '_test_hidden';");
 });
 
 describe("cdr-freshness-gate", () => {
   it("fails when no completed runs exist", () => {
-    psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'gate-test-%';");
     const result = evaluateFreshnessGate(new Date());
     expect(result.shouldProceed).toBe(false);
-    expect(result.reason).toBe("no_completed_runs");
+    expect(result.reason).toBe("no_completed_run");
   });
 
   it("passes on fresh, healthy, sufficiently-covered run", () => {
-    psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'gate-test-%';");
     seedRun({
       runId: "gate-test-fresh",
       completedAt: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
@@ -79,7 +76,6 @@ describe("cdr-freshness-gate", () => {
   });
 
   it("fails on stale run", () => {
-    psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'gate-test-%';");
     seedRun({
       runId: "gate-test-stale",
       completedAt: new Date(Date.now() - 200 * 60 * 1000).toISOString(),
@@ -91,11 +87,10 @@ describe("cdr-freshness-gate", () => {
 
     const result = evaluateFreshnessGate(new Date());
     expect(result.shouldProceed).toBe(false);
-    expect(result.reason).toBe("stale_run");
+    expect(result.reason).toBe("stale");
   });
 
   it("fails on high error ratio", () => {
-    psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'gate-test-%';");
     seedRun({
       runId: "gate-test-errors",
       completedAt: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
@@ -107,6 +102,6 @@ describe("cdr-freshness-gate", () => {
 
     const result = evaluateFreshnessGate(new Date());
     expect(result.shouldProceed).toBe(false);
-    expect(result.reason).toBe("error_ratio_high");
+    expect(result.reason).toBe("high_error_ratio");
   });
 });
