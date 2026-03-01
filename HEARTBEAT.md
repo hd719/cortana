@@ -100,6 +100,12 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Dispatch dependency-ready, auto-executable tasks via `tools/task-board/auto-executor.sh` (one safe command per heartbeat).
   - Surface overdue `remind_at` tasks and approaching deadlines.
 
+- **Spawn guardrail check (every heartbeat)**
+  - Run `npx tsx ~/openclaw/tools/guardrails/detect-cli-spawns.ts`.
+  - Detects direct CLI agent spawning that bypasses `sessions_spawn`.
+  - Auto-logs violations to `cortana_immune_incidents` and `cortana_feedback`.
+  - Alert Hamel on repeat violations.
+
 - **Cron delivery monitoring (every heartbeat)**
   - Run `tools/alerting/check-cron-delivery.sh` every heartbeat.
 
