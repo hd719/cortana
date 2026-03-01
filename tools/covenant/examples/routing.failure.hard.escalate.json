@@ -1,6 +1,0 @@
-{
-  "failure_type": "permission_denied",
-  "agent_identity_id": "agent.oracle.v1",
-  "attempt": 1,
-  "max_retries": 2
-}

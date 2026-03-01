@@ -1,6 +1,0 @@
-{
-  "failure_type": "timeout",
-  "agent_identity_id": "agent.monitor.v1",
-  "attempt": 3,
-  "max_retries": 2
-}

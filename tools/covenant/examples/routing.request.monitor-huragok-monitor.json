@@ -1,4 +1,0 @@
-{
-  "objective": "Detect incident in cron health, patch execution bug, and verify recovery",
-  "intents": ["monitor", "fix", "verify"]
-}

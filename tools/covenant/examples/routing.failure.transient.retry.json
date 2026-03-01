@@ -1,6 +1,0 @@
-{
-  "failure_type": "network_timeout",
-  "agent_identity_id": "agent.huragok.v1",
-  "attempt": 1,
-  "max_retries": 2
-}

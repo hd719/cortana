@@ -7,7 +7,7 @@ Goal: deliver one concise, actionable brief covering:
 
 ## Rules
 - Keep it compact, concrete, and decision-useful.
-- Respect portfolio constraints from `tools/portfolio/config.md`:
+- Respect portfolio constraints from `docs/portfolio-config.md`:
   - TSLA and NVDA are forever holds (never recommend selling them).
 - If one data source fails, continue with what is available and mark the section as partial.
 

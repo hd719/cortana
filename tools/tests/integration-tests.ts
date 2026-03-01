@@ -13,7 +13,7 @@ const STALE_DETECTOR = path.join(ROOT_DIR, "tools", "task-board", "stale-detecto
 const COST_BREAKER = path.join(ROOT_DIR, "tools", "alerting", "cost-breaker.sh");
 const CRON_PREFLIGHT = path.join(ROOT_DIR, "tools", "alerting", "cron-preflight.sh");
 const OAUTH_REFRESH = path.join(ROOT_DIR, "tools", "gog", "oauth-refresh.sh");
-const META_MONITOR = path.join(ROOT_DIR, "tools", "meta-monitor", "meta-monitor.ts");
+const META_MONITOR = path.join(ROOT_DIR, "tools", "monitoring", "meta-monitor.ts");
 
 const reportRows: string[] = [];
 let anyFail = false;
@@ -296,7 +296,7 @@ async function main(): Promise<number> {
       "preflight"
     );
     runTextTest("tools/gog/oauth-refresh.sh", `"${OAUTH_REFRESH}"`, "gog oauth");
-    runJsonTest("tools/meta-monitor/meta-monitor.sh", `"${META_MONITOR}" --json`);
+    runJsonTest("tools/monitoring/meta-monitor.ts", `"${META_MONITOR}" --json`);
 
     printReport();
 
