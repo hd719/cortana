@@ -157,3 +157,14 @@
 - **Execution trend confirmed**: Mission Control + task board + heartbeat/cron orchestration are now operating as one integrated execution plane, not separate systems.
 - **Behavioral pattern confirmed**: wake time remains stable around **07:30 ET**; sleep check-ins shifted earlier from ~22:00 toward **21:30 ET** by week end.
 - **Data-quality rule strengthened**: feedback entries should include non-empty `lesson` text; repeated empty-lesson rows reduce the value of correction clustering.
+
+## X/Twitter Account
+
+- **Account**: @Cortana356047 — Hamel created this for Cortana to use.
+- **Purpose**: Market sentiment monitoring (TSLA, NVDA, portfolio holdings), stock flow from key accounts, tech news, and CANSLIM candidate screening.
+- **Browser profile**: logged in on the OpenClaw browser (`profile="openclaw"`).
+- **Standing use cases**:
+  - Monitor sentiment on held positions (especially TSLA, NVDA)
+  - Track key finance accounts for trade ideas
+  - Scan for earnings surprises, sector rotation signals
+  - Support CANSLIM screening with social sentiment layer
