@@ -138,7 +138,6 @@
 ## Travel & API
 
 - Upcoming: **Punta Cana** Mar 25–29 @ Paradisus Palma Real (ref 2600896858).
-- **Alpaca account is paper trading** ($100k virtual cash). Not real money — used for testing. Don't flag cash/position mismatches vs actual portfolio.
 - OpenAI Pro: ~$200/month budget; monitor usage closely and raise early warnings.
 
 ## Vision
