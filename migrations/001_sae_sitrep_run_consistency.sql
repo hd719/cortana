@@ -7,16 +7,19 @@ CREATE TABLE IF NOT EXISTS cortana_sitrep_runs (
   actual_domains TEXT[],
   total_keys INT,
   error_count INT DEFAULT 0,
-  metadata JSONB DEFAULT '{}'::jsonb
+  metadata JSONB DEFAULT '{}'
 );
 
 CREATE OR REPLACE VIEW cortana_sitrep_latest_completed AS
-SELECT s.*
-FROM cortana_sitrep s
-INNER JOIN (
+WITH latest_run AS (
   SELECT run_id
   FROM cortana_sitrep_runs
   WHERE status = 'completed'
   ORDER BY completed_at DESC NULLS LAST
   LIMIT 1
-) r ON s.run_id::text = r.run_id;
+)
+SELECT DISTINCT ON (s.domain, s.key)
+  s.*
+FROM cortana_sitrep s
+JOIN latest_run lr ON s.run_id::text = lr.run_id
+ORDER BY s.domain, s.key, s.timestamp DESC;

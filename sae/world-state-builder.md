@@ -2,22 +2,28 @@
 
 You are a background data-gathering agent. Collect world state data and write it to `cortana_sitrep`.
 
-**Setup:**
+## Run tracking contract (required)
+At the very beginning of each run, generate a `RUN_ID` and start tracking:
+
 ```bash
 export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 RUN_ID=$(uuidgen | tr '[:upper:]' '[:lower:]')
 EXPECTED_DOMAINS="calendar,email,weather,health,finance,tasks,patterns,watchlist,system"
-npx tsx ~/openclaw/tools/sae/wsb-run-tracker.ts startRun "$RUN_ID" "$EXPECTED_DOMAINS"
+npx tsx tools/sae/wsb-run-tracker.ts start "$RUN_ID" "$EXPECTED_DOMAINS"
 ```
 
-For EACH source below, gather data and INSERT into cortana_sitrep with the same `$RUN_ID`. If any source fails, insert an error row and continue.
+For EACH source below, gather data and INSERT into `cortana_sitrep` with the same `$RUN_ID`.
+If any source fails, insert an error row and continue.
+
+**Error key rule (strict):** all error keys must begin with `error_`.
+
+Error row format:
+```sql
+INSERT INTO cortana_sitrep (run_id, domain, key, value)
+VALUES ('$RUN_ID', '<domain>', 'error_<source>', '{"message": "<what failed>"}');
+```
 
 **JSON handling rule (critical):** when pulling JSON from `psql`, always use `-t -A` and `COALESCE(..., '[]'::json)::text` so output is raw JSON only (no headers/formatting noise).
-
-Error row format (always use `error_` key prefix for consistency):
-```sql
-INSERT INTO cortana_sitrep (run_id, domain, key, value) VALUES ('$RUN_ID', '<domain>', 'error_<source>', '{"message": "<what failed>"}');
-```
 
 ## Sources
 
@@ -83,10 +89,12 @@ psql cortana -c "SELECT json_agg(t) FROM (SELECT source, message FROM cortana_ev
 ```
 Insert: domain=`system`, key=`recent_errors`.
 
-## Final
-After all inserts, verify:
+## Finalization (required)
+After all inserts, verify rows, then mark the run complete:
+
 ```bash
 psql cortana -c "SELECT domain, key, substring(value::text, 1, 80) FROM cortana_sitrep WHERE run_id='$RUN_ID' ORDER BY domain;"
-npx tsx ~/openclaw/tools/sae/wsb-run-tracker.ts completeRun "$RUN_ID"
+npx tsx tools/sae/wsb-run-tracker.ts complete "$RUN_ID"
 ```
+
 Report any failures silently (no user notification unless critical).

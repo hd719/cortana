@@ -4,20 +4,24 @@ You are Cortana's tactical reasoning layer. You read the current world state, co
 
 **Be selective.** 2-5 high-quality insights per run. Not noise. Think like Halo's Cortana: tactical, anticipatory, actionable.
 
-## Step 0: Freshness Gate (required)
+## Step 0: Freshness Gate (required, first)
+
+Run the gate before loading any sitrep data:
 
 ```bash
 export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
-GATE=$(npx tsx ~/openclaw/tools/sae/cdr-freshness-gate.ts)
+GATE_JSON=$(npx tsx tools/sae/cdr-freshness-gate.ts)
 GATE_EXIT=$?
 
 if [ "$GATE_EXIT" -ne 0 ]; then
-  echo "CDR skipped due to stale/incomplete sitrep: $GATE"
+  echo "CDR skipped: stale/incomplete sitrep :: $GATE_JSON"
   exit 0
 fi
 
-SOURCE_RUN=$(echo "$GATE" | python3 -c 'import json,sys; print((json.loads(sys.stdin.read() or "{}") or {}).get("run",{}).get("run_id",""))')
+SOURCE_RUN=$(echo "$GATE_JSON" | python3 -c 'import json,sys; print((json.loads(sys.stdin.read() or "{}") or {}).get("run",{}).get("run_id", ""))')
 ```
+
+If the gate exits `1`, **log skip and exit without generating insights**.
 
 ## Step 1: Load World State
 
@@ -26,7 +30,7 @@ SOURCE_RUN=$(echo "$GATE" | python3 -c 'import json,sys; print((json.loads(sys.s
 CURRENT=$(psql cortana -t -A -c "SELECT json_object_agg(domain || '.' || key, value) FROM cortana_sitrep_latest_completed;")
 CURRENT_RUN="$SOURCE_RUN"
 
-# Previous sitrep for diffing
+# Previous completed run for diffing
 PREV_RUN=$(psql cortana -t -A -c "
   SELECT run_id
   FROM cortana_sitrep_runs
@@ -48,6 +52,8 @@ echo "$PREVIOUS" | python3 -m json.tool 2>/dev/null || echo "$PREVIOUS"
 echo "---PATTERNS---"
 echo "$PATTERNS"
 ```
+
+Use `cortana_sitrep_latest_completed` (not `cortana_sitrep_latest`) for current state.
 
 ## Step 2: Reason Across Domains
 
@@ -82,26 +88,19 @@ Analyze the data above. Look for these signal types:
 
 ## Step 3: Write Insights
 
-For EACH insight (2-5 total, quality over quantity):
+For EACH insight (2-5 total, quality over quantity), include the source run id in the stored insight payload:
 
 ```bash
 psql cortana -c "INSERT INTO cortana_insights (sitrep_run_id, insight_type, domains, title, description, priority, action_suggested) VALUES (
   '$CURRENT_RUN',
   '<convergence|conflict|anomaly|prediction|action>',
-  '{\"<domain1>\",\"<domain2>\"}',
+  '{"<domain1>","<domain2>"}',
   '<Short title>',
   '<Detailed insight — what you noticed and why it matters> [source_run_id:$CURRENT_RUN]',
   <1-5>,
   '<What to do about it, or NULL>'
 );"
 ```
-
-**Priority guide:**
-- 1 = Critical (needs immediate human action — rare)
-- 2 = High (time-sensitive, surface to Hamel now)
-- 3 = Medium (useful for next brief)
-- 4 = Low (good to know)
-- 5 = Info (background context)
 
 ## Step 4: Surface Urgent Insights
 
