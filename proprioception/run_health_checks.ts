@@ -35,7 +35,7 @@ async function main() {
     ...toolRows.map((r) => `INSERT INTO cortana_tool_health (tool_name, status, response_ms, error, self_healed) VALUES ('${esc(r.tool_name)}', '${r.status}', ${r.response_ms}, NULL, false);`),
     ...cronRows.map((r: any) => `INSERT INTO cortana_cron_health (cron_name, status, consecutive_failures, run_duration_sec, metadata) VALUES ('${esc(r.cron_name)}', '${r.status}', ${r.consecutive_failures}, ${r.run_duration_sec}, '${esc(JSON.stringify(r.metadata))}');`),
     ...events.map((e: any) => `INSERT INTO cortana_events (event_type, source, severity, message, metadata) VALUES ('${esc(e.event_type)}', '${esc(e.source)}', '${esc(e.severity)}', '${esc(e.message)}', '${esc(JSON.stringify(e.metadata ?? {}))}'::jsonb);`),
-  ].join('\n');
+  ].join(' ');
   if (stmts.trim()) execSync(`${PSQL_BIN} cortana -v ON_ERROR_STOP=1 -c ${JSON.stringify(stmts)}`, { stdio: 'pipe', env: { ...process.env, PGHOST: process.env.PGHOST ?? 'localhost', PGUSER: process.env.PGUSER ?? process.env.USER ?? 'hd' } });
 }
 main().catch((e) => { console.error(String(e)); process.exit(1); });
