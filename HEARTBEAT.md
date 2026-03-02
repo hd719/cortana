@@ -1,5 +1,7 @@
 # HEARTBEAT.md – Rotating Checks
 
+**⚠️ CRITICAL COST RULE**: The heartbeat session runs on Opus. Do NOT execute checks inline. Every check that requires tool calls MUST be dispatched to a sub-agent (Codex/GPT-5.1). The heartbeat session reads state, decides what's stale, spawns agents, and reports results. It does NOT do the work itself.
+
 Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat.
 
 ## Check Rotation

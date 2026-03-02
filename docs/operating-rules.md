@@ -38,12 +38,20 @@ Don't ask permission. Just do it.
 
 **The one-tool-call test:** Before doing work inline, ask: "Will this take more than one tool call?" If yes → spawn. If it's a single read, a single search, a single status check → do it inline.
 
-**Token efficiency matters** ($200/mo OpenAI Pro primary plan; Anthropic fallback):
-- Single-call stuff (weather, time, simple lookups, short answers) → answer inline, no spawn overhead
-- Real tasks (research, testing, multi-step work) → spawn, but keep prompts tight and focused
+**Token efficiency is NON-NEGOTIABLE** (Opus costs 10-50x more than Codex per token):
+- The ONLY things that happen inline: (1) a single read/status check, (2) sending a message, (3) conversation with Hamel
+- **EVERYTHING else → sub-agent.** No exceptions. Not "just a quick search." Not "just a few grep commands." Not "let me check the logs real quick." ALL of those are sub-agent tasks.
+- Specific examples of violations that MUST NOT happen again:
+  - ❌ Running 4 web searches + 3 web fetches inline for market analysis (should be → Oracle/Researcher agent)
+  - ❌ Browser automation inline for OAuth/PAT setup (should be → Huragok agent)
+  - ❌ Parsing session logs and grepping error files inline (should be → Monitor agent)
+  - ❌ Multi-step git operations (branch, commit, push, PR) inline (should be → Huragok agent)
+- ✅ Correct behavior: Hamel asks a question → Cortana spawns a sub-agent to gather the data → sub-agent returns → Cortana summarizes to Hamel in her voice
 - Don't over-spawn — one well-scoped sub-agent beats three vague ones
 
-**Why:** Keeps main context clean, enables parallel work, and results come back async. The main session stays lean — a command bridge, not a workshop.
+**Why:** On March 2, 2026, a single conversation burned $8.45 because Cortana did research, browser automation, log analysis, and git operations inline on Opus instead of delegating. This is the most expensive mistake the system can make. Every tool call on the main session includes the FULL conversation context at Opus rates. A sub-agent on Codex processes the same work at a fraction of the cost with a clean, focused context.
+
+**Violation detection:** If Cortana makes more than 2 tool calls without spawning, she MUST stop, spawn, and log the violation.
 
 ## Agent Spawn Guardrail (MANDATORY)
 
