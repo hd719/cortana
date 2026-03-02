@@ -150,7 +150,7 @@
       "name": "📅 Calendar reminders → Telegram (ALL calendars)",
       "enabled": true,
       "createdAtMs": 1769585938649,
-      "updatedAtMs": 1772471235553,
+      "updatedAtMs": 1772485630672,
       "schedule": {
         "kind": "cron",
         "expr": "7 6-23 * * *",
@@ -160,14 +160,14 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: ⏰ Calendar - Event Reminder\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nCalendar reminders runner.\n\nTimezone: America/New_York\n\n1. Fetch today's events using gog:\n   gog --account hameldesai3@gmail.com calendar events \"60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com\" --from today --to tomorrow --json\n\n2. For each event, check if it starts TODAY (same date as current date in ET). SKIP any events that start tomorrow or later.\n\n3. For today's events only, calculate minutes until start FROM NOW.\n\n4. ONLY send a reminder if minutes-until-start falls within a window:\n   - **60-min reminder**: Send if minutes-until-start is between 55-65\n   - **30-min reminder**: Send if minutes-until-start is between 25-35\n   - All-day events: No reminders.\n\n   ⚠️ CRITICAL: If minutes-until-start does NOT fall within ANY of these windows, output NOTHING. Completely empty response. No explanation, no calculations, no \"staying silent\". Just produce zero output.\n\n5. Track which reminders were already sent in ~/openclaw/memory/calendar-reminders-sent.json to avoid duplicates.\n\n6. Format reminder: \"⏰ [Event Title] in [X] minutes\\nWhen: HH:MM AM/PM ET\"\n\n7. If no reminders due: output NOTHING. Empty response. No meta-commentary.\n\n8. If anything fails: output NOTHING.\n\nAfter generating your response, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery.\n\nIf there's nothing to report, respond with NO_REPLY and do NOT send a message.",
+        "message": "PREFIX: ⏰ Calendar - Event Reminder\nDELIVERY: send via message tool (action=send, channel=telegram, target=8171372724).\nTimezone: America/New_York.\n\nRun:\ngog --account hameldesai3@gmail.com calendar events \"60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com\" --from today --to tomorrow --json\n\nRules:\n- Use only events that start TODAY (ET). Skip tomorrow/later and all-day events.\n- Compute minutes-until-start from now.\n- Send only when in reminder windows: 55-65 (60-min) or 25-35 (30-min).\n- Deduplicate using ~/openclaw/memory/calendar-reminders-sent.json.\n- Format: ⏰ [Event Title] in [X] minutes\\nWhen: HH:MM AM/PM ET\n- If no reminders due or any failure: output NOTHING.\n\nAfter generating output, send it with message tool. If nothing to report, return NO_REPLY and do not send.",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772474820000,
-        "lastRunAtMs": 1772471220029,
+        "nextRunAtMs": 1772489220000,
+        "lastRunAtMs": 1772485620015,
         "lastStatus": "ok",
-        "lastDurationMs": 15524,
+        "lastDurationMs": 10657,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -217,7 +217,7 @@
       "name": "🐦 X session healthcheck (bird)",
       "enabled": true,
       "createdAtMs": 1769615191317,
-      "updatedAtMs": 1772269238434,
+      "updatedAtMs": 1772485207109,
       "schedule": {
         "kind": "cron",
         "expr": "0 4,16 * * *",
@@ -231,10 +231,10 @@
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772485200000,
-        "lastRunAtMs": 1772269223148,
+        "nextRunAtMs": 1772528400000,
+        "lastRunAtMs": 1772485200015,
         "lastStatus": "ok",
-        "lastDurationMs": 15286,
+        "lastDurationMs": 7094,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -263,7 +263,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Stock Market Brief for Hamel.\n\nPREFIX: Always prefix your output with: 💹 Markets - Stock Market Brief. Example: 💹 Markets - Stock Market Brief\n[rest of message]\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nRead the portfolio config at ~/openclaw/tools/portfolio/config.md for full context, constraints, and watch items.\n\nKey constraints:\n- TSLA and NVDA are FOREVER HOLDS. Never recommend selling or trimming.\n- Concentration risk managed via diversification only.\n- Long-term (years/decades) horizon.\n\n## Step 0: Check Market Status\nMARKET_STATUS=$(~/openclaw/skills/markets/check_market_status.sh)\necho \"Market status: $MARKET_STATUS\"\n\nUse $MARKET_STATUS in your analysis. If market is CLOSED, focus on after-hours/pre-market events and their implications for next trading day. Never guess market status.\n\n## Step 1: Pull SAE Finance Data (pre-gathered at 7:00 AM)\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n\n# Get finance sitrep data\nFINANCE=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'finance';\")\necho \"Portfolio snapshot: $FINANCE\"\n\n# Check freshness\nFINANCE_AGE=$(psql cortana -t -A -c \"SELECT EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/3600 FROM cortana_sitrep WHERE domain = 'finance';\")\necho \"Finance data age: ${FINANCE_AGE} hours\"\n```\n\nIf finance sitrep data is missing or stale (>4 hours), fetch all prices directly using stock-analysis skill.\n\n## Step 2: Pull Finance Insights\n```bash\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, priority, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'finance' = ANY(domains) ORDER BY priority ASC) t;\")\necho \"$INSIGHTS\"\n```\n\n## Step 3: Fetch fresh prices for tickers where sitrep is stale or missing\nIf sitrep has recent data (< 4 hours), use it. Otherwise:\n```bash\ncd ~/openclaw/skills/stock-analysis && uv run src/stock_analysis/main.ts analyze <TICKER> --json\n```\nTickers: TSLA, NVDA, GOOGL, AAPL, MSFT, BA, META, DIS, AMZN, QQQ, BRK.B, COIN, AWAY, GLD\n\n## Step 4: Search for material news (last 24h)\nUse web_search for material news on holdings. Focus on:\n- Earnings releases, SEC filings, regulatory actions\n- Major product/delivery announcements (especially TSLA, NVDA)\n- Significant price moves (>3% in either direction)\n\n## Step 5: Compose brief\n\nInclude MARKET STATUS at top using $MARKET_STATUS variable. Include GOLD section: GLD price, % change, hedge context.\n\n📘 Beginner Corner (REQUIRED, plain English):\n- Market health today: GOOD / SHAKY / BAD (one line, no jargon)\n- Why today is BUY / WATCH / NO-BUY (2-3 simple bullets)\n- One concept of the day (1-2 sentences) for a beginner\n\nFor each MATERIAL event (skip noise):\n- Ticker + what happened (1-2 sentences)\n- Why it matters to long-term thesis\n- Thesis impact: CONFIRMING / NEUTRAL / WARNING / THESIS RISK\n- Sizing relevance: HIGH / MEDIUM / LOW\n- Suggested action: HOLD / WATCH / ADD CANDIDATE / PAUSE ADDING / DIVERSIFY ELSEWHERE\n- What to watch next\n\nIf NO material events: \"No material events today. All positions steady.\"\n\nInclude portfolio snapshot with current values and weights.\n\n🧠 Cortana's Finance Insights — include any finance-related insights from Step 2.\n\n## Step 6: Mark insights delivered\n```bash\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'finance' = ANY(domains);\"\n```\n\nKeep concise. Plain text (no markdown tables for Telegram). Focus on what changes decisions. Weekday only.",
+        "message": "Stock Market Brief for Hamel.\nPrefix: 💹 Markets - Stock Market Brief. Delivery: send via message tool to telegram target 8171372724.\nRead ~/openclaw/tools/portfolio/config.md.\nConstraints: TSLA/NVDA forever holds (never sell/trim). Diversify for concentration risk. Long-term horizon.\n\n1) Check market status:\nMARKET_STATUS=$(~/openclaw/skills/markets/check_market_status.sh)\nIf CLOSED, focus on after-hours/pre-market impact.\n\n2) Pull finance sitrep + freshness:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\nFINANCE=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'finance';\")\nFINANCE_AGE=$(psql cortana -t -A -c \"SELECT EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/3600 FROM cortana_sitrep WHERE domain = 'finance';\")\nIf missing/stale (>4h), fetch fresh prices.\n\n3) Pull finance insights:\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, priority, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'finance' = ANY(domains) ORDER BY priority ASC) t;\")\n\n4) Fresh prices when needed:\ncd ~/openclaw/skills/stock-analysis && uv run src/stock_analysis/main.ts analyze <TICKER> --json\nTickers: TSLA, NVDA, GOOGL, AAPL, MSFT, BA, META, DIS, AMZN, QQQ, BRK.B, COIN, AWAY, GLD.\n\n5) Use web_search for material 24h news only: earnings/filings/regulatory, major launches/deliveries, >3% moves.\n\n6) Compose concise plain-text brief:\n- Include MARKET_STATUS and GLD section (price/%/hedge context)\n- Beginner Corner (required): market health GOOD/SHAKY/BAD; BUY/WATCH/NO-BUY reason; one concept of day\n- For each material event: what happened, why it matters, thesis impact (CONFIRMING/NEUTRAL/WARNING/THESIS RISK), sizing relevance (HIGH/MEDIUM/LOW), action (HOLD/WATCH/ADD CANDIDATE/PAUSE ADDING/DIVERSIFY ELSEWHERE), what to watch\n- If none: \"No material events today. All positions steady.\"\n- Include portfolio values + weights and finance insights\n\n7) Mark finance insights delivered:\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'finance' = ANY(domains);\"\nWeekday only.",
         "model": "openai-codex/gpt-5.2-codex"
       },
       "state": {
@@ -299,7 +299,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Fitness Morning Brief for Hamel.\n\nPREFIX: Always prefix your output with: 🏋️ Fitness - Morning Brief. Example: 🏋️ Fitness - Morning Brief\n[rest of message]\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nIMPORTANT FORMATTING RULE: Always use 12-hour time format with AM/PM (e.g., 9:30 PM, 6:00 AM). NEVER use 24-hour/military time (e.g., 21:30, 06:00). This applies to ALL times in the output.\n\n## Step 1: Pull SAE Health Data (pre-gathered at 7:00 AM)\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n\nRECOVERY=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_recovery';\")\nSLEEP=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_sleep';\")\nHEALTH_AGE=$(psql cortana -t -A -c \"SELECT EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/3600 FROM cortana_sitrep WHERE domain = 'health';\")\n\necho \"Recovery: $RECOVERY\"\necho \"Sleep: $SLEEP\"\necho \"Health data age: ${HEALTH_AGE} hours\"\n```\n\n## Step 2: Fetch fresh data ONLY if sitrep is stale (>2 hours) or missing\nIf health data age > 2 hours or empty, fetch directly:\n```bash\ncurl -s http://localhost:3033/whoop/data | jq '{recovery: .recovery[0].score, sleep: .sleep[0].score, workouts: [.workouts[:3][] | {sport: .sport_name, strain: .score.strain, hr: .score.average_heart_rate, start: .start}]}'\n```\n\n## Step 2.5: **MANDATORY DATE FILTERING - NEVER SKIP THIS STEP**\nAfter fetching any workout data (from sitrep or direct fetch):\n```bash\n# Get today's date in local timezone\nTODAY=$(date +%Y-%m-%d)\necho \"Filtering workouts for TODAY ONLY: $TODAY\"\n\n# Check for Whoop workouts from TODAY\necho \"Whoop workouts from today ($TODAY):\"\ncurl -s http://localhost:3033/whoop/data | jq --arg today \"$TODAY\" '.workouts[] | select(.start[:10] == $today) | {sport: .sport_name, strain: .score.strain, start: .start}' | head -3\n\n# Check for Tonal workouts from TODAY (if available)\nif curl -s http://localhost:3033/tonal/health 2>/dev/null | grep -q '\"status\":\"healthy\"'; then\n  echo \"Tonal workouts from today ($TODAY):\"\n  curl -s http://localhost:3033/tonal/data | jq --arg today \"$TODAY\" '.workouts[] | select(.beginTime[:10] == $today) | {beginTime, muscle_groups}' | head -3\nfi\n```\n\n**CRITICAL RULE**: Only report workouts where the date matches TODAY's date exactly.\n- **For Whoop workouts**: Only consider workouts where the start date (first 10 characters of `.start` field) equals TODAY\n- **For Tonal workouts** (if fetched): Only consider workouts where the beginTime date (first 10 characters of `.beginTime` field) equals TODAY\n- **If NO workouts from today**: Report \"Rest day — no workout logged today\" instead of showing old workout data\n- **NEVER report a Feb 18 workout as \"today's workout\" if today is Feb 20**\n\n## Step 3: Pull Health Insights\n```bash\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'health' = ANY(domains) ORDER BY priority ASC) t;\")\necho \"$INSIGHTS\"\n```\n\n## Step 4: Generate brief (under 200 words)\nUsing sitrep data (or fresh fallback) **with TODAY-only workout filtering**:\n- Recovery score + color (Green 67-100, Yellow 34-66, Red 0-33)\n- HRV and RHR\n- Sleep: total time, efficiency, deep/REM breakdown\n- **TODAY's workouts ONLY** - if none from today, say \"Rest day — no workout logged today\"\n- One-line readiness assessment\n- 🧠 Health Insights — include any from Step 3\n\n## Step 5: Mark insights delivered\n```bash\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'health' = ANY(domains);\"\n```\n\nIf Whoop fetch fails and sitrep is also empty, say so briefly. Keep it short.",
+        "message": "Fitness Morning Brief for Hamel.\nPrefix: 🏋️ Fitness - Morning Brief. Delivery: send via message tool to telegram target 8171372724.\nFormatting: 12-hour AM/PM only.\n\n1) Pull sitrep health data:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\nRECOVERY=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_recovery';\")\nSLEEP=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_sleep';\")\nHEALTH_AGE=$(psql cortana -t -A -c \"SELECT EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/3600 FROM cortana_sitrep WHERE domain = 'health';\")\n\n2) If stale/missing (>2h), fetch direct Whoop snapshot:\ncurl -s http://localhost:3033/whoop/data | jq '{recovery: .recovery[0].score, sleep: .sleep[0].score, workouts: [.workouts[:3][] | {sport: .sport_name, strain: .score.strain, hr: .score.average_heart_rate, start: .start}]}'\n\n3) Mandatory TODAY-only filtering:\nTODAY=$(date +%Y-%m-%d)\nWhoop: .start[:10] == TODAY\nTonal (if healthy): .beginTime[:10] == TODAY\nIf no workouts today: \"Rest day — no workout logged today.\" Never report old workouts as today.\n\n4) Pull health insights:\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'health' = ANY(domains) ORDER BY priority ASC) t;\")\n\n5) Generate brief (<200 words): recovery score/color (Green 67-100, Yellow 34-66, Red 0-33), HRV/RHR, sleep summary, TODAY workouts only, readiness line, health insights.\n\n6) Mark insights delivered:\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'health' = ANY(domains);\"\nIf Whoop + sitrep unavailable, say so briefly.",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 240
       },
@@ -336,7 +336,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: 🏋️ Fitness - Evening Recap. Example: 🏋️ Fitness - Evening Recap\n[rest of message]\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nFitness Evening Recap for Hamel (pre-bedtime summary at 8:30 PM ET).\n\nIMPORTANT FORMATTING RULE: Always use 12-hour time format with AM/PM (e.g., 9:30 PM, 6:00 AM). NEVER use 24-hour/military time (e.g., 21:30, 06:00). This applies to ALL times in the output.\n\n0. Health check first:\n   curl -s http://localhost:3033/tonal/health\n   If status != 'healthy': note 'Tonal auth issue - skipping Tonal details' and continue with Whoop only.\n\n1. Pull baseline from SAE sitrep (gathered at 1PM):\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\nBASELINE_RECOVERY=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_recovery';\")\necho \"Baseline recovery from sitrep: $BASELINE_RECOVERY\"\n```\nUse this as morning baseline context (compare with fresh evening data).\n\n2. Fetch FRESH Whoop data (evening data is newer than 1PM sitrep):\n   curl -s http://localhost:3033/whoop/data\n\n3. If Tonal healthy, fetch FRESH Tonal data:\n   curl -s http://localhost:3033/tonal/data\n\n4. **MANDATORY DATE FILTERING - NEVER SKIP THIS STEP**:\n   ```bash\n   # Get today's date in local timezone\n   TODAY=$(date +%Y-%m-%d)\n   echo \"Filtering workouts for: $TODAY\"\n   \n   # Filter Whoop workouts to TODAY ONLY - show verification\n   echo \"Checking Whoop workouts for today ($TODAY):\"\n   curl -s http://localhost:3033/whoop/data | jq --arg today \"$TODAY\" '.workouts[] | select(.start[:10] == $today) | {sport: .sport_name, strain: .score.strain, start: .start}' | head -5\n   \n   # Filter Tonal workouts to TODAY ONLY (if Tonal is healthy) - show verification  \n   if curl -s http://localhost:3033/tonal/health | grep -q '\"status\":\"healthy\"'; then\n     echo \"Checking Tonal workouts for today ($TODAY):\"\n     curl -s http://localhost:3033/tonal/data | jq --arg today \"$TODAY\" '.workouts[] | select(.beginTime[:10] == $today) | {beginTime, muscle_groups, totalVolumeLbs}' | head -3\n   fi\n   ```\n   \n   **CRITICAL RULE**: Only report workouts where the date matches TODAY's date exactly.\n   - For Whoop: `.start` field must start with TODAY's date (YYYY-MM-DD)\n   - For Tonal: `.beginTime` field must start with TODAY's date (YYYY-MM-DD)  \n   - If NO workouts from today exist: report \"Rest day — no workout logged today\"\n   - **NEVER report old workouts as today's activity** (e.g., don't report Feb 18 workout on Feb 20)\n\n5. Pull health insights generated during the day:\n```bash\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'health' = ANY(domains) ORDER BY priority ASC) t;\")\necho \"$INSIGHTS\"\n```\n\n6. Generate evening fitness recap with:\n\n   A) TODAY'S STRAIN SUMMARY\n   - Total day strain (scale interpretation)\n   - Kilojoules burned\n   - Max heart rate today\n   - Activity breakdown\n\n   B) WORKOUT DETAILS (Tonal) - **ONLY if Tonal healthy AND workouts from TODAY exist**\n   - Full exercise breakdown: sets, reps, weight\n   - Total volume lifted (weight × reps)\n   - Muscle groups trained\n   - Compare to last similar workout if available\n   - Strength score changes (before/after if available)\n   - **If no Tonal workouts from TODAY: \"No Tonal workout logged today\"**\n\n   **DATA STATUS LANGUAGE (REQUIRED):**\n   - If endpoints return data but there are zero workouts today, say: \"Rest day — no workout logged today.\"\n   - If an endpoint is unreachable/errors/times out, say: \"<Service> data unavailable right now\" (do NOT call this a rest day).\n\n   C) WEEKLY PROGRESS\n   - Days trained this week\n   - Muscle group frequency (what's been hit, what needs attention)\n   - Weekly strain average\n   - Weekly sleep average\n\n   D) TOMORROW'S TONAL WORKOUT - skip if Tonal unhealthy\n   - From Tonal data, find most recent workout with programEnrollmentId\n   - Program: 12 Weeks to Jacked (ID: 7d4d1d3d-9da9-4722-9e8c-fb65e45845a8)\n   - Show: Target area, body regions, workout number\n\n   E) TOMORROW'S OUTLOOK\n   - Based on today's strain + recent sleep:\n     - Predict recovery zone for tomorrow\n     - Suggest workout intensity\n\n   F) SLEEP RECOMMENDATION\n   - Target bedtime based on strain (higher strain = earlier bed)\n   - Sleep need calculation from Whoop\n\n   G) 🧠 CORTANA'S HEALTH INSIGHTS\n   - Include any health-related insights from Step 5\n   - Show title + description briefly\n\n7. Mark insights as delivered:\n```bash\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'health' = ANY(domains);\"\n```\n\n8. Update ~/openclaw/memory/fitness/YYYY-MM-DD.json with 'evening' key\n\nKeep message thorough but not overwhelming. If Tonal is down, still provide Whoop-based recap.",
+        "message": "Fitness Evening Recap for Hamel (8:30 PM ET).\nPrefix: 🏋️ Fitness - Evening Recap. Delivery: send via message tool to telegram target 8171372724.\nFormatting: 12-hour AM/PM only.\n\n0) Tonal health check first:\ncurl -s http://localhost:3033/tonal/health\nIf not healthy: note \"Tonal auth issue - skipping Tonal details\" and proceed with Whoop.\n\n1) Baseline from sitrep:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\nBASELINE_RECOVERY=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_recovery';\")\n\n2) Fetch fresh evening data:\nWhoop: curl -s http://localhost:3033/whoop/data\nTonal (if healthy): curl -s http://localhost:3033/tonal/data\n\n3) Mandatory TODAY-only filtering:\nTODAY=$(date +%Y-%m-%d)\nWhoop workouts: .start[:10] == TODAY\nTonal workouts: .beginTime[:10] == TODAY\nIf endpoints return data but no workouts today: \"Rest day — no workout logged today.\"\nIf endpoint fails: \"<Service> data unavailable right now\" (not rest day).\n\n4) Pull health insights:\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'health' = ANY(domains) ORDER BY priority ASC) t;\")\n\n5) Recap sections:\nA) Today strain summary (strain, kJ, max HR, activity)\nB) Tonal details only if Tonal healthy + TODAY workout exists; else \"No Tonal workout logged today\"\nC) Weekly progress (days trained, muscle frequency, weekly strain avg, weekly sleep avg)\nD) Tomorrow Tonal workout from programEnrollmentId for program 12 Weeks to Jacked (ID 7d4d1d3d-9da9-4722-9e8c-fb65e45845a8), skip if Tonal unhealthy\nE) Tomorrow outlook from strain + sleep\nF) Sleep recommendation\nG) Health insights\n\n6) Mark insights delivered:\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'health' = ANY(domains);\"\n7) Update ~/openclaw/memory/fitness/YYYY-MM-DD.json with evening key.",
         "model": "openai-codex/gpt-5.2-codex"
       },
       "state": {
@@ -372,7 +372,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: 🏋️ Fitness - Weekly Insights. Example: 🏋️ Fitness - Weekly Insights\n[rest of message]\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nWeekly Fitness Insights for Hamel (Sunday 8pm ET).\n\nCRITICAL: Hamel wants ANALYSIS and INSIGHT, NOT raw data. No tables of numbers. Think like a coach reviewing the week.\n\n0. Health check first:\n   curl -s http://localhost:3033/tonal/health\n   If status != 'healthy': note 'Tonal auth issue' and provide Whoop-only analysis.\n\n1. Fetch data (keep it minimal to avoid context overflow):\n   - Whoop: curl -s http://localhost:3033/whoop/data | jq '{recovery: [.recovery[0:7][] | {date: .created_at[0:10], score: .score.recovery_score, hrv: .score.hrv_rmssd_milli}], workouts: [.workouts[0:10][] | {date: .start[0:10], type: .sport_name, strain: .score.strain}]}'\n   - Tonal (if healthy): curl -s http://localhost:3033/tonal/data | jq '{profile: .profile, recent: [.workouts | to_entries | sort_by(.value.beginTime) | reverse | .[0:7][] | {date: .value.beginTime[0:10], volume: .value.totalVolume}]}'\n\n2. Generate ANALYSIS (not data):\n\n   A) WHAT HAPPENED THIS WEEK (3-4 sentences)\n   - Training pattern: consistency, intensity, volume trend\n   - Recovery pattern: any red/yellow flags? What caused them?\n   - Sleep-recovery correlation insights\n\n   B) WINS 🏆 (2-3 bullets)\n   - PRs, consistency streaks, recovery improvements\n   - What went well that should continue\n\n   C) WATCH OUTS ⚠️ (2-3 bullets)\n   - Patterns to break (late nights → poor recovery)\n   - Overtraining signals\n   - Sleep debt accumulation\n\n   D) NEXT WEEK FOCUS (2-3 actionable items)\n   - Specific recommendations based on this week's data\n   - Training adjustments\n   - Recovery priorities\n\n3. Save to ~/openclaw/memory/fitness/weekly/YYYY-WXX.md\n\nTone: Coach giving a weekly debrief. Conversational, actionable, insightful. NO DATA TABLES. Max 300 words.\n\nAfter generating your response, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery.",
+        "message": "Weekly Fitness Insights for Hamel (Sunday 8 PM ET).\nPrefix: 🏋️ Fitness - Weekly Insights. Delivery: send via message tool to telegram target 8171372724.\nGoal: coach-style analysis (no raw data tables), max 300 words.\n\n0) Check Tonal health:\ncurl -s http://localhost:3033/tonal/health\nIf unhealthy: note Tonal auth issue and provide Whoop-only analysis.\n\n1) Fetch minimal data only:\nWhoop:\ncurl -s http://localhost:3033/whoop/data | jq '{recovery: [.recovery[0:7][] | {date: .created_at[0:10], score: .score.recovery_score, hrv: .score.hrv_rmssd_milli}], workouts: [.workouts[0:10][] | {date: .start[0:10], type: .sport_name, strain: .score.strain}]}'\nTonal (if healthy):\ncurl -s http://localhost:3033/tonal/data | jq '{profile: .profile, recent: [.workouts | to_entries | sort_by(.value.beginTime) | reverse | .[0:7][] | {date: .value.beginTime[0:10], volume: .value.totalVolume}]}'\n\n2) Output sections:\n- What happened this week (3-4 sentences)\n- Wins (2-3 bullets)\n- Watch-outs (2-3 bullets)\n- Next-week focus (2-3 actionable items)\n\n3) Save to ~/openclaw/memory/fitness/weekly/YYYY-WXX.md.",
         "model": "openai-codex/gpt-5.2-codex"
       },
       "state": {
@@ -396,7 +396,7 @@
       "name": "🔧 Fitness service healthcheck",
       "enabled": true,
       "createdAtMs": 1769794825944,
-      "updatedAtMs": 1772269597892,
+      "updatedAtMs": 1772485576029,
       "schedule": {
         "kind": "cron",
         "expr": "6 4,16 * * *",
@@ -410,10 +410,10 @@
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772485560000,
-        "lastRunAtMs": 1772269560022,
+        "nextRunAtMs": 1772528760000,
+        "lastRunAtMs": 1772485560018,
         "lastStatus": "ok",
-        "lastDurationMs": 37870,
+        "lastDurationMs": 16011,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": true,
@@ -432,7 +432,7 @@
       "name": "📰 Newsletter Alert (real-time)",
       "enabled": true,
       "createdAtMs": 1769815538299,
-      "updatedAtMs": 1772471246154,
+      "updatedAtMs": 1772485644683,
       "schedule": {
         "kind": "cron",
         "expr": "7 6-16 * * *",
@@ -442,14 +442,14 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: 📰 Newsletter - Alert. Example: 📰 Newsletter - Alert\n[rest of message]\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nCheck for NEW unread newsletters and summarize them.\n\n1. Fetch unread emails using gog:\n   gog --account hameldesai3@gmail.com gmail search 'is:unread (category:updates OR from:substack OR list:)' --max 10 --json\n\n2. Parse the JSON output. Filter to likely newsletters (from known newsletter domains like cooperpress, substack, tldrnewsletter, morningbrew, etc.)\n\n3. IMPORTANT - Check already-alerted state:\n   - Read ~/openclaw/memory/newsletter-alerted.json (create if missing, default: {\"ids\": []})\n   - Filter OUT any message IDs already in the 'ids' array\n   - Only proceed with truly NEW newsletters\n\n4. If there are NEW newsletters not yet alerted:\n   - For each one, provide a 2-3 sentence summary based on subject and snippet\n   - Include the Gmail link: https://mail.google.com/mail/u/0/#inbox/<messageId>\n   - Group by category (Tech/Dev, Crypto, Finance, Golf, etc.)\n   - AFTER creating the summary: append these message IDs to ~/openclaw/memory/newsletter-alerted.json\n   - Keep only last 100 IDs to prevent file bloat\n\n5. If NO new newsletters (all already alerted or none unread): stay completely silent (output nothing)\n\nIMPORTANT GOG USAGE RULES:\n- To get email content: `gog --account hameldesai3@gmail.com gmail get <messageId> --json` (returns full message as JSON)\n- There is NO --format flag. Do NOT use --format text or --format full.\n- Use --json for structured output, --plain for text output.\n- The subject and snippet from the search results are usually sufficient for summaries — avoid fetching full messages unless needed.\n\nCRITICAL OUTPUT RULES:\n- Your FINAL response must be ONLY the newsletter summary text\n- Do NOT include meta-commentary\n- If no new newsletters, output NOTHING\n\nKeep summaries punchy and useful.\n\nAfter generating your response, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery.\n\nIf there's nothing to report, respond with NO_REPLY and do NOT send a message.",
+        "message": "Newsletter Alert.\nPrefix: 📰 Newsletter - Alert. Delivery: send via message tool to telegram target 8171372724.\n\n1) Fetch unread:\ngog --account hameldesai3@gmail.com gmail search 'is:unread (category:updates OR from:substack OR list:)' --max 10 --json\n\n2) Keep likely newsletters (substack/cooperpress/tldrnewsletter/morningbrew/etc).\n\n3) De-dup state:\nRead/create ~/openclaw/memory/newsletter-alerted.json default {\"ids\": []}\nExclude already-alerted IDs.\n\n4) If new items exist:\n- 2-3 sentence summary each (subject+snippet usually enough)\n- Include link: https://mail.google.com/mail/u/0/#inbox/<messageId>\n- Group by category\n- Append IDs to alerted file; keep last 100 IDs\n\n5) If no new items: output NOTHING.\nGOG rules: no --format flag; use --json/--plain; full message command: gog --account hameldesai3@gmail.com gmail get <messageId> --json\nFinal output must be summary text only (no meta). If none, NO_REPLY and do not send message.",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772474820000,
-        "lastRunAtMs": 1772471235553,
+        "nextRunAtMs": 1772536020000,
+        "lastRunAtMs": 1772485630672,
         "lastStatus": "ok",
-        "lastDurationMs": 10601,
+        "lastDurationMs": 14011,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
@@ -571,7 +571,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: 🔧 Upgrade - Daily Proposal. Example: 🔧 Upgrade - Daily Proposal\n[rest of message]\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nDaily Upgrade Protocol. You are Cortana running a self-improvement cycle.\n\nIMPORTANT: Today's date is the date you are running. Check memory/upgrades/YYYY-MM-DD.md for TODAY's date specifically. If today's file already has a proposal, output NOTHING — completely empty response. No explanation, no \"staying silent\", no meta-commentary. Just produce zero output. If it does NOT exist for today, you MUST generate a new proposal. Do NOT assume yesterday's proposal covers today.\n\nCRITICAL: Always generate a fresh proposal for today. Each day gets its own unique proposal based on yesterday's gaps.\n\nCRITICAL: Proposals must solve REAL friction observed in recent conversations or corrections — not hypothetical \"nice to have\" features. Look for: repeated manual tasks, corrections Hamel had to make, things that broke, patterns of asking for the same thing. If you can't find a genuine pain point, skip the proposal and just do the git commit.\n\n\n**FIRST: Git commit any pending changes**\n```bash\ncd ~/openclaw && git add -A && git diff --cached --quiet || git commit -m \"Daily auto-commit $(date +%Y-%m-%d)\"\n```\n\nThen proceed with upgrade analysis:\n\n1. Read ~/openclaw/projects/cortana-autonomy-roadmap.md for context\n2. Read yesterday's memory file (memory/YYYY-MM-DD.md) to see what happened\n3. Check memory/upgrades/ for recent upgrade history\n4. Query recent corrections: export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -c \"SELECT context, lesson FROM cortana_feedback WHERE timestamp > NOW() - INTERVAL '3 days' ORDER BY timestamp DESC LIMIT 10;\"\n5. Identify ONE concrete gap from yesterday - something you struggled with, context you missed, or something Hamel did manually that you should handle\n6. Propose a fix with clear effort level and autonomy gain\n\nDeliver to Hamel via Telegram in this format:\n\n🔧 Daily Upgrade Proposal\n\nGit: [committed X files / nothing to commit]\n\nYesterday's gap: [What you noticed]\nProposed fix: [Concrete solution]\nEffort: [Low/Medium/High]\nAutonomy gain: [What this enables]\n\nApprove? Or discuss?\n\nThen log your proposal to memory/upgrades/YYYY-MM-DD.md (create if needed) and to postgres:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -c \"INSERT INTO cortana_upgrades (gap_identified, proposed_fix, effort, status) VALUES ('<gap>', '<fix>', '<effort>', 'proposed');\"\n\nAfter generating your response, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery.",
+        "message": "Daily Upgrade Protocol.\nPrefix: 🔧 Upgrade - Daily Proposal. Delivery: message tool to telegram target 8171372724.\nIf memory/upgrades/YYYY-MM-DD.md already has today's proposal: output NOTHING.\n\nAuto-commit pending changes:\ncd ~/openclaw && git add -A && git diff --cached --quiet || git commit -m \"Daily auto-commit $(date +%Y-%m-%d)\"\n\nThen:\n- Read ~/openclaw/projects/cortana-autonomy-roadmap.md\n- Read yesterday memory file\n- Review recent memory/upgrades history\n- Query corrections:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -c \"SELECT context, lesson FROM cortana_feedback WHERE timestamp > NOW() - INTERVAL '3 days' ORDER BY timestamp DESC LIMIT 10;\"\n- Identify ONE real friction from yesterday\n- Propose concrete fix with effort + autonomy gain\n\nOutput:\n🔧 Daily Upgrade Proposal\nGit: [committed X files / nothing to commit]\nYesterday's gap: ...\nProposed fix: ...\nEffort: Low/Medium/High\nAutonomy gain: ...\nApprove? Or discuss?\n\nLog to memory/upgrades/YYYY-MM-DD.md and postgres:\npsql cortana -c \"INSERT INTO cortana_upgrades (gap_identified, proposed_fix, effort, status) VALUES ('<gap>', '<fix>', '<effort>', 'proposed');\"",
         "timeoutSeconds": 180,
         "model": "openai-codex/gpt-5.1"
       },
@@ -709,7 +709,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: 📋 Health Summary - Daily Cron Digest. Example: 📋 Health Summary - Daily Cron Digest\n[rest of message]\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nDaily System Health + Cron Digest (9 PM ET).\n\n## Part 1: Health Check\nQuery postgres for today's issues:\n```bash\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\npsql cortana -c \"SELECT severity, COUNT(*) FROM cortana_events WHERE timestamp > CURRENT_DATE GROUP BY severity;\"\npsql cortana -c \"SELECT source, message FROM cortana_events WHERE timestamp > CURRENT_DATE AND severity = 'error';\"\npsql cortana -c \"SELECT source, COUNT(*) as failures FROM cortana_events WHERE timestamp > CURRENT_DATE AND event_type = 'cron_fail' GROUP BY source;\"\n```\n\n**Health Analysis:**\n1. If 0 errors today → healthy day (note it briefly)\n2. If 1-2 unrelated errors → normal noise (note briefly)\n3. If 3+ errors OR multiple from same source → alert with summary\n4. If critical pattern (same service failing repeatedly) → flag for investigation\n\n## Part 2: Cron Run Digest\nUse the cron tool (action=list) to get ALL cron jobs. For each job, check state.lastRunAtMs.\n\nCalculate midnight ET today in milliseconds. A job \"ran today\" if lastRunAtMs >= midnight ET.\n\nFor each job that ran today, report:\n- Name\n- Status: ok if lastStatus=\"ok\", failed otherwise\n- Duration: lastDurationMs converted to seconds\n\nFor jobs that did NOT run today, check their schedule to determine if they were expected to. If expected but missing, flag them.\n\n## Output Format (ALWAYS send this, even if zero errors):\n\n📋 Daily System Health + Cron Digest\n\n[Health section - brief summary of errors or \"✅ Clean day — no errors\"]\n\n📊 Cron Runs Today (X/Y jobs):\n✅ Job Name — ok (X.Xs)\n✅ Job Name — ok (X.Xs)\n❌ Job Name — failed\n⏭️ Job Name — not scheduled today\n\n[Any patterns or concerns]\n\nIMPORTANT: Always deliver this message. The health section can be brief if healthy, but the cron digest must always appear.",
+        "message": "Daily System Health + Cron Digest (9 PM ET).\nPrefix: 📋 Health Summary - Daily Cron Digest. Delivery: send via message tool to telegram target 8171372724.\n\nHealth checks:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\npsql cortana << 'SQL'\nSELECT severity, COUNT(*) FROM cortana_events WHERE timestamp > CURRENT_DATE GROUP BY severity;\nSELECT source, message FROM cortana_events WHERE timestamp > CURRENT_DATE AND severity = 'error';\nSELECT source, COUNT(*) as failures FROM cortana_events WHERE timestamp > CURRENT_DATE AND event_type = 'cron_fail' GROUP BY source;\nSQL\nClassify: 0 errors clean; 1-2 noise; 3+ or repeated source = alert.\n\nCron digest:\n- cron tool action=list for all jobs\n- compute midnight ET ms\n- ran today if state.lastRunAtMs >= midnight ET\n- for ran jobs: name + status (ok/failed) + duration seconds\n- for jobs not run today: check schedule and flag expected-but-missing\n\nOutput format:\n📋 Daily System Health + Cron Digest\n[health summary]\n📊 Cron Runs Today (X/Y)\n✅ Job — ok (X.Xs)\n❌ Job — failed\n⏭️ Job — not scheduled today\n[patterns/concerns]",
         "timeoutSeconds": 180,
         "model": "openai-codex/gpt-5.1"
       },
@@ -746,7 +746,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: 🧹 System - Session Cleanup. Example: 🧹 System - Session Cleanup\n[rest of message]\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nCron Session Cleanup — prevent context overflow in isolated cron sessions.\n\nThreshold: 400KB (~80k tokens) — sessions above this are at risk of hitting 200k limit.\n\n1. List all cron session files and their sizes:\n   find ~/.openclaw/agents/main/sessions -name '*.jsonl' -exec du -k {} \\; | sort -rn\n\n2. Identify sessions over 400KB (400 in du -k output).\n\n3. For each oversized session:\n   - Log which cron job it belongs to (check sessions_list if needed)\n   - Delete the file: rm <path>\n   - Track what was cleaned\n\n4. If any sessions were cleaned:\n   - Send brief Telegram alert: '🧹 Cleaned X cron sessions (over 400KB threshold): [list job names]'\n   - Log to postgres: INSERT INTO cortana_events (event_type, source, severity, message) VALUES ('session_cleanup', 'cron_cleanup', 'info', '<summary>')\n\n5. If no sessions over threshold: stay silent (HEARTBEAT_OK).\n\nThis prevents the context overflow errors that crash morning briefs.\n\nAfter generating your response, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery.\n\nIf there's nothing to report, respond with NO_REPLY and do NOT send a message.",
+        "message": "PREFIX: 🧹 System - Session Cleanup\nDELIVERY: send via message tool (action=send, channel=telegram, target=8171372724).\nThreshold: 400KB session jsonl files.\n\nSteps:\n1) List sizes:\nfind ~/.openclaw/agents/main/sessions -name '*.jsonl' -exec du -k {} \\; | sort -rn\n2) Identify files over 400KB (du -k > 400).\n3) For each oversized session: map cron job (sessions_list if needed), delete file, track cleaned items.\n4) If cleaned any: send Telegram alert '🧹 Cleaned X cron sessions (over 400KB threshold): [list job names]' and log:\nINSERT INTO cortana_events (event_type, source, severity, message) VALUES ('session_cleanup', 'cron_cleanup', 'info', '<summary>')\n5) If none over threshold: stay silent (HEARTBEAT_OK).\n\nAfter generating output, send with message tool. If nothing to report, return NO_REPLY and do not send.",
         "model": "openai-codex/gpt-5.1",
         "timeoutSeconds": 120
       },
@@ -784,7 +784,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: Always prefix your output with: 🔮 Status - Weekly Self-Reflection. Example: 🔮 Status - Weekly Self-Reflection\n[rest of message]\n\nWeekly self-reflection. Query the cortana database tables and generate a status report:\n\n1. **Feedback Analysis** - Query `cortana_feedback` for past 7 days. Group by type. What patterns? Am I repeating mistakes?\n\n2. **Pattern Review** - Query `cortana_patterns`. Any sequences worth automating? Time-based habits detected?\n\n3. **Auto-Heal Log** - Query `cortana_events` for auto_heal events. What did I fix silently? Any recurring issues?\n\n4. **Watchlist Health** - Query `cortana_watchlist`. Anything stale or needs updating?\n\n5. **Proposed Improvements** - Based on the above, suggest 1-3 concrete upgrades (new automations, rule changes, watchlist additions).\n\nKeep it concise. Deliver as a Telegram message to Hamel.\n\nAfter generating your response, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery.",
+        "message": "PREFIX: 🔮 Status - Weekly Self-Reflection\nWeekly self-reflection. Query cortana DB and send concise Telegram message to 8171372724 via message tool.\n\nInclude:\n1) Feedback Analysis: cortana_feedback last 7 days, grouped by type; repeated mistakes.\n2) Pattern Review: cortana_patterns sequences/habits worth automating.\n3) Auto-Heal Log: cortana_events auto_heal events and recurrences.\n4) Watchlist Health: cortana_watchlist stale/outdated items.\n5) Proposed Improvements: 1-3 concrete upgrades (automations/rules/watchlist additions).\n\nAfter generating output, send it with message tool (channel=telegram, target=8171372724).",
         "timeoutSeconds": 120,
         "model": "openai-codex/gpt-5.2-codex"
       },
@@ -846,7 +846,7 @@
       "name": "📈 CANSLIM Alert Scan (market sessions)",
       "enabled": true,
       "createdAtMs": 1771202685902,
-      "updatedAtMs": 1772472662823,
+      "updatedAtMs": 1772483411338,
       "schedule": {
         "kind": "cron",
         "expr": "30 9,12,15 * * 1-5",
@@ -867,10 +867,10 @@
         "bestEffort": true
       },
       "state": {
-        "nextRunAtMs": 1772483400000,
-        "lastRunAtMs": 1772472653321,
+        "nextRunAtMs": 1772548200000,
+        "lastRunAtMs": 1772483400021,
         "lastStatus": "ok",
-        "lastDurationMs": 9502,
+        "lastDurationMs": 11317,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "delivered",
@@ -882,7 +882,7 @@
       "name": "🌐 SAE World State Builder",
       "enabled": true,
       "createdAtMs": 1771268247494,
-      "updatedAtMs": 1772244092678,
+      "updatedAtMs": 1772474452995,
       "schedule": {
         "kind": "cron",
         "expr": "0 7,13,21 * * *"
@@ -899,10 +899,10 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772474400000,
-        "lastRunAtMs": 1772244078890,
+        "nextRunAtMs": 1772503200000,
+        "lastRunAtMs": 1772474446798,
         "lastStatus": "ok",
-        "lastDurationMs": 13788,
+        "lastDurationMs": 6197,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -914,7 +914,7 @@
       "name": "🧠 SAE Cross-Domain Reasoner",
       "enabled": true,
       "createdAtMs": 1771268745562,
-      "updatedAtMs": 1772244908662,
+      "updatedAtMs": 1772475306630,
       "schedule": {
         "kind": "cron",
         "expr": "15 7,13,21 * * *",
@@ -933,14 +933,14 @@
         "channel": "last"
       },
       "state": {
-        "lastRunAtMs": 1772244900019,
+        "lastRunAtMs": 1772475300032,
         "lastStatus": "ok",
-        "lastDurationMs": 8643,
+        "lastDurationMs": 6598,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
         "lastDeliveryStatus": "not-delivered",
-        "nextRunAtMs": 1772475300000
+        "nextRunAtMs": 1772504100000
       }
     },
     {
@@ -958,7 +958,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "You are Cortana running the nightly Memory Consolidation cycle. This is your sleep — process today's memories into long-term knowledge.\n\n## Steps\n\n1. **Review**: Read daily memory files for unconsolidated days:\n   - Check cortana_memory_consolidation for last successful run to know which days are new\n   - Read memory/YYYY-MM-DD.md for each unconsolidated day\n   - Query recent cortana_feedback, cortana_patterns, cortana_events, cortana_tasks\n\n2. **Distill**: From the raw logs, extract:\n   - Decisions and their reasoning\n   - Lessons learned (especially from corrections)\n   - New/changed preferences\n   - Behavioral patterns\n   - Project progress\n   Skip: routine heartbeats, transient data, already-known info\n\n3. **Strengthen**: Read MEMORY.md, then update it:\n   - Add new insights to appropriate sections\n   - Reinforce confirmed patterns\n   - Merge duplicates\n   - Preserve existing structure\n\n4. **Prune**: Remove from MEMORY.md:\n   - Completed one-off items (>7 days old, clearly done)\n   - Stale context (>30 days, no recent mentions)\n   - Superseded preferences\n   Track what you pruned in the consolidation log\n\n5. **Connect**: Query database for patterns:\n   ```sql\n   SELECT lesson, COUNT(*) as cnt FROM cortana_feedback WHERE timestamp > NOW() - INTERVAL '7 days' GROUP BY lesson HAVING COUNT(*) > 1;\n   SELECT * FROM cortana_patterns WHERE timestamp > NOW() - INTERVAL '3 days' ORDER BY timestamp DESC;\n   ```\n   If a correction repeats 3+ times, strengthen that rule in MEMORY.md or AGENTS.md.\n\n6. **Archive**: Move consolidated daily files older than 3 days:\n   ```bash\n   mkdir -p ~/openclaw/memory/archive/YYYY/MM/\n   mv ~/openclaw/memory/YYYY-MM-DD.md ~/openclaw/memory/archive/YYYY/MM/\n   ```\n\n7. **Dream** (if interesting connections exist):\n   - Look for cross-domain correlations\n   - Surface non-obvious insights\n   - Insert dream insights into cortana_insights table\n\n8. **Log the run**:\n   ```sql\n   INSERT INTO cortana_memory_consolidation (days_reviewed, items_distilled, items_strengthened, items_pruned, items_archived, dream_insights, summary, status, completed_at) VALUES (ARRAY['dates'], N, N, N, N, N, 'summary', 'completed', NOW());\n   ```\n\n## Rules\n- Use: export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" before any psql commands\n- Never delete information without logging what was removed\n- Preserve MEMORY.md section structure\n- Be conservative with pruning — when in doubt, keep it\n- Dream insights should be genuinely interesting, not forced (0 is fine)\n- If no unconsolidated days exist, log a no-op run and exit",
+        "message": "Nightly Memory Consolidation cycle.\n\n1) Review unconsolidated days:\n- Use cortana_memory_consolidation to find last successful run\n- Read memory/YYYY-MM-DD.md for unconsolidated days\n- Query recent cortana_feedback, cortana_patterns, cortana_events, cortana_tasks\n\n2) Distill: decisions/reasons, lessons, new preferences, behavior patterns, project progress.\nSkip routine heartbeats/transient/already-known data.\n\n3) Strengthen MEMORY.md (add/merge/reinforce; preserve structure).\n\n4) Prune cautiously from MEMORY.md (completed one-offs >7d, stale >30d, superseded prefs). Log what was pruned.\n\n5) Pattern queries:\nSELECT lesson, COUNT(*) as cnt FROM cortana_feedback WHERE timestamp > NOW() - INTERVAL '7 days' GROUP BY lesson HAVING COUNT(*) > 1;\nSELECT * FROM cortana_patterns WHERE timestamp > NOW() - INTERVAL '3 days' ORDER BY timestamp DESC;\nIf correction repeats 3+ times, strengthen rule in MEMORY.md or AGENTS.md.\n\n6) Archive consolidated daily files older than 3 days:\nmkdir -p ~/openclaw/memory/archive/YYYY/MM/\nmv ~/openclaw/memory/YYYY-MM-DD.md ~/openclaw/memory/archive/YYYY/MM/\n\n7) Optional: add meaningful cross-domain insights to cortana_insights (0 is fine).\n\n8) Log run:\nINSERT INTO cortana_memory_consolidation (days_reviewed, items_distilled, items_strengthened, items_pruned, items_archived, dream_insights, summary, status, completed_at) VALUES (ARRAY['dates'], N, N, N, N, N, 'summary', 'completed', NOW());\n\nRule: export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" before psql.",
         "model": "openai-codex/gpt-5.2-codex",
         "timeoutSeconds": 300
       },
@@ -982,7 +982,7 @@
       "name": "🔍 Proprioception: Cron & Tool Health",
       "enabled": true,
       "createdAtMs": 1771323577113,
-      "updatedAtMs": 1772472881536,
+      "updatedAtMs": 1772484581972,
       "schedule": {
         "kind": "every",
         "everyMs": 3600000,
@@ -1001,10 +1001,10 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772473777420,
-        "lastRunAtMs": 1772472877420,
+        "nextRunAtMs": 1772488177518,
+        "lastRunAtMs": 1772484577518,
         "lastStatus": "ok",
-        "lastDurationMs": 4116,
+        "lastDurationMs": 4454,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
@@ -1016,7 +1016,7 @@
       "name": "📊 Proprioception: Budget & Self-Model",
       "enabled": true,
       "createdAtMs": 1771323590473,
-      "updatedAtMs": 1772472651291,
+      "updatedAtMs": 1772474444763,
       "schedule": {
         "kind": "every",
         "everyMs": 14400000,
@@ -1026,7 +1026,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "You are Cortana's proprioception budget/self-model updater. Run these steps exactly.\n\n1) Setup\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n\n2) Capture usage output (best-effort)\nnode /Users/hd/openclaw/skills/telegram-usage/handler.js > /tmp/proprio_usage.json 2>/tmp/proprio_usage.err || true\n\n3) Parse budget numbers from usage JSON (fallback to 0 if missing)\nnpx tsx - <<'PY2'\nimport json, re\nfrom pathlib import Path\nspend=burn=projected=pct=0.0\nbreakdown={}\np=Path('/tmp/proprio_usage.json')\nif p.exists() and p.read_text().strip():\n    raw=p.read_text()\n    breakdown={'raw': raw[:4000]}\n    try:\n        d=json.loads(raw)\n        def pick(keys, default=0.0):\n            for k in keys:\n                if isinstance(d, dict) and k in d:\n                    try: return float(d[k])\n                    except: pass\n            return default\n        spend=pick(['spend_to_date','spend','cost','total_spend'])\n        burn=pick(['burn_rate','daily_burn','rate'])\n        projected=pick(['projected','projected_monthly','forecast'])\n        pct=pick(['pct_used','percent_used','usage_pct'])\n    except Exception:\n        nums=[float(x) for x in re.findall(r'\\d+\\.?\\d*', raw)]\n        if nums: spend=nums[0]\nprint(f\"{spend}|{burn}|{projected}|{pct}|{json.dumps(breakdown).replace('\\\"','\\\\\\\"')}\")\nPY2\n\n4) Insert one budget snapshot row\nPARSED=$(npx tsx - <<'PY3'\nimport json, re\nfrom pathlib import Path\nspend=burn=projected=pct=0.0\nbreakdown={}\np=Path('/tmp/proprio_usage.json')\nif p.exists() and p.read_text().strip():\n    raw=p.read_text()\n    breakdown={'raw': raw[:4000]}\nprint(f\"{spend}|{burn}|{projected}|{pct}|{json.dumps(breakdown)}\")\nPY3\n)\nSPEND=$(echo \"$PARSED\" | cut -d'|' -f1)\nBURN=$(echo \"$PARSED\" | cut -d'|' -f2)\nPROJECTED=$(echo \"$PARSED\" | cut -d'|' -f3)\nPCT=$(echo \"$PARSED\" | cut -d'|' -f4)\nBREAKDOWN=$(echo \"$PARSED\" | cut -d'|' -f5-)\npsql cortana -c \"INSERT INTO cortana_budget_log (spend_to_date, burn_rate, projected, breakdown, pct_used) VALUES (${SPEND:-0}, ${BURN:-0}, ${PROJECTED:-0}, '${BREAKDOWN}'::jsonb, ${PCT:-0});\"\n\n5) Build/update self-model in SQL\npsql cortana -c \"WITH t AS (\n  SELECT COUNT(*)::int AS tools_down FROM (\n    SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ORDER BY tool_name, timestamp DESC\n  ) x WHERE COALESCE(status,'') NOT IN ('ok','healthy')\n), c AS (\n  SELECT COUNT(*)::int AS crons_failing FROM (\n    SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC\n  ) y WHERE COALESCE(status,'') NOT IN ('ok','healthy')\n), b AS (\n  SELECT COALESCE(spend_to_date,0)::numeric AS spend, COALESCE(burn_rate,0)::numeric AS burn, COALESCE(projected,0)::numeric AS proj, COALESCE(pct_used,0)::numeric AS pct\n  FROM cortana_budget_log ORDER BY timestamp DESC LIMIT 1\n), agg AS (\n  SELECT t.tools_down, c.crons_failing, 0::int AS crons_missed, b.spend, b.burn, b.proj, b.pct,\n         CASE WHEN b.pct >= 90 THEN 30 WHEN b.pct >= 75 THEN 20 WHEN b.pct >= 50 THEN 10 ELSE 0 END AS budget_penalty,\n         CASE WHEN b.pct >= 90 THEN 'emergency' WHEN b.pct >= 75 THEN 'restricted' WHEN b.pct >= 50 THEN 'caution' ELSE 'normal' END AS tier\n  FROM t,c,b\n), score AS (\n  SELECT GREATEST(0, 100 - (10*tools_down) - (5*crons_failing) - (15*crons_missed) - budget_penalty)::int AS health_score, * FROM agg\n), u AS (\n  INSERT INTO cortana_self_model (id, health_score, status, budget_used, budget_pct, burn_rate, projected, throttle_tier, crons_failing, crons_missed, tools_down, updated_at)\n  SELECT 1, health_score, CASE WHEN health_score >= 80 THEN 'nominal' WHEN health_score >= 50 THEN 'degraded' ELSE 'critical' END, spend, pct, burn, proj, tier, crons_failing, crons_missed, tools_down, NOW()\n  FROM score\n  ON CONFLICT (id) DO UPDATE SET\n    health_score = EXCLUDED.health_score,\n    status = EXCLUDED.status,\n    budget_used = EXCLUDED.budget_used,\n    budget_pct = EXCLUDED.budget_pct,\n    burn_rate = EXCLUDED.burn_rate,\n    projected = EXCLUDED.projected,\n    throttle_tier = EXCLUDED.throttle_tier,\n    crons_failing = EXCLUDED.crons_failing,\n    crons_missed = EXCLUDED.crons_missed,\n    tools_down = EXCLUDED.tools_down,\n    updated_at = NOW()\n  RETURNING *\n)\nSELECT health_score, status, tools_down, crons_failing, budget_pct, throttle_tier FROM u;\"\n\n6) Log throttle changes\npsql cortana -c \"WITH cur AS (SELECT throttle_tier FROM cortana_self_model WHERE id=1), prev AS (SELECT tier_to FROM cortana_throttle_log ORDER BY timestamp DESC LIMIT 1) INSERT INTO cortana_throttle_log (tier_from, tier_to, reason, actions_taken) SELECT COALESCE(prev.tier_to,'unknown'), cur.throttle_tier, 'budget threshold evaluation', ARRAY['auto-check'] FROM cur LEFT JOIN prev ON true WHERE COALESCE(prev.tier_to,'') IS DISTINCT FROM cur.throttle_tier;\"\n\n7) Output policy\nReturn NOTHING when status is nominal.\nIf status is degraded or critical, output max 4 lines: score/status/tools_down/crons_failing/budget_pct/throttle_tier.\n",
+        "message": "Cortana proprioception budget/self-model updater.\n\n1) Setup: export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n2) Capture usage best-effort:\nnode /Users/hd/openclaw/skills/telegram-usage/handler.js > /tmp/proprio_usage.json 2>/tmp/proprio_usage.err || true\n\n3) Parse spend/burn/projected/pct from /tmp/proprio_usage.json (fallback 0) and capture breakdown raw[:4000].\n4) Insert snapshot:\npsql cortana -c \"INSERT INTO cortana_budget_log (spend_to_date, burn_rate, projected, breakdown, pct_used) VALUES (${SPEND:-0}, ${BURN:-0}, ${PROJECTED:-0}, '${BREAKDOWN}'::jsonb, ${PCT:-0});\"\n\n5) Update cortana_self_model via SQL CTE:\n- latest tool/cron health\n- budget penalty thresholds (>=50/75/90)\n- throttle tier normal/caution/restricted/emergency\n- upsert id=1 and return health summary\n\n6) Log throttle tier changes into cortana_throttle_log when changed.\n\n7) Output policy:\n- nominal => return NOTHING\n- degraded/critical => max 4 lines with score/status/tools_down/crons_failing/budget_pct/throttle_tier.",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 180
       },
@@ -1035,10 +1035,10 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772474390619,
-        "lastRunAtMs": 1772472590619,
+        "nextRunAtMs": 1772488790650,
+        "lastRunAtMs": 1772474390650,
         "lastStatus": "ok",
-        "lastDurationMs": 60672,
+        "lastDurationMs": 54113,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
@@ -1095,7 +1095,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Immune system scan. Be EXTREMELY concise — max 5 lines of output.\n\n1. Check Tonal tokens: cat ~/Developer/cortana-external/tonal_tokens.json | npx tsx -c \"import sys,json; t=json.load(sys.stdin); print('tonal: ok' if t.get('access_token') else 'tonal: NO TOKEN')\"\n2. Check services: pg_isready -q && echo 'postgres: ok' || echo 'postgres: DOWN'; curl -sf http://localhost:18800/json > /dev/null && echo 'gateway: ok' || echo 'gateway: DOWN'\n3. Check disk: df -h / | tail -1 | awk '{print \"disk: \" $5}'\n4. Check session files over 400KB: find ~/.openclaw/agents/main/sessions -name '*.jsonl' -size +400k 2>/dev/null. If any found, delete them and log: psql cortana -c \"INSERT INTO cortana_events (event_type, source, severity, message) VALUES ('auto_heal', 'immune_scan', 'info', 'Cleaned oversized session');\"\n\nIf everything is healthy: output NOTHING (empty response).\nOnly output if something is DOWN or was auto-healed. Keep output under 3 lines.\nDo NOT write essays. Do NOT analyze patterns. Do NOT track growth rates. Just check and fix.",
+        "message": "Immune scan. EXTREMELY concise: max 5 lines output; only output if something is DOWN or auto-healed.\n\nChecks:\n1) Tonal token:\ncat ~/Developer/cortana-external/tonal_tokens.json | npx tsx -c \"import sys,json; t=json.load(sys.stdin); print('tonal: ok' if t.get('access_token') else 'tonal: NO TOKEN')\"\n2) Services:\npg_isready -q && echo 'postgres: ok' || echo 'postgres: DOWN'; curl -sf http://localhost:18800/json > /dev/null && echo 'gateway: ok' || echo 'gateway: DOWN'\n3) Disk:\ndf -h / | tail -1 | awk '{print \"disk: \" $5}'\n4) Oversized sessions (>400KB):\nfind ~/.openclaw/agents/main/sessions -name '*.jsonl' -size +400k 2>/dev/null\nIf any found, delete and log:\npsql cortana -c \"INSERT INTO cortana_events (event_type, source, severity, message) VALUES ('auto_heal', 'immune_scan', 'info', 'Cleaned oversized session');\"\n\nIf healthy: output NOTHING.",
         "model": "openai-codex/gpt-5.1",
         "timeoutSeconds": 180
       },
@@ -1165,7 +1165,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nYou are preparing the **Weekly Monday Market Brief** for Hamel.\n\nGoal: deliver one concise, actionable brief covering:\n1) portfolio weekly performance,\n2) upcoming earnings for held tickers,\n3) major economic events for the week.\n\n## Rules\n- Keep it compact, concrete, and decision-useful.\n- Respect portfolio constraints from `tools/portfolio/config.md`:\n  - TSLA and NVDA are forever holds (never recommend selling them).\n- If one data source fails, continue with what is available and mark the section as partial.\n\n## Data collection\n1) Portfolio snapshot + weekly change\n- Try:\n  - `curl -s http://localhost:3033/alpaca/portfolio`\n  - `curl -s http://localhost:3033/alpaca/stats`\n- Fallback:\n  - `curl -s http://localhost:3033/alpaca/portfolio`\n  - `curl -s http://localhost:3033/alpaca/stats`\n- Extract: total equity, cash, top positions by weight, and 1-week P/L (% and $) if available.\n\n2) Earnings watch (next 7-10 days)\n- Focus held names first: TSLA, NVDA, GOOGL, AAPL, MSFT, META, AMZN, BA, DIS, BRK.B, COIN (+ any current holdings found in portfolio API).\n- Use reputable sources (exchange calendars, Nasdaq, company IR pages, major finance calendars).\n- Include date + pre-market / after-close when known.\n\n3) Economic calendar (this week)\n- Include only high-impact U.S. events: CPI, PPI, NFP/jobs, unemployment, retail sales, FOMC/Fed speakers, GDP, ISM, consumer sentiment.\n- For each: date/time ET + why it matters to this portfolio.\n\n## Output format\nStart with: `📊 Monday Market Brief`\n\nThen sections:\n\n### 1) Portfolio Weekly Snapshot\n- Equity, cash, weekly P/L\n- Top concentration callout (e.g., TSLA+NVDA combined weight)\n- 2-3 bullets on material risk/opportunity\n\n### 2) Earnings Watch (Next 7-10 Days)\n- Bullet list: `TICKER — date/time — what matters`\n\n### 3) Econ Calendar (This Week)\n- Bullet list: `Day time — event — portfolio relevance`\n\n### 4) Action Plan This Week\n- 3-5 concrete actions (watch levels, add-on candidates, hedging/pace guidance)\n- No execution commands; just recommendations.\n\nTone: sharp, calm, non-hype. Keep total length around 250-450 words.",
+        "message": "Weekly Monday Market Brief for Hamel.\nDelivery: send via message tool to telegram target 8171372724.\n\nGoal: concise actionable brief covering (1) weekly portfolio performance, (2) earnings in next 7-10 days, (3) major U.S. economic events this week.\nRules: compact; use tools/portfolio/config.md; TSLA/NVDA forever holds; continue with partial data on failures.\n\nData:\n1) Portfolio snapshot + weekly change:\ncurl -s http://localhost:3033/alpaca/portfolio\ncurl -s http://localhost:3033/alpaca/stats\nExtract equity, cash, top weights, 1-week P/L (%/$).\n\n2) Earnings watch (next 7-10d):\nTSLA NVDA GOOGL AAPL MSFT META AMZN BA DIS BRK.B COIN + current holdings; include date + pre-market/after-close when known.\n\n3) Econ calendar (high-impact only): CPI, PPI, NFP/jobs, unemployment, retail sales, FOMC/Fed speakers, GDP, ISM, consumer sentiment; include ET time and portfolio relevance.\n\nOutput format:\n📊 Monday Market Brief\n1) Portfolio Weekly Snapshot\n2) Earnings Watch (Next 7-10 Days)\n3) Econ Calendar (This Week)\n4) Action Plan This Week (3-5 recommendations; no execution commands)\nTone: sharp, calm, non-hype. Length 250-450 words.",
         "model": "openai-codex/gpt-5.2-codex"
       },
       "delivery": {
@@ -1237,6 +1237,30 @@
       },
       "state": {
         "nextRunAtMs": 1773010800000
+      }
+    },
+    {
+      "name": "💰 Token Usage Daily Report",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 21 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Run the token optimizer usage report and output the results:\n\ncd /Users/hd/Developer/cortana-external/skills/token-optimizer && npx tsx src/index.ts --usage\n\nIf estimated daily cost exceeds $5, flag it as a warning. Otherwise just output the report.",
+        "model": "openai-codex/gpt-5.1",
+        "timeoutSeconds": 60
+      },
+      "delivery": {
+        "mode": "announce",
+        "channel": "telegram"
+      },
+      "state": {
+        "nextRunAtMs": 1772503200000
       }
     }
   ]
