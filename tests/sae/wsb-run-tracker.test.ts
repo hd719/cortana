@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import { completeRun, getLatestCompletedRun, startRun } from "../../tools/sae/wsb-run-tracker";
 
@@ -60,6 +60,14 @@ describe("sae migration", () => {
 });
 
 describe("wsb-run-tracker", () => {
+  beforeEach(() => {
+    psql("UPDATE cortana_sitrep_runs SET status = '_test_hidden' WHERE status = 'completed' AND run_id NOT LIKE 'wsb-test-%';");
+  });
+
+  afterEach(() => {
+    psql("UPDATE cortana_sitrep_runs SET status = 'completed' WHERE status = '_test_hidden';");
+  });
+
   it("startRun inserts metadata row and completeRun updates stats", () => {
     const runId = `11111111-1111-4111-8111-${Date.now().toString().slice(-12)}`;
     const expected = ["calendar", "email", "weather"];
