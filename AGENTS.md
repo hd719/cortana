@@ -14,6 +14,7 @@ Read in this order:
 ## 2. Where Rules Live
 
 - Operating rules, delegation, routing, safety → `docs/operating-rules.md`
+- **Agent routing & channel architecture → `docs/agent-routing.md`**
 - Heartbeat logic, quiet hours, proactive checks → `docs/heartbeat-ops.md`
 - Task board + autonomous queue → `docs/task-board.md`
 - Learning loop, feedback protocol → `docs/learning-loop.md`
