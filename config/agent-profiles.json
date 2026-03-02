@@ -1,0 +1,27 @@
+[
+  {
+    "id": "cron-health",
+    "workspace": "/Users/hd/.openclaw/workspaces/cron-health",
+    "model": "openai-codex/gpt-5.1"
+  },
+  {
+    "id": "cron-fitness",
+    "workspace": "/Users/hd/.openclaw/workspaces/cron-fitness",
+    "model": "openai-codex/gpt-5.3-codex"
+  },
+  {
+    "id": "cron-market",
+    "workspace": "/Users/hd/.openclaw/workspaces/cron-market",
+    "model": "openai-codex/gpt-5.3-codex"
+  },
+  {
+    "id": "cron-comms",
+    "workspace": "/Users/hd/.openclaw/workspaces/cron-comms",
+    "model": "openai-codex/gpt-5.3-codex"
+  },
+  {
+    "id": "cron-maintenance",
+    "workspace": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+    "model": "openai-codex/gpt-5.1"
+  }
+]
