@@ -38,7 +38,7 @@
     },
     {
       "id": "af9e1570-3ba2-4d10-a807-91cdfc2df18b",
-      "agentId": "main",
+      "agentId": "cron-maintenance",
       "name": "🔄 Daily Auto-Update (notify Hamel)",
       "enabled": true,
       "createdAtMs": 1769556023422,
@@ -74,7 +74,7 @@
     },
     {
       "id": "cf184acd-0c18-4a36-95f6-b33958d9e0f2",
-      "agentId": "main",
+      "agentId": "cron-comms",
       "name": "📬 Weekday newsletter digest (Hamel)",
       "enabled": true,
       "createdAtMs": 1769557929500,
@@ -146,7 +146,7 @@
     },
     {
       "id": "9401d91c-5fa0-43a6-a18e-01030f9e5ba5",
-      "agentId": "main",
+      "agentId": "cron-comms",
       "name": "📅 Calendar reminders → Telegram (ALL calendars)",
       "enabled": true,
       "createdAtMs": 1769585938649,
@@ -213,7 +213,7 @@
     },
     {
       "id": "c5e30b34-c081-4e95-8a02-7c930ac4cae6",
-      "agentId": "main",
+      "agentId": "cron-health",
       "name": "🐦 X session healthcheck (bird)",
       "enabled": true,
       "createdAtMs": 1769615191317,
@@ -250,7 +250,7 @@
     },
     {
       "id": "a86ca3f9-38af-4672-ba3f-1911352f0319",
-      "agentId": "main",
+      "agentId": "cron-market",
       "name": "📈 Stock Market Brief (daily)",
       "enabled": true,
       "createdAtMs": 1769683871728,
@@ -285,7 +285,7 @@
     },
     {
       "id": "a519512a-5fb8-459f-8780-31e53793c1d4",
-      "agentId": "main",
+      "agentId": "cron-fitness",
       "name": "🏋️ Fitness Morning Brief (Hamel)",
       "enabled": true,
       "createdAtMs": 1769794739989,
@@ -322,7 +322,7 @@
     },
     {
       "id": "e4db8a8d-945c-4af2-a8d5-e54f2fb4e792",
-      "agentId": "main",
+      "agentId": "cron-fitness",
       "name": "🌙 Fitness Evening Recap (Hamel)",
       "enabled": true,
       "createdAtMs": 1769794739997,
@@ -358,7 +358,7 @@
     },
     {
       "id": "5aa1f47e-27e6-49cd-a20d-3dac0f1b8428",
-      "agentId": "main",
+      "agentId": "cron-fitness",
       "name": "📊 Weekly Fitness Insights (Sunday)",
       "enabled": true,
       "createdAtMs": 1769794740003,
@@ -392,7 +392,7 @@
     },
     {
       "id": "661b21f1-741e-41a1-b41e-f413abeb2cdd",
-      "agentId": "main",
+      "agentId": "cron-health",
       "name": "🔧 Fitness service healthcheck",
       "enabled": true,
       "createdAtMs": 1769794825944,
@@ -428,7 +428,7 @@
     },
     {
       "id": "bfb6e34f-72fe-4d06-b3a9-a0bc8ad3c6c1",
-      "agentId": "main",
+      "agentId": "cron-comms",
       "name": "📰 Newsletter Alert (real-time)",
       "enabled": true,
       "createdAtMs": 1769815538299,
@@ -465,7 +465,7 @@
     },
     {
       "id": "f478d19f-d3ff-4649-87e0-3170560f618f",
-      "agentId": "main",
+      "agentId": "cron-fitness",
       "name": "🌙 Bedtime Check (10pm ET)",
       "enabled": true,
       "createdAtMs": 1770599536224,
@@ -557,7 +557,7 @@
     },
     {
       "id": "f47d5170-112d-473c-9c4a-d51662688899",
-      "agentId": "main",
+      "agentId": "cron-maintenance",
       "name": "🔧 Daily Upgrade Protocol",
       "enabled": true,
       "createdAtMs": 1770932055504,
@@ -695,7 +695,7 @@
     },
     {
       "id": "e2d5451c-4fc3-455a-b7e0-4cbc6da7b745",
-      "agentId": "main",
+      "agentId": "cron-maintenance",
       "name": "🔍 Daily System Health Summary",
       "enabled": true,
       "createdAtMs": 1770940327751,
@@ -732,7 +732,7 @@
     },
     {
       "id": "fb9ba4df-0008-48a1-b56e-45ce35bc0fee",
-      "agentId": "main",
+      "agentId": "cron-maintenance",
       "name": "🧹 Cron Session Cleanup",
       "enabled": true,
       "createdAtMs": 1770984376271,
@@ -770,7 +770,7 @@
     },
     {
       "id": "060be4f9-190a-4942-9ded-b34a95e46088",
-      "agentId": "main",
+      "agentId": "cron-maintenance",
       "name": "🔮 Weekly Cortana Status",
       "enabled": true,
       "createdAtMs": 1771014917981,
@@ -805,7 +805,7 @@
     },
     {
       "id": "b45d6452-71ea-44ab-bd70-ed3d2c2f5f82",
-      "agentId": "main",
+      "agentId": "cron-fitness",
       "name": "🌙 Weekend Pre-Bedtime (9:30pm Fri/Sat)",
       "enabled": true,
       "createdAtMs": 1771091384492,
@@ -842,7 +842,7 @@
     },
     {
       "id": "9d2f7f92-b9e9-48bc-87b0-a5859bb83927",
-      "agentId": "main",
+      "agentId": "cron-market",
       "name": "📈 CANSLIM Alert Scan (market sessions)",
       "enabled": true,
       "createdAtMs": 1771202685902,
@@ -907,7 +907,8 @@
         "lastRunStatus": "ok",
         "lastDelivered": false,
         "lastDeliveryStatus": "not-delivered"
-      }
+      },
+      "agentId": "cron-health"
     },
     {
       "id": "dad2a631-8af3-4a8a-aef4-d3450f2f44e0",
@@ -941,7 +942,8 @@
         "lastDelivered": false,
         "lastDeliveryStatus": "not-delivered",
         "nextRunAtMs": 1772504100000
-      }
+      },
+      "agentId": "cron-health"
     },
     {
       "id": "f7414f95-7795-4e5f-81c6-034e9609cac6",
@@ -975,14 +977,15 @@
         "lastRunStatus": "ok",
         "lastDelivered": true,
         "lastDeliveryStatus": "delivered"
-      }
+      },
+      "agentId": "cron-maintenance"
     },
     {
       "id": "e53514fe-737b-43a2-8422-f9e749551761",
       "name": "🔍 Proprioception: Cron & Tool Health",
       "enabled": true,
       "createdAtMs": 1771323577113,
-      "updatedAtMs": 1772484581972,
+      "updatedAtMs": 1772488183846,
       "schedule": {
         "kind": "every",
         "everyMs": 3600000,
@@ -1001,22 +1004,23 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772488177518,
-        "lastRunAtMs": 1772484577518,
+        "nextRunAtMs": 1772491777545,
+        "lastRunAtMs": 1772488177545,
         "lastStatus": "ok",
-        "lastDurationMs": 4454,
+        "lastDurationMs": 6301,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
         "lastDelivered": false
-      }
+      },
+      "agentId": "cron-health"
     },
     {
       "id": "d583b511-b145-4bfd-8f63-ad7bc34ff1a3",
       "name": "📊 Proprioception: Budget & Self-Model",
       "enabled": true,
       "createdAtMs": 1771323590473,
-      "updatedAtMs": 1772474444763,
+      "updatedAtMs": 1772488970731,
       "schedule": {
         "kind": "every",
         "everyMs": 14400000,
@@ -1035,15 +1039,16 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772488790650,
-        "lastRunAtMs": 1772474390650,
-        "lastStatus": "ok",
-        "lastDurationMs": 54113,
-        "consecutiveErrors": 0,
-        "lastRunStatus": "ok",
-        "lastDeliveryStatus": "not-delivered",
-        "lastDelivered": false
-      }
+        "nextRunAtMs": 1772503190677,
+        "lastRunAtMs": 1772488790677,
+        "lastStatus": "error",
+        "lastDurationMs": 180054,
+        "consecutiveErrors": 1,
+        "lastRunStatus": "error",
+        "lastDeliveryStatus": "not-requested",
+        "lastError": "cron: job execution timed out"
+      },
+      "agentId": "cron-health"
     },
     {
       "id": "62772130-a454-42f9-8526-38dfdaa3eb05",
@@ -1114,7 +1119,8 @@
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
         "lastDelivered": false
-      }
+      },
+      "agentId": "cron-health"
     },
     {
       "id": "71c60384-58f3-4142-9ed4-092ec879d991",
@@ -1147,11 +1153,12 @@
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "delivered",
         "lastDelivered": true
-      }
+      },
+      "agentId": "main"
     },
     {
       "id": "6f73e040-f468-4238-93d8-a0ab6e0cad3f",
-      "agentId": "main",
+      "agentId": "cron-market",
       "name": "📊 Weekly Monday Market Brief",
       "enabled": true,
       "createdAtMs": 1771882327929,
@@ -1208,11 +1215,12 @@
       },
       "state": {
         "nextRunAtMs": 1772539200000
-      }
+      },
+      "agentId": "cron-market"
     },
     {
       "id": "fb32930f-d995-4cd5-aec5-fd942274013e",
-      "agentId": "main",
+      "agentId": "cron-market",
       "name": "📊 Weekly Compounder Scoreboard (Sunday 7pm)",
       "enabled": true,
       "createdAtMs": 1772189052666,
@@ -1261,7 +1269,8 @@
       },
       "state": {
         "nextRunAtMs": 1772503200000
-      }
+      },
+      "agentId": "cron-maintenance"
     }
   ]
 }
