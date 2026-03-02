@@ -31,11 +31,12 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
 - **Weather (1× daily, morning)**
   - Warren, NJ forecast; flag rain or extreme temps.
 
-- **API budget (weekly or when usage high)**
-  - Run `node skills/telegram-usage/handler.js json`.
-  - If `~/.openclaw/quota-tracker.json` stale/corrupt (>4h), delete then rerun.
-  - Alert if >50% of $100 budget used before day 15.
-  - Alert with throttling recommendations if >75% at any time.
+- **API budget (every 4h on weekdays, business hours)**
+  - Run `tools/budget/anthropic-monitor.sh` (Opus-priced estimate from today's Anthropic sessions).
+  - Trigger times: 9:00 AM, 1:00 PM, 5:00 PM ET (Mon–Fri).
+  - Alert if remaining Anthropic credits `< $20`.
+  - Alert if projected burn rate `> $25/day`.
+  - Include top spend sessions + one mitigation action in alert.
 
 - **Tech news on critical tools (2× daily, afternoon + evening)**
   - Quick scan: OpenClaw, Anthropic, OpenAI, core infra via TechCrunch, HN, web search.
@@ -209,9 +210,13 @@ After each check, log a decision trace so Mission Control reflects what ran and 
 4. Always run proactive watchlist scan and task detection/queue execution.
 5. If nothing urgent → reply `HEARTBEAT_OK`.
 6. If something needs attention → alert with concise context; auto-heal silently when safe.
-7. Raise budget alerts if API usage >50% before day 15 or >75% anytime.
-8. Cron delivery failures are P1 — never ignore `lastDelivered: false`.
-9. **Channel routing (MANDATORY):** The heartbeat session runs on an internal `heartbeat` messageChannel — this is NOT a real delivery channel. When sending alerts via the `message` tool, you MUST explicitly set `channel: "telegram"` and `target: "8171372724"`. Never omit the channel or it will fail with "Unknown channel: heartbeat".
+7. Run Anthropic budget guard every 4h during business hours; alert when remaining credits < $20 or projected burn > $25/day.
+8. Enforce spend controls:
+   - Heavy sessions (>120k total tokens) should be compacted/reset and moved off Opus where possible.
+   - Sub-agent tasks must set explicit `timeoutSeconds` (default 90s, max 300s unless justified).
+   - Dashboard/chat polling should be rate-limited (no rapid loops; minimum 30s cadence per client).
+9. Cron delivery failures are P1 — never ignore `lastDelivered: false`.
+10. **Channel routing (MANDATORY):** The heartbeat session runs on an internal `heartbeat` messageChannel — this is NOT a real delivery channel. When sending alerts via the `message` tool, you MUST explicitly set `channel: "telegram"` and `target: "8171372724"`. Never omit the channel or it will fail with "Unknown channel: heartbeat".
 
 ## Quiet Hours
 
