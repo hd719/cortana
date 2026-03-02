@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureConsole, importFresh, resetProcess, setArgv, useFixedTime } from "../test-utils";
 
+type JsonMap = Record<string, unknown>;
+type SpawnResult = { status: number; stdout?: string; stderr?: string };
+
 const fsMock = vi.hoisted(() => ({
   existsSync: vi.fn(),
   mkdirSync: vi.fn(),
@@ -10,8 +13,8 @@ const spawnSync = vi.hoisted(() => vi.fn());
 const readJsonFile = vi.hoisted(() => vi.fn());
 const writeJsonFileAtomic = vi.hoisted(() => vi.fn());
 const rotateBackupRing = vi.hoisted(() => vi.fn());
-const withFileLock = vi.hoisted(() => vi.fn((_: string, __: number, fn: () => any) => fn()));
-const validateHeartbeatState = vi.hoisted(() => vi.fn((raw: any) => ({
+const withFileLock = vi.hoisted(() => vi.fn((_: string, __: number, fn: () => unknown) => fn()));
+const validateHeartbeatState = vi.hoisted(() => vi.fn((raw: JsonMap) => ({
   version: 2,
   lastChecks: {},
   lastRemediationAt: 0,
@@ -25,6 +28,9 @@ const defaultHeartbeatState = vi.hoisted(() => vi.fn(() => ({
   subagentWatchdog: { lastRun: 0, lastLogged: {} },
 })));
 const hashHeartbeatState = vi.hoisted(() => vi.fn(() => "mock-hash"));
+const touchHeartbeat = vi.hoisted(() => vi.fn((state: JsonMap, nowMs: number) => ({ ...state, lastHeartbeat: nowMs })));
+const isHeartbeatQuietHours = vi.hoisted(() => vi.fn(() => false));
+const shouldSendHeartbeatAlert = vi.hoisted(() => vi.fn(() => true));
 
 vi.mock("fs", () => ({ default: fsMock, ...fsMock }));
 vi.mock("child_process", () => ({ spawnSync }));
@@ -38,6 +44,9 @@ vi.mock("../../tools/lib/heartbeat-schema.js", () => ({
   validateHeartbeatState,
   defaultHeartbeatState,
   hashHeartbeatState,
+  touchHeartbeat,
+  isHeartbeatQuietHours,
+  shouldSendHeartbeatAlert,
   HEARTBEAT_REQUIRED_CHECKS: ["email", "calendar", "watchlist", "tasks", "portfolio", "marketIntel", "techNews", "weather", "fitness", "apiBudget", "mission", "cronDelivery"],
   HEARTBEAT_MAX_AGE_MS: 7 * 24 * 60 * 60 * 1000,
 }));
@@ -51,7 +60,7 @@ beforeEach(() => {
   writeJsonFileAtomic.mockReset();
   rotateBackupRing.mockReset();
   withFileLock.mockReset();
-  withFileLock.mockImplementation((_: string, __: number, fn: () => any) => fn());
+  withFileLock.mockImplementation((_: string, __: number, fn: () => unknown) => fn());
 });
 
 afterEach(() => {
@@ -67,9 +76,9 @@ describe("check-subagents", () => {
     setArgv([]);
 
     spawnSync.mockImplementation((cmd: string) => {
-      if (cmd === "/usr/bin/env") return { status: 0, stdout: "psql" } as any;
-      if (cmd === "openclaw") return { status: 1, stderr: "no sessions" } as any;
-      return { status: 0, stdout: "" } as any;
+      if (cmd === "/usr/bin/env") return { status: 0, stdout: "psql" } as SpawnResult;
+      if (cmd === "openclaw") return { status: 1, stderr: "no sessions" } as SpawnResult;
+      return { status: 0, stdout: "" } as SpawnResult;
     });
     readJsonFile.mockReturnValue({});
 
@@ -86,9 +95,9 @@ describe("check-subagents", () => {
     setArgv(["--no-emit-terminal"]);
 
     spawnSync.mockImplementation((cmd: string) => {
-      if (cmd === "/usr/bin/env") return { status: 0, stdout: "psql" } as any;
-      if (cmd === "openclaw") return { status: 0, stdout: JSON.stringify({ sessions: [] }) } as any;
-      return { status: 0, stdout: "" } as any;
+      if (cmd === "/usr/bin/env") return { status: 0, stdout: "psql" } as SpawnResult;
+      if (cmd === "openclaw") return { status: 0, stdout: JSON.stringify({ sessions: [] }) } as SpawnResult;
+      return { status: 0, stdout: "" } as SpawnResult;
     });
     readJsonFile.mockReturnValue({});
     fsMock.existsSync.mockReturnValue(false);
@@ -107,7 +116,7 @@ describe("check-subagents", () => {
     setArgv(["--no-emit-terminal"]);
 
     spawnSync.mockImplementation((cmd: string, args?: string[]) => {
-      if (cmd === "/usr/bin/env") return { status: 0, stdout: "psql" } as any;
+      if (cmd === "/usr/bin/env") return { status: 0, stdout: "psql" } as SpawnResult;
       if (cmd === "openclaw") {
         return {
           status: 0,
@@ -124,10 +133,10 @@ describe("check-subagents", () => {
               },
             ],
           }),
-        } as any;
+        } as SpawnResult;
       }
       // psql calls for event logging + alert delivery
-      return { status: 0, stdout: "1" } as any;
+      return { status: 0, stdout: "1" } as SpawnResult;
     });
 
     readJsonFile.mockImplementation((filePath: string) => {
@@ -143,7 +152,7 @@ describe("check-subagents", () => {
     fsMock.existsSync.mockImplementation((p: string) => String(p).includes("telegram-delivery-guard"));
 
     await importFresh("../../tools/subagent-watchdog/check-subagents.ts");
-    // Advance fake timers so any queued setTimeout callbacks fire
+    // Advance fake timers so queued setTimeout callbacks fire
     await vi.advanceTimersByTimeAsync(100);
     const output = consoleCapture.logs.join("\n");
     const payload = JSON.parse(output);

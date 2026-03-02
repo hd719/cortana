@@ -9,6 +9,7 @@ import {
   defaultHeartbeatState,
   hashHeartbeatState,
   HEARTBEAT_MAX_AGE_MS,
+  touchHeartbeat,
   validateHeartbeatState,
 } from "../lib/heartbeat-schema.js";
 import { withPostgresPath } from "../lib/db.js";
@@ -89,6 +90,8 @@ async function main(): Promise<void> {
       result.usedDefault = true;
       result.invalidReason = invalidReason;
     }
+
+    touchHeartbeat(normalized, nowMs);
 
     // backup prior state BEFORE writing replacement
     rotateBackupRing(stateFile, 3);

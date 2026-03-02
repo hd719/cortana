@@ -9,6 +9,9 @@ import {
   defaultHeartbeatState,
   hashHeartbeatState,
   HEARTBEAT_MAX_AGE_MS,
+  isHeartbeatQuietHours,
+  shouldSendHeartbeatAlert,
+  touchHeartbeat,
   validateHeartbeatState,
 } from "../lib/heartbeat-schema.js";
 
@@ -20,6 +23,49 @@ const RUN_STORE_PATH = process.env.OPENCLAW_SUBAGENT_RUNS_PATH
   ? process.env.OPENCLAW_SUBAGENT_RUNS_PATH
   : path.join(os.homedir(), ".openclaw", "subagents", "runs.json");
 
+
+type JsonMap = Record<string, unknown>;
+
+type SessionSummary = {
+  key?: string;
+  label?: string | null;
+  status?: string;
+  lastStatus?: string;
+  ageMs?: number;
+  totalTokens?: number | null;
+  totalTokensFresh?: boolean;
+  abortedLastRun?: boolean;
+  run_id?: string;
+  runId?: string;
+  sessionId?: string;
+  agentId?: string;
+  updatedAt?: number;
+};
+
+type FailureReason = { code: string; detail: string };
+
+type FailureFinding = {
+  key: string;
+  label?: string | null;
+  runId?: string | null;
+  sessionId?: string;
+  agentId?: string;
+  runtimeSeconds: number;
+  updatedAt: string | null;
+  status?: string;
+  abortedLastRun: boolean;
+  detectedAt: string | null;
+  reasonCode: string;
+  reasonDetail: string;
+  logged?: boolean;
+  cooldownSkipped?: boolean;
+  taskId?: number | null;
+  taskUpdated?: boolean;
+  alertSent?: boolean;
+  terminalEmitted?: boolean;
+  terminalMatched?: boolean;
+};
+
 function nowMs(): number {
   return Math.trunc(Date.now());
 }
@@ -29,24 +75,24 @@ function isoFromMs(ms?: number | null): string | null {
   return new Date(ms).toISOString();
 }
 
-function loadJson(filePath: string, fallback: any): any {
+function loadJson<T>(filePath: string, fallback: T): T {
   if (!fs.existsSync(filePath)) return fallback;
-  const parsed = readJsonFile<any>(filePath);
-  return parsed ?? fallback;
+  const parsed = readJsonFile<unknown>(filePath);
+  return (parsed as T | null) ?? fallback;
 }
 
 function loadHeartbeatStateStrict(filePath: string, now = Date.now()) {
   const fallback = defaultHeartbeatState(now);
   if (!fs.existsSync(filePath)) return fallback;
 
-  const parsed = readJsonFile<any>(filePath);
+  const parsed = readJsonFile<unknown>(filePath);
   try {
     return validateHeartbeatState(parsed, now, HEARTBEAT_MAX_AGE_MS);
   } catch {
     for (const i of [1, 2, 3] as const) {
       const candidate = `${filePath}.bak.${i}`;
       if (!fs.existsSync(candidate)) continue;
-      const backupParsed = readJsonFile<any>(candidate);
+      const backupParsed = readJsonFile<unknown>(candidate);
       try {
         return validateHeartbeatState(backupParsed, now, HEARTBEAT_MAX_AGE_MS);
       } catch {
@@ -57,7 +103,7 @@ function loadHeartbeatStateStrict(filePath: string, now = Date.now()) {
   }
 }
 
-function terminalStatusFromReason(item: Record<string, any>): string {
+function terminalStatusFromReason(item: FailureFinding): string {
   const code = String(item.reasonCode ?? "").toLowerCase();
   const status = String(item.status ?? "").toLowerCase();
   if (code === "runtime_exceeded" || status === "timeout" || status === "timed_out") return "timeout";
@@ -85,8 +131,8 @@ function emitTerminalToRunStore(
     if (!record || typeof record !== "object") continue;
     if (
       sessionIdStr &&
-      (String((record as any).childSessionKey ?? "") === sessionIdStr ||
-        String((record as any).runId ?? "") === sessionIdStr)
+      (String((record as JsonMap).childSessionKey ?? "") === sessionIdStr ||
+        String((record as JsonMap).runId ?? "") === sessionIdStr)
     ) {
       matchKey = key;
       break;
@@ -94,7 +140,7 @@ function emitTerminalToRunStore(
   }
 
   if (!matchKey) return [true, null, false];
-  const record = (runs as any)[matchKey];
+  const record = (runs as Record<string, JsonMap>)[matchKey];
   if (!record || typeof record !== "object") return [false, `invalid run record for ${matchKey}`, false];
 
   record.endedAt = nowMs();
@@ -102,7 +148,7 @@ function emitTerminalToRunStore(
   const outcome = record.outcome && typeof record.outcome === "object" ? record.outcome : {};
   outcome.status = "failed";
   record.outcome = outcome;
-  (runs as any)[matchKey] = record;
+  (runs as Record<string, JsonMap>)[matchKey] = record;
 
   writeJsonFileAtomic(RUN_STORE_PATH, payload, 2);
   return [true, null, true];
@@ -123,7 +169,7 @@ function resolvePsql(): string {
   return "psql";
 }
 
-function runSessions(activeMinutes: number, allAgents: boolean): any {
+function runSessions(activeMinutes: number, allAgents: boolean): JsonMap {
   const cmd = ["openclaw", "sessions", "--json", "--active", String(activeMinutes)];
   if (allAgents) cmd.push("--all-agents");
   const proc = spawnSync(cmd[0], cmd.slice(1), { encoding: "utf8" });
@@ -138,12 +184,12 @@ function runSessions(activeMinutes: number, allAgents: boolean): any {
   }
 }
 
-function isLikelyRunning(session: Record<string, any>): boolean {
+function isLikelyRunning(session: SessionSummary): boolean {
   return session.totalTokens == null || session.totalTokensFresh === false;
 }
 
-function failureReasons(session: Record<string, any>, maxRuntimeMs: number): Array<Record<string, string>> {
-  const reasons: Array<Record<string, string>> = [];
+function failureReasons(session: SessionSummary, maxRuntimeMs: number): FailureReason[] {
+  const reasons: FailureReason[] = [];
   if (session.abortedLastRun === true) reasons.push({ code: "aborted_last_run", detail: "abortedLastRun=true" });
 
   const status = String(session.status ?? session.lastStatus ?? "").trim().toLowerCase();
@@ -210,7 +256,7 @@ function findTaskIdForSession(psqlBin: string, sessionKey: string, label: string
   return Number.isFinite(id) ? id : null;
 }
 
-function reconcileTaskFailure(reasonItem: Record<string, any>, psqlBin: string): [boolean, string | null, number | null] {
+function reconcileTaskFailure(reasonItem: FailureFinding, psqlBin: string): [boolean, string | null, number | null] {
   const taskId = findTaskIdForSession(
     psqlBin,
     String(reasonItem.key ?? ""),
@@ -245,7 +291,7 @@ function reconcileTaskFailure(reasonItem: Record<string, any>, psqlBin: string):
   return [true, null, taskId];
 }
 
-function logEvent(reasonItem: Record<string, any>, psqlBin: string): [boolean, string | null] {
+function logEvent(reasonItem: FailureFinding, psqlBin: string): [boolean, string | null] {
   const metadata = {
     session_key: reasonItem.key,
     label: reasonItem.label,
@@ -277,7 +323,12 @@ function logEvent(reasonItem: Record<string, any>, psqlBin: string): [boolean, s
   }
 }
 
-function sendFailureAlert(reasonItem: Record<string, any>): [boolean, string | null] {
+function sendFailureAlert(reasonItem: FailureFinding, now = new Date()): [boolean, string | null] {
+  const isUrgent = String(reasonItem.reasonCode ?? "").toLowerCase() === "failed_status";
+  if (!shouldSendHeartbeatAlert(isUrgent, now)) {
+    return [true, "suppressed_during_quiet_hours"];
+  }
+
   if (!fs.existsSync(TELEGRAM_GUARD)) return [false, `telegram guard missing: ${TELEGRAM_GUARD}`];
 
   const key = reasonItem.key;
@@ -376,9 +427,10 @@ async function main(): Promise<void> {
   const lastLogged: Record<string, number> =
     watchdogState.lastLogged && typeof watchdogState.lastLogged === "object" ? watchdogState.lastLogged : {};
 
-  const output: Record<string, any> = {
+  const output: JsonMap = {
     ok: true,
     timestamp: isoFromMs(now),
+    quietHours: isHeartbeatQuietHours(new Date(now)),
     config: {
       maxRuntimeSeconds: args.maxRuntimeSeconds,
       activeMinutes: args.activeMinutes,
@@ -400,7 +452,7 @@ async function main(): Promise<void> {
     logErrors: [],
   };
 
-  let data: any;
+  let data: JsonMap;
   try {
     data = runSessions(args.activeMinutes, args.allAgents);
   } catch (err) {
@@ -410,10 +462,10 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
-  const sessions: Record<string, any>[] = Array.isArray(data.sessions) ? data.sessions : [];
+  const sessions: SessionSummary[] = Array.isArray(data.sessions) ? (data.sessions as SessionSummary[]) : [];
   output.summary.sessionsScanned = sessions.length;
 
-  const findings: Record<string, any>[] = [];
+  const findings: FailureFinding[] = [];
   const maxRuntimeMs = args.maxRuntimeSeconds * 1000;
 
   for (const s of sessions) {
@@ -532,6 +584,7 @@ async function main(): Promise<void> {
       current.subagentWatchdog = current.subagentWatchdog ?? { lastRun: now, lastLogged: {} };
       current.subagentWatchdog.lastRun = now;
       current.subagentWatchdog.lastLogged = prunedLastLogged;
+      touchHeartbeat(current, now);
       validateHeartbeatState(current, now, HEARTBEAT_MAX_AGE_MS);
       rotateBackupRing(statePath, 3);
       writeJsonFileAtomic(statePath, current, 2);

@@ -4,6 +4,7 @@ export type LastCheck = { lastChecked: number };
 
 export type HeartbeatState = {
   version: number;
+  lastHeartbeat: number;
   lastChecks: Record<string, LastCheck>;
   lastRemediationAt: number;
   subagentWatchdog: { lastRun: number; lastLogged: Record<string, number> };
@@ -27,6 +28,32 @@ export const HEARTBEAT_REQUIRED_CHECKS = [
 
 const FUTURE_SKEW_MS = 5 * 60 * 1000;
 export const HEARTBEAT_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000;
+
+export const HEARTBEAT_QUIET_HOURS = {
+  tz: "America/New_York",
+  startHour: 23,
+  endHour: 6,
+} as const;
+
+function getEtHour(date: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: HEARTBEAT_QUIET_HOURS.tz,
+    hour: "2-digit",
+    hour12: false,
+  }).formatToParts(date);
+  const hourPart = parts.find((p) => p.type === "hour")?.value ?? "0";
+  return Number(hourPart);
+}
+
+export function isHeartbeatQuietHours(now: Date = new Date()): boolean {
+  const hour = getEtHour(now);
+  return hour >= HEARTBEAT_QUIET_HOURS.startHour || hour < HEARTBEAT_QUIET_HOURS.endHour;
+}
+
+export function shouldSendHeartbeatAlert(isUrgent: boolean, now: Date = new Date()): boolean {
+  if (isUrgent) return true;
+  return !isHeartbeatQuietHours(now);
+}
 
 function parseTs(value: unknown, allowZero = false): number {
   if (value == null) throw new Error("timestamp missing");
@@ -60,6 +87,7 @@ function assertTimestampSanity(label: string, ts: number, nowMs: number, maxAgeM
 export function defaultHeartbeatState(nowMs = Date.now()): HeartbeatState {
   return {
     version: 2,
+    lastHeartbeat: nowMs,
     lastChecks: Object.fromEntries(
       HEARTBEAT_REQUIRED_CHECKS.map((k) => [k, { lastChecked: nowMs }])
     ),
@@ -79,6 +107,9 @@ export function validateHeartbeatState(raw: unknown, nowMs = Date.now(), maxAgeM
     throw new Error("version must be >= 2");
   }
 
+  const lastHeartbeat = parseTs(root.lastHeartbeat ?? nowMs, true);
+  assertTimestampSanity("lastHeartbeat", lastHeartbeat, nowMs, maxAgeMs, true);
+
   const checksRaw = root.lastChecks;
   if (!checksRaw || typeof checksRaw !== "object" || Array.isArray(checksRaw)) {
     throw new Error("lastChecks must be object");
@@ -88,7 +119,7 @@ export function validateHeartbeatState(raw: unknown, nowMs = Date.now(), maxAgeM
   for (const key of HEARTBEAT_REQUIRED_CHECKS) {
     if (!(key in (checksRaw as Record<string, unknown>))) throw new Error(`missing required check: ${key}`);
     const val = (checksRaw as Record<string, unknown>)[key];
-    const tsSrc = val && typeof val === "object" && !Array.isArray(val) ? (val as any).lastChecked : val;
+    const tsSrc = val && typeof val === "object" && !Array.isArray(val) ? (val as Record<string, unknown>).lastChecked : val;
     const ts = parseTs(tsSrc);
     assertTimestampSanity(key, ts, nowMs, maxAgeMs);
     normalizedChecks[key] = { lastChecked: ts };
@@ -120,6 +151,7 @@ export function validateHeartbeatState(raw: unknown, nowMs = Date.now(), maxAgeM
 
   const out: HeartbeatState = {
     version: Math.trunc(version),
+    lastHeartbeat,
     lastChecks: normalizedChecks,
     lastRemediationAt,
     subagentWatchdog: {
@@ -135,6 +167,11 @@ export function validateHeartbeatState(raw: unknown, nowMs = Date.now(), maxAgeM
   }
 
   return out;
+}
+
+export function touchHeartbeat(state: HeartbeatState, nowMs = Date.now()): HeartbeatState {
+  state.lastHeartbeat = nowMs;
+  return state;
 }
 
 export function hashHeartbeatState(state: unknown): string {
