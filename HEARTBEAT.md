@@ -89,6 +89,13 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
     ~/openclaw/tools/feedback/add-feedback-action.sh "<feedback_id>" "prompt_patch" "<description of fix>" "<commit_hash>" "applied"
     ```
 
+- **Active commitments recovery (every heartbeat)**
+  - Run `tools/decisions/heartbeat-check-commitments.sh`.
+  - Also check `## Active Commitments` section in MEMORY.md.
+  - If pending financial decisions exist and are unresolved → alert Hamel immediately.
+  - If any decision is past `expires_at` → mark expired and alert.
+  - Auto-resolve decisions that have been completed (cross-reference with task board).
+
 - **Task board hygiene (every heartbeat)**
   - Sweep `cortana_tasks` for ghosts/stale entries:
     - Work complete but tasks still `in_progress`/`ready` → mark `completed` with outcome.
