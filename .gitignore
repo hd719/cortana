@@ -27,3 +27,6 @@ proprioception/state/heartbeat-remediation.json
 config/cron/*.bak*
 
 /generated/prisma
+
+# Runtime fitness data (pulled live from Whoop/Tonal APIs)
+memory/fitness/
