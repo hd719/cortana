@@ -4,7 +4,7 @@ import { spawnSync } from "child_process";
 const script = String.raw`set -u
 
 SCRIPT="/Users/hd/Developer/cortana-external/backtester/canslim_alert.py"
-PYTHON_BIN="/Users/hd/Developer/cortana-external/backtester/venv/bin/python"
+PYTHON_BIN="python3"
 CACHE_DIR="/Users/hd/openclaw/tools/trade-alerts/cache"
 OUT_FILE="$CACHE_DIR/canslim-latest.txt"
 META_FILE="$CACHE_DIR/canslim-latest.meta.json"
