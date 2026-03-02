@@ -86,6 +86,18 @@ describe("wsb-run-tracker", () => {
   });
 
   it("getLatestCompletedRun returns most recent completed metadata", () => {
+    // Insert a clean completed run (no errors, all domains present)
+    const suffix = Date.now().toString().slice(-12);
+    const runId = `22222222-2222-4222-8222-${suffix}`;
+    startRun(runId, ["calendar", "email"]);
+    psql(`
+      INSERT INTO cortana_sitrep (run_id, domain, key, value)
+      VALUES
+        ('${esc(runId)}'::uuid, 'calendar', 'events_48h', '{"count":2}'::jsonb),
+        ('${esc(runId)}'::uuid, 'email', 'inbox', '{"count":5}'::jsonb);
+    `);
+    completeRun(runId);
+
     const run = getLatestCompletedRun();
     expect(run).not.toBeNull();
     expect(run?.status).toBe("completed");
