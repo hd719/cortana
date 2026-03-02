@@ -1,4 +1,4 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { spawnSync } from "node:child_process";
 import { complete, start } from "../tools/sae/wsb-run-tracker";
 import { evaluateFreshnessGate as evaluateGate } from "../tools/sae/cdr-freshness-gate";
@@ -81,63 +81,72 @@ describe("SAE pipeline hardening", () => {
     expect(row).toBe("3|1|3");
   });
 
-  it("CDR freshness gate passes for fresh completed run", () => {
-    psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'test-sae-gate-%';");
-    const runId = `test-sae-gate-fresh-${Date.now()}`;
+  describe("CDR freshness gate", () => {
+    beforeEach(() => {
+      psql("UPDATE cortana_sitrep_runs SET status = '_test_hidden' WHERE status = 'completed' AND run_id NOT LIKE 'test-sae-gate-%';");
+      psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'test-sae-gate-%';");
+    });
 
-    psql(`
-      INSERT INTO cortana_sitrep_runs (run_id, status, completed_at, actual_domains, total_keys, error_count)
-      VALUES ('${esc(runId)}', 'completed', TIMESTAMPTZ '2100-01-01 00:00:00+00', ARRAY['calendar','email','weather','health']::text[], 10, 2)
-      ON CONFLICT (run_id) DO UPDATE SET
-        status='completed',
-        completed_at=EXCLUDED.completed_at,
-        actual_domains=EXCLUDED.actual_domains,
-        total_keys=EXCLUDED.total_keys,
-        error_count=EXCLUDED.error_count;
-    `);
+    afterEach(() => {
+      psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'test-sae-gate-%';");
+      psql("UPDATE cortana_sitrep_runs SET status = 'completed' WHERE status = '_test_hidden';");
+    });
 
-    const result = evaluateGate(new Date("2100-01-01T00:30:00Z"));
-    expect(result.shouldProceed).toBe(true);
-    expect(result.reason).toBe("ok");
-  });
+    it("CDR freshness gate passes for fresh completed run", () => {
+      const runId = `test-sae-gate-fresh-${Date.now()}`;
 
-  it("CDR freshness gate fails for stale run", () => {
-    psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'test-sae-gate-%';");
-    const runId = `test-sae-gate-stale-${Date.now()}`;
+      psql(`
+        INSERT INTO cortana_sitrep_runs (run_id, status, completed_at, actual_domains, total_keys, error_count)
+        VALUES ('${esc(runId)}', 'completed', TIMESTAMPTZ '2100-01-01 00:00:00+00', ARRAY['calendar','email','weather','health']::text[], 10, 2)
+        ON CONFLICT (run_id) DO UPDATE SET
+          status='completed',
+          completed_at=EXCLUDED.completed_at,
+          actual_domains=EXCLUDED.actual_domains,
+          total_keys=EXCLUDED.total_keys,
+          error_count=EXCLUDED.error_count;
+      `);
 
-    psql(`
-      INSERT INTO cortana_sitrep_runs (run_id, status, completed_at, actual_domains, total_keys, error_count)
-      VALUES ('${esc(runId)}', 'completed', TIMESTAMPTZ '2100-01-01 00:00:00+00', ARRAY['calendar','email','weather','health']::text[], 10, 1)
-      ON CONFLICT (run_id) DO UPDATE SET
-        status='completed',
-        completed_at=EXCLUDED.completed_at,
-        actual_domains=EXCLUDED.actual_domains,
-        total_keys=EXCLUDED.total_keys,
-        error_count=EXCLUDED.error_count;
-    `);
+      const result = evaluateGate(new Date("2100-01-01T00:30:00Z"));
+      expect(result.shouldProceed).toBe(true);
+      expect(result.reason).toBe("ok");
+    });
 
-    const result = evaluateGate(new Date("2100-01-01T02:31:00Z"));
-    expect(result.shouldProceed).toBe(false);
-    expect(result.reason).toBe("stale");
-  });
+    it("CDR freshness gate fails for stale run", () => {
+      const runId = `test-sae-gate-stale-${Date.now()}`;
 
-  it("CDR freshness gate fails for high error ratio", () => {
-    psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'test-sae-gate-%';");
-    const runId = `test-sae-gate-errors-${Date.now()}`;
+      psql(`
+        INSERT INTO cortana_sitrep_runs (run_id, status, completed_at, actual_domains, total_keys, error_count)
+        VALUES ('${esc(runId)}', 'completed', TIMESTAMPTZ '2100-01-01 00:00:00+00', ARRAY['calendar','email','weather','health']::text[], 10, 1)
+        ON CONFLICT (run_id) DO UPDATE SET
+          status='completed',
+          completed_at=EXCLUDED.completed_at,
+          actual_domains=EXCLUDED.actual_domains,
+          total_keys=EXCLUDED.total_keys,
+          error_count=EXCLUDED.error_count;
+      `);
 
-    psql(`
-      INSERT INTO cortana_sitrep_runs (run_id, status, completed_at, actual_domains, total_keys, error_count)
-      VALUES ('${esc(runId)}', 'completed', TIMESTAMPTZ '2100-01-01 00:00:00+00', ARRAY['calendar','email','weather','health']::text[], 10, 3)
-      ON CONFLICT (run_id) DO UPDATE SET
-        status='completed',
-        completed_at=EXCLUDED.completed_at,
-        actual_domains=EXCLUDED.actual_domains,
-        total_keys=EXCLUDED.total_keys,
-        error_count=EXCLUDED.error_count;
-    `);
+      const result = evaluateGate(new Date("2100-01-01T02:31:00Z"));
+      expect(result.shouldProceed).toBe(false);
+      expect(result.reason).toBe("stale");
+    });
 
-    const result = evaluateGate(new Date("2100-01-01T00:30:00Z"));
-    expect(result.shouldProceed).toBe(false);
-    expect(result.reason).toBe("high_error_ratio");
+    it("CDR freshness gate fails for high error ratio", () => {
+      const runId = `test-sae-gate-errors-${Date.now()}`;
+
+      psql(`
+        INSERT INTO cortana_sitrep_runs (run_id, status, completed_at, actual_domains, total_keys, error_count)
+        VALUES ('${esc(runId)}', 'completed', TIMESTAMPTZ '2100-01-01 00:00:00+00', ARRAY['calendar','email','weather','health']::text[], 10, 3)
+        ON CONFLICT (run_id) DO UPDATE SET
+          status='completed',
+          completed_at=EXCLUDED.completed_at,
+          actual_domains=EXCLUDED.actual_domains,
+          total_keys=EXCLUDED.total_keys,
+          error_count=EXCLUDED.error_count;
+      `);
+
+      const result = evaluateGate(new Date("2100-01-01T00:30:00Z"));
+      expect(result.shouldProceed).toBe(false);
+      expect(result.reason).toBe("high_error_ratio");
+    });
   });
 });
