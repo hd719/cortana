@@ -31,7 +31,6 @@
       "model": {
         "primary": "anthropic/claude-opus-4-6",
         "fallbacks": [
-          "anthropic/claude-sonnet-4-20250514",
           "openai-codex/gpt-5.3-codex",
           "openai-codex/gpt-5.2-codex"
         ]
