@@ -49,3 +49,12 @@ If a subagent run returns empty output or aborts:
 
 1. Retry **once immediately** with a concise, scoped prompt.
 2. If second run is still empty/aborted, notify immediately with probable cause (timeout/tool failure/prompt mismatch) and next best manual action.
+
+## Subagent reliability controls (Task 2)
+
+- A 15-minute reliability reaper job runs `check-subagents-with-retry.sh`.
+- Policy:
+  1. Try watchdog once.
+  2. Retry once on failure.
+  3. If second attempt fails, emit `fallback_manual_required=true` for operator intervention.
+- This improves resilience against transient aborted/empty subagent runs.
