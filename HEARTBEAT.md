@@ -7,7 +7,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
 ## Check Rotation
 
 - **Email triage (2–3× daily)**
-  - Run `tools/gmail/email-triage-autopilot.sh` with minimal query.
+  - Run `npx tsx tools/gmail/email-triage-autopilot.ts` with minimal query.
   - Auto-create tasks in `cortana_tasks` for urgent/action emails.
   - Prepare Telegram digest only (no outbound email).
   - Skip if run within last **4h**.
@@ -17,7 +17,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Skip if run within last **6h**.
 
 - **Portfolio + market (1–2× daily, market hours)**
-  - Use Alpaca on port **3033** and `tools/market-intel/market-intel.sh --pulse`.
+  - Use Alpaca on port **3033** and `npx tsx tools/market-intel/market-intel.ts --pulse`.
   - Watch for >3% movers, earnings surprises, >60% bearish sentiment on held positions.
   - **X sentiment scan** (via `bird` skill + @Cortana356047 browser session):
     - Scan X for sentiment on held positions (TSLA, NVDA, and any active CANSLIM candidates).
@@ -56,7 +56,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Skip if run in last **12h** and no major new events.
 
 - **Memory compaction (1× daily)**
-  - Run `~/openclaw/tools/memory/compact-memory.sh`.
+  - Run `npx tsx ~/openclaw/tools/memory/compact-memory.ts`.
   - Archive daily notes older than 7 days; generate dedup/staleness findings for `MEMORY.md`; enforce size thresholds.
   - Skip if run in last **24h**.
 
@@ -70,17 +70,17 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
     ```
 
 - **Feedback triage (every heartbeat)**
-  - Run `~/openclaw/tools/feedback/feedback-to-tasks.sh` to push verified/new corrections into `cortana_tasks`.
+  - Run `npx tsx ~/openclaw/tools/feedback/feedback-to-tasks.ts` to push verified/new corrections into `cortana_tasks`.
 
 - **Feedback pipeline reconciliation (every heartbeat)**
-  - Run `~/openclaw/tools/feedback/pipeline-reconciliation.sh`.
+  - Run `npx tsx ~/openclaw/tools/feedback/pipeline-reconciliation.ts`.
   - Checks flow: `cortana_feedback` → `mc_feedback_items` → `cortana_tasks`.
   - Logs `feedback_pipeline_reconciliation` events for drift/stuck stages.
 
 - **Feedback logging during conversation (on new correction)**
   - Immediately log:
     ```bash
-    ~/openclaw/tools/feedback/log-feedback.sh "correction" "<severity>" "<summary>" '{"context":"...","lesson":"..."}' "<agent_id>"
+    npx tsx ~/openclaw/tools/feedback/log-feedback.ts "correction" "<severity>" "<summary>" '{"context":"...","lesson":"..."}' "<agent_id>"
     ```
   - Severity:
     - Contains "HARD RULE" / "MANDATORY" / "ZERO TOLERANCE" → `high`
@@ -89,7 +89,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
     - Preference/style → `low`
   - If fix is known, add remediation action:
     ```bash
-    ~/openclaw/tools/feedback/add-feedback-action.sh "<feedback_id>" "prompt_patch" "<description of fix>" "<commit_hash>" "applied"
+    npx tsx ~/openclaw/tools/feedback/add-feedback-action.ts "<feedback_id>" "prompt_patch" "<description of fix>" "<commit_hash>" "applied"
     ```
 
 - **Active commitments recovery (every heartbeat)**
@@ -112,7 +112,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Auto-create only high-confidence standalone tasks.
   - "Do all tasks" = `status='ready'` only; never auto-execute `backlog` tasks.
   - Promote `scheduled` → `ready` when `execute_at <= NOW()`.
-  - Dispatch dependency-ready, auto-executable tasks via `tools/task-board/auto-executor.sh` (one safe command per heartbeat).
+  - Dispatch dependency-ready, auto-executable tasks via `npx tsx tools/task-board/auto-executor.ts` (one safe command per heartbeat).
   - Surface overdue `remind_at` tasks and approaching deadlines.
 
 - **Spawn guardrail check (every heartbeat)**
@@ -122,19 +122,19 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Alert Hamel on repeat violations.
 
 - **Cron delivery monitoring (every heartbeat)**
-  - Run `tools/alerting/check-cron-delivery.sh` every heartbeat.
+  - Run `npx tsx tools/alerting/check-cron-delivery.ts` every heartbeat.
 
 - **Cron auto-retry (every heartbeat)** — after the cron delivery monitoring check, run `tools/alerting/cron-auto-retry.sh`. Auto-retries any cron with 1+ consecutive failures. Silent on success; alerts Hamel only if retry also fails (2+ consecutive).
 
 - **Sub-agent reaper (every heartbeat)**
-  - Run `~/openclaw/tools/reaper/reaper.sh` to clean stale sub-agent sessions.
+  - Run `npx tsx ~/openclaw/tools/reaper/reaper.ts` to clean stale sub-agent sessions.
   - Reaps sessions stuck in "running" for >2h with no activity.
   - Updates `~/.openclaw/subagents/runs.json` and syncs `cortana_tasks` back to `ready`.
   - Logs reaped sessions to `cortana_events` (event_type `subagent_reaped`).
   - Skip if tool doesn't exist yet (graceful degradation).
 
 - **QA system validation (1× daily, morning)**
-  - Run `~/openclaw/tools/qa/validate-system.sh --json`.
+  - Run `npx tsx ~/openclaw/tools/qa/validate-system.ts --json`.
   - Checks: symlink integrity, cron definitions, DB connectivity, critical tools, heartbeat state, memory files, disk space.
   - On failures: attempt `--fix` for auto-remediable issues (broken symlinks, etc.).
   - Alert Hamel only on unfixable failures.
@@ -143,7 +143,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
 - **Sub-agent health monitoring (every heartbeat)**
   - Run:
     ```bash
-    ~/openclaw/tools/subagent-watchdog/check-subagents.sh
+    npx tsx ~/openclaw/tools/subagent-watchdog/check-subagents.ts
     ```
   - Emits JSON and logs failures to `cortana_events` (`event_type='subagent_failure'`, severity `warning`).
   - If failures/timeouts:
@@ -163,7 +163,7 @@ States: `backlog` → `ready` → `in_progress` → `completed`/`failed`/`cancel
 
 - Run cron preflight where relevant:
   ```bash
-  tools/alerting/cron-preflight.sh <cron_name> <checks...>
+  npx tsx tools/alerting/cron-preflight.ts <cron_name> <checks...>
   ```
   - Quarantine failing crons via `~/.openclaw/cron/quarantine/*.quarantined`.
 - Run proactive watchlist scan (SQL templates in `docs/heartbeat-sql-reference.md`) to:
@@ -186,7 +186,7 @@ After each check, log a decision trace so Mission Control reflects what ran and 
 
 - Preferred wrapper:
   ```bash
-  ~/openclaw/tools/log-heartbeat-decision.sh <check_name> <success|skipped|fail> "<reasoning>" <0.0-1.0> '{"optional":"inputs"}'
+  npx tsx ~/openclaw/tools/log-heartbeat-decision.ts <check_name> <success|skipped|fail> "<reasoning>" <0.0-1.0> '{"optional":"inputs"}'
   ```
 - Under the hood:
   ```bash
@@ -206,7 +206,7 @@ After each check, log a decision trace so Mission Control reflects what ran and 
 
 ## Rules
 
-1. Validate state each heartbeat: `~/openclaw/tools/heartbeat/validate-heartbeat-state.sh`.
+1. Validate state each heartbeat: `npx tsx ~/openclaw/tools/heartbeat/validate-heartbeat-state.ts`.
 2. Read/update `memory/heartbeat-state.json` on every heartbeat. **Always set `lastHeartbeat` to the current epoch-ms timestamp** (`Date.now()`) at the start of every run so Mission Control tracks freshness.
 3. Run the stalest 1–2 checks from the rotation.
 4. Always run proactive watchlist scan and task detection/queue execution.
