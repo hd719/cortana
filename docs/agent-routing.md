@@ -14,11 +14,15 @@ This system runs multiple agents, each with its own workspace, model, and sessio
 | cron-fitness | Fitness data | `~/.openclaw/workspaces/cron-fitness` | gpt-5.3-codex | No — cron only |
 | cron-market | Market analysis | `~/.openclaw/workspaces/cron-market` | gpt-5.3-codex | No — cron only |
 | cron-maintenance | System updates | `~/.openclaw/workspaces/cron-maintenance` | gpt-5.1 | No — cron only |
+| **huragok** | Telegram infra lane for Huragok group/chat entrypoint | `/Users/hd/openclaw` | gpt-5.3-codex | Yes (bound group/channel) |
+| huragok-worker | Worker profile for spawned task runs from Huragok lane | `/Users/hd/openclaw` | gpt-5.3-codex | No — spawn target only |
 
 ## Channel Routing
 
 - **Telegram DMs** → `main` agent (Cortana)
 - **Webchat** → `main` agent (Cortana)
+- **Telegram group `-5229462108`** → `huragok` (direct infra lane)
+- **Huragok spawned work** → `huragok-worker` (`agentId: "huragok-worker"`)
 - **Cron jobs** → respective cron agent (deliver results to Telegram via `message` tool)
 
 ## Known Pitfall: Reply Routing
