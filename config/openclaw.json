@@ -130,6 +130,9 @@
         "timeoutSeconds": 30
       }
     },
+    "agentToAgent": {
+      "enabled": true
+    },
     "sessions": {
       "visibility": "all"
     }
