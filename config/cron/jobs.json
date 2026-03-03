@@ -83,7 +83,8 @@
       "schedule": {
         "kind": "cron",
         "expr": "0 18 * * 1-5",
-        "tz": "America/New_York"
+        "tz": "America/New_York",
+        "staggerMs": 180000
       },
       "sessionTarget": "isolated",
       "wakeMode": "now",
@@ -258,7 +259,8 @@
       "updatedAtMs": 1772113793807,
       "schedule": {
         "kind": "cron",
-        "expr": "45 7 * * 1-5"
+        "expr": "45 7 * * 1-5",
+        "staggerMs": 180000
       },
       "sessionTarget": "isolated",
       "wakeMode": "now",
@@ -437,7 +439,8 @@
       "schedule": {
         "kind": "cron",
         "expr": "7 6-16 * * *",
-        "tz": "America/New_York"
+        "tz": "America/New_York",
+        "staggerMs": 120000
       },
       "sessionTarget": "isolated",
       "wakeMode": "now",
@@ -851,7 +854,8 @@
       "schedule": {
         "kind": "cron",
         "expr": "30 9,12,15 * * 1-5",
-        "tz": "America/New_York"
+        "tz": "America/New_York",
+        "staggerMs": 240000
       },
       "sessionTarget": "isolated",
       "wakeMode": "now",
@@ -886,7 +890,8 @@
       "updatedAtMs": 1772539205469,
       "schedule": {
         "kind": "cron",
-        "expr": "0 7,13,21 * * *"
+        "expr": "0 7,13,21 * * *",
+        "staggerMs": 300000
       },
       "sessionTarget": "isolated",
       "wakeMode": "now",
@@ -920,7 +925,8 @@
       "schedule": {
         "kind": "cron",
         "expr": "15 7,13,21 * * *",
-        "tz": "America/New_York"
+        "tz": "America/New_York",
+        "staggerMs": 420000
       },
       "sessionTarget": "isolated",
       "wakeMode": "now",
@@ -1134,7 +1140,8 @@
       "schedule": {
         "kind": "cron",
         "expr": "30 20 * * *",
-        "tz": "America/New_York"
+        "tz": "America/New_York",
+        "staggerMs": 600000
       },
       "sessionTarget": "isolated",
       "wakeMode": "now",

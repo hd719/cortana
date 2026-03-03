@@ -52,7 +52,7 @@
       },
       "workspace": "/Users/hd/openclaw",
       "bootstrapMaxChars": 8000,
-      "bootstrapTotalMaxChars": 40000,
+      "bootstrapTotalMaxChars": 13200,
       "memorySearch": {
         "enabled": true,
         "sources": [
