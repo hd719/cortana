@@ -182,8 +182,8 @@
   "session": {
     "maintenance": {
       "mode": "enforce",
-      "pruneAfter": "3d",
-      "maxEntries": 100,
+      "pruneAfter": "2d",
+      "maxEntries": 60,
       "rotateBytes": "10mb",
       "resetArchiveRetention": "7d"
     }
