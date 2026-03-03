@@ -19,6 +19,29 @@ const coerceBool = (value: unknown): unknown => {
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 
+const toText = (value: unknown): string => (typeof value === "string" ? value : "");
+
+const expectsSilentSuccess = (job: Record<string, unknown>): boolean => {
+  const delivery = isRecord(job.delivery) ? job.delivery : null;
+  const mode = typeof delivery?.mode === "string" ? delivery.mode.trim().toLowerCase() : "";
+  if (mode === "none") return true;
+
+  const to = typeof delivery?.to === "string" ? delivery.to.trim().toUpperCase() : "";
+  if (to === "NO_REPLY") return true;
+
+  const message = toText((job.payload as Record<string, unknown> | undefined)?.message);
+  const hints = [
+    "NO_REPLY",
+    "output NOTHING",
+    "return NOTHING",
+    "stay silent",
+    "silent, no message",
+    "If healthy: output NOTHING",
+  ];
+
+  return hints.some((hint) => message.includes(hint));
+};
+
 async function main(): Promise<number> {
   const jobsFile = resolveHomePath(".openclaw", "cron", "jobs.json");
   const maxAgeMs = 60 * 60 * 1000;
@@ -34,8 +57,10 @@ async function main(): Promise<number> {
     if (!job.enabled) continue;
 
     const delivery = isRecord(job.delivery) ? job.delivery : null;
-    const mode = delivery ? delivery.mode : null;
+    const mode = typeof delivery?.mode === "string" ? delivery.mode.trim().toLowerCase() : null;
     if (mode === "none") continue;
+
+    if (expectsSilentSuccess(job)) continue;
 
     const state = isRecord(job.state) ? job.state : {};
     if (state.lastStatus !== "ok") continue;

@@ -49,6 +49,76 @@ describe("check-cron-delivery", () => {
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
+  it("treats expected-silent jobs as healthy delivery outcomes", async () => {
+    const exitSpy = mockExit();
+    setArgv([]);
+    useFixedTime("2025-01-01T00:00:00Z");
+
+    readJsonFile.mockReturnValue({
+      jobs: [
+        {
+          name: "silent-delivery-to",
+          enabled: true,
+          delivery: { mode: "telegram", to: "NO_REPLY" },
+          state: { lastStatus: "ok", lastDelivered: false, lastRunAtMs: Date.now() - 1000 },
+        },
+        {
+          name: "silent-payload-hint",
+          enabled: true,
+          delivery: { mode: "telegram" },
+          payload: { message: "If healthy: output NOTHING" },
+          state: { lastStatus: "ok", lastDelivered: false, lastRunAtMs: Date.now() - 1000 },
+        },
+        {
+          name: "silent-mode-none",
+          enabled: true,
+          delivery: { mode: "none" },
+          state: { lastStatus: "ok", lastDelivered: false, lastRunAtMs: Date.now() - 1000 },
+        },
+      ],
+    });
+
+    await importFresh("../../tools/alerting/check-cron-delivery.ts");
+    await flushModuleSideEffects();
+
+    expect(spawnSync).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
+  it("still flags required-delivery jobs when delivery actually fails", async () => {
+    const exitSpy = mockExit();
+    const consoleCapture = captureConsole();
+    setArgv([]);
+    useFixedTime("2025-01-01T00:00:00Z");
+
+    readJsonFile.mockReturnValue({
+      jobs: [
+        {
+          name: "silent-ok",
+          enabled: true,
+          delivery: { mode: "telegram", to: "NO_REPLY" },
+          state: { lastStatus: "ok", lastDelivered: false, lastRunAtMs: Date.now() - 1000 },
+        },
+        {
+          name: "required-delivery-failed",
+          enabled: true,
+          delivery: { mode: "telegram" },
+          state: { lastStatus: "ok", lastDelivered: false, lastRunAtMs: Date.now() - 1000 },
+        },
+      ],
+    });
+    fsMock.accessSync.mockImplementation(() => {
+      throw new Error("missing");
+    });
+
+    await importFresh("../../tools/alerting/check-cron-delivery.ts");
+    await flushModuleSideEffects();
+
+    expect(consoleCapture.logs.join(" ")).toContain("required-delivery-failed");
+    expect(consoleCapture.logs.join(" ")).not.toContain("silent-ok");
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
   it("logs failures but skips psql when executable missing", async () => {
     const exitSpy = mockExit();
     const consoleCapture = captureConsole();
