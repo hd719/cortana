@@ -534,9 +534,8 @@ async function main(): Promise<void> {
 
   for (const item of findings) {
     const signature = `${item.key}|${item.reasonCode}`;
-    const seenBefore = Object.prototype.hasOwnProperty.call(lastLogged, signature);
     const recent = prunedLastLogged[signature];
-    const inCooldown = seenBefore || (typeof recent === "number" && now - recent < args.cooldownSeconds * 1000);
+    const inCooldown = typeof recent === "number" && now - recent < args.cooldownSeconds * 1000;
 
     item.logged = false;
     item.cooldownSkipped = Boolean(inCooldown);
