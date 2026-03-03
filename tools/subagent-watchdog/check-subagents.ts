@@ -169,8 +169,11 @@ function resolvePsql(): string {
   return "psql";
 }
 
-function runSessions(activeMinutes: number, allAgents: boolean): JsonMap {
-  const cmd = ["openclaw", "sessions", "--json", "--active", String(activeMinutes)];
+function runSessions(activeMinutes: number | null, allAgents: boolean): JsonMap {
+  const cmd = ["openclaw", "sessions", "--json"];
+  if (typeof activeMinutes === "number" && Number.isFinite(activeMinutes) && activeMinutes > 0) {
+    cmd.push("--active", String(activeMinutes));
+  }
   if (allAgents) cmd.push("--all-agents");
   const proc = spawnSync(cmd[0], cmd.slice(1), { encoding: "utf8" });
   if (proc.status !== 0) {
@@ -441,6 +444,11 @@ async function main(): Promise<void> {
     summary: {
       sessionsScanned: 0,
       subagentSessionsScanned: 0,
+      sessionsActive: 0,
+      sessionsHistorical: 0,
+      sessionsTotal: 0,
+      sessionsFreshnessMinutes: args.activeMinutes,
+      sessionsCountSource: "all_sessions",
       failedOrTimedOut: 0,
       loggedEvents: 0,
       alertsSent: 0,
@@ -464,6 +472,28 @@ async function main(): Promise<void> {
 
   const sessions: SessionSummary[] = Array.isArray(data.sessions) ? (data.sessions as SessionSummary[]) : [];
   output.summary.sessionsScanned = sessions.length;
+  output.summary.sessionsActive = sessions.length;
+
+  let totalSessions: SessionSummary[] | null = null;
+  try {
+    const totalData = runSessions(null, args.allAgents);
+    totalSessions = Array.isArray(totalData.sessions) ? (totalData.sessions as SessionSummary[]) : [];
+  } catch (err) {
+    output.summary.sessionsCountSource = "active_only";
+    output.summary.logErrors += 1;
+    output.logErrors.push({
+      signature: "sessions_total",
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  if (totalSessions) {
+    output.summary.sessionsTotal = totalSessions.length;
+    output.summary.sessionsHistorical = Math.max(0, totalSessions.length - sessions.length);
+  } else {
+    output.summary.sessionsTotal = sessions.length;
+    output.summary.sessionsHistorical = 0;
+  }
 
   const findings: FailureFinding[] = [];
   const maxRuntimeMs = args.maxRuntimeSeconds * 1000;
@@ -504,8 +534,9 @@ async function main(): Promise<void> {
 
   for (const item of findings) {
     const signature = `${item.key}|${item.reasonCode}`;
+    const seenBefore = Object.prototype.hasOwnProperty.call(lastLogged, signature);
     const recent = prunedLastLogged[signature];
-    const inCooldown = typeof recent === "number" && now - recent < args.cooldownSeconds * 1000;
+    const inCooldown = seenBefore || (typeof recent === "number" && now - recent < args.cooldownSeconds * 1000);
 
     item.logged = false;
     item.cooldownSkipped = Boolean(inCooldown);
