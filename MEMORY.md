@@ -7,6 +7,9 @@
 - Tech stack: TypeScript/React (TanStack Start), Better Auth, Prisma; Go backend.
 - Side project: personal health metrics product (WHOOP/Tonal integration).
 - Tracks finance/housing/mortgage policy.
+- **Master's program**: Stevens Institute of Technology.
+  - EM-605 (Elements of Operations Research) — **completed** March 2026.
+  - SSW 567 (Software Testing, Quality Assurance and Maintenance) — **active** Spring 2026. Track quiz/HW deadlines on Clawdbot-Calendar.
 
 ## Core Preferences & Global Rules
 

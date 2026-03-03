@@ -1,4 +1,4 @@
-# USER.md – About Your Human
+# USER.md - About Your Human
 
 - **Name:** Hamel Desai (he/him)
 - **What to call him:** Hamel
@@ -26,8 +26,8 @@
 
 ## Routine
 
-- Works out daily (Tonal), usually **5:30–6:00am ET**.
-- Balancing a master’s program (EM-605 current class).
+- Works out daily (Tonal), usually **5:30-6:00am ET**.
+- Master's at Stevens Institute of Technology. EM-605 completed; SSW 567 (Software Testing) is the active class.
 - Actively improving sleep consistency and energy.
 
 ## Finance / Mortgage
