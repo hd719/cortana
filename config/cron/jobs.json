@@ -1299,6 +1299,26 @@
       "agentId": "cron-maintenance",
       "updatedAtMs": 1772503211353,
       "id": "d999382d-afa0-41bb-9465-164b49100373"
+    },
+    {
+      "id": "8b2e22e3-c6b0-43b7-8a1f-4f8b5cc1de6a",
+      "agentId": "cron-maintenance",
+      "name": "Weekly session cleanup enforce",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 3 * * 0",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "PREFIX: 🧹 System - Weekly session cleanup enforce\nRun: openclaw sessions cleanup --all-agents --enforce --json\nIf no sessions changed, return NO_REPLY.\nDo not use message tool."
+      },
+      "delivery": {
+        "mode": "none"
+      }
     }
   ]
 }
