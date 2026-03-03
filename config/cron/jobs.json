@@ -1378,6 +1378,27 @@
       "delivery": {
         "mode": "none"
       }
+    },
+    {
+      "id": "subagent-reliability-reaper-15m",
+      "agentId": "cron-maintenance",
+      "name": "🧯 Subagent Reliability Reaper (15m)",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/15 * * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "timeoutSeconds": 90,
+        "message": "Run /Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal. If recovered after retry, report one line. If fallback_manual_required appears, send concise alert with run context."
+      },
+      "delivery": {
+        "mode": "none"
+      }
     }
   ]
 }
