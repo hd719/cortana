@@ -163,7 +163,8 @@
       "payload": {
         "kind": "agentTurn",
         "message": "PREFIX: ⏰ Calendar - Event Reminder\nDELIVERY: send via message tool (action=send, channel=telegram, target=8171372724).\nTimezone: America/New_York.\n\nRun:\ngog --account hameldesai3@gmail.com calendar events \"60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com\" --from today --to tomorrow --json\n\nRules:\n- Use only events that start TODAY (ET). Skip tomorrow/later and all-day events.\n- Compute minutes-until-start from now.\n- Send only when in reminder windows: 55-65 (60-min) or 25-35 (30-min).\n- Deduplicate using ~/openclaw/memory/calendar-reminders-sent.json.\n- Format: ⏰ [Event Title] in [X] minutes\\nWhen: HH:MM AM/PM ET\n- If no reminders due or any failure: output NOTHING.\n\nAfter generating output, send it with message tool. If nothing to report, return NO_REPLY and do not send.",
-        "model": "openai-codex/gpt-5.1"
+        "model": "openai-codex/gpt-5.1",
+        "timeoutSeconds": 90
       },
       "state": {
         "nextRunAtMs": 1772539620000,
@@ -176,10 +177,7 @@
         "lastDeliveryStatus": "not-delivered"
       },
       "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
+        "mode": "none"
       },
       "prompt": "\n\nIf there are upcoming events to remind about, use the message tool to send reminders to Telegram (channel: telegram, target: 8171372724). If nothing to report, respond with NO_REPLY and do NOT send a message."
     },
@@ -230,7 +228,8 @@
       "payload": {
         "kind": "agentTurn",
         "message": "PREFIX: Always prefix your output with: 🐦 Health - X Session Check. Example: 🐦 Health - X Session Check\n[rest of message]\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nCheck whether X/Twitter (bird) session is still valid.\n\nSteps:\n1) Run: /Users/hd/bin/birdx whoami (fallback: bird whoami)\n2) If it succeeds: DO NOT MESSAGE.\n3) If it fails due to auth/login/cookies/session: send Hamel a short Telegram alert:\n   - \"X session expired; please re-login\"\n   - include the failing command's one-line error\n   - suggest: run `bird check` and re-auth (open X in browser, log in, then rerun `bird whoami`).\n4) If it fails for non-auth reasons (network, rate limit): stay silent.\n\nAfter generating your response, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery.",
-        "model": "openai-codex/gpt-5.1"
+        "model": "openai-codex/gpt-5.1",
+        "timeoutSeconds": 90
       },
       "state": {
         "nextRunAtMs": 1772571600000,
@@ -243,10 +242,7 @@
         "lastDeliveryStatus": "not-delivered"
       },
       "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
+        "mode": "none"
       },
       "prompt": "\n\nAfter checking health, use the message tool to send results to Telegram (channel: telegram, target: 8171372724). If everything is healthy, respond with NO_REPLY."
     },
@@ -259,7 +255,7 @@
       "updatedAtMs": 1772113793807,
       "schedule": {
         "kind": "cron",
-        "expr": "45 7 * * 1-5",
+        "expr": "55 7 * * 1-5",
         "staggerMs": 180000
       },
       "sessionTarget": "isolated",
@@ -267,7 +263,8 @@
       "payload": {
         "kind": "agentTurn",
         "message": "Stock Market Brief for Hamel.\nPrefix: 💹 Markets - Stock Market Brief. Delivery: send via message tool to telegram target 8171372724.\nRead ~/openclaw/tools/portfolio/config.md.\nConstraints: TSLA/NVDA forever holds (never sell/trim). Diversify for concentration risk. Long-term horizon.\n\n1) Check market status:\nMARKET_STATUS=$(~/openclaw/skills/markets/check_market_status.sh)\nIf CLOSED, focus on after-hours/pre-market impact.\n\n2) Pull finance sitrep + freshness:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\nFINANCE=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'finance';\")\nFINANCE_AGE=$(psql cortana -t -A -c \"SELECT EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/3600 FROM cortana_sitrep WHERE domain = 'finance';\")\nIf missing/stale (>4h), fetch fresh prices.\n\n3) Pull finance insights:\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, priority, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'finance' = ANY(domains) ORDER BY priority ASC) t;\")\n\n4) Fresh prices when needed:\ncd ~/openclaw/skills/stock-analysis && npx tsx src/stock_analysis/main.ts analyze <TICKER> --json\nTickers: TSLA, NVDA, GOOGL, AAPL, MSFT, BA, META, DIS, AMZN, QQQ, BRK.B, COIN, AWAY, GLD.\n\n5) Use web_search for material 24h news only: earnings/filings/regulatory, major launches/deliveries, >3% moves.\n\n6) Compose concise plain-text brief:\n- Include MARKET_STATUS and GLD section (price/%/hedge context)\n- Beginner Corner (required): market health GOOD/SHAKY/BAD; BUY/WATCH/NO-BUY reason; one concept of day\n- For each material event: what happened, why it matters, thesis impact (CONFIRMING/NEUTRAL/WARNING/THESIS RISK), sizing relevance (HIGH/MEDIUM/LOW), action (HOLD/WATCH/ADD CANDIDATE/PAUSE ADDING/DIVERSIFY ELSEWHERE), what to watch\n- If none: \"No material events today. All positions steady.\"\n- Include portfolio values + weights and finance insights\n\n7) Mark finance insights delivered:\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'finance' = ANY(domains);\"\nWeekday only.",
-        "model": "openai-codex/gpt-5.2-codex"
+        "model": "openai-codex/gpt-5.2-codex",
+        "timeoutSeconds": 120
       },
       "state": {
         "nextRunAtMs": 1772541900000,
@@ -295,7 +292,7 @@
       "updatedAtMs": 1772111049561,
       "schedule": {
         "kind": "cron",
-        "expr": "3 8 * * *",
+        "expr": "12 8 * * *",
         "tz": "America/New_York"
       },
       "sessionTarget": "isolated",
@@ -340,7 +337,8 @@
       "payload": {
         "kind": "agentTurn",
         "message": "Fitness Evening Recap for Hamel (8:30 PM ET).\nPrefix: 🏋️ Fitness - Evening Recap. Delivery: send via message tool to telegram target 8171372724.\nFormatting: 12-hour AM/PM only.\n\n0) Tonal health check first:\ncurl -s http://localhost:3033/tonal/health\nIf not healthy: note \"Tonal auth issue - skipping Tonal details\" and proceed with Whoop.\n\n1) Baseline from sitrep:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\nBASELINE_RECOVERY=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_recovery';\")\n\n2) Fetch fresh evening data:\nWhoop: curl -s http://localhost:3033/whoop/data\nTonal (if healthy): curl -s http://localhost:3033/tonal/data\n\n3) Mandatory TODAY-only filtering:\nTODAY=$(date +%Y-%m-%d)\nWhoop workouts: .start[:10] == TODAY\nTonal workouts: .beginTime[:10] == TODAY\nIf endpoints return data but no workouts today: \"Rest day — no workout logged today.\"\nIf endpoint fails: \"<Service> data unavailable right now\" (not rest day).\n\n4) Pull health insights:\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'health' = ANY(domains) ORDER BY priority ASC) t;\")\n\n5) Recap sections:\nA) Today strain summary (strain, kJ, max HR, activity)\nB) Tonal details only if Tonal healthy + TODAY workout exists; else \"No Tonal workout logged today\"\nC) Weekly progress (days trained, muscle frequency, weekly strain avg, weekly sleep avg)\nD) Tomorrow Tonal workout from programEnrollmentId for program 12 Weeks to Jacked (ID 7d4d1d3d-9da9-4722-9e8c-fb65e45845a8), skip if Tonal unhealthy\nE) Tomorrow outlook from strain + sleep\nF) Sleep recommendation\nG) Health insights\n\n6) Mark insights delivered:\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'health' = ANY(domains);\"\n7) Update ~/openclaw/memory/fitness/YYYY-MM-DD.json with evening key.",
-        "model": "openai-codex/gpt-5.2-codex"
+        "model": "openai-codex/gpt-5.2-codex",
+        "timeoutSeconds": 180
       },
       "state": {
         "nextRunAtMs": 1772587800000,
@@ -376,7 +374,8 @@
       "payload": {
         "kind": "agentTurn",
         "message": "Weekly Fitness Insights for Hamel (Sunday 8 PM ET).\nPrefix: 🏋️ Fitness - Weekly Insights. Delivery: send via message tool to telegram target 8171372724.\nGoal: coach-style analysis (no raw data tables), max 300 words.\n\n0) Check Tonal health:\ncurl -s http://localhost:3033/tonal/health\nIf unhealthy: note Tonal auth issue and provide Whoop-only analysis.\n\n1) Fetch minimal data only:\nWhoop:\ncurl -s http://localhost:3033/whoop/data | jq '{recovery: [.recovery[0:7][] | {date: .created_at[0:10], score: .score.recovery_score, hrv: .score.hrv_rmssd_milli}], workouts: [.workouts[0:10][] | {date: .start[0:10], type: .sport_name, strain: .score.strain}]}'\nTonal (if healthy):\ncurl -s http://localhost:3033/tonal/data | jq '{profile: .profile, recent: [.workouts | to_entries | sort_by(.value.beginTime) | reverse | .[0:7][] | {date: .value.beginTime[0:10], volume: .value.totalVolume}]}'\n\n2) Output sections:\n- What happened this week (3-4 sentences)\n- Wins (2-3 bullets)\n- Watch-outs (2-3 bullets)\n- Next-week focus (2-3 actionable items)\n\n3) Save to ~/openclaw/memory/fitness/weekly/YYYY-WXX.md.",
-        "model": "openai-codex/gpt-5.2-codex"
+        "model": "openai-codex/gpt-5.2-codex",
+        "timeoutSeconds": 180
       },
       "state": {
         "nextRunAtMs": 1773014400000,
@@ -410,7 +409,8 @@
       "payload": {
         "kind": "agentTurn",
         "message": "⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\n🔧 **Fitness Service Health Check** — verify service and remediate safely.\n\n1) Check `http://127.0.0.1:3033/tonal/health`.\n2) If unhealthy, restart ONLY via launchd (so .env is loaded):\n   `launchctl kickstart -k gui/$(id -u)/com.cortana.fitness-service`\n3) Re-check `/tonal/health` and report result.\n\n🚫 Do NOT run `go run main.go` or `./fitness-services` directly.\n🚫 Do NOT bypass launchd-run.sh.\nIf credentials appear missing, note that launchd wrapper sources `/Users/hd/Developer/cortana-external/.env`.",
-        "model": "openai-codex/gpt-5.1"
+        "model": "openai-codex/gpt-5.1",
+        "timeoutSeconds": 120
       },
       "state": {
         "nextRunAtMs": 1772571960000,
@@ -447,7 +447,8 @@
       "payload": {
         "kind": "agentTurn",
         "message": "Newsletter Alert.\nPrefix: 📰 Newsletter - Alert. Delivery: send via message tool to telegram target 8171372724.\n\n1) Fetch unread:\ngog --account hameldesai3@gmail.com gmail search 'is:unread (category:updates OR from:substack OR list:)' --max 10 --json\n\n2) Keep likely newsletters (substack/cooperpress/tldrnewsletter/morningbrew/etc).\n\n3) De-dup state:\nRead/create ~/openclaw/memory/newsletter-alerted.json default {\"ids\": []}\nExclude already-alerted IDs.\n\n4) If new items exist:\n- 2-3 sentence summary each (subject+snippet usually enough)\n- Include link: https://mail.google.com/mail/u/0/#inbox/<messageId>\n- Group by category\n- Append IDs to alerted file; keep last 100 IDs\n\n5) If no new items: output NOTHING.\nGOG rules: no --format flag; use --json/--plain; full message command: gog --account hameldesai3@gmail.com gmail get <messageId> --json\nFinal output must be summary text only (no meta). If none, NO_REPLY and do not send message.",
-        "model": "openai-codex/gpt-5.1"
+        "model": "openai-codex/gpt-5.1",
+        "timeoutSeconds": 90
       },
       "state": {
         "nextRunAtMs": 1772539620000,
@@ -460,10 +461,7 @@
         "lastDelivered": true
       },
       "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
+        "mode": "none"
       },
       "prompt": "\n\nIf newsletters are found, use the message tool to send the alert to Telegram (channel: telegram, target: 8171372724). If none found, respond with NO_REPLY."
     },
@@ -755,10 +753,7 @@
         "timeoutSeconds": 120
       },
       "delivery": {
-        "mode": "announce",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
+        "mode": "none"
       },
       "state": {
         "nextRunAtMs": 1772607600000,
@@ -1183,7 +1178,8 @@
       "payload": {
         "kind": "agentTurn",
         "message": "Weekly Monday Market Brief for Hamel.\nDelivery: send via message tool to telegram target 8171372724.\n\nGoal: concise actionable brief covering (1) weekly portfolio performance, (2) earnings in next 7-10 days, (3) major U.S. economic events this week.\nRules: compact; use tools/portfolio/config.md; TSLA/NVDA forever holds; continue with partial data on failures.\n\nData:\n1) Portfolio snapshot + weekly change:\ncurl -s http://localhost:3033/alpaca/portfolio\ncurl -s http://localhost:3033/alpaca/stats\nExtract equity, cash, top weights, 1-week P/L (%/$).\n\n2) Earnings watch (next 7-10d):\nTSLA NVDA GOOGL AAPL MSFT META AMZN BA DIS BRK.B COIN + current holdings; include date + pre-market/after-close when known.\n\n3) Econ calendar (high-impact only): CPI, PPI, NFP/jobs, unemployment, retail sales, FOMC/Fed speakers, GDP, ISM, consumer sentiment; include ET time and portfolio relevance.\n\nOutput format:\n📊 Monday Market Brief\n1) Portfolio Weekly Snapshot\n2) Earnings Watch (Next 7-10 Days)\n3) Econ Calendar (This Week)\n4) Action Plan This Week (3-5 recommendations; no execution commands)\nTone: sharp, calm, non-hype. Length 250-450 words.",
-        "model": "openai-codex/gpt-5.2-codex"
+        "model": "openai-codex/gpt-5.2-codex",
+        "timeoutSeconds": 240
       },
       "delivery": {
         "mode": "announce",
