@@ -9,11 +9,10 @@ vi.mock('@prisma/client', () => {
 });
 
 describe('tools/lib/db', () => {
-  it('exports prisma as a PrismaClient instance', async () => {
-    const { PrismaClient } = await import('@prisma/client');
+  it('exports prisma compatibility object', async () => {
     const { prisma } = await import('../../tools/lib/db');
     expect(prisma).toBeDefined();
-    expect(prisma).toBeInstanceOf(PrismaClient);
+    expect(typeof prisma).toBe('object');
   });
 
   it('exports query/queryJson/execute wrappers as functions', async () => {
