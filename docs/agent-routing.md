@@ -36,3 +36,38 @@ The `main` agent MUST be explicitly listed in both:
 - `~/.openclaw/openclaw.json` (system config)
 
 Without an explicit entry, webchat falls back to `~/.openclaw/workspace-main` (a blank bootstrap workspace) instead of the Cortana workspace.
+
+## Cross-Agent Visibility (Messaging + History)
+
+If `sessions_send` works but cross-session history/listing is still limited, both of these config keys must be set in `~/.openclaw/openclaw.json`.
+
+Reference snippet: `config/openclaw.cross-agent-visibility.example.json`
+
+
+```json
+{
+  "tools": {
+    "agentToAgent": {
+      "enabled": true
+    },
+    "sessions": {
+      "visibility": "all"
+    }
+  }
+}
+```
+
+### Why both are needed
+
+- `tools.agentToAgent.enabled=true` enables cross-agent operations (status/send/history) outside the same agent.
+- `tools.sessions.visibility="all"` lifts session tool visibility from scoped values (`self`/`tree`/`agent`) so history/list/send can see other agent sessions.
+
+If either is missing, OpenClaw intentionally blocks full cross-agent visibility.
+
+### Optional tightening
+
+If you need to restrict which agents can talk to each other, use `tools.agentToAgent.allow` (glob/IDs). Leaving it unset allows all agents once `enabled` is true.
+
+### Migration note
+
+If an older config still uses `routing.agentToAgent`, move it to `tools.agentToAgent`.

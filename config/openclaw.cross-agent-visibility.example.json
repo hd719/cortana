@@ -1,0 +1,10 @@
+{
+  "tools": {
+    "agentToAgent": {
+      "enabled": true
+    },
+    "sessions": {
+      "visibility": "all"
+    }
+  }
+}
