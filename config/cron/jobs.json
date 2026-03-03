@@ -78,7 +78,7 @@
       "name": "📬 Weekday newsletter digest (Hamel)",
       "enabled": true,
       "createdAtMs": 1769557929500,
-      "updatedAtMs": 1772233318475,
+      "updatedAtMs": 1772492427352,
       "schedule": {
         "kind": "cron",
         "expr": "0 18 * * 1-5",
@@ -92,14 +92,14 @@
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772492400000,
-        "lastRunAtMs": 1772233304394,
+        "nextRunAtMs": 1772578800000,
+        "lastRunAtMs": 1772492400030,
         "lastStatus": "ok",
-        "lastDurationMs": 14081,
+        "lastDurationMs": 27322,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
-        "lastDelivered": false,
-        "lastDeliveryStatus": "not-delivered"
+        "lastDelivered": true,
+        "lastDeliveryStatus": "delivered"
       },
       "delivery": {
         "mode": "announce",
@@ -150,7 +150,7 @@
       "name": "📅 Calendar reminders → Telegram (ALL calendars)",
       "enabled": true,
       "createdAtMs": 1769585938649,
-      "updatedAtMs": 1772485630672,
+      "updatedAtMs": 1772492827699,
       "schedule": {
         "kind": "cron",
         "expr": "7 6-23 * * *",
@@ -164,10 +164,10 @@
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
-        "nextRunAtMs": 1772489220000,
-        "lastRunAtMs": 1772485620015,
+        "nextRunAtMs": 1772496420000,
+        "lastRunAtMs": 1772492820032,
         "lastStatus": "ok",
-        "lastDurationMs": 10657,
+        "lastDurationMs": 7667,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDelivered": false,
@@ -985,7 +985,7 @@
       "name": "🔍 Proprioception: Cron & Tool Health",
       "enabled": true,
       "createdAtMs": 1771323577113,
-      "updatedAtMs": 1772488183846,
+      "updatedAtMs": 1772495385678,
       "schedule": {
         "kind": "every",
         "everyMs": 3600000,
@@ -1004,10 +1004,10 @@
         "channel": "last"
       },
       "state": {
-        "nextRunAtMs": 1772491777545,
-        "lastRunAtMs": 1772488177545,
+        "nextRunAtMs": 1772498977605,
+        "lastRunAtMs": 1772495377605,
         "lastStatus": "ok",
-        "lastDurationMs": 6301,
+        "lastDurationMs": 8073,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
@@ -1089,7 +1089,7 @@
       "description": "Immune System: threat detection and auto-healing scan",
       "enabled": true,
       "createdAtMs": 1771324082626,
-      "updatedAtMs": 1772471568158,
+      "updatedAtMs": 1772493157778,
       "schedule": {
         "kind": "cron",
         "expr": "11 */6 * * *",
@@ -1111,11 +1111,11 @@
         "bestEffort": true
       },
       "state": {
-        "lastRunAtMs": 1772471549649,
+        "lastRunAtMs": 1772493149650,
         "lastStatus": "ok",
-        "lastDurationMs": 18509,
+        "lastDurationMs": 8128,
         "consecutiveErrors": 0,
-        "nextRunAtMs": 1772493149622,
+        "nextRunAtMs": 1772514749622,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
         "lastDelivered": false
