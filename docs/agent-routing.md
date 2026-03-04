@@ -16,6 +16,7 @@ This system runs multiple agents, each with its own workspace, model, and sessio
 | cron-maintenance | System updates | `~/.openclaw/workspaces/cron-maintenance` | gpt-5.1 | No — cron only |
 | **huragok** | Telegram infra lane for Huragok group/chat entrypoint | `/Users/hd/openclaw` | gpt-5.3-codex | Yes (bound group/channel) |
 | huragok-worker | Worker profile for spawned task runs from Huragok lane | `/Users/hd/openclaw` | gpt-5.3-codex | No — spawn target only |
+| cortana-acp | On-demand specialist coding lane for explicit ACP runtime requests | `/Users/hd/openclaw` | gpt-5.3-codex | No — spawn target only |
 
 ## Channel Routing
 
@@ -23,7 +24,18 @@ This system runs multiple agents, each with its own workspace, model, and sessio
 - **Webchat** → `main` agent (Cortana)
 - **Telegram group `-5229462108`** → `huragok` (direct infra lane)
 - **Huragok spawned work** → `huragok-worker` (`agentId: "huragok-worker"`)
+- **Explicit coding-runtime asks** ("use Codex", "use Claude Code", "use Gemini") → `cortana-acp` (`agentId: "cortana-acp"`)
 - **Cron jobs** → respective cron agent (deliver results to Telegram via `message` tool)
+
+## ACP On-Demand Routing Policy
+
+Default behavior stays unchanged: use normal sub-agent orchestration.
+
+Route to `cortana-acp` only when the user explicitly requests a coding runtime (Codex, Claude Code, Gemini). This keeps ACP available as a specialist lane without hijacking normal dispatch.
+
+Quick decision rule:
+- User explicitly names Codex/Claude/Gemini or asks for "ACP" → spawn with `agentId: "cortana-acp"`
+- Otherwise → spawn normal Covenant role agent (`huragok`, `researcher`, `monitor`, `oracle`, `librarian`) per task type
 
 ## Known Pitfall: Reply Routing
 
