@@ -68,6 +68,7 @@ Rules:
   - `status = 'completed'`
   - `completed_at = NOW()`
   - `outcome = <outcome>`
+  - `assigned_to = NULL` (ownership cleanup on terminal transition)
   - `updated_at = CURRENT_TIMESTAMP`
 
 ### 3) fail
@@ -81,6 +82,7 @@ Rules:
 - Sets:
   - `status = 'failed'`
   - `outcome = <reason>`
+  - `assigned_to = NULL` (ownership cleanup on terminal transition)
   - `updated_at = CURRENT_TIMESTAMP`
 
 > Note: migration `migrations/021_task_status_failed.sql` adds `failed` to the `cortana_tasks_status_check` constraint.
@@ -144,6 +146,26 @@ Detects integrity drift and can optionally auto-heal tasks stuck in `ready` even
 - Detects `ready` tasks that still match active `cortana_covenant_runs` by `run_id` or `assigned_to`.
 - Optional `--heal-ready-active-run` transitions those tasks to `in_progress` and tags `metadata.auto_heal_spawn_state`.
 - Keeps existing checks for orphaned `in_progress` tasks and completed parents with pending children.
+
+### 8) integrity-guard (post-merge/cron gate)
+
+```bash
+# machine readable + non-zero exit when violations exist
+npx tsx tools/task-board/integrity-guard.ts
+
+# human summary + JSON
+npx tsx tools/task-board/integrity-guard.ts --pretty
+
+# also emit cortana_events audit row
+npx tsx tools/task-board/integrity-guard.ts --log-event
+```
+
+Checks and exits `1` when any of these are non-zero:
+- completed tasks with stale `assigned_to`
+- `in_progress` tasks without active session mapping (`run_id`/`assigned_to` not present in active `cortana_covenant_runs`)
+- tasks with invalid priorities (`NULL` or outside 1..5)
+
+Exit behavior is automation-friendly (`0` pass, `1` violations).
 
 ## Output format
 

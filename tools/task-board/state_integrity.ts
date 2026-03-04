@@ -55,6 +55,38 @@ function fixDoneMissingCompletedAt(limit: number, dryRun: boolean): number[] {
   return ids;
 }
 
+
+function fixCompletedWithAssignedTo(limit: number, dryRun: boolean): number[] {
+  const rows = fetchJson(
+    "SELECT id FROM cortana_tasks " +
+      "WHERE status='completed' AND assigned_to IS NOT NULL " +
+      `ORDER BY id ASC LIMIT ${Math.max(1, limit)}`
+  );
+  const ids = rows.map((r) => Number(r.id));
+  if (ids.length && !dryRun) {
+    runPsql(
+      "UPDATE cortana_tasks SET assigned_to = NULL, updated_at = CURRENT_TIMESTAMP, " +
+        "metadata = COALESCE(metadata, '{}'::jsonb) || " +
+        "jsonb_build_object('ownership_hygiene_auto_heal', jsonb_build_object('at', NOW(), 'reason', 'completed_task_assigned_to_cleared')), " +
+        "outcome = CASE " +
+        "WHEN COALESCE(outcome,'') = '' THEN 'Ownership hygiene auto-heal: cleared stale assigned_to on completed task.' " +
+        "WHEN POSITION('Ownership hygiene auto-heal: cleared stale assigned_to on completed task.' IN outcome) > 0 THEN outcome " +
+        "ELSE outcome || E'\nOwnership hygiene auto-heal: cleared stale assigned_to on completed task.' END " +
+        `WHERE id = ANY(ARRAY[${ids.join(",")}]::int[]) AND status='completed' AND assigned_to IS NOT NULL;`
+    );
+  }
+  if (ids.length) {
+    logEvent(
+      "auto_heal",
+      "warning",
+      `Cleared stale assigned_to for ${ids.length} completed task(s)`,
+      { task_ids: ids, fix: "completed_with_assigned_to", dry_run: dryRun },
+      dryRun
+    );
+  }
+  return ids;
+}
+
 function detectOrphanedInProgress(orphanMinutes: number, limit: number): Json[] {
   return fetchJson(
     "SELECT t.id, t.title, t.assigned_to, t.updated_at, t.created_at " +
@@ -134,6 +166,7 @@ function healReadyWithActiveRun(rows: Json[], dryRun: boolean): number[] {
 
 function audit(orphanMinutes: number, fixLimit: number, detectLimit: number, dryRun: boolean, healReadyActiveRun: boolean): Json {
   const fixedDone = fixDoneMissingCompletedAt(fixLimit, dryRun);
+  const fixedCompletedAssigned = fixCompletedWithAssignedTo(fixLimit, dryRun);
   const orphaned = detectOrphanedInProgress(orphanMinutes, detectLimit);
   const completedWithPending = detectCompletedWithPendingChildren(detectLimit);
   const readyWithActiveRun = detectReadyWithActiveRun(detectLimit);
@@ -178,7 +211,11 @@ function audit(orphanMinutes: number, fixLimit: number, detectLimit: number, dry
     status: "ok",
     dry_run: dryRun,
     heal_ready_active_run: healReadyActiveRun,
-    fixed: { done_missing_completed_at: fixedDone.length, task_ids: fixedDone },
+    fixed: {
+      done_missing_completed_at: fixedDone.length,
+      completed_with_assigned_to: fixedCompletedAssigned.length,
+      task_ids: Array.from(new Set([...fixedDone, ...fixedCompletedAssigned])),
+    },
     healed: { ready_with_active_run: healedReadyWithActiveRun.length, task_ids: healedReadyWithActiveRun },
     detected: {
       orphaned_in_progress: orphaned,
