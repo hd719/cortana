@@ -142,7 +142,13 @@
       }
     },
     "agentToAgent": {
-      "enabled": true
+      "enabled": true,
+      "allow": [
+        "main",
+        "huragok",
+        "huragok-worker",
+        "cron-*"
+      ]
     },
     "sessions": {
       "visibility": "all"
@@ -208,7 +214,7 @@
     "telegram": {
       "enabled": true,
       "dmPolicy": "pairing",
-      "botToken": "8550920618:AAHb6duQ5XNAO7uiiMGdl0D0Ys4V6uDd7zE",
+      "botToken": "__OPENCLAW_REDACTED__",
       "groups": {
         "*": {
           "requireMention": true
@@ -240,7 +246,7 @@
     },
     "auth": {
       "mode": "token",
-      "token": "56e4f3aeba200843885b59df93c38842cb795c339e5b1ab4cd099da181de1a0c"
+      "token": "__OPENCLAW_REDACTED__"
     },
     "tailscale": {
       "mode": "serve",
