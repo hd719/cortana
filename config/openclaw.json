@@ -132,6 +132,7 @@
     ]
   },
   "tools": {
+    "profile": "full",
     "web": {
       "search": {
         "provider": "brave",
