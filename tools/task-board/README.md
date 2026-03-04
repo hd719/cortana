@@ -132,6 +132,19 @@ Idempotency:
 - Already-flagged pending tasks are skipped
 - Already-reset orphaned tasks become `pending`, so they are naturally skipped on reruns
 
+### 7) state-integrity audit/heal
+
+```bash
+npx tsx tools/task-board/state_integrity.ts --dry-run
+npx tsx tools/task-board/state_integrity.ts --heal-ready-active-run
+```
+
+Detects integrity drift and can optionally auto-heal tasks stuck in `ready` even though active run evidence exists.
+
+- Detects `ready` tasks that still match active `cortana_covenant_runs` by `run_id` or `assigned_to`.
+- Optional `--heal-ready-active-run` transitions those tasks to `in_progress` and tags `metadata.auto_heal_spawn_state`.
+- Keeps existing checks for orphaned `in_progress` tasks and completed parents with pending children.
+
 ## Output format
 
 Every command prints JSON to stdout:
@@ -164,3 +177,19 @@ tools/task-board/state-enforcer.sh check-orphans
 # add stale-reset metadata to old pending tasks
 tools/task-board/state-enforcer.sh reset-stale
 ```
+
+### 7) aggressive-reconcile (merge/run/ambiguity hardening)
+
+```bash
+# inspect only
+tools/task-board/aggressive-reconcile.sh --pretty
+
+# apply fixes
+tools/task-board/aggressive-reconcile.sh --apply --pretty
+```
+
+Behavior:
+- closes tasks when linked GitHub PR metadata resolves to merged (`repo + pr_number` or `pr_url`)
+- marks tasks `in_progress` when an active sub-agent run is detected via `run_id` / metadata linkage
+- reverts ambiguous autosync failures (`failed -> ready`) when prior failure evidence is `unknown` / ambiguous
+- writes auditable metadata under `metadata.aggressive_reconcile` and emits `task_state_reconciled` events
