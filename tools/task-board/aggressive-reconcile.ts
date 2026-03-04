@@ -34,6 +34,22 @@ type Action = {
   details: Json;
 };
 
+function isRetryPendingFailed(task: TaskRow): boolean {
+  if (task.status !== "failed") return false;
+  const md = task.metadata || {};
+  const out = lower(task.outcome || "");
+  return Boolean(
+    md.retry_pending === true ||
+      md.manual_fallback === true ||
+      md.manual_retry_requested === true ||
+      md.retry_requested_at ||
+      md.retry_after ||
+      out.includes("retry pending") ||
+      out.includes("manual fallback") ||
+      out.includes("retry requested")
+  );
+}
+
 const DB_NAME = process.env.CORTANA_DB ?? "cortana";
 const SOURCE = "task-board-aggressive-reconcile";
 const TERMINAL = new Set(["ok", "done", "completed", "success", "failed", "error", "timeout", "timed_out", "killed", "terminated", "aborted", "cancelled", "canceled"]);
@@ -95,11 +111,11 @@ function loadSessions(activeMinutes: number): SessionRow[] {
   return Array.isArray(parsed.sessions) ? parsed.sessions : [];
 }
 
-function lower(v: unknown): string {
+export function lower(v: unknown): string {
   return String(v ?? "").trim().toLowerCase();
 }
 
-function isActiveSession(s: SessionRow): boolean {
+export function isActiveSession(s: SessionRow): boolean {
   if (s.abortedLastRun === true) return false;
   const st = lower(s.status || s.lastStatus);
   return !st || !TERMINAL.has(st);
@@ -154,7 +170,7 @@ function isAmbiguousFailed(task: TaskRow): boolean {
   );
 }
 
-function pickActions(tasks: TaskRow[], sessions: SessionRow[]): Action[] {
+export function pickActions(tasks: TaskRow[], sessions: SessionRow[]): Action[] {
   const actions: Action[] = [];
   const activeSessions = sessions.filter((s) => String(s.key || "").includes(":subagent:") && isActiveSession(s));
 
@@ -204,7 +220,17 @@ function pickActions(tasks: TaskRow[], sessions: SessionRow[]): Action[] {
         taskId: task.id,
         action: "revert_failed_to_ready",
         reason: "Failed state appears autosync-ambiguous; reverting to ready",
-        details: { refs },
+        details: { refs, mode: "ambiguous_autosync" },
+      });
+      continue;
+    }
+
+    if (!hasActiveRun && isRetryPendingFailed(task)) {
+      actions.push({
+        taskId: task.id,
+        action: "revert_failed_to_ready",
+        reason: "Retry/manual fallback marker detected; reverting failed -> ready",
+        details: { refs, mode: "retry_pending" },
       });
     }
   }
@@ -271,7 +297,7 @@ function applyAction(a: Action): void {
   `);
 }
 
-async function main(): Promise<void> {
+export async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const tasks = loadTasks(args.maxTasks);
   const sessions = loadSessions(args.activeMinutes);
@@ -293,7 +319,9 @@ async function main(): Promise<void> {
   );
 }
 
-main().catch((err) => {
-  emit({ ok: false, error: err instanceof Error ? err.message : String(err) }, true);
-  process.exit(1);
-});
+if (process.argv[1] && process.argv[1].includes("aggressive-reconcile.ts")) {
+  main().catch((err) => {
+    emit({ ok: false, error: err instanceof Error ? err.message : String(err) }, true);
+    process.exit(1);
+  });
+}
