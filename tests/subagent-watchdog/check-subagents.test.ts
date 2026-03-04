@@ -158,6 +158,14 @@ describe("check-subagents", () => {
     const output = consoleCapture.logs.join("\n");
     const payload = JSON.parse(output);
     expect(payload.summary.failedOrTimedOut).toBe(1);
+    const sqlCalls = spawnSync.mock.calls
+      .filter((call) => call[0] === "psql")
+      .map((call) => (Array.isArray(call[1]) ? call[1].join(" ") : ""))
+      .join("\n");
+    expect(sqlCalls).toContain('"stop_reason"');
+    expect(sqlCalls).toContain('"provider_status"');
+    expect(sqlCalls).toContain('"queue_depth"');
+    expect(sqlCalls).toContain('"retry_outcome"');
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 

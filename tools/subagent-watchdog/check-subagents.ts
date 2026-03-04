@@ -49,6 +49,7 @@ type SessionSummary = {
   runId?: string;
   sessionId?: string;
   agentId?: string;
+  modelProvider?: string;
   updatedAt?: number;
 };
 
@@ -63,6 +64,10 @@ type FailureFinding = {
   runtimeSeconds: number;
   updatedAt: string | null;
   status?: string;
+  providerStatus?: string | null;
+  stopReason?: string | null;
+  queueDepth?: number;
+  retryOutcome?: string | null;
   abortedLastRun: boolean;
   detectedAt: string | null;
   reasonCode: string;
@@ -90,6 +95,26 @@ function loadJson<T>(filePath: string, fallback: T): T {
   if (!fs.existsSync(filePath)) return fallback;
   const parsed = readJsonFile<unknown>(filePath);
   return (parsed as T | null) ?? fallback;
+}
+
+function findRunSnapshot(sessionKey: string, runId: string | null | undefined, sessionId: string | null | undefined): JsonMap | null {
+  const payload = loadJson<JsonMap>(RUN_STORE_PATH, {});
+  const runs = payload?.runs;
+  if (!runs || typeof runs !== "object") return null;
+
+  const runIdStr = String(runId ?? "");
+  const sessionIdStr = String(sessionId ?? "");
+  const keyStr = String(sessionKey ?? "");
+  for (const record of Object.values(runs as Record<string, unknown>)) {
+    if (!record || typeof record !== "object") continue;
+    const r = record as JsonMap;
+    const child = String(r.childSessionKey ?? "");
+    const recRunId = String(r.runId ?? "");
+    if ((runIdStr && recRunId === runIdStr) || (sessionIdStr && (recRunId === sessionIdStr || child === sessionIdStr)) || (keyStr && child === keyStr)) {
+      return r;
+    }
+  }
+  return null;
 }
 
 function loadHeartbeatStateStrict(filePath: string, now = Date.now()) {
@@ -351,6 +376,10 @@ function logEvent(reasonItem: FailureFinding, psqlBin: string): [boolean, string
     agent_id: reasonItem.agentId,
     status: reasonItem.status,
     terminal_status: terminalStatus,
+    stop_reason: reasonItem.stopReason ?? reasonItem.reasonCode,
+    provider_status: reasonItem.providerStatus ?? reasonItem.status ?? null,
+    queue_depth: reasonItem.queueDepth ?? null,
+    retry_outcome: reasonItem.retryOutcome ?? null,
     detected_at: reasonItem.detectedAt,
   };
   const message = `Sub-agent failure detected: ${reasonItem.key} (${reasonItem.reasonCode}: ${reasonItem.reasonDetail})`;
@@ -573,6 +602,7 @@ async function main(): Promise<void> {
 
   const findings: FailureFinding[] = [];
   const maxRuntimeMs = args.maxRuntimeSeconds * 1000;
+  const totalSubagentSessions = sessions.filter((s) => String(s.key ?? "").includes(":subagent:")).length;
 
   for (const s of sessions) {
     const key = String(s.key ?? "");
@@ -595,15 +625,26 @@ async function main(): Promise<void> {
     }
 
     const runtimeSeconds = Math.trunc(Number(s.ageMs ?? 0) / 1000);
+    const derivedRunId = s.run_id ?? s.runId ?? s.sessionId;
+    const runSnapshot = findRunSnapshot(key, derivedRunId, s.sessionId);
+    const snapshotStopReason = typeof runSnapshot?.endedReason === "string" ? String(runSnapshot.endedReason) : null;
+    const snapshotProviderStatus =
+      typeof runSnapshot?.outcome === "object" && runSnapshot.outcome
+        ? String((runSnapshot.outcome as JsonMap).status ?? "") || null
+        : null;
     const base = {
       key,
       label: s.label,
-      runId: s.run_id ?? s.runId ?? s.sessionId,
+      runId: derivedRunId,
       sessionId: s.sessionId,
       agentId: s.agentId,
       runtimeSeconds,
       updatedAt: isoFromMs(s.updatedAt),
       status: s.status ?? s.lastStatus,
+      providerStatus: snapshotProviderStatus ?? s.status ?? s.lastStatus ?? null,
+      stopReason: snapshotStopReason,
+      queueDepth: totalSubagentSessions,
+      retryOutcome: null,
       abortedLastRun: s.abortedLastRun ?? false,
       detectedAt: isoFromMs(now),
     };
@@ -648,6 +689,7 @@ async function main(): Promise<void> {
     }
 
     if (inCooldown) {
+      item.retryOutcome = inSessionCooldown ? "suppressed_session_cooldown" : "suppressed_reason_cooldown";
       if (args.emitTerminal) {
         const [emitOk, emitErr, matched] = emitTerminalToRunStore(
           item.key,
@@ -672,6 +714,7 @@ async function main(): Promise<void> {
 
     const [ok, err] = logEvent(item, psqlBin);
     if (ok) {
+      item.retryOutcome = "logged";
       item.logged = true;
       output.summary.loggedEvents += 1;
       prunedLastLogged[signature] = now;
@@ -684,6 +727,7 @@ async function main(): Promise<void> {
         output.logErrors.push({ signature, error: `alert_send_failed: ${alertErr}` });
       }
     } else {
+      item.retryOutcome = "log_insert_failed";
       output.summary.logErrors += 1;
       output.logErrors.push({ signature, error: err });
     }
