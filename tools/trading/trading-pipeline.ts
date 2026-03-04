@@ -14,8 +14,13 @@ interface ScanResult {
   statusLine?: string;
   macroGateLine?: string;
   hyNoteLine?: string;
+  dipProfileLine?: string;
   candidatesEvaluated: number;
+  scanned: number;
+  thresholdPassed: number;
   scanLimit: number;
+  blockerLine?: string;
+  blockerSamplesLine?: string;
   blockedByGuards?: number;
   guardNotes?: string[];
 }
@@ -68,11 +73,22 @@ function parseSummaryCounts(text: string): { candidatesEvaluated: number; scanne
   return { candidatesEvaluated, scanned, thresholdPassed };
 }
 
-function parseDipDiagnostics(text: string): { macroGateLine?: string; hyNoteLine?: string } {
+function parseDipDiagnostics(text: string): { macroGateLine?: string; hyNoteLine?: string; dipProfileLine?: string; blockerLine?: string; blockerSamplesLine?: string } {
   const lines = text.split(/\r?\n/);
   return {
     macroGateLine: lines.find((l) => l.startsWith("Macro Gate:")),
     hyNoteLine: lines.find((l) => l.startsWith("HY Note:")),
+    dipProfileLine: lines.find((l) => l.startsWith("Dip Profile:")),
+    blockerLine: lines.find((l) => l.startsWith("Blockers:")),
+    blockerSamplesLine: lines.find((l) => l.startsWith("Blocker samples:")),
+  };
+}
+
+function parseCommonDiagnostics(text: string): { blockerLine?: string; blockerSamplesLine?: string } {
+  const lines = text.split(/\r?\n/);
+  return {
+    blockerLine: lines.find((l) => l.startsWith("Blockers:")),
+    blockerSamplesLine: lines.find((l) => l.startsWith("Blocker samples:")),
   };
 }
 
@@ -196,8 +212,19 @@ function formatStrategySection(scan: ScanResult): string[] {
   const split = summarizeSignals(scan.signals);
   const emitted = split.buy.length + split.watch.length;
   const lines = [
-    `${scan.name}: scanned ${scan.scanLimit} | evaluated ${scan.candidatesEvaluated} | threshold-passed ${scan.candidatesEvaluated} | emitted BUY ${split.buy.length} / WATCH ${split.watch.length} / NO_BUY ${split.noBuy.length}`,
+    `${scan.name}: scanned ${scan.scanned || scan.scanLimit} | evaluated ${scan.candidatesEvaluated} | threshold-passed ${scan.thresholdPassed} | emitted BUY ${split.buy.length} / WATCH ${split.watch.length} / NO_BUY ${split.noBuy.length}`,
   ];
+
+  if (scan.dipProfileLine) {
+    lines.push(scan.dipProfileLine);
+  }
+
+  if (scan.blockerLine) {
+    lines.push(scan.blockerLine);
+  }
+  if (scan.blockerSamplesLine) {
+    lines.push(scan.blockerSamplesLine);
+  }
 
   if (emitted === 0) {
     lines.push(`Top blocker: ${topBlocker(scan)}`);
@@ -224,7 +251,7 @@ function buildRegimeGateLine(scans: ScanResult[]): string {
   const correctionMode = scans.some((s) => s.marketRegime === "correction");
   const status = scans.find((s) => s.statusLine)?.statusLine;
   const dip = scans.find((s) => s.name === "Dip Buyer");
-  const gateBits = [dip?.macroGateLine, dip?.hyNoteLine].filter(Boolean).join(" | ");
+  const gateBits = [dip?.macroGateLine, dip?.hyNoteLine, dip?.dipProfileLine].filter(Boolean).join(" | ");
 
   const parts = [
     `Regime/Gates: correction=${correctionMode ? "YES" : "NO"}`,
@@ -245,7 +272,7 @@ function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): stri
   const now = new Date().toLocaleString("en-US", { timeZone: "America/New_York", hour12: true });
   const marketLines = scans.map((s) => s.marketLine).filter(Boolean) as string[];
   const correctionMode = scans.some((s) => s.marketRegime === "correction");
-  const symbolsScanned = scans.reduce((sum, s) => sum + s.scanLimit, 0);
+  const symbolsScanned = scans.reduce((sum, s) => sum + (s.scanned || s.scanLimit), 0);
   const candidatesEvaluated = scans.reduce((sum, s) => sum + s.candidatesEvaluated, 0);
   const blockedByGuards = scans.reduce((sum, s) => sum + (s.blockedByGuards ?? 0), 0);
 
@@ -316,6 +343,7 @@ export async function runTradingPipeline(deps?: Partial<PipelineDeps>): Promise<
       scanLimit: canslimLimit,
       ...canslimSummary,
       ...parseMarketLine(canslimOutput),
+      ...parseCommonDiagnostics(canslimOutput),
     },
     {
       name: "Dip Buyer",
@@ -325,6 +353,7 @@ export async function runTradingPipeline(deps?: Partial<PipelineDeps>): Promise<
       ...dipSummary,
       ...dipDiagnostics,
       ...parseMarketLine(dipOutput),
+      ...parseCommonDiagnostics(dipOutput),
     },
   ];
 
