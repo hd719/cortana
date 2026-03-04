@@ -1,6 +1,7 @@
 import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { randomUUID } from "node:crypto";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { captureStdout, resetProcess } from "../test-utils";
@@ -65,5 +66,35 @@ describe("session-size-guard", () => {
     expect(payload.totalOversized).toBe(1);
     expect(payload.sessions[0].agent).toBe("gamma");
     expect(payload.sessions[0].severity).toBe("warning");
+  });
+
+  it("supports namespaced env vars for thresholds", async () => {
+    process.env.SESSION_SIZE_WARNING_THRESHOLD_KB = "512";
+    process.env.SESSION_SIZE_ALERT_THRESHOLD_KB = "1024";
+    process.env.SESSION_SIZE_ALERT_COOLDOWN_SECONDS = "60";
+
+    const mod = await import("../../tools/guardrails/session-size-guard");
+    const cfg = mod.getConfig([]);
+    expect(cfg.warningThresholdKb).toBe(512);
+    expect(cfg.alertThresholdKb).toBe(1024);
+    expect(cfg.alertCooldownSeconds).toBe(60);
+  });
+
+  it("suppresses duplicate alerts within cooldown window", async () => {
+    const mod = await import("../../tools/guardrails/session-size-guard");
+    const stateFile = join(tmpdir(), `session-size-guard-${randomUUID()}.json`);
+    const record = {
+      agent: "alpha",
+      sessionFile: "/tmp/alpha/sessions/oversized.jsonl",
+      sizeBytes: 3 * 1024 * 1024,
+      sizeKb: 3072,
+      severity: "alert",
+    } as const;
+
+    const first = mod.filterByCooldown([record], 300, 1000, stateFile);
+    const second = mod.filterByCooldown([record], 300, 1200, stateFile);
+
+    expect(first).toHaveLength(1);
+    expect(second).toHaveLength(0);
   });
 });

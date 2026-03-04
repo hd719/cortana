@@ -122,9 +122,10 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Alert Hamel on repeat violations.
 
 - **Session size guardrail (every heartbeat)**
-  - Run `npx tsx ~/openclaw/tools/guardrails/session-size-guard.ts`
+  - Run `npx tsx tools/guardrails/session-size-guard.ts`
   - Monitors session file sizes across all agents.
   - Warns at 1MB, alerts at 2MB.
+  - Config: `SESSION_SIZE_WARNING_THRESHOLD_KB`, `SESSION_SIZE_ALERT_THRESHOLD_KB`, `SESSION_SIZE_ALERT_COOLDOWN_SECONDS`.
   - Auto-cleanup available via `--cleanup` flag.
 
 - **Cron delivery monitoring (every heartbeat)**
