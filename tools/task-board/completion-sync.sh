@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+SCRIPT_SOURCE="${BASH_SOURCE[0]-$0}"
+ROOT_DIR="$(cd "$(dirname "$SCRIPT_SOURCE")/../.." && pwd)"
 LOCAL_TS="$ROOT_DIR/tools/task-board/completion-sync.ts"
 
 export PATH="/opt/homebrew/opt/postgresql@17/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:${PATH:-}"
