@@ -180,3 +180,13 @@
   - Track key finance accounts for trade ideas
   - Scan for earnings surprises, sector rotation signals
   - Support CANSLIM screening with social sentiment layer
+
+## Runtime Config Change Log
+
+- **2026-03-04 – Sub-agent reliability tuning (OpenClaw runtime)**
+  - Updated `~/.openclaw/openclaw.json` to reduce sub-agent aborts:
+    - `agents.defaults.maxConcurrent`: `4` → `8`
+    - `agents.defaults.subagents.runTimeoutSeconds`: set to `600`
+    - `agents.defaults.subagents.archiveAfterMinutes`: `5` → `15`
+  - Rationale: concurrency ceiling at 4 was triggering intermittent "Request was aborted" failures when parallel sub-agent demand spiked.
+  - Expected result: improved reliability for concurrent runs, clearer timeout control, and better short-term run trace availability.
