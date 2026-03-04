@@ -16,11 +16,18 @@ interface ScanResult {
   hyNoteLine?: string;
   candidatesEvaluated: number;
   scanLimit: number;
+  blockedByGuards?: number;
+  guardNotes?: string[];
 }
 
 interface PipelineDeps {
   runCommand: (command: string, args: string[]) => string;
   council: (alertText: string) => Promise<{ verdicts: CouncilVerdict[] }>;
+}
+
+interface CorrectionProfile {
+  dipMaxBuys: number;
+  dipMinBuyScore: number;
 }
 
 function defaultRunCommand(command: string, args: string[]): string {
@@ -53,10 +60,12 @@ function parseMarketLine(text: string): { marketRegime?: string; marketLine?: st
   return { marketRegime, marketLine, statusLine };
 }
 
-function parseSummaryCounts(text: string): { candidatesEvaluated: number } {
+function parseSummaryCounts(text: string): { candidatesEvaluated: number; scanned: number; thresholdPassed: number } {
   const summaryLine = text.split(/\r?\n/).find((l) => l.startsWith("Summary:"));
-  const candidatesEvaluated = Number(summaryLine?.match(/Summary:\s*(\d+)\s+candidates/i)?.[1] ?? 0);
-  return { candidatesEvaluated };
+  const scanned = Number(summaryLine?.match(/scanned\s+(\d+)/i)?.[1] ?? 0);
+  const candidatesEvaluated = Number(summaryLine?.match(/evaluated\s+(\d+)/i)?.[1] ?? summaryLine?.match(/Summary:\s*(\d+)\s+candidates/i)?.[1] ?? 0);
+  const thresholdPassed = Number(summaryLine?.match(/threshold-passed\s+(\d+)/i)?.[1] ?? candidatesEvaluated);
+  return { candidatesEvaluated, scanned, thresholdPassed };
 }
 
 function parseDipDiagnostics(text: string): { macroGateLine?: string; hyNoteLine?: string } {
@@ -81,9 +90,84 @@ function getScanLimit(strategy: "CANSLIM" | "Dip Buyer"): number {
   return Math.round(parsed);
 }
 
+function getCorrectionProfile(): CorrectionProfile {
+  const maxBuysRaw = Number(process.env.TRADING_DIP_CORRECTION_MAX_BUYS ?? "1");
+  const minScoreRaw = Number(process.env.TRADING_DIP_CORRECTION_MIN_BUY_SCORE ?? "8");
+  const dipMaxBuys = Number.isFinite(maxBuysRaw) ? Math.max(0, Math.round(maxBuysRaw)) : 1;
+  const dipMinBuyScore = Number.isFinite(minScoreRaw) ? Math.max(0, Math.round(minScoreRaw)) : 8;
+  return { dipMaxBuys, dipMinBuyScore };
+}
+
 function formatSignalLine(signal: TradingSignal): string {
   const score = Number.isFinite(signal.score) ? `${signal.score}/12` : "n/a";
   return `• ${signal.ticker} (${score}) → ${signal.action}${signal.reason ? ` | ${signal.reason}` : ""}`;
+}
+
+function applyCorrectionGuards(scans: ScanResult[]): ScanResult[] {
+  const { dipMaxBuys, dipMinBuyScore } = getCorrectionProfile();
+
+  return scans.map((scan) => {
+    const isCorrection = scan.marketRegime === "correction";
+    if (!isCorrection) return scan;
+    const guardNotes: string[] = [];
+    let blockedByGuards = 0;
+
+    if (scan.name === "CANSLIM") {
+      const rewritten = scan.signals.map((signal) => {
+        if (signal.action !== "BUY") return signal;
+        blockedByGuards += 1;
+        return {
+          ...signal,
+          action: "NO_BUY" as const,
+          reason: "CANSLIM correction hard gate (execution blocked)",
+        };
+      });
+
+      if (blockedByGuards > 0) {
+        guardNotes.push(`CANSLIM hard gate blocked ${blockedByGuards} BUY signal(s) in correction.`);
+      }
+
+      return { ...scan, signals: rewritten, blockedByGuards, guardNotes };
+    }
+
+    if (scan.name === "Dip Buyer") {
+      const buys = scan.signals
+        .map((signal, idx) => ({ signal, idx }))
+        .filter((x) => x.signal.action === "BUY")
+        .sort((a, b) => (b.signal.score ?? -1) - (a.signal.score ?? -1));
+
+      const allowedIndices = new Set<number>();
+      for (const item of buys) {
+        if (!Number.isFinite(item.signal.score) || (item.signal.score ?? 0) < dipMinBuyScore) continue;
+        if (allowedIndices.size >= dipMaxBuys) continue;
+        allowedIndices.add(item.idx);
+      }
+
+      const rewritten = scan.signals.map((signal, idx) => {
+        if (signal.action !== "BUY") return signal;
+        if (allowedIndices.has(idx)) return signal;
+        blockedByGuards += 1;
+        const baseReason =
+          !Number.isFinite(signal.score) || (signal.score ?? 0) < dipMinBuyScore
+            ? `Correction cap: BUY requires score >= ${dipMinBuyScore}/12`
+            : `Correction cap: max ${dipMaxBuys} BUY signal(s)`;
+        return {
+          ...signal,
+          action: "WATCH" as const,
+          reason: baseReason,
+        };
+      });
+
+      guardNotes.push(`Dip correction profile: max BUY=${dipMaxBuys}, min BUY score=${dipMinBuyScore}/12.`);
+      if (blockedByGuards > 0) {
+        guardNotes.push(`Dip correction caps downgraded ${blockedByGuards} BUY signal(s) to WATCH.`);
+      }
+
+      return { ...scan, signals: rewritten, blockedByGuards, guardNotes };
+    }
+
+    return scan;
+  });
 }
 
 function topBlocker(scan: ScanResult): string {
@@ -117,6 +201,13 @@ function formatStrategySection(scan: ScanResult): string[] {
 
   if (emitted === 0) {
     lines.push(`Top blocker: ${topBlocker(scan)}`);
+  }
+
+  if ((scan.blockedByGuards ?? 0) > 0) {
+    lines.push(`Guardrails: blocked/downgraded ${scan.blockedByGuards}`);
+  }
+  for (const note of scan.guardNotes ?? []) {
+    lines.push(`Guardrails: ${note}`);
   }
 
   for (const group of [split.buy, split.watch, split.noBuy]) {
@@ -156,6 +247,7 @@ function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): stri
   const correctionMode = scans.some((s) => s.marketRegime === "correction");
   const symbolsScanned = scans.reduce((sum, s) => sum + s.scanLimit, 0);
   const candidatesEvaluated = scans.reduce((sum, s) => sum + s.candidatesEvaluated, 0);
+  const blockedByGuards = scans.reduce((sum, s) => sum + (s.blockedByGuards ?? 0), 0);
 
   const lines: string[] = [
     "📈 Trading Advisor - Unified Pipeline",
@@ -163,6 +255,7 @@ function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): stri
     ...marketLines,
     buildRegimeGateLine(scans),
     `Diagnostics: symbols scanned ${symbolsScanned} | candidates evaluated ${candidatesEvaluated}`,
+    `Blocker telemetry: guardrail blocks/downgrades ${blockedByGuards}`,
     `Summary: BUY ${buy} | WATCH ${watch} | NO_BUY ${noBuy}`,
     "",
   ];
@@ -235,14 +328,16 @@ export async function runTradingPipeline(deps?: Partial<PipelineDeps>): Promise<
     },
   ];
 
+  const guardedOutputs = applyCorrectionGuards(scanOutputs);
+
   const councilVerdicts: CouncilVerdict[] = [];
-  for (const scan of scanOutputs) {
+  for (const scan of guardedOutputs) {
     if (!scan.signals.some((s) => s.action === "BUY")) continue;
     const result = await council(scan.output);
     councilVerdicts.push(...result.verdicts);
   }
 
-  return buildFinalReport(scanOutputs, councilVerdicts);
+  return buildFinalReport(guardedOutputs, councilVerdicts);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {

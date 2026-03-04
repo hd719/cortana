@@ -36,6 +36,8 @@ afterEach(() => {
   delete process.env.TRADING_SCAN_LIMIT;
   delete process.env.TRADING_SCAN_LIMIT_CANSLIM;
   delete process.env.TRADING_SCAN_LIMIT_DIP;
+  delete process.env.TRADING_DIP_CORRECTION_MAX_BUYS;
+  delete process.env.TRADING_DIP_CORRECTION_MIN_BUY_SCORE;
 });
 
 describe("trading pipeline orchestration", () => {
@@ -209,5 +211,52 @@ Summary: 1 candidates | BUY 0 | WATCH 0 | NO_BUY 1
     const dipCall = calls.find((args) => args[0] === "dipbuyer_alert.py") ?? [];
     expect(canslimCall).toContain("140");
     expect(dipCall).toContain("90");
+  });
+
+  it("enforces CANSLIM correction hard gate and skips council when blocked", async () => {
+    const canslimCorrectionBuy = `📈 Trading Advisor - CANSLIM Scan
+Market: correction | Position Sizing: 0%
+Status: risk-off.
+Summary: 1 candidates | BUY 1 | WATCH 0 | NO_BUY 0
+• NVDA (10/12) → BUY
+  Momentum setup`;
+
+    const council = vi.fn(async () => ({ verdicts: [] }));
+
+    const report = await runTradingPipeline({
+      runCommand: (_cmd, args) => (args[0] === "canslim_alert.py" ? canslimCorrectionBuy : DIP_NO_BUY),
+      council,
+    });
+
+    expect(council).not.toHaveBeenCalled();
+    expect(report).toContain("CANSLIM correction hard gate (execution blocked)");
+    expect(report).toContain("Guardrails: blocked/downgraded 1");
+  });
+
+  it("applies dip correction risk caps and reports blocker telemetry", async () => {
+    process.env.TRADING_DIP_CORRECTION_MAX_BUYS = "1";
+    process.env.TRADING_DIP_CORRECTION_MIN_BUY_SCORE = "8";
+
+    const dipCorrectionBuys = `📉 Trading Advisor - Dip Buyer Scan
+Market: correction | Position Sizing: 25%
+Status: choppy.
+Macro Gate: OPEN | VIX 24 | PCR 1.08 | HY 455 bps (fred) | Fear 48
+Summary: 3 candidates | BUY 3 | WATCH 0 | NO_BUY 0
+• TSLA (10/12) → BUY
+  Setup A
+• AMD (9/12) → BUY
+  Setup B
+• IWM (7/12) → BUY
+  Setup C`;
+
+    const report = await runTradingPipeline({
+      runCommand: (_cmd, args) => (args[0] === "canslim_alert.py" ? CANSLIM_NO_BUY : dipCorrectionBuys),
+      council: async () => ({ verdicts: [] }),
+    });
+
+    expect(report).toContain("Dip correction profile: max BUY=1, min BUY score=8/12.");
+    expect(report).toContain("Dip correction caps downgraded 2 BUY signal(s) to WATCH.");
+    expect(report).toContain("Blocker telemetry: guardrail blocks/downgrades 2");
+    expect(report).toContain("Summary: BUY 1 | WATCH 3 | NO_BUY 0");
   });
 });
