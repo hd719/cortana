@@ -83,8 +83,9 @@ Don't ask permission. Just do it.
 4. **Building/installing/wiring systems → Huragok**. Code, infra, tools, services.
 5. **Analysis/prediction/strategy → Oracle**. Forecasting, risk, "should we do X?"
 6. **Monitoring/alerting/pattern detection → Monitor**. Health checks, anomaly scanning.
-7. **If a task spans two roles**, pick the primary and note the overlap in the task prompt.
-8. **Label your spawns consistently**: `<agent>-<task-slug>` (e.g., `researcher-mortgage-rates`, `librarian-readme-update`, `huragok-event-bus`).
+7. **ACP exception (on-demand only):** if the user explicitly asks for Codex/Claude/Gemini (or says ACP), route via `agentId: "cortana-acp"`.
+8. **If a task spans two roles**, pick the primary and note the overlap in the task prompt.
+9. **Label your spawns consistently**: `<agent>-<task-slug>` (e.g., `researcher-mortgage-rates`, `librarian-readme-update`, `huragok-event-bus`).
 
 ### Anti-Patterns (DO NOT)
 - ❌ Spawn Huragok for research tasks
