@@ -119,9 +119,12 @@ function q(value: unknown): string {
 
 function mapRow(row: Row): MappedRow | null {
   const ftype = String(row.feedback_type ?? "").trim().toLowerCase();
+  const context = row.context ?? "";
   const lesson = row.lesson ?? "";
   const sourceFeedbackId = String(row.id ?? "").trim();
   const createdAt = String(row.timestamp ?? "").trim();
+
+  const hardRuleSignal = /HARD RULE|MANDATORY|ZERO TOLERANCE|E2E TEST CORRECTION/i.test(`${context}\n${lesson}`);
 
   let category = "correction";
   let severity = "medium";
@@ -140,12 +143,10 @@ function mapRow(row: Row): MappedRow | null {
     severity = "medium";
   } else if (ftype === "correction" || ftype === "fact" || ftype === "guardrail_violation") {
     category = "correction";
-    severity = /HARD RULE|MANDATORY|ZERO TOLERANCE/i.test(lesson) ? "high" : "medium";
+    severity = hardRuleSignal ? "high" : "medium";
   } else {
     return null;
   }
-
-  const context = row.context ?? "";
   const applied = String(row.applied ?? "").trim().toLowerCase();
   const appliedFlag = ["t", "true", "1"].includes(applied);
 
