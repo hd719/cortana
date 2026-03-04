@@ -25,6 +25,7 @@ const FAIL_STATUSES = new Set([
 ]);
 const TELEGRAM_GUARD = "/Users/hd/openclaw/tools/notifications/telegram-delivery-guard.sh";
 const COMPLETION_SYNC = "/Users/hd/openclaw/tools/task-board/completion-sync.sh";
+const AGGRESSIVE_RECONCILE = "/Users/hd/openclaw/tools/task-board/aggressive-reconcile.sh";
 const DB_NAME = "cortana";
 const DEFAULT_HEARTBEAT_STATE_FILE = path.join(os.homedir(), ".openclaw", "memory", "heartbeat-state.json");
 const DEFAULT_SESSION_ALERT_STATE_FILE = "/tmp/subagent-watchdog-cooldown.json";
@@ -428,6 +429,14 @@ function runCompletionSync(): [boolean, string | null] {
   if (!fs.existsSync(COMPLETION_SYNC)) return [false, `completion sync missing: ${COMPLETION_SYNC}`];
   const proc = spawnSync(COMPLETION_SYNC, [], { encoding: "utf8" });
   if (proc.status !== 0) return [false, (proc.stderr ?? proc.stdout ?? "completion sync failed").trim()];
+
+  if (fs.existsSync(AGGRESSIVE_RECONCILE)) {
+    const reconcile = spawnSync(AGGRESSIVE_RECONCILE, ["--apply"], { encoding: "utf8" });
+    if (reconcile.status !== 0) {
+      return [false, (reconcile.stderr ?? reconcile.stdout ?? "aggressive reconcile failed").trim()];
+    }
+  }
+
   return [true, null];
 }
 
