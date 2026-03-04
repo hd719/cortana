@@ -19,6 +19,7 @@ const FAIL_STATUSES = new Set(["failed", "error", "aborted", "timeout", "timed_o
 const TELEGRAM_GUARD = "/Users/hd/openclaw/tools/notifications/telegram-delivery-guard.sh";
 const COMPLETION_SYNC = "/Users/hd/openclaw/tools/task-board/completion-sync.sh";
 const DB_NAME = "cortana";
+const DEFAULT_HEARTBEAT_STATE_FILE = path.join(os.homedir(), ".openclaw", "memory", "heartbeat-state.json");
 const RUN_STORE_PATH = process.env.OPENCLAW_SUBAGENT_RUNS_PATH
   ? process.env.OPENCLAW_SUBAGENT_RUNS_PATH
   : path.join(os.homedir(), ".openclaw", "subagents", "runs.json");
@@ -115,9 +116,11 @@ function terminalStatusFromReason(item: FailureFinding): string {
 function emitTerminalToRunStore(
   sessionKey: string,
   sessionId: string,
+  runId: string,
   label: string | null,
   reasonCode: string,
-  reasonDetail: string | null
+  reasonDetail: string | null,
+  status: string | null
 ): [boolean, string | null, boolean] {
   let payload = loadJson(RUN_STORE_PATH, {});
   if (!payload || typeof payload !== "object") payload = {};
@@ -126,13 +129,17 @@ function emitTerminalToRunStore(
   if (!runs || typeof runs !== "object") return [false, "runs.json missing runs object", false];
 
   const sessionIdStr = String(sessionId || "");
+  const runIdStr = String(runId || "");
+  const sessionKeyStr = String(sessionKey || "");
   let matchKey: string | null = null;
   for (const [key, record] of Object.entries(runs)) {
     if (!record || typeof record !== "object") continue;
     if (
-      sessionIdStr &&
-      (String((record as JsonMap).childSessionKey ?? "") === sessionIdStr ||
-        String((record as JsonMap).runId ?? "") === sessionIdStr)
+      (sessionKeyStr && String((record as JsonMap).childSessionKey ?? "") === sessionKeyStr) ||
+      (sessionIdStr &&
+        (String((record as JsonMap).childSessionKey ?? "") === sessionIdStr ||
+          String((record as JsonMap).runId ?? "") === sessionIdStr)) ||
+      (runIdStr && String((record as JsonMap).runId ?? "") === runIdStr)
     ) {
       matchKey = key;
       break;
@@ -146,7 +153,8 @@ function emitTerminalToRunStore(
   record.endedAt = nowMs();
   record.endedReason = String(reasonCode || "watchdog_terminal");
   const outcome = record.outcome && typeof record.outcome === "object" ? record.outcome : {};
-  outcome.status = "failed";
+  outcome.status = terminalStatusFromReason({ reasonCode, status } as FailureFinding);
+  outcome.detail = reasonDetail ?? null;
   record.outcome = outcome;
   (runs as Record<string, JsonMap>)[matchKey] = record;
 
@@ -363,6 +371,7 @@ type Args = {
   stateFile: string;
   allAgents: boolean;
   emitTerminal: boolean;
+  staleFailureWindowSeconds: number;
 };
 
 function parseArgs(argv: string[]): Args {
@@ -370,9 +379,10 @@ function parseArgs(argv: string[]): Args {
     maxRuntimeSeconds: 180,
     activeMinutes: 1440,
     cooldownSeconds: 3600,
-    stateFile: path.join(os.homedir(), "openclaw", "memory", "heartbeat-state.json"),
+    stateFile: DEFAULT_HEARTBEAT_STATE_FILE,
     allAgents: true,
     emitTerminal: true,
+    staleFailureWindowSeconds: 15 * 60,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -405,6 +415,10 @@ function parseArgs(argv: string[]): Args {
         break;
       case "--no-emit-terminal":
         args.emitTerminal = false;
+        break;
+      case "--stale-failure-window-seconds":
+        args.staleFailureWindowSeconds = Number(argv[i + 1]);
+        i += 1;
         break;
       default:
         break;
@@ -442,6 +456,7 @@ const ALERT_DEDUPE_SECONDS = Number(process.env.SUBAGENT_ALERT_DEDUPE_SECONDS ||
       cooldownSeconds: args.cooldownSeconds,
       allAgents: args.allAgents,
       emitTerminal: args.emitTerminal,
+      staleFailureWindowSeconds: args.staleFailureWindowSeconds,
     },
     summary: {
       sessionsScanned: 0,
@@ -456,6 +471,7 @@ const ALERT_DEDUPE_SECONDS = Number(process.env.SUBAGENT_ALERT_DEDUPE_SECONDS ||
       alertsSent: 0,
       tasksUpdated: 0,
       terminalsEmitted: 0,
+      staleFailuresSkipped: 0,
       logErrors: 0,
     },
     failedAgents: [],
@@ -506,6 +522,19 @@ const ALERT_DEDUPE_SECONDS = Number(process.env.SUBAGENT_ALERT_DEDUPE_SECONDS ||
     output.summary.subagentSessionsScanned += 1;
     const reasons = failureReasons(s, maxRuntimeMs);
     if (!reasons.length) continue;
+
+    const updatedAtMs = Number(s.updatedAt ?? now);
+    const staleMs = args.staleFailureWindowSeconds * 1000;
+    const isFailureStale =
+      Number.isFinite(updatedAtMs) &&
+      updatedAtMs > 0 &&
+      staleMs > 0 &&
+      now - updatedAtMs > staleMs &&
+      !isLikelyRunning(s);
+    if (isFailureStale) {
+      output.summary.staleFailuresSkipped += reasons.length;
+      continue;
+    }
 
     const runtimeSeconds = Math.trunc(Number(s.ageMs ?? 0) / 1000);
     const base = {
@@ -593,9 +622,11 @@ const ALERT_DEDUPE_SECONDS = Number(process.env.SUBAGENT_ALERT_DEDUPE_SECONDS ||
       const [emitOk, emitErr, matched] = emitTerminalToRunStore(
         item.key,
         String(item.sessionId ?? item.runId ?? ""),
+        String(item.runId ?? ""),
         item.label ?? null,
         String(item.reasonCode ?? "watchdog_terminal"),
-        item.reasonDetail
+        item.reasonDetail,
+        item.status ?? null
       );
       item.terminalEmitted = Boolean(emitOk && matched);
       item.terminalMatched = Boolean(matched);
