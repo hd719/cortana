@@ -150,10 +150,17 @@ function emitTerminalToRunStore(
   const record = (runs as Record<string, JsonMap>)[matchKey];
   if (!record || typeof record !== "object") return [false, `invalid run record for ${matchKey}`, false];
 
+  const nextStatus = terminalStatusFromReason({ reasonCode, status } as FailureFinding);
+  const currentOutcome = record.outcome && typeof record.outcome === "object" ? (record.outcome as JsonMap) : {};
+  const alreadyEnded = Number(record.endedAt ?? 0) > 0;
+  const sameStatus = String(currentOutcome.status ?? "") === nextStatus;
+  const sameReason = String(record.endedReason ?? "") === String(reasonCode || "watchdog_terminal");
+  if (alreadyEnded && sameStatus && sameReason) return [true, null, false];
+
   record.endedAt = nowMs();
   record.endedReason = String(reasonCode || "watchdog_terminal");
-  const outcome = record.outcome && typeof record.outcome === "object" ? record.outcome : {};
-  outcome.status = terminalStatusFromReason({ reasonCode, status } as FailureFinding);
+  const outcome = currentOutcome;
+  outcome.status = nextStatus;
   outcome.detail = reasonDetail ?? null;
   record.outcome = outcome;
   (runs as Record<string, JsonMap>)[matchKey] = record;
@@ -585,9 +592,11 @@ const ALERT_DEDUPE_SECONDS = Number(process.env.SUBAGENT_ALERT_DEDUPE_SECONDS ||
         const [emitOk, emitErr, matched] = emitTerminalToRunStore(
           item.key,
           String(item.sessionId ?? item.runId ?? ""),
+          String(item.runId ?? ""),
           item.label ?? null,
           String(item.reasonCode ?? "watchdog_terminal"),
-          item.reasonDetail
+          item.reasonDetail,
+          item.status ?? null
         );
         item.terminalEmitted = Boolean(emitOk && matched);
         item.terminalMatched = Boolean(matched);

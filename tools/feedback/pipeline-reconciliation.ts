@@ -60,6 +60,45 @@ WHERE m.created_at < NOW() - INTERVAL '24 hours'
     )
   );`]);
 
+  const stuckBacklogCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
+FROM mc_feedback_items m
+LEFT JOIN LATERAL (
+  SELECT f.id, f.applied
+  FROM cortana_feedback f
+  WHERE COALESCE(f.context,'') = COALESCE(m.summary,'')
+    AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+  ORDER BY ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) ASC
+  LIMIT 1
+) cf ON TRUE
+WHERE m.created_at < NOW() - INTERVAL '24 hours'
+  AND COALESCE(cf.id, 0) <> 0
+  AND COALESCE(cf.applied, FALSE) = FALSE
+  AND EXISTS (
+    SELECT 1
+    FROM cortana_tasks t
+    WHERE t.metadata->>'feedback_id' = m.id::text
+  );`]);
+
+  const stuckBreakageCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
+FROM mc_feedback_items m
+LEFT JOIN LATERAL (
+  SELECT f.id, f.applied
+  FROM cortana_feedback f
+  WHERE COALESCE(f.context,'') = COALESCE(m.summary,'')
+    AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+  ORDER BY ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) ASC
+  LIMIT 1
+) cf ON TRUE
+WHERE m.created_at < NOW() - INTERVAL '24 hours'
+  AND (
+    COALESCE(cf.id, 0) = 0
+    OR NOT EXISTS (
+      SELECT 1
+      FROM cortana_tasks t
+      WHERE t.metadata->>'feedback_id' = m.id::text
+    )
+  );`]);
+
   const lagRows = psql(db, ["-t", "-A", "-F", "\t", "-c", `SELECT
   f.id::text,
   to_char(f.timestamp AT TIME ZONE 'America/New_York', 'YYYY-MM-DD HH24:MI:SS') AS feedback_ts_et,
@@ -106,8 +145,13 @@ WHERE m.created_at < NOW() - INTERVAL '24 hours'
 ORDER BY m.created_at ASC
 LIMIT 10;`]);
 
-  const severity = Number(lagCount || "0") > 0 || Number(stuckCount || "0") > 0 ? "warning" : "info";
-  const message = `pipeline reconciliation: feedback=${feedbackTotal}, mc_feedback_items=${mcTotal}, tasks_source_feedback=${feedbackTasksTotal}, lag=${lagCount}, stuck=${stuckCount}`;
+  const lagN = Number(lagCount || "0");
+  const stuckN = Number(stuckCount || "0");
+  const stuckBacklogN = Number(stuckBacklogCount || "0");
+  const stuckBreakageN = Number(stuckBreakageCount || "0");
+
+  const severity = stuckBreakageN > 0 ? "warning" : "info";
+  const message = `pipeline reconciliation: feedback=${feedbackTotal}, mc_feedback_items=${mcTotal}, tasks_source_feedback=${feedbackTasksTotal}, lag=${lagN}, stuck=${stuckN}, stuck_backlog=${stuckBacklogN}, stuck_breakage=${stuckBreakageN}`;
 
   const insertSql = `
 INSERT INTO cortana_events (event_type, source, severity, message, metadata)
@@ -121,8 +165,10 @@ VALUES (
     'mc_feedback_items_total', ${mcTotal || 0},
     'cortana_tasks_source_feedback_total', ${feedbackTasksTotal || 0},
     'cortana_tasks_source_feedback_loop_total', ${feedbackLoopTasksTotal || 0},
-    'lag_count', ${lagCount || 0},
-    'stuck_count', ${stuckCount || 0},
+    'lag_count', ${lagN},
+    'stuck_count', ${stuckN},
+    'stuck_backlog_count', ${stuckBacklogN},
+    'stuck_breakage_count', ${stuckBreakageN},
     'generated_at', NOW()
   )
 );
@@ -144,8 +190,10 @@ VALUES (
   console.log(`- cortana_tasks (source='feedback_loop'): ${feedbackLoopTasksTotal}`);
   console.log("");
   console.log("Gaps:");
-  console.log(`- Lag (in cortana_feedback, missing in mc_feedback_items): ${lagCount}`);
-  console.log(`- Stuck >24h (unapplied or no linked task): ${stuckCount}`);
+  console.log(`- Lag (in cortana_feedback, missing in mc_feedback_items): ${lagN}`);
+  console.log(`- Stuck >24h total: ${stuckN}`);
+  console.log(`  - Backlog (matched + task linked, waiting apply): ${stuckBacklogN}`);
+  console.log(`  - Breakage (missing match and/or missing linked task): ${stuckBreakageN}`);
   console.log("");
   console.log("Lag sample (up to 10):");
   console.log("id\tfeedback_ts_et\tcontext");

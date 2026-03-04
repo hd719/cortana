@@ -7,7 +7,13 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 pending_json="$(npx tsx "$SCRIPT_DIR/check-pending.ts" --json)"
 
 read -r pending_count expired_count financial_count stale_count <<<"$(node -e '
-  const data = JSON.parse(process.argv[1]);
+  const raw = process.argv[1] || "{}";
+  let data = {};
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    data = {};
+  }
   const pending = Array.isArray(data.pending) ? data.pending : [];
   const expired = pending.filter((p) => p.expired).length;
   const financial = pending.filter((p) => p.category === "financial").length;

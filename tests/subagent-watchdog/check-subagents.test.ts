@@ -277,4 +277,72 @@ describe("check-subagents", () => {
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
+  it("does not re-emit terminal updates when run already has same terminal state", async () => {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => code as never) as never);
+    const consoleCapture = captureConsole();
+    useFixedTime("2025-01-01T00:00:00Z");
+    setArgv([]);
+
+    spawnSync.mockImplementation((cmd: string) => {
+      if (cmd === "/usr/bin/env") return { status: 0, stdout: "psql" } as SpawnResult;
+      if (cmd === "openclaw") {
+        return {
+          status: 0,
+          stdout: JSON.stringify({
+            sessions: [
+              {
+                key: "agent:huragok:subagent:1",
+                label: "huragok",
+                status: "timeout",
+                ageMs: 60000,
+                totalTokensFresh: true,
+                totalTokens: 10,
+                sessionId: "sess-1",
+                runId: "run-1",
+                updatedAt: Date.now(),
+              },
+            ],
+          }),
+        } as SpawnResult;
+      }
+      return { status: 0, stdout: "1" } as SpawnResult;
+    });
+
+    readJsonFile.mockImplementation((filePath: string) => {
+      if (String(filePath).includes("runs.json")) {
+        return {
+          runs: {
+            "run-1": {
+              runId: "run-1",
+              childSessionKey: "agent:huragok:subagent:1",
+              endedAt: 1735689600000,
+              endedReason: "failed_status",
+              outcome: { status: "timeout", detail: "status=timeout" },
+            },
+          },
+        };
+      }
+      return {
+        version: 2,
+        lastChecks: {},
+        lastRemediationAt: 0,
+        subagentWatchdog: { lastRun: 0, lastLogged: {} },
+      };
+    });
+
+    fsMock.existsSync.mockImplementation((p: string) => {
+      const text = String(p);
+      return text.includes("runs.json") || text.includes("telegram-delivery-guard") || text.includes("completion-sync");
+    });
+
+    await importFresh("../../tools/subagent-watchdog/check-subagents.ts");
+    await vi.advanceTimersByTimeAsync(100);
+
+    const payload = JSON.parse(consoleCapture.logs.join("\n"));
+    expect(payload.summary.terminalsEmitted).toBe(0);
+    const runWrite = writeJsonFileAtomic.mock.calls.find((c) => String(c[0]).includes("runs.json"));
+    expect(runWrite).toBeUndefined();
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
 });

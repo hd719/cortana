@@ -100,6 +100,15 @@ describe("decisions", () => {
     expect(results[0]?.flag).toBe("EXPIRED - NEEDS ATTENTION");
   });
 
+  it("handles malformed DB JSON as empty list", async () => {
+    query.mockReturnValue("{");
+    const { checkPendingDecisions } = await import("../../tools/decisions/check-pending.ts");
+
+    const results = checkPendingDecisions();
+
+    expect(results).toEqual([]);
+  });
+
   it("category validation", async () => {
     const { logDecision } = await import("../../tools/decisions/log-decision.ts");
     expect(() =>

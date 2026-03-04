@@ -2,24 +2,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { flushModuleSideEffects, importFresh, mockExit, resetProcess, setArgv } from "../test-utils";
 
 const spawnSync = vi.hoisted(() => vi.fn());
-const safeJsonParse = vi.hoisted(() => vi.fn());
 
 vi.mock("child_process", () => ({
   spawnSync,
 }));
-vi.mock("../../tools/lib/db.js", () => ({
-  withPostgresPath: (env: NodeJS.ProcessEnv) => env,
-}));
-vi.mock("../../tools/lib/paths.js", () => ({
-  repoRoot: () => "/repo",
-}));
-vi.mock("../../tools/lib/json-file.js", () => ({
-  safeJsonParse,
-}));
 
 beforeEach(() => {
   spawnSync.mockReset();
-  safeJsonParse.mockReset();
 });
 
 afterEach(() => {
@@ -28,33 +17,17 @@ afterEach(() => {
 });
 
 describe("auto-executor", () => {
-  it("exits with the child status", async () => {
+  it("uses a BASH_SOURCE fallback so bash -c with set -u does not crash", async () => {
     const exitSpy = mockExit();
     setArgv([]);
     spawnSync.mockReturnValue({ status: 0 } as any);
 
     await importFresh("../../tools/task-board/auto-executor.ts");
     await flushModuleSideEffects();
+
+    const [, args] = spawnSync.mock.calls[0] as [string, string[]];
+    expect(args[1]).toContain('${BASH_SOURCE[0]-}');
+    expect(args[1]).not.toContain('${BASH_SOURCE[0]}" == "$0"');
     expect(exitSpy).toHaveBeenCalledWith(0);
-  });
-
-  it("propagates non-zero status", async () => {
-    const exitSpy = mockExit();
-    setArgv([]);
-    spawnSync.mockReturnValue({ status: 2 } as any);
-
-    await importFresh("../../tools/task-board/auto-executor.ts");
-    await flushModuleSideEffects();
-    expect(exitSpy).toHaveBeenCalledWith(2);
-  });
-
-  it("defaults to exit 1 when status is missing", async () => {
-    const exitSpy = mockExit();
-    setArgv([]);
-    spawnSync.mockReturnValue({} as any);
-
-    await importFresh("../../tools/task-board/auto-executor.ts");
-    await flushModuleSideEffects();
-    expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });

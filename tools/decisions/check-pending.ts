@@ -32,7 +32,13 @@ function runPsql(sql: string): string {
 function fetchJson(sql: string): Array<Record<string, any>> {
   const wrapped = `SELECT COALESCE(json_agg(t), '[]'::json)::text FROM (${sql}) t;`;
   const raw = runPsql(wrapped);
-  return raw ? (JSON.parse(raw) as Array<Record<string, any>>) : [];
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw) as unknown;
+    return Array.isArray(parsed) ? (parsed as Array<Record<string, any>>) : [];
+  } catch {
+    return [];
+  }
 }
 
 function toNumber(value: unknown, fallback = 0): number {
