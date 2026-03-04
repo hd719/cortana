@@ -312,9 +312,9 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Fitness Evening Recap summarizer for Hamel (8:30 PM ET).\nPrefix: \ud83c\udfcb\ufe0f Fitness - Evening Recap. Delivery: send via message tool to telegram target 8171372724.\nFormatting: 12-hour AM/PM only.\n\nUse pre-collected data first:\n- Preferred artifact: /tmp/cron-fitness-evening-recap.json\n- If artifact exists and is fresh (<3h), use it as primary source.\n- If missing/stale/invalid, run fallback collection inline and continue.\n\nFallback collection (only if needed):\n0) Tonal health check: curl -s http://localhost:3033/tonal/health\n1) Baseline from sitrep (whoop_recovery)\n2) Fetch fresh evening data: whoop + tonal (when healthy)\n3) TODAY-only filtering:\n   Whoop workouts .start[:10] == TODAY\n   Tonal workouts .beginTime[:10] == TODAY\n4) Pull health insights from cortana_insights where acted_on=FALSE and domain includes health\n\nRecap sections (keep output equivalent):\nA) Today strain summary (strain, kJ, max HR, activity)\nB) Tonal details only if Tonal healthy + TODAY workout exists; else \"No Tonal workout logged today\"\nC) Weekly progress (days trained, muscle frequency, weekly strain avg, weekly sleep avg)\nD) Tomorrow Tonal workout from programEnrollmentId for 12 Weeks to Jacked (7d4d1d3d-9da9-4722-9e8c-fb65e45845a8), skip if Tonal unhealthy\nE) Tomorrow outlook from strain + sleep\nF) Sleep recommendation\nG) Health insights\n\nAfter successful summary:\n- Mark health insights delivered in cortana_insights\n- Update ~/openclaw/memory/fitness/YYYY-MM-DD.json with evening key.",
-        "model": "openai-codex/gpt-5.2-codex",
-        "timeoutSeconds": 180
+        "model": "openai-codex/gpt-5.3-codex",
+        "timeoutSeconds": 180,
+        "message": "Fitness Evening Recap summarizer for Hamel (8:30 PM ET).\nPrefix: \ud83c\udfcb\ufe0f Fitness - Evening Recap. Delivery: send via message tool to telegram target 8171372724.\nFormatting: 12-hour AM/PM only.\n\nPrimary source:\n- /tmp/cron-fitness-evening-recap.json\nIf missing/stale, collect inline quickly and continue.\n\nOutput sections:\nA) Today strain summary\nB) Tonal\nC) Weekly progress\nD) Tomorrow Tonal workout\nE) Tomorrow outlook\nF) Sleep recommendation\nG) Health insights\n\nRules:\n- If no workouts today, explicitly say: \"Rest day \u2014 no workout logged today.\" (NOT N/A spam).\n- Use whoop_recovery_latest and whoop_sleep_latest when available.\n- Use whoop_weekly + tonal_weekly for weekly metrics when available.\n- If a metric is missing, show \"Unavailable\" with brief reason from errors array.\n- Keep concise and useful; avoid repeating \"N/A\" across sections.\n\nAfter sending summary, mark delivered health insights acted_on=TRUE as before."
       },
       "state": {
         "nextRunAtMs": 1772587800000,
@@ -1285,9 +1285,9 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "model": "openai-codex/gpt-5.2-codex",
-        "timeoutSeconds": 150,
-        "message": "Collect data for Fitness Evening Recap and write JSON artifact to /tmp/cron-fitness-evening-recap.json.\nDo not send Telegram messages.\n\nSteps:\n1) Tonal health: curl -s http://localhost:3033/tonal/health\n2) Baseline recovery from sitrep.\n3) Fetch whoop data and tonal data (if healthy).\n4) Filter TODAY-only workouts for Whoop and Tonal.\n5) Pull pending health insights from postgres.\n6) Save artifact with timestamp and structured fields.\n\nOutput policy:\n- Success: return NO_REPLY\n- Failure: one-line error only."
+        "model": "openai-codex/gpt-5.3-codex",
+        "timeoutSeconds": 120,
+        "message": "Collect robust data for Fitness Evening Recap and write JSON artifact to /tmp/cron-fitness-evening-recap.json.\nDo NOT send Telegram messages.\n\nRequired output JSON keys:\n- timestamp\n- tonal_health\n- whoop_recovery_latest\n- whoop_sleep_latest\n- whoop_today_workouts\n- tonal_today_workouts\n- whoop_weekly (days_trained, weekly_strain_avg, weekly_sleep_avg)\n- tonal_weekly (workouts_count, volume_total, muscle_frequency_estimate)\n- pending_health_insights\n- errors (array)\n\nData sources:\n1) Tonal health: curl -s http://localhost:3033/tonal/health\n2) Whoop full data: curl -s http://localhost:3033/whoop/data\n3) Tonal workouts (if endpoint exists): curl -s http://localhost:3033/tonal/data\n4) Baseline recovery from sitrep if available.\n\nRules:\n- TODAY-only workouts for sections A/B (use local date America/New_York).\n- Even if no workouts today, still populate whoop_recovery_latest, whoop_sleep_latest, and weekly aggregates from available data.\n- Never return empty object; include missing fields as null and append explanation in errors.\n- Write complete JSON to /tmp/cron-fitness-evening-recap.json.\n\nReturn exactly NO_REPLY on success, one-line error on failure."
       },
       "delivery": {
         "mode": "none"
