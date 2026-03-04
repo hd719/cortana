@@ -1,29 +1,42 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { runTradingPipeline } from "../../tools/trading/trading-pipeline";
 
 const CANSLIM_NO_BUY = `📈 Trading Advisor - CANSLIM Scan
 Market: correction | Position Sizing: 0%
+Status: 7 distribution days. Reduce exposure.
 Summary: 1 candidates | BUY 0 | WATCH 1 | NO_BUY 0
 • AAPL (7/12) → WATCH
   Watch setup`;
 
 const DIP_NO_BUY = `📉 Trading Advisor - Dip Buyer Scan
 Market: correction | Position Sizing: 50%
+Status: Pullback with mixed breadth.
+Macro Gate: OPEN | VIX 23 | PCR 1.07 | HY 450 bps (fallback_default_450) | Fear 39 | Fallback impact: neutral-credit assumption
+HY Note: FRED HY spread unavailable after retries; using neutral 450 bps fallback (credit gate may be less sensitive).
 Summary: 1 candidates | BUY 0 | WATCH 1 | NO_BUY 0
 • TSLA (8/12) → WATCH
   Watch setup`;
 
 const CANSLIM_BUY = `📈 Trading Advisor - CANSLIM Scan
 Market: confirmed_uptrend | Position Sizing: 100%
+Status: Trend healthy.
 Summary: 1 candidates | BUY 1 | WATCH 0 | NO_BUY 0
 • NVDA (9/12) → BUY
   Entry $900.00 | Stop $855.00`;
 
 const DIP_BUY = `📉 Trading Advisor - Dip Buyer Scan
 Market: uptrend_under_pressure | Position Sizing: 50%
+Status: Selective risk only.
+Macro Gate: OPEN | VIX 21 | PCR 0.96 | HY 421 bps (fred) | Fear 42
 Summary: 1 candidates | BUY 1 | WATCH 0 | NO_BUY 0
 • TSLA (8/12) → BUY
   Entry $200.00 | Stop $186.00`;
+
+afterEach(() => {
+  delete process.env.TRADING_SCAN_LIMIT;
+  delete process.env.TRADING_SCAN_LIMIT_CANSLIM;
+  delete process.env.TRADING_SCAN_LIMIT_DIP;
+});
 
 describe("trading pipeline orchestration", () => {
   it("does not call council when no BUY signals are present", async () => {
@@ -36,6 +49,7 @@ describe("trading pipeline orchestration", () => {
 
     expect(council).not.toHaveBeenCalled();
     expect(report).toContain("Summary: BUY 0 | WATCH 2 | NO_BUY 0");
+    expect(report).toContain("Diagnostics: symbols scanned 240 | candidates evaluated 2");
   });
 
   it("calls council when BUY signals are present", async () => {
@@ -88,6 +102,7 @@ describe("trading pipeline orchestration", () => {
   it("limits correction shadow watchlist to top 5 by score across both scanners", async () => {
     const canslimWatchHeavy = `📈 Trading Advisor - CANSLIM Scan
 Market: correction | Position Sizing: 0%
+Status: distribution pressure.
 Summary: 4 candidates | BUY 0 | WATCH 4 | NO_BUY 0
 • AAA (6/12) → WATCH
   Watch setup
@@ -100,6 +115,8 @@ Summary: 4 candidates | BUY 0 | WATCH 4 | NO_BUY 0
 
     const dipWatchHeavy = `📉 Trading Advisor - Dip Buyer Scan
 Market: correction | Position Sizing: 50%
+Status: selective risk only.
+Macro Gate: OPEN | VIX 22 | PCR 1.01 | HY 460 bps (fred) | Fear 40
 Summary: 4 candidates | BUY 0 | WATCH 4 | NO_BUY 0
 • EEE (10/12) → WATCH
   Watch setup
@@ -138,5 +155,59 @@ Summary: 4 candidates | BUY 0 | WATCH 4 | NO_BUY 0
 
     expect(council).toHaveBeenNthCalledWith(1, CANSLIM_BUY);
     expect(council).toHaveBeenNthCalledWith(2, DIP_BUY);
+  });
+
+  it("includes explicit regime/gate and HY fallback diagnostics in the unified report", async () => {
+    const report = await runTradingPipeline({
+      runCommand: (_cmd, args) => (args[0] === "canslim_alert.py" ? CANSLIM_NO_BUY : DIP_NO_BUY),
+      council: async () => ({ verdicts: [] }),
+    });
+
+    expect(report).toContain("Regime/Gates: correction=YES");
+    expect(report).toContain("Macro Gate: OPEN | VIX 23 | PCR 1.07 | HY 450 bps (fallback_default_450)");
+    expect(report).toContain("HY Note: FRED HY spread unavailable after retries");
+  });
+
+  it("reports top blocker when a scanner emits zero BUY/WATCH signals", async () => {
+    const canslimNoCandidates = `📈 Trading Advisor - CANSLIM Scan
+Market: correction | Position Sizing: 0%
+Status: 8 distribution days. Risk-off.
+No CANSLIM candidates met the current scan threshold.`;
+
+    const dipNoBuyOnly = `📉 Trading Advisor - Dip Buyer Scan
+Market: correction | Position Sizing: 25%
+Status: Credit stressed.
+Macro Gate: CLOSED | VIX 30 | PCR 1.20 | HY 701 bps (fred) | Fear 75
+Summary: 1 candidates | BUY 0 | WATCH 0 | NO_BUY 1
+• IWM (5/12) → NO_BUY | Credit veto active`;
+
+    const report = await runTradingPipeline({
+      runCommand: (_cmd, args) => (args[0] === "canslim_alert.py" ? canslimNoCandidates : dipNoBuyOnly),
+      council: async () => ({ verdicts: [] }),
+    });
+
+    expect(report).toContain("CANSLIM: scanned 120 | evaluated 0");
+    expect(report).toContain("Top blocker: No symbols passed scanner threshold.");
+    expect(report).toContain("Dip Buyer: scanned 120 | evaluated 1 | threshold-passed 1 | emitted BUY 0 / WATCH 0 / NO_BUY 1");
+    expect(report).toContain("Top blocker: No reason provided. (1)");
+  });
+
+  it("supports scanner-specific env limits and legacy shared env override", async () => {
+    const calls: Array<string[]> = [];
+    process.env.TRADING_SCAN_LIMIT = "90";
+    process.env.TRADING_SCAN_LIMIT_CANSLIM = "140";
+
+    await runTradingPipeline({
+      runCommand: (_cmd, args) => {
+        calls.push(args);
+        return args[0] === "canslim_alert.py" ? CANSLIM_NO_BUY : DIP_NO_BUY;
+      },
+      council: async () => ({ verdicts: [] }),
+    });
+
+    const canslimCall = calls.find((args) => args[0] === "canslim_alert.py") ?? [];
+    const dipCall = calls.find((args) => args[0] === "dipbuyer_alert.py") ?? [];
+    expect(canslimCall).toContain("140");
+    expect(dipCall).toContain("90");
   });
 });
