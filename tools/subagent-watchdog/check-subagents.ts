@@ -443,7 +443,7 @@ type Args = {
 
 function parseArgs(argv: string[]): Args {
   const args: Args = {
-    maxRuntimeSeconds: 180,
+    maxRuntimeSeconds: 600,
     activeMinutes: 1440,
     cooldownSeconds: 3600,
     stateFile: DEFAULT_HEARTBEAT_STATE_FILE,

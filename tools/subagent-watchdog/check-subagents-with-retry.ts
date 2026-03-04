@@ -26,7 +26,7 @@ const WATCHDOG_TS = path.join(ROOT, "tools", "subagent-watchdog", "check-subagen
 const RETRY_BASE_MS = Number(process.env.SUBAGENT_RETRY_BASE_MS ?? "1200");
 const RETRY_JITTER_MS = Number(process.env.SUBAGENT_RETRY_JITTER_MS ?? "700");
 const DEFAULT_PROFILES: TimeoutProfiles = {
-  standard: 180,
+  standard: 600,
   heavy: 420,
   extreme: 900,
 };
