@@ -210,6 +210,7 @@ Key files:
 - `docs/learning-loop.md` – feedback protocol + self‑improvement
 - `docs/heartbeat-sql-reference.md` – canonical SQL snippets for heartbeats
 - `docs/memory-compaction-policy.md` – guardrails and retention policy for memory compaction
+- `docs/subagent-reliability-runbook.md` – incident runbook for sub-agent abort/timeout recovery
 
 ### 3.2 `config/`
 
@@ -381,6 +382,14 @@ Cortana includes a dedicated sub-agent watchdog to catch silent execution failur
 - De-duplication: cooldown-backed suppression via `memory/heartbeat-state.json` (`subagentWatchdog.lastLogged`)
 
 **Heartbeat integration:** this tool is intended to run from heartbeat/cron checks so sub-agent failures are promoted into the same operational signal path (event log + watchdog visibility + Mission Control timelines), instead of dying quietly in session history.
+
+### 4.8 Sub-agent reliability incident runbook
+
+For `Request was aborted` / `runtime_exceeded` incidents and stale `aborted_last_run` watchdog re-alerts, use:
+
+- `docs/subagent-reliability-runbook.md`
+
+It includes exact diagnostics commands, ordered remediation, verification criteria, and security guardrails.
 
 ---
 
