@@ -36,8 +36,12 @@ FROM cortana_feedback f
 WHERE NOT EXISTS (
   SELECT 1
   FROM mc_feedback_items m
-  WHERE COALESCE(m.summary,'') = COALESCE(f.context,'')
-    AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+  WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
+     OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
+     OR (
+       COALESCE(m.summary,'') = COALESCE(f.context,'')
+       AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+     )
 );`]);
 
   const stuckCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
@@ -45,12 +49,17 @@ FROM mc_feedback_items m
 LEFT JOIN LATERAL (
   SELECT f.id, f.applied
   FROM cortana_feedback f
-  WHERE COALESCE(f.context,'') = COALESCE(m.summary,'')
-    AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+  WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
+     OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
+     OR (
+       COALESCE(f.context,'') = COALESCE(m.summary,'')
+       AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+     )
   ORDER BY ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) ASC
   LIMIT 1
 ) cf ON TRUE
 WHERE m.created_at < NOW() - INTERVAL '24 hours'
+  AND COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
   AND (
     COALESCE(cf.applied, FALSE) = FALSE
     OR NOT EXISTS (
@@ -65,12 +74,17 @@ FROM mc_feedback_items m
 LEFT JOIN LATERAL (
   SELECT f.id, f.applied
   FROM cortana_feedback f
-  WHERE COALESCE(f.context,'') = COALESCE(m.summary,'')
-    AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+  WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
+     OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
+     OR (
+       COALESCE(f.context,'') = COALESCE(m.summary,'')
+       AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+     )
   ORDER BY ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) ASC
   LIMIT 1
 ) cf ON TRUE
 WHERE m.created_at < NOW() - INTERVAL '24 hours'
+  AND COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
   AND COALESCE(cf.id, 0) <> 0
   AND COALESCE(cf.applied, FALSE) = FALSE
   AND EXISTS (
@@ -84,12 +98,17 @@ FROM mc_feedback_items m
 LEFT JOIN LATERAL (
   SELECT f.id, f.applied
   FROM cortana_feedback f
-  WHERE COALESCE(f.context,'') = COALESCE(m.summary,'')
-    AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+  WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
+     OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
+     OR (
+       COALESCE(f.context,'') = COALESCE(m.summary,'')
+       AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+     )
   ORDER BY ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) ASC
   LIMIT 1
 ) cf ON TRUE
 WHERE m.created_at < NOW() - INTERVAL '24 hours'
+  AND COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
   AND (
     COALESCE(cf.id, 0) = 0
     OR NOT EXISTS (
@@ -107,8 +126,12 @@ FROM cortana_feedback f
 WHERE NOT EXISTS (
   SELECT 1
   FROM mc_feedback_items m
-  WHERE COALESCE(m.summary,'') = COALESCE(f.context,'')
-    AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+  WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
+     OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
+     OR (
+       COALESCE(m.summary,'') = COALESCE(f.context,'')
+       AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+     )
 )
 ORDER BY f.timestamp ASC
 LIMIT 10;`]);
@@ -128,12 +151,17 @@ FROM mc_feedback_items m
 LEFT JOIN LATERAL (
   SELECT f.id, f.applied
   FROM cortana_feedback f
-  WHERE COALESCE(f.context,'') = COALESCE(m.summary,'')
-    AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+  WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
+     OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
+     OR (
+       COALESCE(f.context,'') = COALESCE(m.summary,'')
+       AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+     )
   ORDER BY ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) ASC
   LIMIT 1
 ) cf ON TRUE
 WHERE m.created_at < NOW() - INTERVAL '24 hours'
+  AND COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
   AND (
     COALESCE(cf.applied, FALSE) = FALSE
     OR NOT EXISTS (

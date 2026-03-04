@@ -21,6 +21,22 @@ type DetectionResult = {
 
 const CLI_PATTERN = /(^|\s)(claude|codex)(\s|$)/i;
 const SPAWN_PATTERN = /(sessions_spawn|openclaw\s+sessions?_spawn)/i;
+
+const CLAUDE_SAFE_COMMANDS = new Set([
+  "claude",
+  "claude --help",
+  "claude setup-token",
+  "claude config show",
+]);
+
+function normalizeCommand(command: string): string {
+  return command.replace(/\s+/g, " ").trim().toLowerCase();
+}
+
+function isAllowedIntentionalCommand(command: string): boolean {
+  const normalized = normalizeCommand(command);
+  return CLAUDE_SAFE_COMMANDS.has(normalized);
+}
 const MAX_HISTORY_LINES = 2000;
 const PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql";
 const PSQL_DB = "cortana";
@@ -54,6 +70,7 @@ function parseZshHistory(lines: string[]): Violation[] {
 
     if (!CLI_PATTERN.test(command)) continue;
     if (SPAWN_PATTERN.test(command)) continue;
+    if (isAllowedIntentionalCommand(command)) continue;
 
     const ts = match?.[1] ? new Date(Number(match[1]) * 1000).toISOString() : isoNow();
     findings.push(asViolation("zsh_history", command, ts));
@@ -84,6 +101,7 @@ function scanExecLogs(): Violation[] {
     for (const line of lines) {
       if (!CLI_PATTERN.test(line)) continue;
       if (SPAWN_PATTERN.test(line)) continue;
+      if (isAllowedIntentionalCommand(line)) continue;
       findings.push(asViolation(`exec_log:${path}`, line));
     }
   }
@@ -110,6 +128,7 @@ function scanRunningProcesses(): Violation[] {
     const command = match?.[2] ?? trimmed;
 
     if (!CLI_PATTERN.test(command)) continue;
+    if (isAllowedIntentionalCommand(command)) continue;
 
     // Allowlist: managed command wrappers / this detector itself.
     const managed = /openclaw|sessions_spawn|detect-cli-spawns\.ts/i.test(command);
@@ -156,15 +175,17 @@ function scanCortanaEvents(): Violation[] {
   if (!output) return [];
 
   const rows = output.split(/\r?\n/).filter(Boolean);
-  return rows.map((row) => {
-    const [timestamp = isoNow(), message = "", source = "cortana_events", severity = "warning", metadataText = ""] = row.split("\t");
-    return asViolation(
-      `cortana_events:${source}`,
-      message || metadataText || "Direct CLI spawn pattern in cortana_events",
-      timestamp,
-      severity === "critical" ? "critical" : "warning",
-    );
-  });
+  return rows
+    .map((row) => {
+      const [timestamp = isoNow(), message = "", source = "cortana_events", severity = "warning", metadataText = ""] = row.split("\t");
+      return asViolation(
+        `cortana_events:${source}`,
+        message || metadataText || "Direct CLI spawn pattern in cortana_events",
+        timestamp,
+        severity === "critical" ? "critical" : "warning",
+      );
+    })
+    .filter((v) => !isAllowedIntentionalCommand(v.command));
 }
 
 function logImmuneIncident(violations: Violation[]): void {

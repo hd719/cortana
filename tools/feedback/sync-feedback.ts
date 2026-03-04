@@ -19,6 +19,8 @@ type MappedRow = {
   status: string;
   applied: boolean;
   lesson: string;
+  sourceFeedbackId: string;
+  createdAt: string;
 };
 
 function parseCsv(text: string): string[][] {
@@ -115,24 +117,16 @@ function q(value: unknown): string {
   return `'${String(value).replace(/'/g, "''")}'`;
 }
 
-function normalizeRecurrence(lesson: string): string {
-  if (!lesson) return "";
-  let s = lesson.toLowerCase().trim();
-  s = s.replace(/\s+/g, " ");
-  s = s.replace(/[^a-z0-9 ]/g, "");
-  return s.slice(0, 50).trim();
-}
-
 function mapRow(row: Row): MappedRow | null {
   const ftype = String(row.feedback_type ?? "").trim().toLowerCase();
   const lesson = row.lesson ?? "";
+  const sourceFeedbackId = String(row.id ?? "").trim();
+  const createdAt = String(row.timestamp ?? "").trim();
 
-  let category: string;
-  let severity: string;
-  if (ftype === "correction") {
-    category = "correction";
-    severity = /HARD RULE|MANDATORY|ZERO TOLERANCE/i.test(lesson) ? "high" : "medium";
-  } else if (ftype === "preference") {
+  let category = "correction";
+  let severity = "medium";
+
+  if (ftype === "preference" || ftype === "tone") {
     category = "preference";
     severity = "low";
   } else if (ftype === "approval") {
@@ -141,6 +135,12 @@ function mapRow(row: Row): MappedRow | null {
   } else if (ftype === "rejection") {
     category = "policy";
     severity = "medium";
+  } else if (ftype === "behavior") {
+    category = "correction";
+    severity = "medium";
+  } else if (ftype === "correction" || ftype === "fact" || ftype === "guardrail_violation") {
+    category = "correction";
+    severity = /HARD RULE|MANDATORY|ZERO TOLERANCE/i.test(lesson) ? "high" : "medium";
   } else {
     return null;
   }
@@ -155,11 +155,13 @@ function mapRow(row: Row): MappedRow | null {
     category,
     severity,
     summary: context.slice(0, 200),
-    details: JSON.stringify({ context, lesson }),
-    recurrence_key: normalizeRecurrence(lesson),
+    details: JSON.stringify({ context, lesson, source_feedback_id: sourceFeedbackId }),
+    recurrence_key: sourceFeedbackId ? `cortana_feedback:${sourceFeedbackId}` : "",
     status: appliedFlag ? "verified" : "new",
     applied: appliedFlag,
     lesson,
+    sourceFeedbackId,
+    createdAt,
   };
 }
 
@@ -180,13 +182,15 @@ async function main(): Promise<void> {
   );
 
   const existingKeysRows = runPsqlCsv(
-    "SELECT recurrence_key FROM mc_feedback_items WHERE recurrence_key IS NOT NULL"
+    "SELECT COALESCE(recurrence_key,'') AS recurrence_key, COALESCE(details->>'source_feedback_id','') AS source_feedback_id FROM mc_feedback_items"
   );
-  const existingKeys = new Set(
-    existingKeysRows
-      .map((r) => (r.recurrence_key ?? "").trim())
-      .filter((k) => k)
-  );
+  const existingKeys = new Set<string>();
+  for (const r of existingKeysRows) {
+    const rk = (r.recurrence_key ?? "").trim();
+    const sfid = (r.source_feedback_id ?? "").trim();
+    if (rk) existingKeys.add(rk);
+    if (sfid) existingKeys.add(`cortana_feedback:${sfid}`);
+  }
 
   const seenNewKeys = new Set<string>();
   let inserts = 0;
@@ -210,9 +214,10 @@ async function main(): Promise<void> {
     }
 
     sqlLines.push(
-      "INSERT INTO mc_feedback_items (id, source, category, severity, summary, details, recurrence_key, status) " +
+      "INSERT INTO mc_feedback_items (id, source, category, severity, summary, details, recurrence_key, status, created_at, updated_at) " +
         `VALUES (${q(mapped.id)}::uuid, ${q(mapped.source)}, ${q(mapped.category)}, ${q(mapped.severity)}, ` +
-        `${q(mapped.summary)}, ${q(mapped.details)}::jsonb, ${q(rk)}, ${q(mapped.status)});`
+        `${q(mapped.summary)}, ${q(mapped.details)}::jsonb, ${q(rk)}, ${q(mapped.status)}, ` +
+        `COALESCE(NULLIF(${q(mapped.createdAt)}, '')::timestamptz, NOW()), NOW());`
     );
     inserts += 1;
     if (rk) seenNewKeys.add(rk);
