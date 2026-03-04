@@ -71,8 +71,8 @@ TODAY=$(date +%Y-%m-%d)
 expand_path() {
   local raw="$1"
   # Strip surrounding backticks if present
-  raw=\${raw#\\`}
-  raw=\${raw%\\`}
+  raw=\${raw#\`}
+  raw=\${raw%\`}
   # Expand ~ and normalize repo-relative paths
   case "$raw" in
     ~/*)
