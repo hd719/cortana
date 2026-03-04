@@ -15,11 +15,20 @@ import {
   validateHeartbeatState,
 } from "../lib/heartbeat-schema.js";
 
-const FAIL_STATUSES = new Set(["failed", "error", "aborted", "timeout", "timed_out", "cancelled"]);
+const TERMINAL_TIMEOUT_STATUSES = new Set(["timeout", "timed_out"]);
+const TERMINAL_KILLED_STATUSES = new Set(["killed", "kill", "terminated", "aborted", "cancelled", "canceled"]);
+const TERMINAL_FAILED_STATUSES = new Set(["failed", "error"]);
+const FAIL_STATUSES = new Set([
+  ...Array.from(TERMINAL_TIMEOUT_STATUSES),
+  ...Array.from(TERMINAL_KILLED_STATUSES),
+  ...Array.from(TERMINAL_FAILED_STATUSES),
+]);
 const TELEGRAM_GUARD = "/Users/hd/openclaw/tools/notifications/telegram-delivery-guard.sh";
 const COMPLETION_SYNC = "/Users/hd/openclaw/tools/task-board/completion-sync.sh";
 const DB_NAME = "cortana";
 const DEFAULT_HEARTBEAT_STATE_FILE = path.join(os.homedir(), ".openclaw", "memory", "heartbeat-state.json");
+const DEFAULT_SESSION_ALERT_STATE_FILE = "/tmp/subagent-watchdog-cooldown.json";
+const SESSION_ALERT_COOLDOWN_MS = 15 * 60 * 1000;
 const RUN_STORE_PATH = process.env.OPENCLAW_SUBAGENT_RUNS_PATH
   ? process.env.OPENCLAW_SUBAGENT_RUNS_PATH
   : path.join(os.homedir(), ".openclaw", "subagents", "runs.json");
@@ -60,6 +69,7 @@ type FailureFinding = {
   reasonDetail: string;
   logged?: boolean;
   cooldownSkipped?: boolean;
+  sessionCooldownSkipped?: boolean;
   taskId?: number | null;
   taskUpdated?: boolean;
   alertSent?: boolean;
@@ -104,12 +114,21 @@ function loadHeartbeatStateStrict(filePath: string, now = Date.now()) {
   }
 }
 
+function normalizeTerminalStatus(rawStatus: string | null | undefined): "timeout" | "killed" | "failed" | null {
+  const status = String(rawStatus ?? "").trim().toLowerCase();
+  if (!status) return null;
+  if (TERMINAL_TIMEOUT_STATUSES.has(status)) return "timeout";
+  if (TERMINAL_KILLED_STATUSES.has(status)) return "killed";
+  if (TERMINAL_FAILED_STATUSES.has(status)) return "failed";
+  return null;
+}
+
 function terminalStatusFromReason(item: FailureFinding): string {
   const code = String(item.reasonCode ?? "").toLowerCase();
-  const status = String(item.status ?? "").toLowerCase();
-  if (code === "runtime_exceeded" || status === "timeout" || status === "timed_out") return "timeout";
-  if (["aborted", "cancelled", "canceled", "killed"].includes(status)) return "killed";
-  if (code === "aborted_last_run") return "failed";
+  const byStatus = normalizeTerminalStatus(item.status);
+  if (byStatus) return byStatus;
+  if (code === "runtime_exceeded" || code === "timeout_status") return "timeout";
+  if (code === "killed_status" || code === "aborted_last_run") return "killed";
   return "failed";
 }
 
@@ -155,7 +174,7 @@ function emitTerminalToRunStore(
   const alreadyEnded = Number(record.endedAt ?? 0) > 0;
   const sameStatus = String(currentOutcome.status ?? "") === nextStatus;
   const sameReason = String(record.endedReason ?? "") === String(reasonCode || "watchdog_terminal");
-  if (alreadyEnded && sameStatus && sameReason) return [true, null, false];
+  if (alreadyEnded && (sameStatus || sameReason)) return [true, null, false];
 
   record.endedAt = nowMs();
   record.endedReason = String(reasonCode || "watchdog_terminal");
@@ -211,7 +230,12 @@ function failureReasons(session: SessionSummary, maxRuntimeMs: number): FailureR
   if (session.abortedLastRun === true) reasons.push({ code: "aborted_last_run", detail: "abortedLastRun=true" });
 
   const status = String(session.status ?? session.lastStatus ?? "").trim().toLowerCase();
-  if (status && FAIL_STATUSES.has(status)) reasons.push({ code: "failed_status", detail: `status=${status}` });
+  if (status && FAIL_STATUSES.has(status)) {
+    const terminalStatus = normalizeTerminalStatus(status);
+    if (terminalStatus === "timeout") reasons.push({ code: "timeout_status", detail: `status=${status}` });
+    else if (terminalStatus === "killed") reasons.push({ code: "killed_status", detail: `status=${status}` });
+    else reasons.push({ code: "failed_status", detail: `status=${status}` });
+  }
 
   const ageMs = Number(session.ageMs ?? 0);
   if (ageMs > maxRuntimeMs && isLikelyRunning(session)) {
@@ -283,12 +307,14 @@ function reconcileTaskFailure(reasonItem: FailureFinding, psqlBin: string): [boo
   );
   if (taskId == null) return [true, null, null];
 
+  const terminalStatus = terminalStatusFromReason(reasonItem);
   const outcome =
     `Watchdog marked failed from sub-agent ${reasonItem.label ?? reasonItem.key} ` +
-    `(${reasonItem.reasonCode}: ${reasonItem.reasonDetail})`;
+    `(${terminalStatus}; ${reasonItem.reasonCode}: ${reasonItem.reasonDetail})`;
   const outcomeSql = sqlQuote(outcome);
   const runQ = sqlQuote(reasonItem.runId ?? null);
   const reasonQ = sqlQuote(reasonItem.reasonCode ?? null);
+  const terminalQ = sqlQuote(terminalStatus);
   const sql =
     "UPDATE cortana_tasks SET status='failed', outcome='" +
     outcomeSql +
@@ -297,6 +323,8 @@ function reconcileTaskFailure(reasonItem: FailureFinding, psqlBin: string): [boo
     "',''), run_id), metadata=COALESCE(metadata,'{}'::jsonb)||" +
     "jsonb_build_object('watchdog_synced_at',NOW()::text,'watchdog_reason','" +
     reasonQ +
+    "','watchdog_terminal_status','" +
+    terminalQ +
     "','subagent_run_id',NULLIF('" +
     runQ +
     "','')) " +
@@ -310,6 +338,7 @@ function reconcileTaskFailure(reasonItem: FailureFinding, psqlBin: string): [boo
 }
 
 function logEvent(reasonItem: FailureFinding, psqlBin: string): [boolean, string | null] {
+  const terminalStatus = terminalStatusFromReason(reasonItem);
   const metadata = {
     session_key: reasonItem.key,
     label: reasonItem.label,
@@ -321,6 +350,7 @@ function logEvent(reasonItem: FailureFinding, psqlBin: string): [boolean, string
     session_id: reasonItem.sessionId,
     agent_id: reasonItem.agentId,
     status: reasonItem.status,
+    terminal_status: terminalStatus,
     detected_at: reasonItem.detectedAt,
   };
   const message = `Sub-agent failure detected: ${reasonItem.key} (${reasonItem.reasonCode}: ${reasonItem.reasonDetail})`;
@@ -342,7 +372,8 @@ function logEvent(reasonItem: FailureFinding, psqlBin: string): [boolean, string
 }
 
 function sendFailureAlert(reasonItem: FailureFinding, now = new Date()): [boolean, string | null] {
-  const isUrgent = String(reasonItem.reasonCode ?? "").toLowerCase() === "failed_status";
+  const terminalStatus = terminalStatusFromReason(reasonItem);
+  const isUrgent = terminalStatus === "failed";
   if (!shouldSendHeartbeatAlert(isUrgent, now)) {
     return [true, "suppressed_during_quiet_hours"];
   }
@@ -353,7 +384,7 @@ function sendFailureAlert(reasonItem: FailureFinding, now = new Date()): [boolea
   const label = reasonItem.label ?? "(no label)";
   const reason = reasonItem.reasonCode;
   const detail = reasonItem.reasonDetail;
-  const msg = `🚨 Sub-agent failure: ${label}\nSession: ${key}\nReason: ${reason} (${detail})`;
+  const msg = `🚨 Sub-agent failure: ${label}\nSession: ${key}\nTerminal: ${terminalStatus}\nReason: ${reason} (${detail})`;
 
   const proc = spawnSync(TELEGRAM_GUARD, [msg, "8171372724", "", "subagent_failure_alert", `subagent:${key}:${reason}`], {
     encoding: "utf8",
@@ -436,11 +467,11 @@ function parseArgs(argv: string[]): Args {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-const ALERT_MIN_COUNT = Number(process.env.SUBAGENT_ALERT_MIN_COUNT || '3');
-const ALERT_DEDUPE_SECONDS = Number(process.env.SUBAGENT_ALERT_DEDUPE_SECONDS || '1800');
   const now = nowMs();
   const psqlBin = resolvePsql();
   const statePath = args.stateFile;
+  const sessionAlertStatePath =
+    process.env.SUBAGENT_WATCHDOG_SESSION_ALERT_STATE_FILE ?? DEFAULT_SESSION_ALERT_STATE_FILE;
   let state;
   try {
     state = withFileLock(statePath, 5000, () => loadHeartbeatStateStrict(statePath, now));
@@ -464,6 +495,7 @@ const ALERT_DEDUPE_SECONDS = Number(process.env.SUBAGENT_ALERT_DEDUPE_SECONDS ||
       allAgents: args.allAgents,
       emitTerminal: args.emitTerminal,
       staleFailureWindowSeconds: args.staleFailureWindowSeconds,
+      sessionAlertCooldownSeconds: Math.trunc(SESSION_ALERT_COOLDOWN_MS / 1000),
     },
     summary: {
       sessionsScanned: 0,
@@ -479,11 +511,30 @@ const ALERT_DEDUPE_SECONDS = Number(process.env.SUBAGENT_ALERT_DEDUPE_SECONDS ||
       tasksUpdated: 0,
       terminalsEmitted: 0,
       staleFailuresSkipped: 0,
+      sessionCooldownSkipped: 0,
       logErrors: 0,
     },
     failedAgents: [],
     logErrors: [],
   };
+
+  let sessionAlertStateRaw: Record<string, number> = {};
+  try {
+    sessionAlertStateRaw = withFileLock(sessionAlertStatePath, 5000, () => {
+      const parsed = loadJson<unknown>(sessionAlertStatePath, {});
+      if (!parsed || typeof parsed !== "object") return {};
+      const entries = Object.entries(parsed as Record<string, unknown>).filter(
+        ([, value]) => typeof value === "number" && Number.isFinite(value)
+      );
+      return Object.fromEntries(entries) as Record<string, number>;
+    });
+  } catch (err) {
+    output.summary.logErrors += 1;
+    output.logErrors.push({
+      signature: "session_alert_state_load",
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   let data: JsonMap;
   try {
@@ -569,14 +620,23 @@ const ALERT_DEDUPE_SECONDS = Number(process.env.SUBAGENT_ALERT_DEDUPE_SECONDS ||
   for (const [k, v] of Object.entries(lastLogged)) {
     if (typeof v === "number" && v >= cutoff) prunedLastLogged[k] = v;
   }
+  const prunedSessionAlerts: Record<string, number> = {};
+  for (const [k, v] of Object.entries(sessionAlertStateRaw)) {
+    if (typeof v === "number" && v >= cutoff) prunedSessionAlerts[k] = v;
+  }
 
   for (const item of findings) {
     const signature = `${item.key}|${item.reasonCode}`;
     const recent = prunedLastLogged[signature];
-    const inCooldown = typeof recent === "number" && now - recent < args.cooldownSeconds * 1000;
+    const inReasonCooldown = typeof recent === "number" && now - recent < args.cooldownSeconds * 1000;
+    const sessionRecent = prunedSessionAlerts[item.key];
+    const inSessionCooldown = typeof sessionRecent === "number" && now - sessionRecent < SESSION_ALERT_COOLDOWN_MS;
+    const inCooldown = inReasonCooldown || inSessionCooldown;
 
     item.logged = false;
     item.cooldownSkipped = Boolean(inCooldown);
+    item.sessionCooldownSkipped = Boolean(inSessionCooldown);
+    if (inSessionCooldown) output.summary.sessionCooldownSkipped += 1;
 
     const [taskOk, taskErr, taskId] = reconcileTaskFailure(item, psqlBin);
     item.taskId = taskId;
@@ -615,6 +675,7 @@ const ALERT_DEDUPE_SECONDS = Number(process.env.SUBAGENT_ALERT_DEDUPE_SECONDS ||
       item.logged = true;
       output.summary.loggedEvents += 1;
       prunedLastLogged[signature] = now;
+      prunedSessionAlerts[item.key] = now;
       const [alertOk, alertErr] = sendFailureAlert(item);
       item.alertSent = Boolean(alertOk);
       if (alertOk) output.summary.alertsSent += 1;
@@ -666,6 +727,19 @@ const ALERT_DEDUPE_SECONDS = Number(process.env.SUBAGENT_ALERT_DEDUPE_SECONDS ||
     const msg = err instanceof Error ? err.message : String(err);
     console.error(`[subagent-watchdog] lock/write failed: ${msg}`);
     process.exit(1);
+  }
+
+  try {
+    withFileLock(sessionAlertStatePath, 5000, () => {
+      rotateBackupRing(sessionAlertStatePath, 2);
+      writeJsonFileAtomic(sessionAlertStatePath, prunedSessionAlerts, 2);
+    });
+  } catch (err) {
+    output.summary.logErrors += 1;
+    output.logErrors.push({
+      signature: "session_alert_state_write",
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 
   const [syncOk, syncErr] = runCompletionSync();
