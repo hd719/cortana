@@ -68,7 +68,7 @@ function detectOrphanedInProgress(orphanMinutes: number, limit: number): Json[] 
       "    SELECT 1 FROM cortana_covenant_runs r " +
       "    WHERE (r.status = 'running' OR r.ended_at IS NULL) " +
       "      AND (" +
-      "        (t.run_id IS NOT NULL AND r.run_id = t.run_id) " +
+      "        (t.run_id IS NOT NULL AND r.session_key = t.run_id) " +
       "        OR (" +
       "          t.run_id IS NULL " +
       "          AND t.assigned_to IS NOT NULL " +
@@ -93,10 +93,51 @@ function detectCompletedWithPendingChildren(limit: number): Json[] {
   );
 }
 
-function audit(orphanMinutes: number, fixLimit: number, detectLimit: number, dryRun: boolean): Json {
+function detectReadyWithActiveRun(limit: number): Json[] {
+  return fetchJson(
+    "SELECT t.id, t.title, t.assigned_to, t.run_id, t.updated_at, t.created_at " +
+      "FROM cortana_tasks t " +
+      "WHERE t.status='ready' " +
+      "  AND EXISTS (" +
+      "    SELECT 1 FROM cortana_covenant_runs r " +
+      "    WHERE (r.status = 'running' OR r.ended_at IS NULL) " +
+      "      AND ((t.run_id IS NOT NULL AND r.session_key = t.run_id) " +
+      "        OR (t.assigned_to IS NOT NULL AND (r.agent = t.assigned_to OR r.session_key = t.assigned_to))" +
+      "      )" +
+      "  ) " +
+      "ORDER BY COALESCE(t.updated_at, t.created_at) ASC " +
+      `LIMIT ${Math.max(1, limit)}`
+  );
+}
+
+function healReadyWithActiveRun(rows: Json[], dryRun: boolean): number[] {
+  const ids = rows.map((r) => Number(r.id)).filter((id) => Number.isFinite(id));
+  if (ids.length && !dryRun) {
+    runPsql(
+      "UPDATE cortana_tasks SET status='in_progress', updated_at = CURRENT_TIMESTAMP, " +
+        "metadata = COALESCE(metadata, '{}'::jsonb) || " +
+        "jsonb_build_object('auto_heal_spawn_state', jsonb_build_object('at', NOW(), 'reason', 'ready_with_active_run')) " +
+        `WHERE id = ANY(ARRAY[${ids.join(",")}]::int[]) AND status='ready';`
+    );
+  }
+  if (ids.length) {
+    logEvent(
+      "auto_heal",
+      "warning",
+      `Moved ${ids.length} task(s) ready -> in_progress due to active run evidence`,
+      { task_ids: ids, fix: "ready_with_active_run", dry_run: dryRun },
+      dryRun
+    );
+  }
+  return ids;
+}
+
+function audit(orphanMinutes: number, fixLimit: number, detectLimit: number, dryRun: boolean, healReadyActiveRun: boolean): Json {
   const fixedDone = fixDoneMissingCompletedAt(fixLimit, dryRun);
   const orphaned = detectOrphanedInProgress(orphanMinutes, detectLimit);
   const completedWithPending = detectCompletedWithPendingChildren(detectLimit);
+  const readyWithActiveRun = detectReadyWithActiveRun(detectLimit);
+  const healedReadyWithActiveRun = healReadyActiveRun ? healReadyWithActiveRun(readyWithActiveRun, dryRun) : [];
 
   if (orphaned.length) {
     logEvent(
@@ -118,18 +159,45 @@ function audit(orphanMinutes: number, fixLimit: number, detectLimit: number, dry
     );
   }
 
+  if (readyWithActiveRun.length) {
+    logEvent(
+      "integrity_warning",
+      "warning",
+      `Detected ${readyWithActiveRun.length} ready task(s) with active run evidence`,
+      {
+        ready_with_active_run: readyWithActiveRun,
+        healed: healReadyActiveRun,
+        healed_ids: healedReadyWithActiveRun,
+        dry_run: dryRun,
+      },
+      dryRun
+    );
+  }
+
   return {
     status: "ok",
     dry_run: dryRun,
+    heal_ready_active_run: healReadyActiveRun,
     fixed: { done_missing_completed_at: fixedDone.length, task_ids: fixedDone },
-    detected: { orphaned_in_progress: orphaned, completed_with_pending_children: completedWithPending },
+    healed: { ready_with_active_run: healedReadyWithActiveRun.length, task_ids: healedReadyWithActiveRun },
+    detected: {
+      orphaned_in_progress: orphaned,
+      completed_with_pending_children: completedWithPending,
+      ready_with_active_run: readyWithActiveRun,
+    },
   };
 }
 
-type Args = { orphanMinutes: number; fixLimit: number; detectLimit: number; dryRun: boolean };
+type Args = {
+  orphanMinutes: number;
+  fixLimit: number;
+  detectLimit: number;
+  dryRun: boolean;
+  healReadyActiveRun: boolean;
+};
 
 function parseArgs(argv: string[]): Args {
-  const args: Args = { orphanMinutes: 30, fixLimit: 200, detectLimit: 200, dryRun: false };
+  const args: Args = { orphanMinutes: 30, fixLimit: 200, detectLimit: 200, dryRun: false, healReadyActiveRun: false };
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     switch (arg) {
@@ -148,6 +216,9 @@ function parseArgs(argv: string[]): Args {
       case "--dry-run":
         args.dryRun = true;
         break;
+      case "--heal-ready-active-run":
+        args.healReadyActiveRun = true;
+        break;
       default:
         break;
     }
@@ -158,7 +229,7 @@ function parseArgs(argv: string[]): Args {
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   try {
-    const report = audit(args.orphanMinutes, args.fixLimit, args.detectLimit, args.dryRun);
+    const report = audit(args.orphanMinutes, args.fixLimit, args.detectLimit, args.dryRun, args.healReadyActiveRun);
     console.log(JSON.stringify(report));
     process.exit(0);
   } catch (err) {
