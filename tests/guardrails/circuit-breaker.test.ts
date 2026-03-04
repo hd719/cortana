@@ -37,13 +37,24 @@ describe("circuit-breaker", () => {
     const consoleCapture = captureConsole();
     useFixedTime("2025-01-01T00:00:00Z");
     setArgv(["--record", "opus", "500", "--cooldown", "0"]);
-    fsMock.existsSync.mockReturnValue(false);
+    fsMock.existsSync.mockImplementation((p: string) => p.includes("provider-fallback-policy.json"));
+    readJsonFile.mockImplementation((p: string) => {
+      if (p.includes("provider-fallback-policy.json")) {
+        return {
+          providers: {
+            opus: { fallback_order: ["codex", "sonnet"] },
+          },
+        };
+      }
+      return {};
+    });
 
     await importFresh("../../tools/guardrails/circuit-breaker.ts");
     await flushModuleSideEffects();
     const output = JSON.parse(consoleCapture.logs.join("\n"));
     expect(output.classification).toBe("retryable");
     expect(output.circuit).toBeDefined();
+    expect(output.route_policy.action).toBe("fallback");
     expect(exitSpy).toHaveBeenCalledWith(0);
     expect(fsMock.writeFileSync).toHaveBeenCalled();
   });
@@ -52,15 +63,18 @@ describe("circuit-breaker", () => {
     const exitSpy = mockExit();
     const consoleCapture = captureConsole();
     setArgv(["--status"]);
-    fsMock.existsSync.mockReturnValue(true);
-    readJsonFile.mockReturnValue({
-      version: 1,
-      updated_at: "2025-01-01T00:00:00Z",
-      config: {},
-      providers: {
-        sonnet: { provider: "sonnet", circuit: "closed", window: [], metrics: { success: 1 } },
-        opus: { provider: "opus", circuit: "closed", window: [], metrics: { success: 2 } },
-      },
+    fsMock.existsSync.mockImplementation(() => true);
+    readJsonFile.mockImplementation((p: string) => {
+      if (p.includes("provider-fallback-policy.json")) return { providers: {} };
+      return {
+        version: 1,
+        updated_at: "2025-01-01T00:00:00Z",
+        config: {},
+        providers: {
+          sonnet: { provider: "sonnet", circuit: "closed", window: [], metrics: { success: 1 } },
+          opus: { provider: "opus", circuit: "closed", window: [], metrics: { success: 2 } },
+        },
+      };
     });
 
     await importFresh("../../tools/guardrails/circuit-breaker.ts");
@@ -83,6 +97,41 @@ describe("circuit-breaker", () => {
     await flushModuleSideEffects();
     const payload = JSON.parse(consoleCapture.logs.join("\n"));
     expect(payload.recommended_provider).toBe("codex");
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
+  it("routes by provider-aware policy table", async () => {
+    const exitSpy = mockExit();
+    const consoleCapture = captureConsole();
+    setArgv(["--route", "codex", "429"]);
+    fsMock.existsSync.mockImplementation(() => true);
+    readJsonFile.mockImplementation((p: string) => {
+      if (p.includes("provider-fallback-policy.json")) {
+        return {
+          providers: {
+            codex: {
+              fallback_order: ["opus", "sonnet"],
+              rate_limit: "fallback",
+            },
+          },
+        };
+      }
+      return {
+        version: 1,
+        updated_at: "2025-01-01T00:00:00Z",
+        config: {},
+        providers: {
+          opus: { provider: "opus", circuit: "closed", window: [], metrics: { success: 1 } },
+        },
+      };
+    });
+
+    await importFresh("../../tools/guardrails/circuit-breaker.ts");
+    await flushModuleSideEffects();
+    const payload = JSON.parse(consoleCapture.logs.join("\n"));
+    expect(payload.failure_type).toBe("rate_limit");
+    expect(payload.action).toBe("fallback");
+    expect(payload.fallback_provider).toBe("opus");
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 });

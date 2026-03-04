@@ -1,0 +1,36 @@
+{
+  "providers": {
+    "codex": {
+      "fallback_order": ["opus", "sonnet", "4o-mini"],
+      "auth": "page_human",
+      "timeout": "retry_then_fallback",
+      "rate_limit": "fallback",
+      "overload": "fallback",
+      "non_retryable": "page_human"
+    },
+    "opus": {
+      "fallback_order": ["codex", "sonnet", "4o-mini"],
+      "auth": "page_human",
+      "timeout": "retry_then_fallback",
+      "rate_limit": "fallback",
+      "overload": "fallback",
+      "non_retryable": "page_human"
+    },
+    "sonnet": {
+      "fallback_order": ["codex", "opus", "4o-mini"],
+      "auth": "page_human",
+      "timeout": "retry_then_fallback",
+      "rate_limit": "fallback",
+      "overload": "fallback",
+      "non_retryable": "page_human"
+    },
+    "4o-mini": {
+      "fallback_order": ["codex", "opus", "sonnet"],
+      "auth": "page_human",
+      "timeout": "retry_then_fallback",
+      "rate_limit": "fallback",
+      "overload": "fallback",
+      "non_retryable": "page_human"
+    }
+  }
+}

@@ -6,6 +6,7 @@ import crypto from "node:crypto";
 import { readJsonFile } from "../lib/json-file.js";
 
 const STATE_PATH = "/Users/hd/openclaw/memory/circuit-breaker-state.json";
+const POLICY_PATH = "/Users/hd/openclaw/config/provider-fallback-policy.json";
 const WINDOW_SIZE = 50;
 const TRIP_THRESHOLD = 0.2;
 const DEFAULT_COOLDOWN_SEC = 60;
@@ -13,6 +14,7 @@ const RECOVERY_PROBE_PCT = 0.01;
 const SUCCESS_TO_CLOSE = 50;
 
 const RETRYABLE_CODES = new Set([429, 500, 502, 503, 529]);
+const TIMEOUT_CODES = new Set([408, 504, 524]);
 const FATAL_CODES = new Set([401, 403]);
 
 const TIER_MAP: Record<string, number> = {
@@ -34,6 +36,21 @@ type CircuitState = {
     success_to_close: number;
   };
   providers: Record<string, any>;
+};
+
+type FailureType = "success" | "auth" | "timeout" | "rate_limit" | "overload" | "non_retryable";
+type RoutePolicy = {
+  providers?: Record<
+    string,
+    {
+      fallback_order?: string[];
+      auth?: string;
+      timeout?: string;
+      rate_limit?: string;
+      overload?: string;
+      non_retryable?: string;
+    }
+  >;
 };
 
 function nowTs(): number {
@@ -105,6 +122,69 @@ function loadState(): CircuitState {
 function saveState(state: CircuitState): void {
   state.updated_at = iso();
   writeJsonAtomic(STATE_PATH, state);
+}
+
+function loadRoutePolicy(): RoutePolicy {
+  if (!fs.existsSync(POLICY_PATH)) return {};
+  try {
+    const data = readJsonFile<RoutePolicy>(POLICY_PATH);
+    return data && typeof data === "object" ? data : {};
+  } catch {
+    return {};
+  }
+}
+
+function failureType(statusCode: number): FailureType {
+  if (statusCode >= 200 && statusCode < 400) return "success";
+  if (FATAL_CODES.has(statusCode)) return "auth";
+  if (TIMEOUT_CODES.has(statusCode)) return "timeout";
+  if (statusCode === 429) return "rate_limit";
+  if ([500, 502, 503, 529].includes(statusCode)) return "overload";
+  return "non_retryable";
+}
+
+function routeFor(provider: string, statusCode: number, state: CircuitState, policy: RoutePolicy): Record<string, any> {
+  const kind = failureType(statusCode);
+  const providerPolicy = policy.providers?.[provider] ?? {};
+  const fallbackOrder = (providerPolicy.fallback_order ?? DEFAULT_ORDER).filter((p) => p !== provider);
+  const fallbackProvider = fallbackOrder.find((name) => {
+    const p = providerState(state, name);
+    return (p.circuit ?? "closed") !== "open";
+  }) ?? null;
+
+  const configuredAction =
+    kind === "auth"
+      ? providerPolicy.auth
+      : kind === "timeout"
+        ? providerPolicy.timeout
+        : kind === "rate_limit"
+          ? providerPolicy.rate_limit
+          : kind === "overload"
+            ? providerPolicy.overload
+            : providerPolicy.non_retryable;
+
+  const action =
+    configuredAction ??
+    (kind === "auth"
+      ? "page_human"
+      : kind === "timeout"
+        ? "retry_then_fallback"
+        : kind === "rate_limit"
+          ? "fallback"
+          : kind === "overload"
+            ? "fallback"
+            : kind === "success"
+              ? "none"
+              : "page_human");
+
+  return {
+    provider,
+    status_code: statusCode,
+    failure_type: kind,
+    action,
+    fallback_provider: action === "fallback" || action === "retry_then_fallback" ? fallbackProvider : null,
+    fallback_order: fallbackOrder,
+  };
 }
 
 function classify(statusCode: number): string {
@@ -272,9 +352,11 @@ function recommendation(state: CircuitState): Record<string, any> {
 
 function cmdRecord(provider: string, statusCode: number, cooldownOverride: number | null): number {
   const state = loadState();
+  const policy = loadRoutePolicy();
   if (cooldownOverride !== null) state.config.cooldown_sec = cooldownOverride;
   const p = recordRequest(state, provider, statusCode);
   const rec = recommendation(state);
+  const route = routeFor(provider, statusCode, state, policy);
   saveState(state);
 
   const out = {
@@ -286,6 +368,7 @@ function cmdRecord(provider: string, statusCode: number, cooldownOverride: numbe
     metrics: p.metrics,
     needs_human_page: p.needs_human_page,
     recommendation: rec,
+    route_policy: route,
   };
   console.log(JSON.stringify(out, null, 2));
 
@@ -324,19 +407,38 @@ function cmdRecommend(): number {
   return 0;
 }
 
+function cmdRoute(provider: string, statusCode: number): number {
+  const state = loadState();
+  const policy = loadRoutePolicy();
+  const route = routeFor(provider, statusCode, state, policy);
+  console.log(JSON.stringify(route, null, 2));
+  return 0;
+}
+
 function parseArgs(argv: string[]): {
   record: [string, number] | null;
+  route: [string, number] | null;
   status: boolean;
   recommend: boolean;
   cooldown: number | null;
 } {
-  const args = { record: null as [string, number] | null, status: false, recommend: false, cooldown: null as number | null };
+  const args = {
+    record: null as [string, number] | null,
+    route: null as [string, number] | null,
+    status: false,
+    recommend: false,
+    cooldown: null as number | null,
+  };
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--record") {
       const provider = argv[++i];
       const code = argv[++i];
       if (provider && code) args.record = [provider, Number.parseInt(code, 10)];
+    } else if (a === "--route") {
+      const provider = argv[++i];
+      const code = argv[++i];
+      if (provider && code) args.route = [provider, Number.parseInt(code, 10)];
     } else if (a === "--status") {
       args.status = true;
     } else if (a === "--recommend") {
@@ -352,6 +454,9 @@ async function main(): Promise<number> {
   const args = parseArgs(process.argv.slice(2));
   if (args.record) {
     return cmdRecord(args.record[0], args.record[1], args.cooldown);
+  }
+  if (args.route) {
+    return cmdRoute(args.route[0], args.route[1]);
   }
   if (args.status) return cmdStatus();
   return cmdRecommend();
