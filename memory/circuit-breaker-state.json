@@ -15,7 +15,7 @@
       "metrics": {
         "fatal": 0,
         "non_retryable": 0,
-        "non_retryable_rate": 0.0,
+        "non_retryable_rate": 0,
         "retryable": 0,
         "success": 0,
         "total": 0
@@ -35,7 +35,7 @@
       "metrics": {
         "fatal": 1,
         "non_retryable": 1,
-        "non_retryable_rate": 1.0,
+        "non_retryable_rate": 1,
         "retryable": 0,
         "success": 0,
         "total": 1
@@ -54,6 +54,6 @@
       ]
     }
   },
-  "updated_at": "2026-02-25T13:58:45.701161+00:00",
+  "updated_at": "2026-03-04T23:02:14.087Z",
   "version": 1
 }
