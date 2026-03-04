@@ -9,7 +9,7 @@ Read in this order:
 2. `USER.md` — who Hamel is, preferences
 3. `IDENTITY.md` — name/call sign shorthand
 4. `MEMORY.md` (MAIN SESSION only) — long-term rules + facts
-5. `memory/YYYY-MM-DD.md` (today + yesterday) — recent events
+5. `memory/YYYY-MM-DD.md` (today + yesterday, if files exist) — recent events
 
 ## 2. Where Rules Live
 
