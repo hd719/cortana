@@ -415,6 +415,8 @@ function parseArgs(argv: string[]): Args {
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
+const ALERT_MIN_COUNT = Number(process.env.SUBAGENT_ALERT_MIN_COUNT || '3');
+const ALERT_DEDUPE_SECONDS = Number(process.env.SUBAGENT_ALERT_DEDUPE_SECONDS || '1800');
   const now = nowMs();
   const psqlBin = resolvePsql();
   const statePath = args.stateFile;
