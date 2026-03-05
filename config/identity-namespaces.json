@@ -5,6 +5,7 @@
     "researcher": "researcher",
     "huragok": "huragok",
     "oracle": "oracle",
-    "monitor": "monitor"
+    "monitor": "monitor",
+    "arbiter": "arbiter"
   }
 }
