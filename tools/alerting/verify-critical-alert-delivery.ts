@@ -1,6 +1,5 @@
 #!/usr/bin/env npx tsx
-import db from "../lib/db.js";
-const { runPsql, withPostgresPath } = db;
+import { runPsql, withPostgresPath } from "../lib/db.js";
 
 const DB_NAME = process.env.CORTANA_DB ?? "cortana";
 const SOURCE = "alert-delivery-verifier";

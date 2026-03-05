@@ -2,8 +2,7 @@
 
 import fs from "fs";
 import path from "path";
-import db from "../lib/db.js";
-const { runPsql, withPostgresPath } = db;
+import { runPsql, withPostgresPath } from "../lib/db.js";
 
 type Json = Record<string, any>;
 

@@ -2,8 +2,7 @@
 import fs from "fs";
 import os from "os";
 import path from "path";
-import db from "../lib/db.js";
-const { runPsql, withPostgresPath } = db;
+import { runPsql, withPostgresPath } from "../lib/db.js";
 import { PSQL_BIN } from "../lib/paths.js";
 
 const PATH_OVERRIDE = "/opt/homebrew/bin:/opt/homebrew/opt/postgresql@17/bin:/usr/local/bin:/usr/bin:/bin";

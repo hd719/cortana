@@ -1,6 +1,5 @@
 #!/usr/bin/env npx tsx
-import db from "../lib/db.js";
-const { runPsql, withPostgresPath } = db;
+import { runPsql, withPostgresPath } from "../lib/db.js";
 
 function usage(): void {
   console.error("Usage: resolve-approval.ts <approval_id> <action> [reason]");

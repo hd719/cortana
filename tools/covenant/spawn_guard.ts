@@ -4,8 +4,7 @@
 
 import fs from "fs";
 import path from "path";
-import db from "../lib/db.js";
-const { runPsql, withPostgresPath } = db;
+import { runPsql, withPostgresPath } from "../lib/db.js";
 import { resolveRepoPath } from "../lib/paths.js";
 import { runDoneGates } from "../release/done-gates.js";
 

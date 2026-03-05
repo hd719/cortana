@@ -2,8 +2,7 @@
 
 import { spawnSync } from "child_process";
 import { PSQL_BIN, POSTGRES_PATH } from "../lib/paths.js";
-import db from "../lib/db.js";
-const { withPostgresPath } = db;
+import { withPostgresPath } from "../lib/db.js";
 
 const DB = "cortana";
 const USAGE_HANDLER = "/Users/hd/openclaw/skills/telegram-usage/handler.js";

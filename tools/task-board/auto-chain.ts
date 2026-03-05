@@ -1,8 +1,7 @@
 #!/usr/bin/env npx tsx
 import { spawnSync } from "child_process";
 import { fileURLToPath } from "url";
-import db from "../lib/db.js";
-const { withPostgresPath } = db;
+import { withPostgresPath } from "../lib/db.js";
 import { repoRoot } from "../lib/paths.js";
 import { safeJsonParse } from "../lib/json-file.js";
 

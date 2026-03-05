@@ -1,8 +1,7 @@
 #!/usr/bin/env npx tsx
 
 import { spawnSync } from "child_process";
-import db from "../lib/db.js";
-const { withPostgresPath } = db;
+import { withPostgresPath } from "../lib/db.js";
 
 const DB_NAME = "cortana";
 

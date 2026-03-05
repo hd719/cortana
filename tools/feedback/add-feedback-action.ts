@@ -1,8 +1,7 @@
 #!/usr/bin/env npx tsx
 
 import { spawnSync } from "node:child_process";
-import db from "../lib/db.js";
-const { withPostgresPath } = db;
+import { withPostgresPath } from "../lib/db.js";
 import { PSQL_BIN } from "../lib/paths.js";
 
 function isUuid(value: string): boolean {

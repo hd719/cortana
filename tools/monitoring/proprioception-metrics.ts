@@ -1,8 +1,7 @@
 #!/usr/bin/env npx tsx
 import fs from "fs";
 import path from "path";
-import db from "../lib/db.js";
-const { runPsql, withPostgresPath } = db;
+import { runPsql, withPostgresPath } from "../lib/db.js";
 import { resolveHomePath } from "../lib/paths.js";
 
 function roundTo(value: number, digits: number): number {
