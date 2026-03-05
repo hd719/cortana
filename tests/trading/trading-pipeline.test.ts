@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runTradingPipeline } from "../../tools/trading/trading-pipeline";
 
 const CANSLIM_NO_BUY = `📈 Trading Advisor - CANSLIM Scan
@@ -37,7 +37,12 @@ Summary: scanned 120 | evaluated 1 | threshold-passed 1 | BUY 1 | WATCH 0 | NO_B
 • TSLA (8/12) → BUY
   Entry $200.00 | Stop $186.00`;
 
+beforeEach(() => {
+  process.env.FRED_API_KEY = "test-dummy-key";
+});
+
 afterEach(() => {
+  delete process.env.FRED_API_KEY;
   delete process.env.TRADING_SCAN_LIMIT;
   delete process.env.TRADING_SCAN_LIMIT_CANSLIM;
   delete process.env.TRADING_SCAN_LIMIT_DIP;
