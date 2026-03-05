@@ -41,6 +41,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Include top spend sessions + one mitigation action in alert.
 
 - **Tech news on critical tools (2× daily, afternoon + evening)**
+  - Run `npx tsx tools/news/tech-news-check.ts`.
   - Quick scan: OpenClaw, Anthropic, OpenAI, core infra via TechCrunch, HN, web search.
   - Alert on acquisitions, shutdowns, major security issues, breaking changes.
   - Skip if run within **4h**.
@@ -100,6 +101,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Auto-resolve decisions that have been completed (cross-reference with task board).
 
 - **Task board hygiene (every heartbeat)**
+  - Run `npx tsx tools/task-board/hygiene.ts`.
   - Sweep `cortana_tasks` for ghosts/stale entries:
     - Work complete but tasks still `in_progress`/`ready` → mark `completed` with outcome.
     - `in_progress` tasks with no active sub-agent and 2h+ inactivity → resolve (complete/fail/return to `ready`).
@@ -108,6 +110,7 @@ Use `memory/heartbeat-state.json` to pick the stalest 1–2 checks per heartbeat
   - Goal: Chief never sees stale dashboard state.
 
 - **Task detection + queue execution (every heartbeat)**
+  - Run `npx tsx tools/task-board/detect-from-conversation.ts`.
   - Scan recent conversation for high-confidence actionable items (see `projects/task-board-detection.md`).
   - Auto-create only high-confidence standalone tasks.
   - "Do all tasks" = `status='ready'` only; never auto-execute `backlog` tasks.

@@ -95,9 +95,12 @@ class PsqlSession {
   }
 
   close(): void {
-    if (!this.closed) {
-      this.proc.terminate();
+    if (this.closed) return;
+
+    if (this.proc.stdin && !this.proc.stdin.destroyed) {
+      this.proc.stdin.end();
     }
+    this.proc.kill("SIGTERM");
   }
 }
 
