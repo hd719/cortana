@@ -159,14 +159,45 @@ ensure_clean_preflight() {
   return 0
 }
 
+snapshot_existing_stash_metadata() {
+  local repo="$1"
+  local stash_list="$2"
+
+  local ts
+  ts="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+  local snapshot_log
+  snapshot_log="${REPO_AUTO_SYNC_STASH_SNAPSHOT_LOG:-/tmp/repo-auto-sync-stash-snapshots.log}"
+
+  {
+    printf 'ts=%s repo=%q step=preflight-stash detail=stash-snapshot-begin\n' "$ts" "$repo"
+    while IFS= read -r entry; do
+      [[ -z "$entry" ]] && continue
+      printf 'ts=%s repo=%q step=preflight-stash stash_entry=%q\n' "$ts" "$repo" "$entry"
+    done <<< "$stash_list"
+    printf 'ts=%s repo=%q step=preflight-stash detail=stash-snapshot-end\n' "$ts" "$repo"
+  } >> "$snapshot_log" 2>/dev/null || {
+    printf 'WARN repo=%s step=preflight-stash detail=stash-snapshot-write-failed path=%q\n' "$repo" "$snapshot_log" >&2
+    return 1
+  }
+
+  printf 'WARN repo=%s step=preflight-stash detail=stash-snapshot-written path=%q\n' "$repo" "$snapshot_log" >&2
+  return 0
+}
+
 ensure_no_stash_preflight() {
   local repo="$1"
 
   local stash_list
   stash_list="$(git -C "$repo" stash list)"
   if [[ -n "$stash_list" ]]; then
-    printf 'WARN repo=%s step=preflight-stash detail=stash-present-skip\n' "$repo" >&2
-    return 1
+    printf 'WARN repo=%s step=preflight-stash detail=stash-present-continue\n' "$repo" >&2
+    while IFS= read -r entry; do
+      [[ -z "$entry" ]] && continue
+      printf 'WARN repo=%s step=preflight-stash detail=stash-entry entry=%q\n' "$repo" "$entry" >&2
+    done <<< "$stash_list"
+
+    snapshot_existing_stash_metadata "$repo" "$stash_list" || true
   fi
 
   return 0
@@ -223,7 +254,7 @@ sync_repo() {
     fail "$repo" "preflight-clean" "preflight check failed"
   fi
 
-  ensure_no_stash_preflight "$repo" || fail "$repo" "preflight-stash" "stash list not empty"
+  ensure_no_stash_preflight "$repo" || fail "$repo" "preflight-stash" "stash preflight logging failed"
 
   git -C "$repo" fetch --all --prune || fail "$repo" "fetch" "git fetch --all --prune failed"
   git -C "$repo" checkout main || fail "$repo" "checkout" "git checkout main failed"

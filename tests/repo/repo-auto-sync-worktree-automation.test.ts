@@ -79,6 +79,30 @@ afterEach(() => {
 });
 
 describe("repo-auto-sync worktree conflict automation", () => {
+  it("does not fail preflight when stash entries exist and snapshots metadata", () => {
+    const { repoDir } = setupMergedBranchRepo("repo-auto-sync-stash-preflight");
+    const snapshotLog = path.join(repoDir, "stash-snapshot.log");
+
+    fs.writeFileSync(path.join(repoDir, "preflight-dirty.txt"), "dirty\n", "utf8");
+    run("git add preflight-dirty.txt", repoDir);
+    run("git stash push --include-untracked -m 'manual stash before preflight test'", repoDir);
+
+    const command = `set -euo pipefail; source ${shQuote(scriptPath)}; REPO_AUTO_SYNC_STASH_SNAPSHOT_LOG=${shQuote(snapshotLog)}; ensure_no_stash_preflight ${shQuote(repoDir)}`;
+    const result = spawnSync("bash", ["-lc", command], {
+      cwd: repoDir,
+      encoding: "utf8",
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stderr).toContain("detail=stash-present-continue");
+    expect(result.stderr).toContain("detail=stash-entry");
+    expect(result.stderr).toContain("detail=stash-snapshot-written");
+
+    const snapshot = fs.readFileSync(snapshotLog, "utf8");
+    expect(snapshot).toContain("detail=stash-snapshot-begin");
+    expect(snapshot).toContain("manual\\ stash\\ before\\ preflight\\ test");
+    expect(snapshot).toContain("detail=stash-snapshot-end");
+  });
   it("auto-stashes dirty temp worktree and removes it before deleting merged branch", () => {
     const { repoDir, branchName } = setupMergedBranchRepo("repo-auto-sync-temp-worktree");
     const tempWorktree = path.join(

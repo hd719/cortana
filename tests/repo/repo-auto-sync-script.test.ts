@@ -6,11 +6,14 @@ describe("repo-auto-sync.sh hygiene policy", () => {
   const scriptPath = path.resolve("tools/repo/repo-auto-sync.sh");
   const script = fs.readFileSync(scriptPath, "utf8");
 
-  it("fails fast on dirty/untracked/stash-present state", () => {
+  it("fails fast on dirty/untracked state, but allows stash with snapshot logging", () => {
     expect(script).toContain("git -C \"$repo\" status --porcelain --untracked-files=all");
     expect(script).toContain("git -C \"$repo\" stash list");
     expect(script).toContain('fail "$repo" "preflight-clean"');
-    expect(script).toContain('fail "$repo" "preflight-stash"');
+    expect(script).toContain("snapshot_existing_stash_metadata");
+    expect(script).toContain("detail=stash-present-continue");
+    expect(script).toContain("detail=stash-snapshot-written");
+    expect(script).not.toContain('stash list not empty');
   });
 
   it("keeps safe order: preflight before pull, cleanup after pull", () => {
