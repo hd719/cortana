@@ -7,6 +7,21 @@ const execFileAsync = promisify(execFile);
 
 const TELEGRAM_TARGET = "8171372724";
 const DEFAULT_TIMEOUT_MS = 180_000;
+const TELEGRAM_MAX_MESSAGE_LEN = 3500;
+
+const NOISY_KEYS = new Set([
+  "metadata",
+  "toolTrace",
+  "toolTraces",
+  "tool_trace",
+  "trace",
+  "traces",
+  "systemPromptReport",
+  "system_prompt_report",
+  "usage",
+  "tokenUsage",
+  "tokens",
+]);
 
 type SpecialistTask = {
   sessionKey: string;
@@ -76,25 +91,121 @@ function safeJsonParse(input: string): unknown {
   }
 }
 
+function cleanText(input: string): string {
+  return input
+    .replace(/\u001b\[[0-9;]*m/g, "")
+    .replace(/```[\s\S]*?```/g, "")
+    .replace(/\r/g, "")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
+function collectText(value: unknown): string[] {
+  if (typeof value === "string") {
+    const cleaned = cleanText(value);
+    return cleaned ? [cleaned] : [];
+  }
+
+  if (Array.isArray(value)) {
+    return value.flatMap((item) => collectText(item));
+  }
+
+  if (!value || typeof value !== "object") {
+    return [];
+  }
+
+  const obj = value as Record<string, unknown>;
+  const preferredKeys = ["reply", "response", "output", "output_text", "text", "content", "message"];
+  for (const key of preferredKeys) {
+    if (key in obj && !NOISY_KEYS.has(key)) {
+      const nested = collectText(obj[key]);
+      if (nested.length > 0) return nested;
+    }
+  }
+
+  return [];
+}
+
+function pruneAgentNoise(text: string): string {
+  const lines = text
+    .split(/\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((line) => !/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(line))
+    .filter((line) => !/^(ok|completed|openai-codex)$/i.test(line))
+    .filter((line) => !/^gpt-[a-z0-9._-]+$/i.test(line));
+
+  return lines.join("\n").trim();
+}
+
 function extractAgentText(raw: string): string {
   const parsed = safeJsonParse(raw) as Record<string, unknown> | null;
-  if (!parsed || typeof parsed !== "object") return raw.trim();
+  if (!parsed || typeof parsed !== "object") return pruneAgentNoise(cleanText(raw)) || "No response text returned.";
 
+  const resultObj = parsed.result as Record<string, unknown> | undefined;
   const candidates: unknown[] = [
     parsed.reply,
     parsed.response,
     parsed.output,
+    parsed.output_text,
     parsed.text,
-    (parsed.result as Record<string, unknown> | undefined)?.reply,
-    (parsed.result as Record<string, unknown> | undefined)?.response,
-    (parsed.result as Record<string, unknown> | undefined)?.text,
+    parsed.content,
+    parsed.message,
+    parsed.payloads,
+    resultObj?.reply,
+    resultObj?.response,
+    resultObj?.output,
+    resultObj?.output_text,
+    resultObj?.text,
+    resultObj?.content,
+    resultObj?.message,
+    resultObj?.payloads,
   ];
 
   for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim()) return candidate.trim();
+    const collected = collectText(candidate).join("\n").trim();
+    const pruned = pruneAgentNoise(collected);
+    if (pruned) return pruned;
   }
 
-  return raw.trim();
+  return "No response text returned.";
+}
+
+function splitForTelegram(messageText: string): string[] {
+  if (messageText.length <= TELEGRAM_MAX_MESSAGE_LEN) return [messageText];
+
+  const maxChunkLen = TELEGRAM_MAX_MESSAGE_LEN - 32;
+  const lines = messageText.split(/\n/);
+  const chunks: string[] = [];
+  let current = "";
+
+  const pushCurrent = () => {
+    if (current) {
+      chunks.push(current);
+      current = "";
+    }
+  };
+
+  for (const line of lines) {
+    if (line.length > maxChunkLen) {
+      pushCurrent();
+      for (let i = 0; i < line.length; i += maxChunkLen) {
+        chunks.push(line.slice(i, i + maxChunkLen));
+      }
+      continue;
+    }
+
+    const candidate = current ? `${current}\n${line}` : line;
+    if (candidate.length > maxChunkLen) {
+      pushCurrent();
+      current = line;
+    } else {
+      current = candidate;
+    }
+  }
+
+  pushCurrent();
+  return chunks;
 }
 
 async function sessionsSend(task: SpecialistTask): Promise<SpecialistResult> {
@@ -113,7 +224,7 @@ async function sessionsSend(task: SpecialistTask): Promise<SpecialistResult> {
     return {
       sessionKey: task.sessionKey,
       ok: true,
-      text: extractAgentText(raw) || "No response text returned.",
+      text: extractAgentText(raw),
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
@@ -188,17 +299,24 @@ function buildBrief(parts: {
 }
 
 async function sendTelegram(messageText: string): Promise<void> {
-  await runCommand("openclaw", [
-    "message",
-    "send",
-    "--channel",
-    "telegram",
-    "--target",
-    TELEGRAM_TARGET,
-    "--message",
-    messageText,
-    "--json",
-  ]);
+  const chunks = splitForTelegram(messageText);
+  for (let i = 0; i < chunks.length; i += 1) {
+    const label = chunks.length > 1 ? `Part ${i + 1}/${chunks.length}\n` : "";
+    const outbound = `${label}${chunks[i]}`;
+    const safeOutbound = outbound.slice(0, TELEGRAM_MAX_MESSAGE_LEN);
+
+    await runCommand("openclaw", [
+      "message",
+      "send",
+      "--channel",
+      "telegram",
+      "--target",
+      TELEGRAM_TARGET,
+      "--message",
+      safeOutbound,
+      "--json",
+    ]);
+  }
 }
 
 async function main(): Promise<void> {
