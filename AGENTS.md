@@ -24,7 +24,15 @@ Read in this order:
 - **Main session = conversation + coordination.** If a task needs >1 tool call, spawn a sub-agent. Details in `docs/operating-rules.md`.
 - **Files are memory.** Use daily notes + `MEMORY.md` for persistence; see `docs/operating-rules.md` + `docs/heartbeat-ops.md` for full protocol.
 
-## 4. Keeping the Harness Clean
+## 4. Identity Namespace Scaffolds (Slice 1)
+
+The following isolated identity scaffolds now exist:
+- `identities/researcher/` (`SOUL.md`, `USER.md`, `IDENTITY.md`, `HEARTBEAT.md`, `MEMORY.md`)
+- `identities/huragok/` (`SOUL.md`, `USER.md`, `IDENTITY.md`, `HEARTBEAT.md`, `MEMORY.md`)
+
+These are doctrine/memory placeholders only. Runtime routing/wiring is **not** switched in Slice 1.
+
+## 5. Keeping the Harness Clean
 
 When adding durable behavior:
 - Voice/tone → `SOUL.md`
