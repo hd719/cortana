@@ -2,6 +2,7 @@
   {
     "id": "main",
     "workspace": "/Users/hd/openclaw",
+    "identityNamespace": "main",
     "model": "anthropic/claude-opus-4-6"
   },
   {
@@ -32,11 +33,13 @@
   {
     "id": "huragok",
     "workspace": "/Users/hd/openclaw",
+    "identityNamespace": "huragok",
     "model": "openai-codex/gpt-5.3-codex"
   },
   {
     "id": "researcher",
     "workspace": "/Users/hd/openclaw",
+    "identityNamespace": "researcher",
     "model": "openai-codex/gpt-5.3-codex"
   },
   {
