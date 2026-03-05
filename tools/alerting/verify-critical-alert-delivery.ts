@@ -1,6 +1,4 @@
 #!/usr/bin/env npx tsx
-import { runPsql, withPostgresPath } from "../lib/db.js";
-
 const DB_NAME = process.env.CORTANA_DB ?? "cortana";
 const SOURCE = "alert-delivery-verifier";
 const LOOKBACK_HOURS = Number(process.env.LOOKBACK_HOURS ?? "24");

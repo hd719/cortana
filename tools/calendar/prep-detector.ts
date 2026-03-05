@@ -2,7 +2,6 @@
 
 import { spawnSync } from "node:child_process";
 import { query } from "../lib/db.js";
-
 const calendarId = "Clawdbot-Calendar";
 const toDate = new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString().slice(0, 10);
 const keywords = ["review", "presentation", "demo", "interview"];

@@ -4,7 +4,6 @@ import fs from "node:fs";
 import path from "node:path";
 import { getScriptDir } from "../lib/paths.js";
 import { runPsql } from "../lib/db.js";
-
 type GovernorDecision = {
   task_id: number | null;
   action_type: string;

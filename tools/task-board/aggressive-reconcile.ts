@@ -1,8 +1,6 @@
 #!/usr/bin/env npx tsx
 
 import { spawnSync } from "child_process";
-import { runPsql, withPostgresPath } from "../lib/db.js";
-
 type Json = Record<string, any>;
 
 type TaskRow = {

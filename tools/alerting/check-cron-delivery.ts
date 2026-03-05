@@ -2,10 +2,9 @@
 
 import fs from "fs";
 import { spawnSync } from "child_process";
+import { withPostgresPath } from "../lib/db.js";
 import { readJsonFile } from "../lib/json-file.js";
 import { resolveHomePath, PSQL_BIN } from "../lib/paths.js";
-import { withPostgresPath } from "../lib/db.js";
-
 const coerceBool = (value: unknown): unknown => {
   if (typeof value === "boolean") return value;
   if (typeof value === "string") {

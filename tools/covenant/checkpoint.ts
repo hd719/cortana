@@ -8,6 +8,7 @@
  */
 
 import { runPsql, withPostgresPath } from "../lib/db.js";
+import { runPsql, withPostgresPath } from "../lib/db.js";
 
 const DEFAULT_DB = "cortana";
 const VALID_STATES = new Set(["queued", "running", "completed", "failed", "paused"]);

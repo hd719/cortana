@@ -1,7 +1,5 @@
 #!/usr/bin/env npx tsx
 import { spawnSync } from "child_process";
-import { withPostgresPath } from "../lib/db.js";
-
 async function main(){
  const DB=process.env.DB||"cortana"; const HOURS=process.argv[2]||"24"; const MIN=process.argv[3]||"warning";
  if(!/^\d+$/.test(HOURS)){console.error(`Usage: ${process.argv[1]} [hours] [min_severity: info|warning|error|critical]`);process.exit(1);} 

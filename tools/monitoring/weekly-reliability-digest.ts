@@ -1,6 +1,5 @@
 #!/usr/bin/env npx tsx
 import { queryJson } from "../lib/db.js";
-
 type Overview = {
   window_days: number;
   generated_at: string;

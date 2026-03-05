@@ -2,7 +2,6 @@
 
 import { spawnSync } from "node:child_process";
 import { runPsql } from "../lib/db.js";
-
 type SleepInputs = {
   recovery_score: number;
   sleep_hours: number;

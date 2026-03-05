@@ -104,3 +104,6 @@ export function runPsql(sql: string, options: RunPsqlOptions = {}) {
 
   return spawnSync(psqlBin, [db, ...args, "-c", sql], spawnOpts);
 }
+
+// Default export for CJS/ESM interop compatibility
+export default { prisma, query, queryJson, execute, withPostgresPath, runPsql };

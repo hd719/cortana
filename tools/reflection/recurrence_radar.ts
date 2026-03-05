@@ -1,6 +1,7 @@
 #!/usr/bin/env npx tsx
 
 import { query } from "../lib/db.js";
+
 import { createHash } from "crypto";
 
 const SOURCE = "recurrence_radar";

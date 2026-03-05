@@ -6,7 +6,6 @@ import { spawnSync } from "child_process";
 import { createHash } from "crypto";
 import { resolveRepoPath } from "../lib/paths.js";
 import { query } from "../lib/db.js";
-
 const WORKSPACE = resolveRepoPath();
 const PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql";
 const DB_NAME = "cortana";

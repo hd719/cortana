@@ -1,6 +1,5 @@
 #!/usr/bin/env npx tsx
 
-import { runPsql, withPostgresPath } from "../lib/db.js";
 
 const DB = "cortana";
 const ACTED = new Set(["accepted", "completed", "in_progress", "acted"]);

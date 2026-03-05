@@ -1,7 +1,5 @@
 #!/usr/bin/env npx tsx
 import { spawnSync } from "child_process";
-import { withPostgresPath } from "../lib/db.js";
-
 function q(sql:string):string{const r=spawnSync("psql",["cortana","-t","-A","-c",sql],{encoding:"utf8",env:withPostgresPath(process.env)});return r.status===0?(r.stdout||"").trim():""}
 async function main(){
  const currentRun=q("SELECT run_id FROM cortana_sitrep ORDER BY timestamp DESC LIMIT 1;");

@@ -3,6 +3,7 @@
 /** Agent Feedback Compiler (AFC). */
 
 import { runPsql, withPostgresPath } from "../lib/db.js";
+import { runPsql, withPostgresPath } from "../lib/db.js";
 
 const DB_NAME = "cortana";
 

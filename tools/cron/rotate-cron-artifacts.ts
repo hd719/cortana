@@ -2,8 +2,6 @@
 import fs from "fs";
 import path from "path";
 import { spawnSync } from "child_process";
-import { withPostgresPath } from "../lib/db.js";
-
 const DB=process.env.CORTANA_DB||"cortana"; const SOURCE="rotate-cron-artifacts.sh";
 const RUN_DIR=process.env.OPENCLAW_CRON_RUN_DIR||path.join(process.env.HOME||"",".openclaw/cron/runs");
 const ROTATE=500*1024, WARN=1024*1024, RET=7, KEEP=3;

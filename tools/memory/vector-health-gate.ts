@@ -4,7 +4,6 @@ import { spawnSync } from "child_process";
 import { readJsonFile, writeJsonFileAtomic } from "../lib/json-file.js";
 import { resolveRepoPath } from "../lib/paths.js";
 import { query } from "../lib/db.js";
-
 export function runCli(argv = process.argv.slice(2)): number {
   if (argv.includes("--help")) {
     console.log("usage: vector-health-gate.ts [--json]");

@@ -2,7 +2,6 @@
 
 import { spawnSync } from "child_process";
 import { withPostgresPath } from "../lib/db.js";
-
 const DB_NAME = "cortana";
 const sqlQuote = (s = "") => `'${s.replace(/'/g, "''")}'`;
 const die = (m: string): never => { console.log(JSON.stringify({ ok: false, error: m })); process.exit(1); };

@@ -3,8 +3,6 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { spawnSync } from "child_process";
-import { runPsql, withPostgresPath } from "./lib/db.js";
-
 function usage(): void {
   process.stdout.write(`Usage: tools/immune_scan.sh [--help] [--dry-run]
 

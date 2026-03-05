@@ -2,7 +2,6 @@
 
 import { createHash } from "crypto";
 import { runPsql } from "../lib/db.js";
-
 type EpisodicEntry = {
   id: number;
   happened_at: string;

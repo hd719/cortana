@@ -5,7 +5,6 @@ import http from "http";
 import https from "https";
 import { URL } from "url";
 import { query } from "../lib/db.js";
-
 const ET_TZ = "America/New_York";
 
 const STOPWORDS = new Set([

@@ -2,7 +2,6 @@
 
 import fs from "fs";
 import { query } from "../lib/db.js";
-
 const ACTION = new Set([
   "must",
   "should",
