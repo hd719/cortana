@@ -48,6 +48,68 @@ flowchart LR
   C -->|coordination/synthesis| T
 ```
 
+### 0.4 Execution decision tree (authoritative)
+
+```mermaid
+flowchart TD
+  Q[Inbound request] --> A{Unsafe / policy conflict?}
+  A -->|Yes| STOP[Pause + ask/decline safely]
+  A -->|No| B{Single low-risk tool call?}
+  B -->|Yes| INLINE[Cortana may execute inline]
+  B -->|No| C{Implementation / code / PR?}
+  C -->|Yes| H[Route to Huragok]
+  C -->|No| D{Research / news / analysis?}
+  D -->|Yes| R[Route to Researcher]
+  D -->|No| E{Market / portfolio?}
+  E -->|Yes| O[Route to Oracle]
+  E -->|No| F{Health / cron / drift / incidents?}
+  F -->|Yes| M[Route to Monitor]
+  F -->|No| G[Choose safest specialist/subagent path]
+  H --> V[Verify completion + status]
+  R --> V
+  O --> V
+  M --> V
+  G --> V
+  V --> RESP[Respond with verified state only]
+```
+
+### 0.5 Live routing matrix (specific)
+
+| Lane | Session key | Owns | Must not own | Delivery rule |
+|---|---|---|---|---|
+| Cortana | `agent:main:main` | Coordination, decisions, synthesis, escalation | Default implementation/PR authoring | Only high-signal summaries |
+| Huragok | `agent:huragok:main` | Code changes, repo fixes, CI fixes, PR creation | Market/news synthesis ownership | Direct `message` to Telegram target `8171372724` |
+| Researcher | `agent:researcher:main` | News, research, evidence gathering | Infra implementation | Direct `message` to Telegram target `8171372724` |
+| Oracle | `agent:oracle:main` | Market pulse, portfolio/strategy analysis | Repo/infra implementation | Direct `message` to Telegram target `8171372724` |
+| Monitor | `agent:monitor:main` | Runtime health, cron delivery, drift, incident checks | Feature implementation | Direct `message` to Telegram target `8171372724` |
+
+### 0.6 TASK-lane payload contract (`sessions_send`)
+
+Required fields in every TASK dispatch:
+1. Objective
+2. Scope boundaries
+3. Delivery target (`channel=telegram`, `target=8171372724`)
+4. Completion condition
+5. “Do NOT send it back to Cortana” when direct delivery is required
+
+Invalid lane usage examples:
+- FYI/status chatter
+- duplicate relay requests after specialist already delivered
+- non-actionable narrative without explicit task
+
+### 0.7 Cron/ops signal graph (what pages vs what stays quiet)
+
+```mermaid
+flowchart LR
+  CRON[Cron jobs] --> MON[Monitor checks]
+  HB[Heartbeat] --> MON
+  MON --> EVT[(cortana_events / cron_health)]
+  EVT --> P1{P1/P0 impact?}
+  P1 -->|Yes| PAGE[Escalate to Hamel with failing step, cause, next action]
+  P1 -->|No| QUIET[Log + quiet / specialist lane only]
+  PAGE --> CORTANA[Cortana synthesis]
+  QUIET --> SPECIALIST[Specialist delivery lane]
+```
 
 ## 1. What this is
 
