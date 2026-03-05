@@ -3,6 +3,7 @@
   "namespaces": {
     "main": "main",
     "researcher": "researcher",
-    "huragok": "huragok"
+    "huragok": "huragok",
+    "oracle": "oracle"
   }
 }

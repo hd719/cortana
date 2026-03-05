@@ -46,5 +46,11 @@
     "id": "cortana-acp",
     "workspace": "/Users/hd/openclaw",
     "model": "openai-codex/gpt-5.3-codex"
+  },
+  {
+    "id": "oracle",
+    "workspace": "/Users/hd/openclaw",
+    "identityNamespace": "oracle",
+    "model": "openai-codex/gpt-5.3-codex"
   }
 ]
