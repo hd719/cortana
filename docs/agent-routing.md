@@ -32,9 +32,11 @@ This system runs multiple agents, each with its own workspace, model, and sessio
 - Cortana is orchestrator/command deck, not default implementer.
 - Code implementation and PR creation route to Huragok unless Hamel explicitly asks Cortana to execute directly.
 - Inter-agent `sessions_send` is **TASK-only**. No FYI/status chatter over agent lanes.
+- TASK lane message contract: objective, owner, constraints, delivery target, done condition — nothing else.
 - If a specialist already delivered directly to Hamel, Cortana should not echo duplicate output.
-- Cortana lane should contain decisions, synthesis, and coordination — not routine cron noise.
+- Cortana lane should contain decisions, synthesis, blockers, and coordination — not routine cron noise.
 - Status claims must be check-backed (CI/cron/runtime verification before declaring green).
+- If wrong, correct quickly and post the verified state.
 
 ## ACP On-Demand Routing Policy
 

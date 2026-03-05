@@ -13,6 +13,7 @@ Read in this order:
 
 ## 2. Where Rules Live
 
+- **Command-brain behavior source of truth → `SOUL.md`**
 - Operating rules, delegation, routing, safety → `docs/operating-rules.md`
 - **Agent routing & channel architecture → `docs/agent-routing.md`**
 - Heartbeat logic, quiet hours, proactive checks → `docs/heartbeat-ops.md`
