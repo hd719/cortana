@@ -16,6 +16,15 @@ export type IdentityNamespaceConfig = {
   namespaces?: Record<string, string>;
 };
 
+export type DurableMemoryTargets = {
+  agentId: string;
+  namespace: string;
+  memoryFilePath: string;
+  memoryDirPath: string;
+  usedFallback: boolean;
+  warning?: string;
+};
+
 export function resolveNamespaceForAgent(
   agentId: string | null | undefined,
   config: IdentityNamespaceConfig,
@@ -58,4 +67,76 @@ export function resolveAgentIdFromSessionKey(sessionKey: string | undefined): st
   const match = /^agent:([^:]+):/i.exec(sessionKey.trim());
   if (!match) return null;
   return match[1]?.trim().toLowerCase() || null;
+}
+
+export function loadIdentityNamespaceConfig(workspaceDir: string, configPath = "config/identity-namespaces.json"): IdentityNamespaceConfig {
+  try {
+    const raw = fs.readFileSync(path.join(workspaceDir, configPath), "utf-8");
+    const parsed = JSON.parse(raw) as IdentityNamespaceConfig;
+    return {
+      defaultNamespace: parsed.defaultNamespace?.trim() || "main",
+      namespaces: parsed.namespaces ?? {},
+    };
+  } catch {
+    return { defaultNamespace: "main", namespaces: {} };
+  }
+}
+
+export function resolveDurableMemoryTargets(params: {
+  workspaceDir: string;
+  agentId?: string | null;
+  sessionKey?: string | null;
+  configPath?: string;
+  warn?: (message: string) => void;
+}): DurableMemoryTargets {
+  const { workspaceDir, configPath, warn } = params;
+  const explicitAgent = params.agentId?.trim().toLowerCase() || null;
+  const inferredAgent = resolveAgentIdFromSessionKey(params.sessionKey ?? undefined);
+  const agentId = explicitAgent || inferredAgent || "main";
+
+  const config = loadIdentityNamespaceConfig(workspaceDir, configPath);
+  const namespace = resolveNamespaceForAgent(agentId, config);
+
+  const defaultMemoryFilePath = path.join(workspaceDir, "MEMORY.md");
+  const defaultMemoryDirPath = path.join(workspaceDir, "memory");
+
+  if (namespace === "main") {
+    return {
+      agentId,
+      namespace,
+      memoryFilePath: defaultMemoryFilePath,
+      memoryDirPath: defaultMemoryDirPath,
+      usedFallback: false,
+    };
+  }
+
+  const namespacedMemoryFilePath = resolveNamespaceFilePath(workspaceDir, namespace, "MEMORY.md");
+  const namespacedMemoryDirPath = path.join(workspaceDir, "identities", namespace, "memory");
+
+  const hasNamespacedFile = fs.existsSync(namespacedMemoryFilePath);
+  const hasNamespacedDir = fs.existsSync(namespacedMemoryDirPath);
+
+  if (hasNamespacedFile && hasNamespacedDir) {
+    return {
+      agentId,
+      namespace,
+      memoryFilePath: namespacedMemoryFilePath,
+      memoryDirPath: namespacedMemoryDirPath,
+      usedFallback: false,
+    };
+  }
+
+  const warning =
+    `[identity-namespace-memory] namespace=${namespace} for agent=${agentId} is missing durable memory path ` +
+    `(file=${hasNamespacedFile}, dir=${hasNamespacedDir}); falling back to main memory targets`;
+  warn?.(warning);
+
+  return {
+    agentId,
+    namespace,
+    memoryFilePath: defaultMemoryFilePath,
+    memoryDirPath: defaultMemoryDirPath,
+    usedFallback: true,
+    warning,
+  };
 }

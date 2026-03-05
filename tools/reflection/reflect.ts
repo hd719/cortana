@@ -4,12 +4,19 @@ import fs from "fs";
 import path from "path";
 import { resolveRepoPath } from "../lib/paths.js";
 import { query } from "../lib/db.js";
+import { resolveDurableMemoryTargets } from "../lib/identity-namespace.js";
 
 const ROOT = resolveRepoPath();
+const durableMemoryTargets = resolveDurableMemoryTargets({
+  workspaceDir: ROOT,
+  agentId: process.env.OPENCLAW_AGENT_ID ?? process.env.AGENT_ID ?? null,
+  sessionKey: process.env.OPENCLAW_SESSION_KEY ?? process.env.SESSION_KEY ?? null,
+  warn: (message) => console.warn(message),
+});
 
 const TARGET_FILES: Record<string, string> = {
-  preference: path.join(ROOT, "MEMORY.md"),
-  fact: path.join(ROOT, "MEMORY.md"),
+  preference: durableMemoryTargets.memoryFilePath,
+  fact: durableMemoryTargets.memoryFilePath,
   behavior: path.join(ROOT, "AGENTS.md"),
   tone: path.join(ROOT, "SOUL.md"),
   correction: path.join(ROOT, "AGENTS.md"),

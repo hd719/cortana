@@ -4,6 +4,7 @@ import fs from "fs";
 import path from "path";
 import { query } from "../lib/db.js";
 import { resolveRepoPath } from "../lib/paths.js";
+import { resolveDurableMemoryTargets } from "../lib/identity-namespace.js";
 
 type FeedbackRow = {
   id: number;
@@ -23,9 +24,16 @@ type Proposal = {
 };
 
 const ROOT = resolveRepoPath();
+const durableMemoryTargets = resolveDurableMemoryTargets({
+  workspaceDir: ROOT,
+  agentId: process.env.OPENCLAW_AGENT_ID ?? process.env.AGENT_ID ?? null,
+  sessionKey: process.env.OPENCLAW_SESSION_KEY ?? process.env.SESSION_KEY ?? null,
+  warn: (message) => console.warn(message),
+});
+
 const TARGET_FILES: Record<string, string> = {
-  preference: "MEMORY.md",
-  fact: "MEMORY.md",
+  preference: durableMemoryTargets.memoryFilePath,
+  fact: durableMemoryTargets.memoryFilePath,
   tone: "SOUL.md",
   behavior: "AGENTS.md",
   correction: "AGENTS.md",

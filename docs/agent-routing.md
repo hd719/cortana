@@ -90,6 +90,46 @@ openclaw gateway restart
 
 This rollback preserves all existing agent routing and reverts bootstrap identity loading to workspace defaults.
 
+## Durable Memory Write Isolation (Covenant Slice 3)
+
+Durable memory write destinations are now namespace-aware for identity agents.
+
+- `main` writes to:
+  - `/Users/hd/openclaw/MEMORY.md`
+  - `/Users/hd/openclaw/memory/*.md`
+- `researcher` writes to:
+  - `/Users/hd/openclaw/identities/researcher/MEMORY.md`
+  - `/Users/hd/openclaw/identities/researcher/memory/*.md`
+- `huragok` writes to:
+  - `/Users/hd/openclaw/identities/huragok/MEMORY.md`
+  - `/Users/hd/openclaw/identities/huragok/memory/*.md`
+
+### Fallback behavior (non-breaking)
+
+If the resolved namespace memory path is missing (either `MEMORY.md` or `memory/`), runtime logs a warning and falls back to main memory paths.
+
+### Rollout
+
+```bash
+cd /Users/hd/openclaw
+npm test -- tests/lib/identity-namespace.test.ts
+openclaw gateway restart
+```
+
+### Rollback
+
+```bash
+cd /Users/hd/openclaw
+git revert <slice3_commit_sha>
+openclaw gateway restart
+```
+
+### Caveats
+
+- Fallback is intentional for safety; warning logs should be treated as drift that needs repair.
+- Existing `main` memory behavior remains unchanged.
+- This slice only routes write destinations; it does not alter Telegram/account routing.
+
 ## The "main" Agent Entry
 
 The `main` agent MUST be explicitly listed in both:
