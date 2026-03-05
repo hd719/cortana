@@ -27,6 +27,14 @@ describe("repo-auto-sync.sh hygiene policy", () => {
     expect(pull).toBeLessThan(cleanup);
   });
 
+  it("sanitizes and validates branch candidates and skips protected branches", () => {
+    expect(script).toContain("sanitize_branch_token");
+    expect(script).toContain("s/^[*+[:space:]]+//");
+    expect(script).toContain('PROTECTED_BRANCHES=("main" "master" "dev" "develop")');
+    expect(script).toContain('check-ref-format --branch "$b"');
+    expect(script).toContain('show-ref --verify --quiet "refs/heads/$b"');
+  });
+
   it("only deletes local branches merged into origin/main and never remote branches", () => {
     expect(script).toContain("for-each-ref --format='%(refname:short)' refs/heads --merged origin/main");
     expect(script).toContain('git -C "$repo" branch -d -- "$b"');

@@ -2,6 +2,7 @@
 set -euo pipefail
 
 REPOS=("/Users/hd/Developer/cortana" "/Users/hd/Developer/cortana-external")
+PROTECTED_BRANCHES=("main" "master" "dev" "develop")
 
 fail() {
   local repo="$1"
@@ -9,6 +10,27 @@ fail() {
   local detail="$3"
   printf 'FAIL repo=%s step=%s detail=%s\n' "$repo" "$step" "$detail" >&2
   return 1
+}
+
+is_protected_branch() {
+  local branch="$1"
+  local protected
+
+  for protected in "${PROTECTED_BRANCHES[@]}"; do
+    if [[ "$branch" == "$protected" ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+sanitize_branch_token() {
+  local raw="$1"
+
+  printf '%s' "$raw" \
+    | sed -E 's/^[*+[:space:]]+//' \
+    | xargs
 }
 
 ensure_clean_preflight() {
@@ -31,15 +53,30 @@ cleanup_local_merged_branches() {
   local repo="$1"
 
   git -C "$repo" for-each-ref --format='%(refname:short)' refs/heads --merged origin/main \
-    | sed -E 's/^[*+[:space:]]+//' \
-    | while IFS= read -r b; do
-        b="$(printf '%s' "$b" | xargs)"
-        if [[ -z "$b" || "$b" == "main" ]]; then
+    | while IFS= read -r raw_branch; do
+        local b
+        b="$(sanitize_branch_token "$raw_branch")"
+
+        if [[ -z "$b" ]]; then
           continue
         fi
-        if git -C "$repo" check-ref-format --branch "$b" >/dev/null 2>&1; then
-          git -C "$repo" branch -d -- "$b" || true
+
+        if is_protected_branch "$b"; then
+          continue
         fi
+
+        if ! git -C "$repo" check-ref-format --branch "$b" >/dev/null 2>&1; then
+          printf 'WARN repo=%s step=branch-cleanup detail=invalid-branch-token branch=%q\n' "$repo" "$b" >&2
+          continue
+        fi
+
+        if ! git -C "$repo" show-ref --verify --quiet "refs/heads/$b"; then
+          printf 'INFO repo=%s step=branch-cleanup detail=already-missing branch=%q\n' "$repo" "$b" >&2
+          continue
+        fi
+
+        git -C "$repo" branch -d -- "$b" >/dev/null 2>&1 || \
+          printf 'INFO repo=%s step=branch-cleanup detail=delete-skipped branch=%q\n' "$repo" "$b" >&2
       done
 }
 
