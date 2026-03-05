@@ -22,6 +22,8 @@ __pycache__/
 
 # Runtime local state (do not track)
 memory/heartbeat-state.json
+heartbeat-state.json
+config/heartbeat-state.json
 .openclaw/workspace-state.json
 proprioception/state/heartbeat-remediation.json
 config/cron/*.bak*
