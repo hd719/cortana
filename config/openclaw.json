@@ -125,11 +125,6 @@
         "model": "openai-codex/gpt-5.3-codex"
       },
       {
-        "id": "huragok-worker",
-        "workspace": "/Users/hd/openclaw",
-        "model": "openai-codex/gpt-5.3-codex"
-      },
-      {
         "id": "researcher",
         "workspace": "/Users/hd/openclaw",
         "model": "openai-codex/gpt-5.3-codex"
@@ -151,7 +146,6 @@
       "allow": [
         "main",
         "huragok",
-        "huragok-worker",
         "cron-*",
         "researcher"
       ]
