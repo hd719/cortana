@@ -3,6 +3,8 @@
 ## Goal
 Stand up a dedicated **Researcher** bot/session that the main orchestrator (Cortana) can delegate to for fast investigation work.
 
+Researcher remains a separate identity from Huragok. Huragok now runs as a standalone Telegram-bound + spawn-capable lane (no `huragok-worker` profile).
+
 ## Orchestration Flow
 1. Main receives user request.
 2. Main delegates scoped research work to Researcher via `sessions_spawn` (or routes by agent id when using CLI helpers).
