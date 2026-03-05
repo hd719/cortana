@@ -7,7 +7,7 @@ function sanitizeBranchToken(raw: string): string {
 }
 
 describe("Repo Auto Sync branch cleanup command", () => {
-  it("uses for-each-ref and avoids branch --merged parsing with current/worktree markers", () => {
+  it("uses script-based fail-fast hygiene flow with safe ordering and local-only cleanup", () => {
     const jobsPath = path.resolve("config/cron/jobs.json");
     const raw = fs.readFileSync(jobsPath, "utf8");
     const json = JSON.parse(raw) as {
@@ -18,12 +18,12 @@ describe("Repo Auto Sync branch cleanup command", () => {
     expect(job?.payload?.message).toBeTruthy();
 
     const message = String(job?.payload?.message ?? "");
-    expect(message).toContain("do not wrap command text in quotes");
-    expect(message).toContain("git for-each-ref --format='%(refname:short)' refs/heads --merged origin/main");
-    expect(message).toContain("sed -E 's/^[*+[:space:]]+//'");
-    expect(message).toContain('git check-ref-format --branch "$b"');
-    expect(message).toContain('git branch -d -- "$b"');
-    expect(message).not.toContain("git branch --merged origin/main | sed 's/*//'");
+    expect(message).toContain("bash /Users/hd/Developer/cortana/tools/repo/repo-auto-sync.sh");
+    expect(message).toContain("Fail fast on dirty/untracked/stash-present preflight");
+    expect(message).toContain("preflight cleanliness -> pull -> local merged-branch cleanup");
+    expect(message).toContain("Delete only LOCAL branches merged into origin/main (never remote delete)");
+    expect(message).not.toContain("git clean -fd");
+    expect(message).not.toContain("git stash");
   });
 
   it("sanitizes marker-prefixed branch tokens (regression for '+ fix/...')", () => {
