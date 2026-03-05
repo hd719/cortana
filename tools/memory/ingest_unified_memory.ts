@@ -158,14 +158,10 @@ async function startRun(db: PsqlSession, source: string, sinceHours: number, dry
     `
 WITH created AS (
   INSERT INTO cortana_memory_ingest_runs (source, since_hours, status, metadata)
-  VALUES (${q(source)}, ${sinceHours}, 'created', ${q(meta)}::jsonb)
+  VALUES (${q(source)}, ${sinceHours}, 'running', ${q(meta)}::jsonb)
   RETURNING id
 )
-UPDATE cortana_memory_ingest_runs r
-SET status = 'running'
-FROM created c
-WHERE r.id = c.id
-RETURNING r.id;
+SELECT id FROM created;
 `
   );
   return Number.parseInt(out, 10);
@@ -173,7 +169,7 @@ RETURNING r.id;
 
 async function finishRun(db: PsqlSession, runId: number, counts: Record<string, number>, errs: string[], dry: boolean): Promise<void> {
   if (dry || runId < 0) return;
-  const status = errs.length ? "failed" : "completed";
+  const status = errs.length ? "failed" : "success";
   await db.execute(
     `UPDATE cortana_memory_ingest_runs SET finished_at=NOW(), status=${q(status)}, inserted_episodic=${counts.e}, inserted_semantic=${counts.s}, inserted_procedural=${counts.p}, inserted_provenance=${counts.v}, errors=${q(JSON.stringify(errs))}::jsonb WHERE id=${runId};`
   );
@@ -327,7 +323,7 @@ WITH m AS (
     (SELECT COUNT(*) FROM cortana_memory_semantic WHERE active = TRUE) AS semantic_total,
     (SELECT COUNT(*) FROM cortana_memory_procedural WHERE deprecated = FALSE) AS procedural_total,
     (SELECT COUNT(*) FROM cortana_memory_archive) AS archived_total,
-    (SELECT COUNT(*) FROM cortana_memory_ingest_runs WHERE started_at >= NOW() - INTERVAL '24 hours' AND status='completed') AS ingest_runs_24h,
+    (SELECT COUNT(*) FROM cortana_memory_ingest_runs WHERE started_at >= NOW() - INTERVAL '24 hours' AND status='success') AS ingest_runs_24h,
     (SELECT COALESCE(MAX(finished_at), MAX(started_at)) FROM cortana_memory_ingest_runs) AS last_ingest_at,
     (SELECT status FROM cortana_memory_ingest_runs ORDER BY id DESC LIMIT 1) AS last_run_status
 )

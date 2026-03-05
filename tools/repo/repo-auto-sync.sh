@@ -148,14 +148,15 @@ ensure_clean_preflight() {
   local status
   status="$(git -C "$repo" status --porcelain --untracked-files=all)"
   if [[ -n "$status" ]]; then
-    fail "$repo" "preflight-clean" "working tree is dirty/untracked"
+    printf 'WARN repo=%s step=preflight-clean detail=dirty-or-untracked-skip\n' "$repo" >&2
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      printf 'WARN repo=%s step=preflight-clean detail=status-entry entry=%q\n' "$repo" "$line" >&2
+    done <<< "$status"
+    return 2
   fi
 
-  local stash_count
-  stash_count="$(git -C "$repo" stash list | wc -l | tr -d '[:space:]')"
-  if [[ "$stash_count" != "0" ]]; then
-    fail "$repo" "preflight-stash" "stash entries present ($stash_count)"
-  fi
+  return 0
 }
 
 cleanup_local_merged_branches() {
@@ -199,7 +200,15 @@ sync_repo() {
 
   [[ -d "$repo/.git" ]] || fail "$repo" "preflight-repo" "missing git repo"
 
-  ensure_clean_preflight "$repo"
+  local preflight_rc=0
+  ensure_clean_preflight "$repo" || preflight_rc=$?
+  if [[ "$preflight_rc" -ne 0 ]]; then
+    if [[ "$preflight_rc" -eq 2 ]]; then
+      printf 'SKIP repo=%s step=preflight-clean detail=manual-intervention-required\n' "$repo" >&2
+      return 0
+    fi
+    fail "$repo" "preflight-clean" "preflight check failed"
+  fi
 
   git -C "$repo" fetch --all --prune || fail "$repo" "fetch" "git fetch --all --prune failed"
   git -C "$repo" checkout main || fail "$repo" "checkout" "git checkout main failed"

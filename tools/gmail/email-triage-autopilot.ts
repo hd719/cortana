@@ -2,7 +2,8 @@
 
 import { spawnSync } from "node:child_process";
 import { withPostgresPath } from "../lib/db.js";
-import { PSQL_BIN } from "../lib/paths.js";
+
+const DEFAULT_PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql";
 
 type EmailRow = {
   id: string;
@@ -60,9 +61,10 @@ async function main(): Promise<void> {
   const lookback = process.env.TRIAGE_QUERY || "is:unread newer_than:3d";
   const sendTelegram = process.env.TRIAGE_SEND_TELEGRAM || "0";
   const runInboxExecution = process.env.TRIAGE_RUN_INBOX_EXECUTION || "1";
+  const resolvedPsqlBin = process.env.PSQL_BIN || DEFAULT_PSQL_BIN;
   const triageEnv = {
     ...withPostgresPath(process.env),
-    PSQL_BIN: process.env.PSQL_BIN || PSQL_BIN,
+    PSQL_BIN: resolvedPsqlBin,
   };
 
   const rawRes = run("gog", ["--account", account, "gmail", "search", lookback, "--max", maxEmails, "--json"]);
@@ -88,7 +90,7 @@ async function main(): Promise<void> {
 
     const escId = sqlEscape(row.id);
     const existing = run(
-      PSQL_BIN,
+      resolvedPsqlBin,
       [db, "-t", "-A", "-c", `SELECT id FROM cortana_tasks WHERE status IN ('ready','in_progress') AND metadata->>'gmail_id'='${escId}' LIMIT 1;`],
       triageEnv
     ).out.trim();
@@ -116,7 +118,7 @@ VALUES (
     'triage_bucket','${row.bucket}'
   )
 );`;
-    const ins = run(PSQL_BIN, [db, "-v", "ON_ERROR_STOP=1", "-c", sql], triageEnv);
+    const ins = run(resolvedPsqlBin, [db, "-v", "ON_ERROR_STOP=1", "-c", sql], triageEnv);
     if (ins.status === 0) created += 1;
   }
 
