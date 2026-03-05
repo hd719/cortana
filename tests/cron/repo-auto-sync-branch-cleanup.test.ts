@@ -18,8 +18,10 @@ describe("Repo Auto Sync branch cleanup command", () => {
     expect(job?.payload?.message).toBeTruthy();
 
     const message = String(job?.payload?.message ?? "");
+    expect(message).toContain("do not wrap command text in quotes");
     expect(message).toContain("git for-each-ref --format='%(refname:short)' refs/heads --merged origin/main");
     expect(message).toContain("sed -E 's/^[*+[:space:]]+//'");
+    expect(message).toContain('git check-ref-format --branch "$b"');
     expect(message).toContain('git branch -d -- "$b"');
     expect(message).not.toContain("git branch --merged origin/main | sed 's/*//'");
   });
@@ -29,6 +31,8 @@ describe("Repo Auto Sync branch cleanup command", () => {
       "* main",
       "+ fix/dipbuyer-degraded-rate-limit",
       "  feature/clean-tokenizer  ",
+      "+",
+      " * ",
       "",
     ];
 
