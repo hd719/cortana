@@ -1,0 +1,8 @@
+{
+  "defaultNamespace": "main",
+  "namespaces": {
+    "main": "main",
+    "researcher": "researcher",
+    "huragok": "huragok"
+  }
+}

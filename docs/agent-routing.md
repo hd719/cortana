@@ -47,6 +47,49 @@ When a cron agent sends a message to Telegram (e.g., a health alert), **replying
 
 **Future fix:** Cron delivery messages should include a footer indicating they're automated, or OpenClaw should route all Telegram DM replies to the main agent regardless of which agent sent the original message.
 
+## Identity Namespace Wiring (Covenant Slice 2)
+
+Runtime now supports per-agent identity namespace selection via a local internal hook.
+
+### Namespace config
+
+- Source of truth: `config/identity-namespaces.json`
+- Hook: `hooks/identity-namespace-bootstrap/handler.js`
+- Runtime config entry: `hooks.internal.entries.identity-namespace-bootstrap`
+
+Namespace files loaded (when present):
+- `SOUL.md`
+- `USER.md`
+- `IDENTITY.md`
+- `HEARTBEAT.md`
+- `MEMORY.md`
+
+If a namespace file is missing, the hook logs a warning and keeps the workspace default file (non-breaking fallback).
+
+### Rollout
+
+```bash
+# 1) apply repo config updates
+cp /Users/hd/openclaw/config/openclaw.json ~/.openclaw/openclaw.json
+cp /Users/hd/openclaw/config/agent-profiles.json ~/.openclaw/agent-profiles.json
+
+# 2) restart gateway
+openclaw gateway restart
+
+# 3) verify hook is active
+openclaw hooks list | rg identity-namespace-bootstrap
+```
+
+### Rollback
+
+```bash
+# disable only namespace override hook
+openclaw config set hooks.internal.entries.identity-namespace-bootstrap.enabled false
+openclaw gateway restart
+```
+
+This rollback preserves all existing agent routing and reverts bootstrap identity loading to workspace defaults.
+
 ## The "main" Agent Entry
 
 The `main` agent MUST be explicitly listed in both:

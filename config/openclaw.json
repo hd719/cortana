@@ -87,6 +87,7 @@
       {
         "id": "main",
         "workspace": "/Users/hd/openclaw",
+        "identityNamespace": "main",
         "model": {
           "primary": "anthropic/claude-opus-4-6",
           "fallbacks": [
@@ -122,11 +123,13 @@
       {
         "id": "huragok",
         "workspace": "/Users/hd/openclaw",
+        "identityNamespace": "huragok",
         "model": "openai-codex/gpt-5.3-codex"
       },
       {
         "id": "researcher",
         "workspace": "/Users/hd/openclaw",
+        "identityNamespace": "researcher",
         "model": "openai-codex/gpt-5.3-codex"
       }
     ]
@@ -197,6 +200,11 @@
   "hooks": {
     "internal": {
       "enabled": true,
+      "load": {
+        "extraDirs": [
+          "/Users/hd/openclaw/hooks"
+        ]
+      },
       "entries": {
         "boot-md": {
           "enabled": true
@@ -206,6 +214,10 @@
         },
         "command-logger": {
           "enabled": true
+        },
+        "identity-namespace-bootstrap": {
+          "enabled": true,
+          "configPath": "config/identity-namespaces.json"
         }
       }
     }
