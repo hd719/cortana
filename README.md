@@ -8,6 +8,187 @@ If `~/Developer/cortana-external` is the runtime body (services + Mission Contro
 
 ---
 
+## 0. 2026-03-05 Operator Critical Update (live)
+
+This system is now explicitly **dispatcher-first**:
+
+- Cortana = command deck (decide, route, verify, synthesize)
+- Specialists = execution (implement, run, deliver)
+- Inter-agent `sessions_send` lanes = **TASK-only** traffic
+- Cortana channel target = coordination/decisions only (no cron noise firehose)
+
+### 0.1 Canonical command protocol files
+
+- `SOUL.md` (behavior source of truth)
+- `docs/operating-rules.md`
+- `docs/agent-routing.md`
+- `AGENTS.md` (pointer consistency)
+
+### 0.2 Live execution rules
+
+1. Cortana does **not** self-author PRs by default.
+2. Code/infra/PR implementation routes to **Huragok** unless Hamel explicitly directs direct execution.
+3. Specialist outputs delivered directly to Hamel are **not re-relayed** by Cortana.
+4. Any status claim must be check-backed (CI/cron/runtime).
+5. Mistakes are corrected fast with verified closure.
+
+### 0.3 Dispatch graph (current)
+
+```mermaid
+flowchart LR
+  H[Hamel] --> C[Cortana / main\nCommand Deck]
+  C -->|TASK| R[Researcher]
+  C -->|TASK| U[Huragok]
+  C -->|TASK| O[Oracle]
+  C -->|TASK| M[Monitor]
+  R --> T[(Telegram 8171372724)]
+  U --> T
+  O --> T
+  M --> T
+  C -->|coordination/synthesis| T
+```
+
+### 0.4 Execution decision tree (authoritative)
+
+```mermaid
+flowchart TD
+  Q[Inbound request] --> A{Unsafe / policy conflict?}
+  A -->|Yes| STOP[Pause + ask/decline safely]
+  A -->|No| B{Single low-risk tool call?}
+  B -->|Yes| INLINE[Cortana may execute inline]
+  B -->|No| C{Implementation / code / PR?}
+  C -->|Yes| H[Route to Huragok]
+  C -->|No| D{Research / news / analysis?}
+  D -->|Yes| R[Route to Researcher]
+  D -->|No| E{Market / portfolio?}
+  E -->|Yes| O[Route to Oracle]
+  E -->|No| F{Health / cron / drift / incidents?}
+  F -->|Yes| M[Route to Monitor]
+  F -->|No| G[Choose safest specialist/subagent path]
+  H --> V[Verify completion + status]
+  R --> V
+  O --> V
+  M --> V
+  G --> V
+  V --> RESP[Respond with verified state only]
+```
+
+### 0.5 Live routing matrix (specific)
+
+| Lane | Session key | Owns | Must not own | Delivery rule |
+|---|---|---|---|---|
+| Cortana | `agent:main:main` | Coordination, decisions, synthesis, escalation | Default implementation/PR authoring | Only high-signal summaries |
+| Huragok | `agent:huragok:main` | Code changes, repo fixes, CI fixes, PR creation | Market/news synthesis ownership | Direct `message` to Telegram target `8171372724` |
+| Researcher | `agent:researcher:main` | News, research, evidence gathering | Infra implementation | Direct `message` to Telegram target `8171372724` |
+| Oracle | `agent:oracle:main` | Market pulse, portfolio/strategy analysis | Repo/infra implementation | Direct `message` to Telegram target `8171372724` |
+| Monitor | `agent:monitor:main` | Runtime health, cron delivery, drift, incident checks | Feature implementation | Direct `message` to Telegram target `8171372724` |
+
+### 0.6 TASK-lane payload contract (`sessions_send`)
+
+Required fields in every TASK dispatch:
+1. Objective
+2. Scope boundaries
+3. Delivery target (`channel=telegram`, `target=8171372724`)
+4. Completion condition
+5. “Do NOT send it back to Cortana” when direct delivery is required
+
+Invalid lane usage examples:
+- FYI/status chatter
+- duplicate relay requests after specialist already delivered
+- non-actionable narrative without explicit task
+
+### 0.7 Cron/ops signal graph (what pages vs what stays quiet)
+
+```mermaid
+flowchart LR
+  CRON[Cron jobs] --> MON[Monitor checks]
+  HB[Heartbeat] --> MON
+  MON --> EVT[(cortana_events / cron_health)]
+  EVT --> P1{P1/P0 impact?}
+  P1 -->|Yes| PAGE[Escalate to Hamel with failing step, cause, next action]
+  P1 -->|No| QUIET[Log + quiet / specialist lane only]
+  PAGE --> CORTANA[Cortana synthesis]
+  QUIET --> SPECIALIST[Specialist delivery lane]
+```
+
+## 0.8 Full context handoff (for new operator or LLM)
+
+If someone new opens this repo, they should assume:
+
+1. **This is a live command system, not a demo.**
+   `~/openclaw` contains active operating policy for a production personal assistant workflow.
+
+2. **Cortana is orchestration-first by design.**
+   Cortana should route work to specialist lanes and avoid default implementation/PR authoring.
+
+3. **Specialists are first-class execution owners.**
+   - Huragok = implementation/PR/infra
+   - Researcher = research/news synthesis
+   - Oracle = market/portfolio analysis
+   - Monitor = runtime/cron/drift/reliability
+
+4. **Delivery path is explicit.**
+   Specialist outputs generally deliver directly to Telegram target `8171372724` via `message` tool.
+
+5. **Inter-agent traffic is constrained.**
+   `sessions_send` lanes are TASK-only. No status chatter/FYI traffic.
+
+6. **Cortana channel must remain high-signal.**
+   Only coordination, decisions, blockers, verified status.
+
+7. **Verification is mandatory before claims.**
+   CI/cron/runtime status should be checked before declaring healthy/completed.
+
+8. **Recent architecture hardening was deliberate.**
+   Current docs encode a delegation/routing reliability discipline, not optional style guidance.
+
+### 0.9 Context map graph (who does what, end-to-end)
+
+```mermaid
+flowchart TB
+  subgraph Human Layer
+    H[Hamel]
+  end
+
+  subgraph Command Layer
+    C[Cortana / main\nDecision + Routing + Verification]
+  end
+
+  subgraph Execution Layer
+    U[Huragok\nImplement + PR + Infra]
+    R[Researcher\nResearch + News]
+    O[Oracle\nMarket + Portfolio]
+    M[Monitor\nHealth + Cron + Drift]
+  end
+
+  subgraph Control Artifacts
+    S[SOUL.md]
+    OR[docs/operating-rules.md]
+    AR[docs/agent-routing.md]
+    AG[AGENTS.md]
+    HB[HEARTBEAT.md]
+    CJ[config/cron/jobs.json]
+  end
+
+  H --> C
+  C -->|TASK dispatch| U
+  C -->|TASK dispatch| R
+  C -->|TASK dispatch| O
+  C -->|TASK dispatch| M
+
+  U -->|direct delivery| H
+  R -->|direct delivery| H
+  O -->|direct delivery| H
+  M -->|direct delivery| H
+
+  S --> C
+  OR --> C
+  AR --> C
+  AG --> C
+  HB --> M
+  CJ --> M
+```
+
 ## 1. What this is
 
 Cortana is Hamel’s **autonomous AI chief-of-staff** built on **OpenClaw**.
