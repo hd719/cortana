@@ -1,9 +1,14 @@
 #!/usr/bin/env npx tsx
 
 import { spawnSync } from "node:child_process";
+import { existsSync } from "node:fs";
+import { resolve } from "node:path";
+import { config as loadDotenv } from "dotenv";
 import { parseSignals, runTradingCouncil, type CouncilVerdict, type TradingSignal } from "../council/trading-council";
 
 const DEFAULT_SCAN_LIMIT = 120;
+const BACKTESTER_CWD = "/Users/hd/Developer/cortana-external/backtester";
+const BACKTESTER_ENV_PATH = resolve(BACKTESTER_CWD, ".env");
 
 interface ScanResult {
   name: "CANSLIM" | "Dip Buyer";
@@ -39,10 +44,48 @@ interface CorrectionProfile {
   dipMinBuyScore: number;
 }
 
+function loadBacktesterEnv(): void {
+  if (existsSync(BACKTESTER_ENV_PATH)) {
+    loadDotenv({ path: BACKTESTER_ENV_PATH, override: false });
+  }
+}
+
+function ensurePythonModuleAvailable(moduleName: string): void {
+  const pythonPath = resolve(BACKTESTER_CWD, ".venv/bin/python");
+  const check = spawnSync(pythonPath, ["-c", `import ${moduleName}`], { encoding: "utf8" });
+  if (check.status === 0) return;
+
+  throw new Error(
+    [
+      `Trading Advisor dependency check failed: Python module '${moduleName}' is not available in ${pythonPath}.`,
+      `Install dependencies with: ${pythonPath} -m pip install -r ${resolve(BACKTESTER_CWD, "requirements.txt")}`,
+    ].join("\n"),
+  );
+}
+
+function ensureFredApiKey(): void {
+  const fredKey = (process.env.FRED_API_KEY ?? "").trim();
+  if (!fredKey) {
+    throw new Error(
+      [
+        "Trading Advisor requires FRED_API_KEY for Dip Buyer scans.",
+        `Set FRED_API_KEY in your shell or add it to ${BACKTESTER_ENV_PATH}.`,
+      ].join("\n"),
+    );
+  }
+
+  if (/\s/.test(fredKey)) {
+    throw new Error("Trading Advisor FRED_API_KEY is invalid: it must not contain whitespace.");
+  }
+}
+
 function defaultRunCommand(command: string, args: string[]): string {
-  const result = spawnSync(command, args, {
-    cwd: "/Users/hd/Developer/cortana-external/backtester",
+  const resolvedCommand = command === "python3" ? `${BACKTESTER_CWD}/.venv/bin/python` : command;
+
+  const result = spawnSync(resolvedCommand, args, {
+    cwd: BACKTESTER_CWD,
     encoding: "utf8",
+    env: process.env,
   });
 
   if (result.status !== 0) {
@@ -381,6 +424,10 @@ function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): stri
 export async function runTradingPipeline(deps?: Partial<PipelineDeps>): Promise<string> {
   const runCommand = deps?.runCommand ?? defaultRunCommand;
   const council = deps?.council ?? (async (alertText: string) => runTradingCouncil(alertText));
+
+  loadBacktesterEnv();
+  ensurePythonModuleAvailable("dotenv");
+  ensureFredApiKey();
 
   const canslimLimit = getScanLimit("CANSLIM");
   const dipLimit = getScanLimit("Dip Buyer");
