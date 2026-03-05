@@ -40,6 +40,11 @@
     "model": "openai-codex/gpt-5.3-codex"
   },
   {
+    "id": "researcher",
+    "workspace": "/Users/hd/openclaw",
+    "model": "openai-codex/gpt-5.3-codex"
+  },
+  {
     "id": "cortana-acp",
     "workspace": "/Users/hd/openclaw",
     "model": "openai-codex/gpt-5.3-codex"

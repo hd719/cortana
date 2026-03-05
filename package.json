@@ -9,7 +9,9 @@
     "release:done-gates": "npx tsx tools/release/done-gates.ts",
     "session:lifecycle": "npx --yes tsx tools/session/session-lifecycle-policy.ts",
     "deploy:drift-warning": "bash tools/release/deploy-drift-warning.sh",
-    "taskboard:integrity-guard": "npx tsx tools/task-board/integrity-guard.ts --pretty"
+    "taskboard:integrity-guard": "npx tsx tools/task-board/integrity-guard.ts --pretty",
+    "researcher:start": "bash tools/researcher/start-researcher.sh",
+    "researcher:start:dry": "bash tools/researcher/start-researcher.sh --dry-run"
   },
   "devDependencies": {
     "tsx": "^4.6.0",

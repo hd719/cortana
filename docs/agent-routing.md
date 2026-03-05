@@ -16,6 +16,7 @@ This system runs multiple agents, each with its own workspace, model, and sessio
 | cron-maintenance | System updates | `~/.openclaw/workspaces/cron-maintenance` | gpt-5.1 | No — cron only |
 | **huragok** | Telegram infra lane for Huragok group/chat entrypoint | `/Users/hd/openclaw` | gpt-5.3-codex | Yes (bound group/channel) |
 | huragok-worker | Worker profile for spawned task runs from Huragok lane | `/Users/hd/openclaw` | gpt-5.3-codex | No — spawn target only |
+| **researcher** | Dedicated investigation/research execution lane for Cortana delegation | `/Users/hd/openclaw` | gpt-5.3-codex | No — spawn target only |
 | cortana-acp | On-demand specialist coding lane for explicit ACP runtime requests | `/Users/hd/openclaw` | gpt-5.3-codex | No — spawn target only |
 
 ## Channel Routing
@@ -36,6 +37,8 @@ Route to `cortana-acp` only when the user explicitly requests a coding runtime (
 Quick decision rule:
 - User explicitly names Codex/Claude/Gemini or asks for "ACP" → spawn with `agentId: "cortana-acp"`
 - Otherwise → spawn normal Covenant role agent (`huragok`, `researcher`, `monitor`, `oracle`, `librarian`) per task type
+
+For Researcher bootstrap + usage details, see `docs/researcher-bot-bootstrap.md`.
 
 ## Known Pitfall: Reply Routing
 
