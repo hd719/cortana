@@ -4,7 +4,8 @@
 
 import fs from "fs";
 import path from "path";
-import { runPsql, withPostgresPath } from "../lib/db.js";
+import db from "../lib/db.js";
+const { runPsql, withPostgresPath } = db;
 import { resolveRepoPath } from "../lib/paths.js";
 import { groupIsComplete } from "./executor.js";
 

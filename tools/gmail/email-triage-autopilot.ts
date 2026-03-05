@@ -1,7 +1,8 @@
 #!/usr/bin/env npx tsx
 
 import { spawnSync } from "node:child_process";
-import { withPostgresPath } from "../lib/db.js";
+import db from "../lib/db.js";
+const { withPostgresPath } = db;
 
 const DEFAULT_PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql";
 

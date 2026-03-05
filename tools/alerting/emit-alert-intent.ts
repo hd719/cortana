@@ -1,6 +1,7 @@
 #!/usr/bin/env npx tsx
 import { randomUUID } from "crypto";
-import { runPsql, withPostgresPath } from "../lib/db.js";
+import db from "../lib/db.js";
+const { runPsql, withPostgresPath } = db;
 import { PSQL_BIN } from "../lib/paths.js";
 
 const DB_NAME = process.env.CORTANA_DB ?? "cortana";

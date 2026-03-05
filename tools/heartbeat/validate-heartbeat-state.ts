@@ -12,7 +12,8 @@ import {
   touchHeartbeat,
   validateHeartbeatState,
 } from "../lib/heartbeat-schema.js";
-import { withPostgresPath } from "../lib/db.js";
+import db from "../lib/db.js";
+const { withPostgresPath } = db;
 import { PSQL_BIN } from "../lib/paths.js";
 
 function logWriteTelemetry(source: string, dbName: string, oldHash: string | null, newHash: string): void {

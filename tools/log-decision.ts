@@ -1,7 +1,8 @@
 #!/usr/bin/env npx tsx
 import path from "path";
 import { randomUUID } from "crypto";
-import { runPsql, withPostgresPath } from "./lib/db.js";
+import db from "./lib/db.js";
+const { runPsql, withPostgresPath } = db;
 
 function usage(): void {
   const script = path.basename(process.argv[1] ?? "log-decision.ts");

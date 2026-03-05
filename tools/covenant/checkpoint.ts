@@ -7,7 +7,8 @@
  * with helpers to save/load/resume/list/cleanup.
  */
 
-import { runPsql, withPostgresPath } from "../lib/db.js";
+import db from "../lib/db.js";
+const { runPsql, withPostgresPath } = db;
 
 const DEFAULT_DB = "cortana";
 const VALID_STATES = new Set(["queued", "running", "completed", "failed", "paused"]);
