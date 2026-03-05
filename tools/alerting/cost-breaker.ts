@@ -3,7 +3,8 @@
 import fs from "fs";
 import path from "path";
 import { spawnSync } from "child_process";
-import { withPostgresPath, runPsql } from "../lib/db.js";
+import db from "../lib/db.js";
+const { withPostgresPath, runPsql } = db;
 import { resolveHomePath } from "../lib/paths.js";
 import { readJsonFile } from "../lib/json-file.js";
 

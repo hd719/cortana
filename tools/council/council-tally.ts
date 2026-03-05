@@ -1,7 +1,8 @@
 #!/usr/bin/env npx tsx
 
 import { spawnSync } from "child_process";
-import { withPostgresPath } from "../lib/db.js";
+import db from "../lib/db.js";
+const { withPostgresPath } = db;
 
 const DB_NAME = "cortana";
 const sqlQuote = (s = "") => `'${s.replace(/'/g, "''")}'`;

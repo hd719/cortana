@@ -3,7 +3,8 @@ import fs from "fs";
 import os from "os";
 import path from "path";
 import { execSync } from "child_process";
-import { runPsql, withPostgresPath } from "../lib/db.js";
+import db from "../lib/db.js";
+const { runPsql, withPostgresPath } = db;
 import { PSQL_BIN, repoRoot } from "../lib/paths.js";
 
 type BulletRow = { line: number; raw: string; norm: string };

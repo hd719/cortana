@@ -2,7 +2,8 @@
 
 /** Identity-scoped memory injector for Covenant agent spawn prompts. */
 
-import { runPsql, withPostgresPath } from "../lib/db.js";
+import db from "../lib/db.js";
+const { runPsql, withPostgresPath } = db;
 
 const DB_NAME = "cortana";
 

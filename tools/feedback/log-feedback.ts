@@ -2,7 +2,8 @@
 
 import { randomUUID } from "node:crypto";
 import { spawnSync } from "node:child_process";
-import { withPostgresPath } from "../lib/db.js";
+import db from "../lib/db.js";
+const { withPostgresPath } = db;
 import { PSQL_BIN } from "../lib/paths.js";
 
 function isUuid(value: string): boolean {

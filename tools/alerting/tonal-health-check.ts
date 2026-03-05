@@ -1,7 +1,8 @@
 #!/usr/bin/env npx tsx
 import { execFileSync } from "child_process";
 import os from "os";
-import { runPsql, withPostgresPath } from "../lib/db.js";
+import db from "../lib/db.js";
+const { runPsql, withPostgresPath } = db;
 
 const DB = process.env.CORTANA_DB ?? "cortana";
 const TONAL_ENDPOINT = process.env.TONAL_ENDPOINT ?? "http://localhost:3033/tonal/health";
