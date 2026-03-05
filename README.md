@@ -8,6 +8,14 @@ If `~/Developer/cortana-external` is the runtime body (services + Mission Contro
 
 ---
 
+## 0.0 Sensitive identifier policy
+
+This repository is public. Do **not** hardcode personal identifiers (phone/chat IDs, tokens, secrets) in tracked docs.
+
+- Use placeholders in repo docs: `<PRIMARY_TELEGRAM_TARGET>`
+- Store real values in private runtime config (`~/.openclaw/*`) or secrets manager
+- If an example must show a real value for local debugging, keep it in untracked local notes only
+
 ## 0. 2026-03-05 Operator Critical Update (live)
 
 This system is now explicitly **dispatcher-first**:
@@ -41,7 +49,7 @@ flowchart LR
   C -->|TASK| U[Huragok]
   C -->|TASK| O[Oracle]
   C -->|TASK| M[Monitor]
-  R --> T[(Telegram 8171372724)]
+  R --> T[(Telegram <PRIMARY_TELEGRAM_TARGET>)]
   U --> T
   O --> T
   M --> T
@@ -78,17 +86,17 @@ flowchart TD
 | Lane | Session key | Owns | Must not own | Delivery rule |
 |---|---|---|---|---|
 | Cortana | `agent:main:main` | Coordination, decisions, synthesis, escalation | Default implementation/PR authoring | Only high-signal summaries |
-| Huragok | `agent:huragok:main` | Code changes, repo fixes, CI fixes, PR creation | Market/news synthesis ownership | Direct `message` to Telegram target `8171372724` |
-| Researcher | `agent:researcher:main` | News, research, evidence gathering | Infra implementation | Direct `message` to Telegram target `8171372724` |
-| Oracle | `agent:oracle:main` | Market pulse, portfolio/strategy analysis | Repo/infra implementation | Direct `message` to Telegram target `8171372724` |
-| Monitor | `agent:monitor:main` | Runtime health, cron delivery, drift, incident checks | Feature implementation | Direct `message` to Telegram target `8171372724` |
+| Huragok | `agent:huragok:main` | Code changes, repo fixes, CI fixes, PR creation | Market/news synthesis ownership | Direct `message` to Telegram target `<PRIMARY_TELEGRAM_TARGET>` |
+| Researcher | `agent:researcher:main` | News, research, evidence gathering | Infra implementation | Direct `message` to Telegram target `<PRIMARY_TELEGRAM_TARGET>` |
+| Oracle | `agent:oracle:main` | Market pulse, portfolio/strategy analysis | Repo/infra implementation | Direct `message` to Telegram target `<PRIMARY_TELEGRAM_TARGET>` |
+| Monitor | `agent:monitor:main` | Runtime health, cron delivery, drift, incident checks | Feature implementation | Direct `message` to Telegram target `<PRIMARY_TELEGRAM_TARGET>` |
 
 ### 0.6 TASK-lane payload contract (`sessions_send`)
 
 Required fields in every TASK dispatch:
 1. Objective
 2. Scope boundaries
-3. Delivery target (`channel=telegram`, `target=8171372724`)
+3. Delivery target (`channel=telegram`, `target=<PRIMARY_TELEGRAM_TARGET>`)
 4. Completion condition
 5. “Do NOT send it back to Cortana” when direct delivery is required
 
@@ -128,7 +136,7 @@ If someone new opens this repo, they should assume:
    - Monitor = runtime/cron/drift/reliability
 
 4. **Delivery path is explicit.**
-   Specialist outputs generally deliver directly to Telegram target `8171372724` via `message` tool.
+   Specialist outputs generally deliver directly to Telegram target `<PRIMARY_TELEGRAM_TARGET>` via `message` tool.
 
 5. **Inter-agent traffic is constrained.**
    `sessions_send` lanes are TASK-only. No status chatter/FYI traffic.
@@ -188,6 +196,125 @@ flowchart TB
   HB --> M
   CJ --> M
 ```
+
+## 0.10 Concrete operating contracts (deep detail)
+
+### A) Session keys, delivery account IDs, and ownership contracts
+
+| Agent | Session key | Primary accountId for delivery | Owns (explicit) | Must escalate to |
+|---|---|---:|---|---|
+| Cortana | `agent:main:main` | `default` | triage, routing, synthesis, escalation decisions, final command recommendations | specialist lane or user decision |
+| Huragok | `agent:huragok:main` | `huragok` | implementation, repo operations, CI fixes, PR creation, infra/tooling changes | Cortana for strategic conflicts |
+| Researcher | `agent:researcher:main` | `researcher` | research briefs, source synthesis, fact gathering, external intel scans | Cortana for decision synthesis |
+| Oracle | `agent:oracle:main` | `oracle` | premarket/market pulse, portfolio intelligence, scenario/risk framing | Cortana for final action decision |
+| Monitor | `agent:monitor:main` | `monitor` | runtime checks, cron delivery reliability, drift and watchdog checks, incident verification | Cortana for operator escalation |
+
+**Contract:** if task maps cleanly to one specialist lane, Cortana routes there first.
+
+### B) `sessions_send` TASK message schema (required)
+
+Every task dispatch must include these fields in plain language:
+
+1. **Objective** — exactly what to produce.
+2. **Scope** — included and excluded actions.
+3. **Execution steps** — numbered when precision is needed.
+4. **Verification requirement** — how to prove success.
+5. **Delivery contract** — message tool details (`channel=telegram`, `target=<PRIMARY_TELEGRAM_TARGET>`, `accountId=<owner>` when required).
+6. **No-relay rule** — whether to avoid sending result back through Cortana.
+
+#### Example (valid)
+- Objective: Patch failing CI test and open PR.
+- Scope: only files under `tools/morning-brief/*` and matching tests.
+- Verification: run specific test command and include pass/fail output.
+- Delivery: send PR URL directly to Telegram target `<PRIMARY_TELEGRAM_TARGET>`.
+
+#### Example (invalid)
+- “FYI this might be broken, can you look?” (no objective/scope/verification)
+- “Tell Cortana what you found” when direct delivery is required.
+- Multi-topic chatter with no executable deliverable.
+
+### C) Verification gates (what must be checked before status claims)
+
+| Claim type | Required verification |
+|---|---|
+| “CI is green” | `gh pr checks <pr>` and/or run status with no failed jobs |
+| “Cron routing fixed” | runtime `~/.openclaw/cron/jobs.json` + repo `config/cron/jobs.json` aligned and tested |
+| “Gateway healthy” | `openclaw gateway status` returns running + responsive |
+| “Task done” | concrete artifact exists (PR URL, commit hash, output file, delivered message) |
+| “No failures” | relevant monitor check executed and no failed conditions in output |
+
+**Rule:** no green-language without check evidence.
+
+### D) Escalation payload format (mandatory for failures)
+
+When reporting failures, include all of:
+1. **Failing step/system**
+2. **Observed symptom**
+3. **Likely root cause**
+4. **Action taken or needed approval**
+5. **Immediate next action**
+6. **Risk/ETA**
+
+Short form template:
+
+`<system> failed at <step>. Symptom: <x>. Likely cause: <y>. I did/need: <z>. Next: <n> in <eta>.`
+
+### E) Cron routing discipline (operator intention)
+
+- Cron jobs should deliver through mapped specialist account IDs where configured.
+- Cortana/default lane should carry only high-signal coordination outputs.
+- Cron noise, routine checks, and repetitive health chatter belong to specialist lanes.
+
+### F) Anti-regression checklist (post-change)
+
+After routing/protocol changes, verify:
+
+- [ ] `SOUL.md` reflects current command protocol.
+- [ ] `docs/operating-rules.md` and `docs/agent-routing.md` are consistent.
+- [ ] `AGENTS.md` pointers match canonical behavior.
+- [ ] `config/cron/jobs.json` synced with runtime `~/.openclaw/cron/jobs.json` if routing changes touched cron.
+- [ ] No newly introduced duplicate relay path.
+- [ ] No status claim made without evidence.
+
+### G) Failure-mode flow (fast operator triage)
+
+```mermaid
+flowchart TD
+  X[Failure signal appears] --> Y{Is this user-visible now?}
+  Y -->|Yes| P1[Page-quality alert\nwith full escalation payload]
+  Y -->|No| Z[Collect evidence + attempt safe mitigation]
+  Z --> Q{Mitigation worked?}
+  Q -->|Yes| LOG[Log outcome + quiet specialist update]
+  Q -->|No| ESC[Escalate to Cortana\nwith exact blocker + next action]
+  ESC --> DECIDE[Cortana decision\nreroute/retry/approve]
+```
+
+### H) Command-vs-execution boundary quick map
+
+```mermaid
+graph LR
+  CD[Command Deck: Cortana] -->|decide| ROUTE[Route to owner lane]
+  ROUTE --> EXE1[Huragok executes implementation]
+  ROUTE --> EXE2[Researcher executes research]
+  ROUTE --> EXE3[Oracle executes market analysis]
+  ROUTE --> EXE4[Monitor executes health checks]
+  EXE1 --> OUT[Direct operator delivery]
+  EXE2 --> OUT
+  EXE3 --> OUT
+  EXE4 --> OUT
+  OUT --> SYN[Optional Cortana synthesis only when needed]
+```
+
+### I) What “fully in-policy” looks like
+
+A run is in-policy when:
+- routing owner is correct,
+- execution stays in specialist lane,
+- delivery target is explicit,
+- verification evidence exists,
+- Cortana output is concise and non-duplicative.
+
+If any one is missing, run is partially out-of-policy and should be corrected.
 
 ## 1. What this is
 
@@ -733,3 +860,173 @@ It is **not** a generic framework or turnkey product. You can read it for ideas,
 
 Last refreshed: **2026-03-01**
 
+
+
+## 11) Chapter: Job-level execution contracts (operator reference)
+
+### 11.1 Dispatch contract by task class
+
+| Task class | Primary owner | Required verification artifact | Delivery path | Escalate when |
+|---|---|---|---|---|
+| PR/code fix | Huragok | PR URL + commit hash + passing checks | Specialist direct | blocked by CI/security/policy |
+| Research brief | Researcher | source links + concise synthesis | Specialist direct | conflicting sources/high uncertainty |
+| Market pulse | Oracle | timestamped snapshot + assumptions | Specialist direct | data source outage/stale feed |
+| Runtime health | Monitor | command output + status judgment | Specialist direct | P1/P0 impact detected |
+
+### 11.2 Mandatory output schema (all specialist deliveries)
+
+1. Outcome (success/fail/blocked)
+2. What changed (artifact list)
+3. Evidence (command/check/output)
+4. Risk/impact (none/low/med/high)
+5. Next action
+
+### 11.3 Prohibited output patterns
+
+- “Done” with no artifact
+- “Looks good” with no check evidence
+- multi-paragraph verbose logs without summary line
+- relaying another specialist’s output when already delivered directly
+
+### 11.4 Command examples (copy/paste)
+
+```bash
+# CI status evidence
+gh pr checks <PR_NUMBER> --repo hd719/cortana
+
+# Gateway status evidence
+openclaw gateway status
+
+# Cron jobs inventory evidence
+openclaw cron list
+
+# Session health evidence
+openclaw sessions --all-agents --active 120
+```
+
+## 12) Chapter: Reliability playbooks (specific)
+
+### 12.1 CI red after docs/prompt change
+
+**Symptom:** PR checks fail after cron/prompt edits.
+
+**Likely causes:**
+- tests asserting exact cron prompt text
+- changed wording removed required phrases
+
+**Immediate sequence:**
+1. Inspect failed test names and expected substrings.
+2. Restore required phrases in `config/cron/jobs.json` while preserving routing headers.
+3. Run targeted tests locally.
+4. Push focused fix commit.
+
+**Evidence required before “fixed”:**
+- test command output
+- updated commit hash
+- checks status green/pending with no failed jobs
+
+### 12.2 “message too long” Telegram delivery failure
+
+**Symptom:** `400 Bad Request: message is too long`.
+
+**Mitigation policy:**
+- normalize payloads to concise text only
+- enforce max-length before send
+- chunk into ordered parts (Part N/M)
+
+**Verification:**
+- smoke run exits 0
+- output delivered without 400
+- all required sections present
+
+### 12.3 Repo auto-sync preflight skip
+
+**Symptom:** `manual-intervention-required` from preflight-clean.
+
+**Likely causes:**
+- dirty tracked file
+- untracked generated caches
+
+**Mitigation policy:**
+- identify tracked vs generated artifacts
+- ignore generated cache via proper ignore strategy
+- do not silently discard tracked work
+
+### 12.4 Subagent stale/aborted session noise
+
+**Symptom:** repeated aborted/stale subagent alerts.
+
+**Mitigation policy:**
+- kill/cleanup stale runs
+- prune missing transcript references
+- confirm watchdog no longer re-alerts for same stale ID
+
+## 13) Chapter: Verification command catalog
+
+### 13.1 Routing/config verification
+
+```bash
+# Compare runtime and repo cron config
+shasum ~/.openclaw/cron/jobs.json /Users/hd/openclaw/config/cron/jobs.json
+
+# Show delivery account routing snippets
+rg -n 'accountId|DELIVERY ROUTING' /Users/hd/openclaw/config/cron/jobs.json
+```
+
+### 13.2 PR/branch verification
+
+```bash
+# Confirm branch base state
+git checkout main && git pull --ff-only
+
+# Show commit list for active PR branch
+git log --oneline -n 10
+```
+
+### 13.3 Runtime verification
+
+```bash
+# Gateway health
+openclaw gateway status
+
+# OpenClaw status card
+openclaw status
+```
+
+## 14) Chapter: Escalation quality rubric
+
+### 14.1 Alert quality scoring
+
+| Dimension | Bad | Good | Excellent |
+|---|---|---|---|
+| Specificity | “it failed” | names failing check | step + cause + evidence |
+| Actionability | no next step | one next step | next step + ETA + fallback |
+| Verification | none | one command | command + result + interpretation |
+| Noise | verbose log dump | concise | concise + operator-ready |
+
+### 14.2 Minimum acceptable alert (one-line)
+
+`<job/system> failed at <step>; likely <cause>; action <taken/needed>; next <step> in <eta>.`
+
+## 15) Chapter: Public-repo documentation safety
+
+Because this repository is public:
+
+- Never commit personal phone/chat IDs.
+- Never commit API keys/tokens/secrets.
+- Avoid exposing private hostnames/IPs when not necessary.
+- Use placeholders in docs and keep concrete values in local runtime config.
+
+### 15.1 Placeholder conventions
+
+- `<PRIMARY_TELEGRAM_TARGET>`
+- `<LOCAL_GATEWAY_PORT>`
+- `<PRIVATE_ENDPOINT>`
+- `<SECRET_NAME>`
+
+### 15.2 Redaction checklist before commit
+
+- [ ] No raw IDs in README/docs
+- [ ] No secrets/tokens in diffs
+- [ ] No accidental local paths that reveal sensitive context beyond operational need
+- [ ] Public-safe wording for all examples
