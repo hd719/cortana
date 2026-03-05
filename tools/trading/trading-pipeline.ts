@@ -9,6 +9,7 @@ import { parseSignals, runTradingCouncil, type CouncilVerdict, type TradingSigna
 const DEFAULT_SCAN_LIMIT = 120;
 const BACKTESTER_CWD = "/Users/hd/Developer/cortana-external/backtester";
 const BACKTESTER_ENV_PATH = resolve(BACKTESTER_CWD, ".env");
+const SHARED_EXTERNAL_ENV_PATH = "/Users/hd/Developer/cortana-external/.env";
 
 interface ScanResult {
   name: "CANSLIM" | "Dip Buyer";
@@ -45,15 +46,25 @@ interface CorrectionProfile {
 }
 
 function loadBacktesterEnv(): void {
-  if (existsSync(BACKTESTER_ENV_PATH)) {
-    loadDotenv({ path: BACKTESTER_ENV_PATH, override: false });
+  for (const envPath of [BACKTESTER_ENV_PATH, SHARED_EXTERNAL_ENV_PATH]) {
+    if (existsSync(envPath)) {
+      loadDotenv({ path: envPath, override: false });
+    }
   }
 }
 
-function ensurePythonModuleAvailable(moduleName: string): void {
+function ensurePythonModuleAvailable(moduleName: string, options?: { optional?: boolean }): void {
   const pythonPath = resolve(BACKTESTER_CWD, ".venv/bin/python");
   const check = spawnSync(pythonPath, ["-c", `import ${moduleName}`], { encoding: "utf8" });
   if (check.status === 0) return;
+
+  if (options?.optional) {
+    console.warn(
+      `Trading Advisor preflight warning: optional Python module '${moduleName}' is not available in ${pythonPath}. ` +
+        "Continuing because the backtester has a built-in fallback.",
+    );
+    return;
+  }
 
   throw new Error(
     [
@@ -64,18 +75,21 @@ function ensurePythonModuleAvailable(moduleName: string): void {
 }
 
 function ensureFredApiKey(): void {
-  const fredKey = (process.env.FRED_API_KEY ?? "").trim();
+  const rawFredKey = process.env.FRED_API_KEY ?? "";
+  const fredKey = rawFredKey.trim();
   if (!fredKey) {
     throw new Error(
       [
         "Trading Advisor requires FRED_API_KEY for Dip Buyer scans.",
-        `Set FRED_API_KEY in your shell or add it to ${BACKTESTER_ENV_PATH}.`,
+        `Set FRED_API_KEY in your shell or add it to one of: ${BACKTESTER_ENV_PATH} or ${SHARED_EXTERNAL_ENV_PATH}.`,
       ].join("\n"),
     );
   }
 
-  if (/\s/.test(fredKey)) {
-    throw new Error("Trading Advisor FRED_API_KEY is invalid: it must not contain whitespace.");
+  if (/\s/.test(rawFredKey)) {
+    throw new Error(
+      "Trading Advisor FRED_API_KEY is invalid: it must not contain whitespace characters (spaces/newlines/tabs).",
+    );
   }
 }
 
@@ -426,7 +440,7 @@ export async function runTradingPipeline(deps?: Partial<PipelineDeps>): Promise<
   const council = deps?.council ?? (async (alertText: string) => runTradingCouncil(alertText));
 
   loadBacktesterEnv();
-  ensurePythonModuleAvailable("dotenv");
+  ensurePythonModuleAvailable("dotenv", { optional: true });
   ensureFredApiKey();
 
   const canslimLimit = getScanLimit("CANSLIM");
