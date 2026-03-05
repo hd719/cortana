@@ -159,23 +159,53 @@
   },
   "bindings": [
     {
-      "agentId": "huragok",
+      "agentId": "researcher",
       "match": {
         "channel": "telegram",
-        "peer": {
-          "kind": "group",
-          "id": "-5229462108"
-        }
+        "accountId": "researcher"
       }
     },
     {
       "agentId": "huragok",
       "match": {
         "channel": "telegram",
+        "accountId": "huragok"
+      }
+    },
+    {
+      "agentId": "oracle",
+      "match": {
+        "channel": "telegram",
+        "accountId": "oracle",
         "peer": {
-          "kind": "channel",
-          "id": "-5229462108"
+          "kind": "group",
+          "id": "-5006548746"
         }
+      }
+    },
+    {
+      "agentId": "oracle",
+      "match": {
+        "channel": "telegram",
+        "accountId": "oracle"
+      }
+    },
+    {
+      "agentId": "monitor",
+      "match": {
+        "channel": "telegram",
+        "accountId": "monitor",
+        "peer": {
+          "kind": "group",
+          "id": "-5006548746"
+        }
+      }
+    },
+    {
+      "agentId": "monitor",
+      "match": {
+        "channel": "telegram",
+        "accountId": "monitor"
       }
     }
   ],
