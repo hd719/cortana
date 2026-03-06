@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 describe("Fitness Evening Recap Tonal tomorrow messaging", () => {
-  it("includes explicit normal-vs-failure wording for tomorrow Tonal workout", () => {
+  it("enforces the current section D and missing-metric messaging contract", () => {
     const jobsPath = path.resolve("config/cron/jobs.json");
     const raw = fs.readFileSync(jobsPath, "utf8");
     const json = JSON.parse(raw) as {
@@ -14,9 +14,11 @@ describe("Fitness Evening Recap Tonal tomorrow messaging", () => {
     expect(job?.payload?.message).toBeTruthy();
 
     const message = String(job?.payload?.message ?? "");
-    expect(message).toContain("For section D (Tomorrow Tonal workout):");
-    expect(message).toContain("No Tonal workout scheduled for tomorrow.");
-    expect(message).toContain("Couldn’t fetch upcoming Tonal schedule.");
-    expect(message).toContain("If a metric is missing in other sections");
+    expect(message).toContain("Output sections:");
+    expect(message).toMatch(/D\)\s*Tomorrow Tonal workout/);
+    expect(message).toContain('If no workouts today, explicitly say:');
+    expect(message).toContain("Rest day — no workout logged today.");
+    expect(message).toMatch(/If a metric is missing.*"Unavailable"/s);
+    expect(message).toContain('Keep concise and useful; avoid repeating "N/A" across sections.');
   });
 });
