@@ -1,0 +1,54 @@
+{
+  "seen": [
+    {"id": "twitter://search/?query=%22Kristi+Noem%22&src=trend_click&pc=true&vertical=trends", "headline": "Kristi Noem", "category": "Politics · Trending"},
+    {"id": "twitter://search/?query=Malkin&src=trend_click&pc=true&vertical=trends", "headline": "Malkin", "category": "Sports · Trending"},
+    {"id": "twitter://search/?query=%23911onABC&src=trend_click&pc=true&vertical=trends", "headline": "#911onABC", "category": "Trending in United States"},
+    {"id": "twitter://search/?query=Messi&src=trend_click&pc=true&vertical=trends", "headline": "Messi", "category": "Trending in United States"},
+    {"id": "twitter://search/?query=%22Bob+Harlan%22&src=trend_click&pc=true&vertical=trends", "headline": "Bob Harlan", "category": "Trending in United States"},
+    {"id": "twitter://search/?query=%22Trae+Young%22&src=trend_click&pc=true&vertical=trends", "headline": "Trae Young", "category": "Sports · Trending"},
+    {"id": "twitter://search/?query=Corey&src=trend_click&pc=true&vertical=trends", "headline": "Corey", "category": "Politics · Trending"},
+    {"id": "twitter://search/?query=Letang&src=trend_click&pc=true&vertical=trends", "headline": "Letang", "category": "Sports · Trending"},
+    {"id": "twitter://search/?query=Bondi&src=trend_click&pc=true&vertical=trends", "headline": "Bondi", "category": "Politics · Trending"},
+    {"id": "twitter://search/?query=%23HYUNJINxGUESS&src=trend_click&pc=true&vertical=trends", "headline": "#HYUNJINxGUESS", "category": "Only on X · Trending"},
+
+    {"id": "twitter://trending/2028903076527259936", "headline": "House Overwhelmingly Shelves Release of Congressional Sexual Misconduct Reports", "category": "AI · Other"},
+    {"id": "twitter://trending/2028941071611556053", "headline": "U.S. and Israel Escalate Air Strikes on Iran After Khamenei Assassination", "category": "AI · News"},
+    {"id": "twitter://trending/2029174970979631603", "headline": "House Subpoenas AG Bondi Over Missing Epstein Files", "category": "AI · Other"},
+    {"id": "twitter://trending/2029144558253293682", "headline": "U.S. Submarine Sinks Iranian Frigate Near Sri Lanka, Killing 87 Sailors", "category": "AI · Other"},
+    {"id": "twitter://trending/2029557073915023550", "headline": "Trump Replaces Noem with Mullin as DHS Secretary Amid Shutdown Standoff", "category": "AI · Other"},
+
+    {"id": "twitter://search/?query=%23911onABC&src=trend_click&pc=true&vertical=trends", "headline": "#911onABC", "category": "Trending in United States"},
+    {"id": "twitter://search/?query=Malkin&src=trend_click&pc=true&vertical=trends", "headline": "Malkin", "category": "Sports · Trending"},
+    {"id": "twitter://search/?query=Ravi&src=trend_click&pc=true&vertical=trends", "headline": "Ravi", "category": "Only on X · Trending"},
+    {"id": "twitter://search/?query=Messi&src=trend_click&pc=true&vertical=trends", "headline": "Messi", "category": "Trending in United States"},
+    {"id": "twitter://search/?query=Lehigh&src=trend_click&pc=true&vertical=trends", "headline": "Lehigh", "category": "Trending in United States"},
+    {"id": "twitter://search/?query=Noem&src=trend_click&pc=true&vertical=trends", "headline": "Noem", "category": "Politics · Trending"},
+    {"id": "twitter://search/?query=%23RHOBH&src=trend_click&pc=true&vertical=trends", "headline": "#RHOBH", "category": "The Real Housewives of Beverly Hills · Trending"},
+    {"id": "twitter://search/?query=%23TNAiMPACT&src=trend_click&pc=true&vertical=trends", "headline": "#TNAiMPACT", "category": "Sports · Trending"},
+    {"id": "twitter://search/?query=%23HYUNJINxGUESS&src=trend_click&pc=true&vertical=trends", "headline": "#HYUNJINxGUESS", "category": "Only on X · Trending"},
+    {"id": "twitter://search/?query=Letang&src=trend_click&pc=true&vertical=trends", "headline": "Letang", "category": "Sports · Trending"},
+
+    {"id": "twitter://trending/2028975858082562381", "headline": "Reza Pahlavi Rallies Iranian Dissidents Amid U.S.-Israel Strikes on Iran", "category": "AI · Other"},
+    {"id": "twitter://trending/2029313034859196814", "headline": "Marine Veteran Protester Removed from Senate Hearing by Senator Sheehy", "category": "AI · Other"},
+    {"id": "twitter://trending/2028903076527259936", "headline": "House Overwhelmingly Shelves Release of Congressional Sexual Misconduct Reports", "category": "AI · Other"},
+    {"id": "twitter://trending/2029680758374424988", "headline": "India Buys Premium Russian Oil as Iran War Disrupts Supplies", "category": "AI · News"},
+    {"id": "twitter://trending/2029648351558521074", "headline": "Microsoft Reveals Project Helix as Next-Gen Xbox Codename", "category": "AI · News"},
+
+    {"id": "twitter://search/?query=%23911onABC&src=trend_click&pc=true&vertical=trends", "headline": "#911onABC", "category": "Trending in United States"},
+    {"id": "twitter://search/?query=%23thepitt&src=trend_click&pc=true&vertical=trends", "headline": "#thepitt", "category": "Only on X · Trending"},
+    {"id": "twitter://search/?query=Bobby&src=trend_click&pc=true&vertical=trends", "headline": "Bobby", "category": "Trending in United States"},
+    {"id": "twitter://search/?query=%23TNAiMPACT&src=trend_click&pc=true&vertical=trends", "headline": "#TNAiMPACT", "category": "Sports · Trending"},
+    {"id": "twitter://search/?query=Malkin&src=trend_click&pc=true&vertical=trends", "headline": "Malkin", "category": "Sports · Trending"},
+    {"id": "twitter://search/?query=%22Roddy+Gayle%22&src=trend_click&pc=true&vertical=trends", "headline": "Roddy Gayle", "category": "Trending in United States"},
+    {"id": "twitter://search/?query=Messi&src=trend_click&pc=true&vertical=trends", "headline": "Messi", "category": "Trending in United States"},
+    {"id": "twitter://search/?query=Ravi&src=trend_click&pc=true&vertical=trends", "headline": "Ravi", "category": "Trending in United States"},
+    {"id": "twitter://search/?query=%22Reed+Sheppard%22&src=trend_click&pc=true&vertical=trends", "headline": "Reed Sheppard", "category": "Sports · Trending"},
+    {"id": "twitter://search/?query=Lehigh&src=trend_click&pc=true&vertical=trends", "headline": "Lehigh", "category": "Trending in United States"},
+
+    {"id": "twitter://trending/2028975858082562381", "headline": "Reza Pahlavi Rallies Iranian Dissidents Amid U.S.-Israel Strikes on Iran", "category": "AI · Other"},
+    {"id": "twitter://trending/2029313034859196814", "headline": "Marine Veteran Protester Removed from Senate Hearing by Senator Sheehy", "category": "AI · Other"},
+    {"id": "twitter://trending/2029641845693718674", "headline": "Qatar Rejects Iranian Strikes as False US Airspace Ban Claim Spreads", "category": "AI · News"},
+    {"id": "twitter://trending/2029582950233493871", "headline": "U.S. Submarine Sinks Iranian Frigate in Indian Ocean, Killing Over 100", "category": "AI · Other"},
+    {"id": "twitter://trending/2029283203614150759", "headline": "Video of Energetic Black Church Worship Draws Sharp Divide", "category": "AI · Other"}
+  ]
+}
