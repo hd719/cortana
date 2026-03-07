@@ -3,6 +3,7 @@ set -euo pipefail
 
 REPOS=("/Users/hd/Developer/cortana" "/Users/hd/Developer/cortana-external")
 PROTECTED_BRANCHES=("main" "master" "dev" "develop")
+VOLATILE_STATE_FILES=("memory/newsletter-alerted.json" "memory/x-trending-seen.json")
 
 fail() {
   local repo="$1"
@@ -144,6 +145,10 @@ resolve_branch_worktree_conflicts() {
 
 ensure_clean_preflight() {
   local repo="$1"
+
+  if [[ "$repo" == "/Users/hd/Developer/cortana" ]]; then
+    git -C "$repo" restore --worktree -- "${VOLATILE_STATE_FILES[@]}" >/dev/null 2>&1 || true
+  fi
 
   local status
   status="$(git -C "$repo" status --porcelain --untracked-files=all)"
