@@ -39,7 +39,7 @@ config/cron/*.bak*
 /generated/prisma
 
 # Runtime fitness data (pulled live from Whoop/Tonal APIs)
-memory/fitness/
+memory/fitness/*.json
 
 # Identity runtime state (keep repo clean; do not ignore TOOLS.md)
 identities/*/.openclaw/
