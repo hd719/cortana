@@ -7,7 +7,7 @@ function sanitizeBranchToken(raw: string): string {
 }
 
 describe("Repo Auto Sync branch cleanup command", () => {
-  it("uses script-based hygiene flow with preflight policy and local-only cleanup", () => {
+  it("uses direct git hygiene flow with safe branch-state handling and local-only cleanup", () => {
     const jobsPath = path.resolve("config/cron/jobs.json");
     const raw = fs.readFileSync(jobsPath, "utf8");
     const json = JSON.parse(raw) as {
@@ -18,13 +18,16 @@ describe("Repo Auto Sync branch cleanup command", () => {
     expect(job?.payload?.message).toBeTruthy();
 
     const message = String(job?.payload?.message ?? "");
-    expect(message).toContain("bash /Users/hd/Developer/cortana/tools/repo/repo-auto-sync.sh");
-    expect(message).toContain("Use script preflight policy as implemented (block tracked changes; allow untracked-only).");
-    expect(message).toContain("preflight cleanliness -> pull -> local merged-branch cleanup");
-    expect(message).toContain("Delete only LOCAL branches merged into origin/main (never remote delete)");
-    expect(message).toContain("If no issues: return NO_REPLY.");
-    expect(message).toContain("If any repo fails, send a concise Telegram alert");
-    expect(message).toContain("with repo + failing step + error line.");
+    expect(message).toContain("without invoking external helper scripts");
+    expect(message).toContain("git -C <repo> status --porcelain --untracked-files=all");
+    expect(message).toContain("<repo> preflight-clean: tracked-changes-present-skip");
+    expect(message).toContain("git -C <repo> rev-list --left-right --count origin/main...HEAD");
+    expect(message).toContain("<repo> branch-state: local-main-ahead-skip");
+    expect(message).toContain("<repo> branch-state: diverged-manual-intervention-required");
+    expect(message).toContain("delete merged local branches when safe");
+    expect(message).toContain("return exactly NO_REPLY");
+    expect(message).toContain("send ONE concise Telegram message via message tool");
+    expect(message).not.toContain("bash /Users/hd/Developer/cortana/tools/repo/repo-auto-sync.sh");
     expect(message).not.toContain("git clean -fd");
   });
 
