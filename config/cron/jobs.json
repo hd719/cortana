@@ -1578,12 +1578,12 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "model": "openai-codex/gpt-5.1",
+        "model": "openai-codex/gpt-5.4",
         "timeoutSeconds": 180,
-        "message": "Run repo auto-sync hygiene for both repos via script:\n- /Users/hd/Developer/cortana\n- /Users/hd/Developer/cortana-external\n\nCommand:\nbash /Users/hd/Developer/cortana/tools/repo/repo-auto-sync.sh\n\nRules:\n- Use script preflight policy as implemented (block tracked changes; allow untracked-only).\n- Order must stay: preflight cleanliness -> pull -> local merged-branch cleanup.\n- Delete only LOCAL branches merged into origin/main (never remote delete).\n- If no issues: return NO_REPLY.\n- If any repo fails, send a concise Telegram alert via message tool to target 8171372724 with repo + failing step + error line."
+        "message": "Run repo auto-sync hygiene for both repos without invoking external helper scripts.\n\nRepos:\n- /Users/hd/Developer/cortana\n- /Users/hd/Developer/cortana-external\n\nFor EACH repo, do this sequence directly with standard git commands:\n1) `git -C <repo> status --porcelain --untracked-files=all`\n2) If there are tracked changes, do NOT pull. Report one concise line in format:\n   `<repo> preflight-clean: tracked-changes-present-skip`\n   Then continue to the next repo.\n3) If repo is clean or untracked-only, run:\n   - `git -C <repo> fetch --all --prune`\n   - `git -C <repo> checkout main`\n4) Determine ahead/behind vs origin/main:\n   - `git -C <repo> rev-list --left-right --count origin/main...HEAD`\n5) Behavior:\n   - behind only -> `git -C <repo> pull --ff-only origin main`\n   - ahead only -> report one concise line: `<repo> branch-state: local-main-ahead-skip`\n   - diverged -> report one concise line: `<repo> branch-state: diverged-manual-intervention-required`\n   - equal -> report one concise line: `<repo> pull: already-up-to-date`\n6) Cleanup merged local branches only (never remote):\n   - list local branches merged into origin/main\n   - skip protected branches: main/master/dev/develop\n   - delete merged local branches when safe\n\nOutput policy:\n- If both repos are healthy/safe, return exactly NO_REPLY.\n- If any repo has a real actionable issue, send ONE concise Telegram message via message tool to 8171372724 with only the affected repo + failing step + one-line detail.\n- Keep native safety behavior: no force reset, no hard clean, no remote branch deletion."
       },
       "delivery": {
-        "mode": "announce",
+        "mode": "none",
         "channel": "telegram",
         "to": "8171372724",
         "bestEffort": true
