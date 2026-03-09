@@ -335,7 +335,22 @@ sync_repo() {
 
   git -C "$repo" fetch --all --prune || fail "$repo" "fetch" "git fetch --all --prune failed"
   git -C "$repo" checkout main || fail "$repo" "checkout" "git checkout main failed"
-  git -C "$repo" pull --ff-only origin main || fail "$repo" "pull" "git pull --ff-only origin main failed"
+
+  local ahead behind counts
+  counts="$(git -C "$repo" rev-list --left-right --count origin/main...HEAD)" || fail "$repo" "branch-state" "git rev-list origin/main...HEAD failed"
+  behind="${counts%%$'\t'*}"
+  ahead="${counts##*$'\t'}"
+
+  if [[ "$ahead" -gt 0 && "$behind" -gt 0 ]]; then
+    fail "$repo" "branch-state" "main diverged from origin/main (ahead=$ahead behind=$behind)"
+  elif [[ "$ahead" -gt 0 ]]; then
+    printf 'WARN repo=%s step=branch-state detail=local-main-ahead ahead=%s behind=%s\n' "$repo" "$ahead" "$behind" >&2
+    printf 'INFO repo=%s step=pull detail=skip-local-main-ahead\n' "$repo" >&2
+  elif [[ "$behind" -gt 0 ]]; then
+    git -C "$repo" pull --ff-only origin main || fail "$repo" "pull" "git pull --ff-only origin main failed"
+  else
+    printf 'INFO repo=%s step=pull detail=already-up-to-date\n' "$repo" >&2
+  fi
 
   cleanup_local_merged_branches "$repo" || fail "$repo" "branch-cleanup" "local merged branch cleanup failed"
 }

@@ -16,17 +16,20 @@ describe("repo-auto-sync.sh hygiene policy", () => {
     expect(script).not.toContain('stash list not empty');
   });
 
-  it("keeps safe order: preflight before pull, cleanup after pull", () => {
+  it("keeps safe order: preflight before branch-state/pull, cleanup after sync decision", () => {
     const syncRepoBody = script.match(/sync_repo\(\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
     const preflight = syncRepoBody.indexOf("ensure_clean_preflight");
+    const branchState = syncRepoBody.indexOf("rev-list --left-right --count origin/main...HEAD");
     const pull = syncRepoBody.indexOf("pull --ff-only origin main");
     const cleanup = syncRepoBody.indexOf("cleanup_local_merged_branches");
 
     expect(syncRepoBody).toBeTruthy();
     expect(preflight).toBeGreaterThan(-1);
+    expect(branchState).toBeGreaterThan(-1);
     expect(pull).toBeGreaterThan(-1);
     expect(cleanup).toBeGreaterThan(-1);
-    expect(preflight).toBeLessThan(pull);
+    expect(preflight).toBeLessThan(branchState);
+    expect(branchState).toBeLessThan(cleanup);
     expect(pull).toBeLessThan(cleanup);
   });
 
@@ -68,6 +71,13 @@ describe("repo-auto-sync.sh hygiene policy", () => {
     expect(script).toContain('git -C "$repo" branch -d -- "$b"');
     expect(script).not.toContain("push --delete");
     expect(script).not.toContain("refs/remotes");
+  });
+
+  it("handles ahead/diverged main safely before attempting pull", () => {
+    expect(script).toContain('rev-list --left-right --count origin/main...HEAD');
+    expect(script).toContain('detail=local-main-ahead');
+    expect(script).toContain('detail=skip-local-main-ahead');
+    expect(script).toContain('main diverged from origin/main');
   });
 
   it("runs main flow only when executed directly", () => {
