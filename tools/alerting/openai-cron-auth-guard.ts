@@ -17,13 +17,31 @@ const AUTH_PATTERNS = [
   /unauthoriz/,
   /invalid[_ -]?api[_ -]?key/,
   /incorrect[_ -]?api[_ -]?key/,
-  /api key/,
   /authentication/,
   /auth failure/,
+  /expired token/,
+  /token expired/,
+  /invalid[_ -]?token/,
+  /reauth/,
+  /login required/,
+  /session expired/,
+];
+const TRANSIENT_PATTERNS = [
+  /429/,
   /quota exceeded/,
   /insufficient_quota/,
   /billing/,
-  /model not allowed/,
+  /rate limit/,
+  /too many requests/,
+  /overloaded?/,
+  /temporar(y|ily) unavailable/,
+  /timeout/,
+  /timed out/,
+  /deadline exceeded/,
+  /econnreset/,
+  /enotfound/,
+  /network/,
+  /fetch failed/,
 ];
 const CRITICAL_JOB_NAMES = [
   "☀️ Morning brief (Hamel)",
@@ -33,6 +51,8 @@ const CRITICAL_JOB_NAMES = [
   "🌙 Weekend Pre-Bedtime (9:30pm Fri/Sat)",
 ];
 const STANDARD_MODEL = "openai-codex/gpt-5.3-codex";
+const AUTH_PROBE_ATTEMPTS = Math.max(1, Number(process.env.OPENAI_AUTH_PROBE_ATTEMPTS ?? "2"));
+const AUTH_PROBE_RETRY_MS = Math.max(0, Number(process.env.OPENAI_AUTH_PROBE_RETRY_MS ?? "1000"));
 
 type JsonMap = Record<string, unknown>;
 
@@ -67,25 +87,59 @@ function readOpenAIKey(): string {
   return String(process.env.OPENAI_API_KEY ?? "");
 }
 
-async function probeOpenAIAuth(): Promise<{ ok: boolean; detail: string }> {
+function configuredOpenAIModels(): Set<string> {
+  const cfg = readJsonFile<JsonMap>(CONFIG_FILE);
+  const models = isRecord(cfg?.models) && isRecord((cfg.models as JsonMap).available)
+    ? ((cfg.models as JsonMap).available as JsonMap)
+    : {};
+  const allowed = Object.keys(models).filter((model) => model.startsWith("openai-codex/"));
+  allowed.push(STANDARD_MODEL);
+  return new Set(allowed);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function classifyProbeFailure(detail: string): "auth" | "transient" | "unknown" {
+  const text = detail.toLowerCase();
+  if (AUTH_PATTERNS.some((rx) => rx.test(text))) return "auth";
+  if (TRANSIENT_PATTERNS.some((rx) => rx.test(text))) return "transient";
+  return "unknown";
+}
+
+async function probeOpenAIAuth(): Promise<{ ok: boolean; detail: string; kind: "auth" | "transient" | "unknown" }> {
   const apiKey = readOpenAIKey();
-  if (!apiKey) return { ok: false, detail: "OpenAI API key missing from config/env" };
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 8000);
-  try {
-    const res = await fetch(OPENAI_MODELS_URL, {
-      method: "GET",
-      headers: { Authorization: `Bearer ${apiKey}` },
-      signal: controller.signal,
-    });
-    if (res.ok) return { ok: true, detail: `models probe ok (${res.status})` };
-    const body = (await res.text()).slice(0, 200);
-    return { ok: false, detail: `models probe failed (${res.status}): ${body}` };
-  } catch (error) {
-    return { ok: false, detail: error instanceof Error ? error.message : String(error) };
-  } finally {
-    clearTimeout(timeout);
+  if (!apiKey) return { ok: false, detail: "OpenAI API key missing from config/env", kind: "auth" };
+
+  let lastFailure = { ok: false as const, detail: "OpenAI probe did not run", kind: "unknown" as const };
+  for (let attempt = 1; attempt <= AUTH_PROBE_ATTEMPTS; attempt += 1) {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch(OPENAI_MODELS_URL, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${apiKey}` },
+        signal: controller.signal,
+      });
+      if (res.ok) return { ok: true, detail: `models probe ok (${res.status})`, kind: "auth" };
+      const body = (await res.text()).slice(0, 200);
+      const detail = `models probe failed (${res.status}): ${body}`;
+      const kind = classifyProbeFailure(detail);
+      lastFailure = { ok: false, detail: `${detail} [attempt ${attempt}/${AUTH_PROBE_ATTEMPTS}]`, kind };
+      if (kind !== "transient" || attempt === AUTH_PROBE_ATTEMPTS) return lastFailure;
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      const kind = classifyProbeFailure(detail);
+      lastFailure = { ok: false, detail: `${detail} [attempt ${attempt}/${AUTH_PROBE_ATTEMPTS}]`, kind };
+      if (kind !== "transient" || attempt === AUTH_PROBE_ATTEMPTS) return lastFailure;
+    } finally {
+      clearTimeout(timeout);
+    }
+    await sleep(AUTH_PROBE_RETRY_MS);
   }
+
+  return lastFailure;
 }
 
 function authFailureText(job: Job): string | null {
@@ -94,7 +148,10 @@ function authFailureText(job: Job): string | null {
     .map((v) => String(v ?? ""))
     .filter(Boolean);
   const joined = fields.join(" | ");
-  return AUTH_PATTERNS.some((rx) => rx.test(joined.toLowerCase())) ? joined : null;
+  const lowered = joined.toLowerCase();
+  if (!joined) return null;
+  if (TRANSIENT_PATTERNS.some((rx) => rx.test(lowered))) return null;
+  return AUTH_PATTERNS.some((rx) => rx.test(lowered)) ? joined : null;
 }
 
 function sendGuard(message: string, alertType: string, dedupeKey: string): void {
@@ -111,7 +168,11 @@ function retryJob(jobId: string): { ok: boolean; detail: string } {
 
 async function runPreflight(): Promise<number> {
   const jobs = criticalJobs(loadJobs());
-  const modelDrift = jobs.filter((job) => String((job.payload as JsonMap | undefined)?.model ?? "") !== STANDARD_MODEL);
+  const allowedOpenAIModels = configuredOpenAIModels();
+  const modelDrift = jobs.filter((job) => {
+    const model = String((job.payload as JsonMap | undefined)?.model ?? "");
+    return !allowedOpenAIModels.has(model);
+  });
   const probe = await probeOpenAIAuth();
   if (probe.ok && modelDrift.length === 0) {
     console.log(JSON.stringify({ ok: true, checked: jobs.length, probe: probe.detail }));
@@ -119,14 +180,14 @@ async function runPreflight(): Promise<number> {
   }
 
   const driftText = modelDrift.length
-    ? `model drift on: ${modelDrift.map((job) => `${job.name}→${String((job.payload as JsonMap | undefined)?.model ?? "")}`).join(", ")}`
+    ? `non-openai or unconfigured routing on: ${modelDrift.map((job) => `${job.name}→${String((job.payload as JsonMap | undefined)?.model ?? "")}`).join(", ")}`
     : "model routing aligned";
   sendGuard(
-    `🚨 OpenAI cron auth preflight failed\nProbe: ${probe.detail}\nCritical jobs: ${jobs.length}\nRouting: ${driftText}`,
+    `🚨 OpenAI cron auth preflight failed\nProbe: ${probe.detail}\nProbe kind: ${probe.kind}\nCritical jobs: ${jobs.length}\nRouting: ${driftText}`,
     "openai_cron_auth_preflight",
     `openai-cron-auth-preflight-${new Date().toISOString().slice(0, 13)}`
   );
-  console.log(JSON.stringify({ ok: false, probe: probe.detail, drift: modelDrift.map((j) => j.name) }));
+  console.log(JSON.stringify({ ok: false, probe: probe.detail, probeKind: probe.kind, drift: modelDrift.map((j) => j.name) }));
   return 1;
 }
 
@@ -141,6 +202,18 @@ async function runSweep(): Promise<number> {
     return 0;
   }
 
+  const probe = await probeOpenAIAuth();
+  if (!probe.ok) {
+    const lines = affected.map((row) => `${row.job.name}: auth-still-broken — ${String(row.authText).slice(0, 200)}`);
+    sendGuard(
+      `🚨 OpenAI auth failures hit critical cron jobs\nProbe: ${probe.detail}\n${lines.join("\n")}`,
+      "openai_cron_auth_failure",
+      `openai-cron-auth-sweep-${new Date().toISOString().slice(0, 13)}`
+    );
+    console.log(JSON.stringify({ ok: false, affected: affected.length, probe: probe.detail, retried: 0 }, null, 2));
+    return 1;
+  }
+
   const retried = affected.map(({ job, authText }) => {
     const retry = retryJob(String(job.id ?? ""));
     return { name: job.name, id: job.id, authText, retry };
@@ -148,11 +221,11 @@ async function runSweep(): Promise<number> {
 
   const lines = retried.map((row) => `${row.name}: ${row.retry.ok ? "retry-ok" : "retry-failed"} — ${row.retry.detail}`);
   sendGuard(
-    `🚨 OpenAI auth failures hit critical cron jobs\n${lines.join("\n")}`,
+    `🚨 OpenAI auth failures hit critical cron jobs\nProbe: ${probe.detail}\n${lines.join("\n")}`,
     "openai_cron_auth_failure",
     `openai-cron-auth-sweep-${new Date().toISOString().slice(0, 13)}`
   );
-  console.log(JSON.stringify({ ok: false, affected: retried.length, retried }, null, 2));
+  console.log(JSON.stringify({ ok: false, affected: retried.length, probe: probe.detail, retried }, null, 2));
   return 1;
 }
 

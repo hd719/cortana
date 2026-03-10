@@ -3,7 +3,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { beforeEach, describe, expect, it } from 'vitest';
 
-const repoPolicy = '/Users/hd/Developer/cortana/config/session-lifecycle-policy.json';
+const repoPolicy = path.resolve(__dirname, '../../config/session-lifecycle-policy.json');
 
 describe('session lifecycle policy path resolution', () => {
   beforeEach(() => {
