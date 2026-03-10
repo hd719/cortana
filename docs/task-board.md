@@ -9,7 +9,7 @@ Cortana maintains an autonomous task queue in `cortana_tasks` with epic/project 
 ## Task Lifecycle
 
 Task Lifecycle:
-  backlog → ready → in_progress → completed/failed
+  backlog → ready/scheduled → in_progress → completed/failed/cancelled
 
 - "Do all tasks" = `status='ready'` only
 - Auto-executor picks up: `status='ready' AND auto_executable=TRUE`
