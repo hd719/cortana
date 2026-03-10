@@ -1,25 +1,285 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from "child_process";
-import { fileURLToPath } from "url";
-import { withPostgresPath } from "../lib/db.js";
-import { repoRoot } from "../lib/paths.js";
-import { safeJsonParse } from "../lib/json-file.js";
 
-async function main(): Promise<void> {
-  void safeJsonParse("{}");
-  const script = "set -euo pipefail\n\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH\"\nPSQL_BIN=\"/opt/homebrew/opt/postgresql@17/bin/psql\"\nDB_NAME=\"${CORTANA_DB:-cortana}\"\nSOURCE=\"task-board-completion-sync\"\n# shellcheck disable=SC1091\nsource \"/Users/hd/openclaw/tools/lib/idempotency.sh\"\nEMIT_RUN_EVENT_SCRIPT=\"/Users/hd/openclaw/tools/task-board/emit-run-event.ts\"\n\ntrap 'rollback_transaction' ERR\n\n\n\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:$PATH\"\n\nPSQL_BIN=\"${PSQL_BIN:-/opt/homebrew/opt/postgresql@17/bin/psql}\"\nDB_NAME=\"${CORTANA_DB:-cortana}\"\n\nsql_escape() {\n  printf '%s' \"$1\" | sed \"s/'/''/g\"\n}\n\n# Usage:\n#   emit_run_event <run_id> <task_id_or_empty> <event_type> <source_or_empty> <metadata_json_or_empty>\nemit_run_event() {\n  local run_id=\"${1:-}\"\n  local task_id=\"${2:-}\"\n  local event_type=\"${3:-}\"\n  local source=\"${4:-}\"\n  local metadata=\"${5:-}\"\n\n  if [[ -z \"$run_id\" || -z \"$event_type\" ]]; then\n    return 1\n  fi\n\n  local run_id_esc source_esc event_type_esc metadata_esc\n  run_id_esc=\"$(sql_escape \"$run_id\")\"\n  source_esc=\"$(sql_escape \"$source\")\"\n  event_type_esc=\"$(sql_escape \"$event_type\")\"\n\n  if [[ -z \"$metadata\" ]]; then\n    metadata='{}'\n  fi\n  metadata_esc=\"$(sql_escape \"$metadata\")\"\n\n  local task_expr=\"NULL\"\n  if [[ -n \"$task_id\" ]]; then\n    task_expr=\"$task_id\"\n  fi\n\n  \"$PSQL_BIN\" \"$DB_NAME\" -q -X -v ON_ERROR_STOP=1 -c \"\n    INSERT INTO cortana_run_events (run_id, task_id, event_type, source, metadata)\n    VALUES (\n      '${run_id_esc}',\n      ${task_expr},\n      '${event_type_esc}',\n      NULLIF('${source_esc}',''),\n      '${metadata_esc}'::jsonb\n    );\n  \" >/dev/null\n}\n\nif [[ \"${BASH_SOURCE[0]-}\" == \"$0\" ]]; then\n  emit_run_event \"${1:-}\" \"${2:-}\" \"${3:-}\" \"${4:-}\" \"${5:-}\"\nfi\n\n\nif [[ ! -x \"$PSQL_BIN\" ]]; then\n  echo '{\"ok\":false,\"error\":\"psql_not_found\"}'\n  exit 1\nfi\n\nif ! command -v openclaw >/dev/null 2>&1; then\n  echo '{\"ok\":false,\"error\":\"openclaw_not_found\"}'\n  exit 1\nfi\nif ! command -v jq >/dev/null 2>&1; then\n  echo '{\"ok\":false,\"error\":\"jq_not_found\"}'\n  exit 1\nfi\n\nOPERATION_ID=\"$(generate_operation_id)\"\nOPERATION_TYPE=\"completion_sync_pass\"\nif check_idempotency \"$OPERATION_ID\"; then\n  log_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"skipped\" '{\"reason\":\"already_completed\"}'\n  jq -nc '{ok:true, skipped:true, reason:\"idempotent_operation_already_completed\"}'\n  exit 0\nfi\nlog_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"started\" '{}'\n\nSESSIONS_JSON=\"$(openclaw sessions --json --active 1440 --all-agents 2>/dev/null || echo '{\"sessions\":[]}')\"\n\nupdates='[]'\nwhile IFS= read -r row; do\n  [[ -z \"$row\" ]] && continue\n\n  key=\"$(echo \"$row\" | jq -r '.key // \"\"')\"\n  label=\"$(echo \"$row\" | jq -r '.label // \"\"')\"\n  run_id=\"$(echo \"$row\" | jq -r '.run_id // .runId // .sessionId // empty')\"\n  status=\"$(echo \"$row\" | jq -r 'if ((.status // .lastStatus // \"\") == \"\") then \"unknown\" else (.status // .lastStatus) end')\"\n  status_lc=\"$(echo \"$status\" | tr '[:upper:]' '[:lower:]')\"\n\n  # terminal outcome classification (task status + lifecycle event)\n  outcome_status=\"\"\n  lifecycle_event=\"\"\n  if [[ \"$status_lc\" =~ ^(ok|done|completed|success)$ ]]; then\n    outcome_status=\"completed\"\n    lifecycle_event=\"completed\"\n  elif [[ \"$status_lc\" =~ ^(timeout|timed_out)$ ]]; then\n    outcome_status=\"failed\"\n    lifecycle_event=\"timeout\"\n  elif [[ \"$status_lc\" =~ ^(killed|kill|terminated|aborted|cancelled|canceled)$ ]]; then\n    outcome_status=\"failed\"\n    lifecycle_event=\"killed\"\n  elif [[ \"$status_lc\" =~ ^(failed|error)$ ]]; then\n    outcome_status=\"failed\"\n    lifecycle_event=\"failed\"\n  elif [[ \"$(echo \"$row\" | jq -r '.abortedLastRun // false')\" == \"true\" ]]; then\n    outcome_status=\"failed\"\n    lifecycle_event=\"killed\"\n  else\n    continue\n  fi\n\n  task_id=\"$($PSQL_BIN \"$DB_NAME\" -q -X -t -A -v ON_ERROR_STOP=1 -c \"\n    SELECT id\n    FROM cortana_tasks\n    WHERE status='in_progress'\n      AND (\n        (NULLIF('${run_id//\\'/\\'\\'}','') IS NOT NULL AND run_id='${run_id//\\'/\\'\\'}')\n        OR (\n          run_id IS NULL\n          AND (\n            assigned_to='${label//\\'/\\'\\'}'\n            OR assigned_to='${key//\\'/\\'\\'}'\n            OR COALESCE(metadata->>'subagent_label','')='${label//\\'/\\'\\'}'\n            OR COALESCE(metadata->>'subagent_session_key','')='${key//\\'/\\'\\'}'\n          )\n        )\n      )\n    ORDER BY\n      CASE WHEN NULLIF('${run_id//\\'/\\'\\'}','') IS NOT NULL AND run_id='${run_id//\\'/\\'\\'}' THEN 0 ELSE 1 END,\n      updated_at DESC NULLS LAST,\n      created_at DESC\n    LIMIT 1;\n  \" | tr -d '[:space:]')\"\n\n  [[ -z \"$task_id\" ]] && continue\n\n  outcome_text=\"Auto-synced from sub-agent ${label:-$key} (${status_lc})\"\n  outcome_sql=\"${outcome_text//\\'/\\'\\'}\"\n\n  begin_transaction\n  if [[ \"$outcome_status\" == \"completed\" ]]; then\n    transaction_exec \"\n      UPDATE cortana_tasks\n      SET status='completed',\n          completed_at=COALESCE(completed_at,NOW()),\n          outcome='${outcome_sql}',\n          assigned_to=NULL,\n          run_id=COALESCE(NULLIF('${run_id//\\'/\\'\\'}',''), run_id),\n          metadata=COALESCE(metadata,'{}'::jsonb)||jsonb_build_object('completion_synced_at',NOW()::text,'subagent_status','${status_lc}','subagent_run_id',NULLIF('${run_id//\\'/\\'\\'}',''))\n      WHERE id=${task_id} AND status='in_progress';\n    \"\n  else\n    transaction_exec \"\n      UPDATE cortana_tasks\n      SET status='failed',\n          outcome='${outcome_sql}',\n          assigned_to=NULL,\n          run_id=COALESCE(NULLIF('${run_id//\\'/\\'\\'}',''), run_id),\n          metadata=COALESCE(metadata,'{}'::jsonb)||jsonb_build_object('completion_synced_at',NOW()::text,'subagent_status','${status_lc}','subagent_run_id',NULLIF('${run_id//\\'/\\'\\'}',''))\n      WHERE id=${task_id} AND status='in_progress';\n    \"\n  fi\n\n  event_run_id=\"${run_id:-}\"\n  if [[ -z \"$event_run_id\" ]]; then\n    event_run_id=\"session:${key}\"\n  fi\n  event_meta=\"$(jq -cn --arg key \"$key\" --arg label \"$label\" --arg run_id \"$run_id\" --arg status \"$status_lc\" --arg mapped \"$outcome_status\" '{session_key:$key,label:$label,raw_run_id:($run_id|if length>0 then . else null end),status:$status,mapped_outcome:$mapped}')\"\n  if declare -F emit_run_event >/dev/null 2>&1; then\n    emit_run_event \"$event_run_id\" \"$task_id\" \"$lifecycle_event\" \"$SOURCE\" \"$event_meta\" || true\n  fi\n\n  transaction_exec \"\n    INSERT INTO cortana_events (event_type, source, severity, message, metadata)\n    VALUES (\n      'task_completion_synced',\n      '${SOURCE}',\n      'info',\n      'Synced task #${task_id} from sub-agent ${label:-$key} -> ${outcome_status}',\n      jsonb_build_object('task_id',${task_id},'session_key','${key//\\'/\\'\\'}','label','${label//\\'/\\'\\'}','run_id',NULLIF('${run_id//\\'/\\'\\'}',''),'status','${status_lc}','mapped_outcome','${outcome_status}','lifecycle_event','${lifecycle_event}')\n    );\n  \"\n  commit_transaction\n\n  updates=\"$(echo \"$updates\" | jq --argjson task_id \"$task_id\" --arg label \"$label\" --arg key \"$key\" --arg run_id \"$run_id\" --arg status \"$status_lc\" --arg mapped \"$outcome_status\" '. + [{task_id:$task_id,label:$label,session_key:$key,run_id:$run_id,status:$status,mapped_outcome:$mapped}]')\"\ndone < <(echo \"$SESSIONS_JSON\" | jq -c '.sessions[]? | select((.key // \"\") | contains(\":subagent:\"))')\n\nlog_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"completed\" \"$(jq -cn --argjson synced_count \"$(echo \"$updates\" | jq 'length')\" '{synced_count:$synced_count}')\"\n\njq -nc --argjson synced \"$updates\" '{ok:true, synced_count:($synced|length), synced:$synced}'\n";
-  const args = process.argv.slice(2);
-  const scriptPath = fileURLToPath(import.meta.url);
-  const res = spawnSync("bash", ["-lc", script, scriptPath, ...args], {
-    stdio: "inherit",
-    cwd: repoRoot(),
-    env: withPostgresPath(process.env),
-  });
-  if (typeof res.status === "number") process.exit(res.status);
-  process.exit(1);
+import { spawnSync } from "node:child_process";
+import { checkIdempotency, generateOperationId, logIdempotency } from "../lib/idempotency.js";
+import { runPsql, withPostgresPath } from "../lib/db.js";
+import { repoRoot } from "../lib/paths.js";
+
+type Json = Record<string, any>;
+
+type SessionRow = {
+  key?: string;
+  label?: string;
+  run_id?: string;
+  runId?: string;
+  sessionId?: string;
+  status?: string;
+  lastStatus?: string;
+  abortedLastRun?: boolean;
+};
+
+type SessionsPayload = {
+  sessions?: SessionRow[];
+};
+
+type CompletionResult = {
+  task_id: number;
+  label: string;
+  session_key: string;
+  run_id: string;
+  status: string;
+  mapped_outcome: "completed" | "failed";
+};
+
+type CompletionSyncReport = {
+  ok: true;
+  skipped?: true;
+  reason?: string;
+  synced_count: number;
+  synced: CompletionResult[];
+};
+
+const SOURCE = "task-board-completion-sync";
+const DB_NAME = process.env.CORTANA_DB ?? "cortana";
+
+function sqlEscape(value: string): string {
+  return value.replace(/'/g, "''");
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+function compactJson(value: unknown): string {
+  return JSON.stringify(value);
+}
+
+function parseJson<T>(raw: string, label: string): T {
+  try {
+    return JSON.parse(raw) as T;
+  } catch (error) {
+    const detail = error instanceof Error ? error.message : String(error);
+    throw new Error(`${label}: invalid JSON (${detail})`);
+  }
+}
+
+function runSql(sql: string): string {
+  const proc = runPsql(sql, {
+    db: DB_NAME,
+    args: ["-q", "-X", "-t", "-A", "-v", "ON_ERROR_STOP=1"],
+    env: withPostgresPath(process.env),
+  });
+
+  if (proc.status !== 0) {
+    const detail = (proc.stderr || proc.stdout || "psql failed").trim();
+    throw new Error(detail);
+  }
+
+  return String(proc.stdout ?? "").trim();
+}
+
+function runSqlJson<T>(sql: string, label: string): T {
+  const raw = runSql(sql);
+  if (!raw) throw new Error(`${label}: empty SQL result`);
+  return parseJson<T>(raw, label);
+}
+
+export function classifyTerminalOutcome(row: SessionRow): { outcome: "completed" | "failed"; lifecycleEvent: string } | null {
+  const status = String(row.status ?? row.lastStatus ?? "unknown").trim().toLowerCase();
+
+  if (["ok", "done", "completed", "success"].includes(status)) {
+    return { outcome: "completed", lifecycleEvent: "completed" };
+  }
+  if (["timeout", "timed_out"].includes(status)) {
+    return { outcome: "failed", lifecycleEvent: "timeout" };
+  }
+  if (["killed", "kill", "terminated", "aborted", "cancelled", "canceled"].includes(status)) {
+    return { outcome: "failed", lifecycleEvent: "killed" };
+  }
+  if (["failed", "error"].includes(status)) {
+    return { outcome: "failed", lifecycleEvent: "failed" };
+  }
+  if (row.abortedLastRun === true) {
+    return { outcome: "failed", lifecycleEvent: "killed" };
+  }
+  return null;
+}
+
+function loadSessions(): SessionRow[] {
+  const proc = spawnSync("openclaw", ["sessions", "--json", "--active", "1440", "--all-agents"], {
+    cwd: repoRoot(),
+    encoding: "utf8",
+    env: withPostgresPath(process.env),
+  });
+
+  if (proc.status !== 0) {
+    throw new Error((proc.stderr || proc.stdout || "openclaw sessions failed").trim());
+  }
+
+  const raw = String(proc.stdout ?? "").trim() || '{"sessions":[]}';
+  const parsed = parseJson<SessionsPayload | SessionRow[]>(raw, "openclaw sessions");
+  const sessions = Array.isArray(parsed) ? parsed : parsed.sessions ?? [];
+  return sessions.filter((row) => String(row.key ?? "").includes(":subagent:"));
+}
+
+function findMatchingTask(runId: string, label: string, key: string): { id: number } | null {
+  const runIdEsc = sqlEscape(runId);
+  const labelEsc = sqlEscape(label);
+  const keyEsc = sqlEscape(key);
+
+  const sql = `
+    SELECT COALESCE(row_to_json(t)::text, '')
+    FROM (
+      SELECT id
+      FROM cortana_tasks
+      WHERE status='in_progress'
+        AND (
+          (NULLIF('${runIdEsc}','') IS NOT NULL AND run_id='${runIdEsc}')
+          OR (
+            run_id IS NULL
+            AND (
+              assigned_to='${labelEsc}'
+              OR assigned_to='${keyEsc}'
+              OR COALESCE(metadata->>'subagent_label','')='${labelEsc}'
+              OR COALESCE(metadata->>'subagent_session_key','')='${keyEsc}'
+            )
+          )
+        )
+      ORDER BY
+        CASE WHEN NULLIF('${runIdEsc}','') IS NOT NULL AND run_id='${runIdEsc}' THEN 0 ELSE 1 END,
+        updated_at DESC NULLS LAST,
+        created_at DESC
+      LIMIT 1
+    ) t;
+  `;
+
+  const raw = runSql(sql);
+  if (!raw) return null;
+  return parseJson<{ id: number }>(raw, "matching task");
+}
+
+function syncTask(taskId: number, row: SessionRow, terminal: { outcome: "completed" | "failed"; lifecycleEvent: string }): void {
+  const key = String(row.key ?? "").trim();
+  const label = String(row.label ?? "").trim();
+  const runId = String(row.run_id ?? row.runId ?? row.sessionId ?? "").trim();
+  const status = String(row.status ?? row.lastStatus ?? "unknown").trim().toLowerCase();
+  const outcomeText = sqlEscape(`Auto-synced from sub-agent ${label || key} (${status})`);
+  const keyEsc = sqlEscape(key);
+  const labelEsc = sqlEscape(label);
+  const runIdEsc = sqlEscape(runId);
+  const eventRunIdEsc = sqlEscape(runId || `session:${key}`);
+  const lifecycleEsc = sqlEscape(terminal.lifecycleEvent);
+  const mappedOutcomeEsc = sqlEscape(terminal.outcome);
+  const statusEsc = sqlEscape(status);
+  const sourceEsc = sqlEscape(SOURCE);
+
+  const completedAtClause = terminal.outcome === "completed" ? "completed_at=COALESCE(completed_at,NOW())," : "";
+  const statusTarget = sqlEscape(terminal.outcome);
+
+  const sql = `
+BEGIN;
+
+UPDATE cortana_tasks
+SET status='${statusTarget}',
+    ${completedAtClause}
+    outcome='${outcomeText}',
+    assigned_to=NULL,
+    run_id=COALESCE(NULLIF('${runIdEsc}',''), run_id),
+    metadata=COALESCE(metadata,'{}'::jsonb)||jsonb_build_object(
+      'completion_synced_at', NOW()::text,
+      'subagent_status', '${statusEsc}',
+      'subagent_run_id', NULLIF('${runIdEsc}','')
+    )
+WHERE id=${taskId} AND status='in_progress';
+
+INSERT INTO cortana_run_events (run_id, task_id, event_type, source, metadata)
+VALUES (
+  '${eventRunIdEsc}',
+  ${taskId},
+  '${lifecycleEsc}',
+  '${sourceEsc}',
+  jsonb_build_object(
+    'session_key','${keyEsc}',
+    'label',NULLIF('${labelEsc}',''),
+    'raw_run_id',NULLIF('${runIdEsc}',''),
+    'status','${statusEsc}',
+    'mapped_outcome','${mappedOutcomeEsc}'
+  )
+);
+
+INSERT INTO cortana_events (event_type, source, severity, message, metadata)
+VALUES (
+  'task_completion_synced',
+  '${sourceEsc}',
+  'info',
+  'Synced task #${taskId} from sub-agent ${sqlEscape(label || key)} -> ${statusTarget}',
+  jsonb_build_object(
+    'task_id',${taskId},
+    'session_key','${keyEsc}',
+    'label',NULLIF('${labelEsc}',''),
+    'run_id',NULLIF('${runIdEsc}',''),
+    'status','${statusEsc}',
+    'mapped_outcome','${mappedOutcomeEsc}',
+    'lifecycle_event','${lifecycleEsc}'
+  )
+);
+
+COMMIT;
+`;
+
+  runSql(sql);
+}
+
+export async function run(): Promise<CompletionSyncReport> {
+  const operationId = generateOperationId();
+  const operationType = "completion_sync_pass";
+
+  if (checkIdempotency(operationId)) {
+    logIdempotency(operationId, operationType, "skipped", compactJson({ reason: "already_completed" }));
+    return {
+      ok: true,
+      skipped: true,
+      reason: "idempotent_operation_already_completed",
+      synced_count: 0,
+      synced: [],
+    };
+  }
+
+  logIdempotency(operationId, operationType, "started", "{}");
+
+  const sessions = loadSessions();
+  const synced: CompletionResult[] = [];
+
+  for (const row of sessions) {
+    const terminal = classifyTerminalOutcome(row);
+    if (!terminal) continue;
+
+    const key = String(row.key ?? "").trim();
+    const label = String(row.label ?? "").trim();
+    const runId = String(row.run_id ?? row.runId ?? row.sessionId ?? "").trim();
+    const status = String(row.status ?? row.lastStatus ?? "unknown").trim().toLowerCase();
+    const task = findMatchingTask(runId, label, key);
+    if (!task) continue;
+
+    syncTask(task.id, row, terminal);
+    synced.push({
+      task_id: task.id,
+      label,
+      session_key: key,
+      run_id: runId,
+      status,
+      mapped_outcome: terminal.outcome,
+    });
+  }
+
+  logIdempotency(operationId, operationType, "completed", compactJson({ synced_count: synced.length }));
+  return { ok: true, synced_count: synced.length, synced };
+}
+
+if (import.meta.url === `file://${process.argv[1]}`) {
+  run()
+    .then((report) => {
+      process.stdout.write(`${compactJson(report)}\n`);
+    })
+    .catch((error) => {
+      const message = error instanceof Error ? error.message : String(error);
+      process.stderr.write(`${message}\n`);
+      process.exit(1);
+    });
+}

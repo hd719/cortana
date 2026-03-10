@@ -1,44 +1,24 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { flushModuleSideEffects, importFresh, mockExit, resetProcess, setArgv } from "../test-utils";
+import { describe, expect, it } from "vitest";
+import { classifyTerminalOutcome } from "../../tools/task-board/completion-sync.ts";
 
-const spawnSync = vi.hoisted(() => vi.fn());
-const safeJsonParse = vi.hoisted(() => vi.fn());
+describe("classifyTerminalOutcome", () => {
+  it("maps successful terminal states to completed", () => {
+    expect(classifyTerminalOutcome({ status: "completed" })).toEqual({ outcome: "completed", lifecycleEvent: "completed" });
+    expect(classifyTerminalOutcome({ lastStatus: "success" })).toEqual({ outcome: "completed", lifecycleEvent: "completed" });
+  });
 
-vi.mock("child_process", () => ({
-  spawnSync,
-}));
-vi.mock("../../tools/lib/db.js", () => ({
-  withPostgresPath: (env: NodeJS.ProcessEnv) => env,
-}));
-vi.mock("../../tools/lib/paths.js", () => ({
-  repoRoot: () => "/repo",
-}));
-vi.mock("../../tools/lib/json-file.js", () => ({
-  safeJsonParse,
-}));
+  it("maps failure-like states to failed with the right lifecycle event", () => {
+    expect(classifyTerminalOutcome({ status: "timeout" })).toEqual({ outcome: "failed", lifecycleEvent: "timeout" });
+    expect(classifyTerminalOutcome({ status: "killed" })).toEqual({ outcome: "failed", lifecycleEvent: "killed" });
+    expect(classifyTerminalOutcome({ status: "error" })).toEqual({ outcome: "failed", lifecycleEvent: "failed" });
+  });
 
-beforeEach(() => {
-  spawnSync.mockReset();
-  safeJsonParse.mockReset();
-});
+  it("treats abortedLastRun as killed even without explicit status", () => {
+    expect(classifyTerminalOutcome({ status: "unknown", abortedLastRun: true })).toEqual({ outcome: "failed", lifecycleEvent: "killed" });
+  });
 
-afterEach(() => {
-  vi.restoreAllMocks();
-  resetProcess();
-});
-
-describe("completion-sync", () => {
-  it("uses a BASH_SOURCE fallback so bash -c with set -u does not crash", async () => {
-    const exitSpy = mockExit();
-    setArgv([]);
-    spawnSync.mockReturnValue({ status: 0 } as any);
-
-    await importFresh("../../tools/task-board/completion-sync.ts");
-    await flushModuleSideEffects();
-
-    const [, args] = spawnSync.mock.calls[0] as [string, string[]];
-    expect(args[1]).toContain('${BASH_SOURCE[0]-}');
-    expect(args[1]).not.toContain('${BASH_SOURCE[0]}" == "$0"');
-    expect(exitSpy).toHaveBeenCalledWith(0);
+  it("ignores non-terminal states", () => {
+    expect(classifyTerminalOutcome({ status: "running" })).toBeNull();
+    expect(classifyTerminalOutcome({ status: "pending" })).toBeNull();
   });
 });
