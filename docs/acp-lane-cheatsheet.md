@@ -6,6 +6,9 @@ Use ACP as a specialist coding lane only when explicitly requested.
 ## Routing Rule
 - If user explicitly asks for **Codex**, **Claude Code**, **Gemini**, or **ACP** runtime → route to `agentId: "cortana-acp"`.
 - Otherwise use normal sub-agent routing by role.
+- Huragok stays native by default for diagnose / patch / review / coordinate.
+- Codex ACP is for build / implement / refactor / scaffold / ship.
+- Cortana/main is the only ACP dispatcher; Huragok may recommend escalation but does not dispatch ACP directly.
 
 ## Minimal Spawn Template
 ```json

@@ -25,6 +25,7 @@ This system runs multiple agents, each with its own workspace, model, and sessio
 - **Telegram group `-5229462108`** → `huragok` (dedicated standalone Huragok Telegram identity)
 - **Huragok spawned work** → `huragok` (`agentId: "huragok"`; no separate worker lane)
 - **Explicit coding-runtime asks** ("use Codex", "use Claude Code", "use Gemini") → `cortana-acp` (`agentId: "cortana-acp"`)
+- **Huragok requesting ACP escalation** → bubble back to `main`/Cortana for dispatch; Huragok is not an ACP dispatcher
 - **Cron jobs** → respective cron/specialist agent (deliver results via `message` tool using mapped `accountId`; keep Cortana lane clean)
 
 ## Cortana Protocol (Routing)
@@ -44,8 +45,36 @@ Default behavior stays unchanged: use normal sub-agent orchestration.
 
 Route to `cortana-acp` only when the user explicitly requests a coding runtime (Codex, Claude Code, Gemini). This keeps ACP available as a specialist lane without hijacking normal dispatch.
 
+### Huragok ↔ Codex doctrine
+
+Think of it this way:
+- **Huragok = foreman**
+- **Codex ACP = power tool**
+- **Cortana/main = only ACP dispatcher**
+
+Huragok stays **native by default** for:
+- triage, diagnosis, and root-cause isolation
+- small surgical fixes
+- config/path/prompt tweaks
+- PR review, merge judgment, and release confidence calls
+- cross-system coordination
+- high-reliability moments when provider/runtime stability matters more than throughput
+
+Escalate to **Codex ACP** for:
+- new feature implementation
+- multi-file refactors
+- repo exploration plus iterative coding
+- test work that spans multiple files or loops
+- explicit “ship a PR” / implementation-heavy build asks
+
+Dispatcher rule:
+- Huragok may recommend ACP escalation, but **does not spawn ACP directly**
+- when Huragok wants ACP, the request must bubble to **Cortana/main**, which dispatches `cortana-acp`
+
 Quick decision rule:
 - User explicitly names Codex/Claude/Gemini or asks for "ACP" → spawn with `agentId: "cortana-acp"`
+- User asks for code/infra work without naming a coding runtime → route to Huragok first
+- Huragok determines the task is implementation-heavy enough for ACP → hand back to Cortana/main for ACP dispatch
 - Otherwise → spawn normal Covenant role agent (`huragok`, `researcher`, `monitor`, `oracle`, `librarian`) per task type
 
 For Researcher bootstrap + usage details, see `docs/researcher-bot-bootstrap.md`.
