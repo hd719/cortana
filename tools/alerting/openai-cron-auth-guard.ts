@@ -5,6 +5,14 @@ import path from "path";
 import { spawnSync } from "child_process";
 import { readJsonFile } from "../lib/json-file.js";
 import { resolveHomePath } from "../lib/paths.js";
+import {
+  loadRoutePolicy as loadProviderRoutePolicy,
+  loadState as loadProviderHealthState,
+  providerAvailability,
+  recordRequest as recordProviderHealthRequest,
+  routeFor as routeProviderHealth,
+  saveState as saveProviderHealthState,
+} from "../guardrails/provider-health.js";
 
 const JOBS_FILE = resolveHomePath(".openclaw", "cron", "jobs.json");
 const CONFIG_FILE = path.join(process.cwd(), "config", "openclaw.json");
@@ -51,6 +59,7 @@ const CRITICAL_JOB_NAMES = [
   "🌙 Weekend Pre-Bedtime (9:30pm Fri/Sat)",
 ];
 const STANDARD_MODEL = "openai-codex/gpt-5.3-codex";
+const OPENAI_PROVIDER = "codex";
 const AUTH_PROBE_ATTEMPTS = Math.max(1, Number(process.env.OPENAI_AUTH_PROBE_ATTEMPTS ?? "2"));
 const AUTH_PROBE_RETRY_MS = Math.max(0, Number(process.env.OPENAI_AUTH_PROBE_RETRY_MS ?? "1000"));
 
@@ -108,12 +117,49 @@ function classifyProbeFailure(detail: string): "auth" | "transient" | "unknown" 
   return "unknown";
 }
 
+function providerStatusCode(kind: "auth" | "transient" | "unknown", detail: string): number {
+  const text = detail.toLowerCase();
+  if (kind === "auth") return 401;
+  if (/429|quota exceeded|insufficient_quota|rate limit|too many requests/.test(text)) return 429;
+  if (/timeout|timed out|deadline exceeded|abort/.test(text)) return 504;
+  if (kind === "transient") return 503;
+  return 520;
+}
+
+function checkProviderCircuit() {
+  const policy = loadProviderRoutePolicy();
+  const state = loadProviderHealthState(policy);
+  const availability = providerAvailability(state, OPENAI_PROVIDER);
+  const route = routeProviderHealth(OPENAI_PROVIDER, 503, state, policy);
+  return { availability, route };
+}
+
+function recordProviderProbe(statusCode: number) {
+  const policy = loadProviderRoutePolicy();
+  const state = loadProviderHealthState(policy);
+  const provider = recordProviderHealthRequest(state, OPENAI_PROVIDER, statusCode);
+  const route = routeProviderHealth(OPENAI_PROVIDER, statusCode, state, policy);
+  saveProviderHealthState(state);
+  return { provider, route };
+}
+
 async function probeOpenAIAuth(): Promise<{ ok: boolean; detail: string; kind: "auth" | "transient" | "unknown" }> {
   const apiKey = readOpenAIKey();
   if (!apiKey) return { ok: false, detail: "OpenAI API key missing from config/env", kind: "auth" };
 
   let lastFailure = { ok: false as const, detail: "OpenAI probe did not run", kind: "unknown" as const };
   for (let attempt = 1; attempt <= AUTH_PROBE_ATTEMPTS; attempt += 1) {
+    const gate = checkProviderCircuit();
+    if (!gate.availability.attempt_allowed) {
+      const fallback = gate.route.fallback_provider ? `; fallback=${gate.route.fallback_provider}` : "";
+      const reason = gate.route.circuit_reason ? `; reason=${gate.route.circuit_reason}` : "";
+      return {
+        ok: false,
+        detail: `OpenAI provider circuit ${gate.availability.circuit}; probe skipped${fallback}${reason}`,
+        kind: "transient",
+      };
+    }
+
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 8000);
     try {
@@ -122,17 +168,24 @@ async function probeOpenAIAuth(): Promise<{ ok: boolean; detail: string; kind: "
         headers: { Authorization: `Bearer ${apiKey}` },
         signal: controller.signal,
       });
-      if (res.ok) return { ok: true, detail: `models probe ok (${res.status})`, kind: "auth" };
+      if (res.ok) {
+        recordProviderProbe(res.status);
+        return { ok: true, detail: `models probe ok (${res.status})`, kind: "auth" };
+      }
       const body = (await res.text()).slice(0, 200);
       const detail = `models probe failed (${res.status}): ${body}`;
       const kind = classifyProbeFailure(detail);
-      lastFailure = { ok: false, detail: `${detail} [attempt ${attempt}/${AUTH_PROBE_ATTEMPTS}]`, kind };
-      if (kind !== "transient" || attempt === AUTH_PROBE_ATTEMPTS) return lastFailure;
+      const breaker = recordProviderProbe(res.status);
+      const suffix = breaker.provider.circuit === "open" ? `; circuit=open reason=${breaker.provider.last_trip_reason ?? "unknown"}` : "";
+      lastFailure = { ok: false, detail: `${detail}${suffix} [attempt ${attempt}/${AUTH_PROBE_ATTEMPTS}]`, kind };
+      if (kind !== "transient" || breaker.provider.circuit === "open" || attempt === AUTH_PROBE_ATTEMPTS) return lastFailure;
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       const kind = classifyProbeFailure(detail);
-      lastFailure = { ok: false, detail: `${detail} [attempt ${attempt}/${AUTH_PROBE_ATTEMPTS}]`, kind };
-      if (kind !== "transient" || attempt === AUTH_PROBE_ATTEMPTS) return lastFailure;
+      const breaker = recordProviderProbe(providerStatusCode(kind, detail));
+      const suffix = breaker.provider.circuit === "open" ? `; circuit=open reason=${breaker.provider.last_trip_reason ?? "unknown"}` : "";
+      lastFailure = { ok: false, detail: `${detail}${suffix} [attempt ${attempt}/${AUTH_PROBE_ATTEMPTS}]`, kind };
+      if (kind !== "transient" || breaker.provider.circuit === "open" || attempt === AUTH_PROBE_ATTEMPTS) return lastFailure;
     } finally {
       clearTimeout(timeout);
     }

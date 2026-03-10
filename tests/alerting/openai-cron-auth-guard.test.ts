@@ -3,6 +3,12 @@ import { flushModuleSideEffects, importFresh, mockExit, resetProcess, setArgv, u
 
 const readJsonFile = vi.hoisted(() => vi.fn());
 const spawnSync = vi.hoisted(() => vi.fn());
+const fsMock = vi.hoisted(() => ({
+  existsSync: vi.fn(),
+  mkdirSync: vi.fn(),
+  writeFileSync: vi.fn(),
+  renameSync: vi.fn(),
+}));
 
 vi.mock("../../tools/lib/json-file.js", () => ({
   readJsonFile,
@@ -10,14 +16,23 @@ vi.mock("../../tools/lib/json-file.js", () => ({
 vi.mock("child_process", () => ({
   spawnSync,
 }));
+vi.mock("node:fs", () => ({
+  default: fsMock,
+  ...fsMock,
+}));
 
 describe("openai-cron-auth-guard", () => {
   beforeEach(() => {
     readJsonFile.mockReset();
     spawnSync.mockReset();
+    fsMock.existsSync.mockReset();
+    fsMock.mkdirSync.mockReset();
+    fsMock.writeFileSync.mockReset();
+    fsMock.renameSync.mockReset();
     process.env.OPENAI_API_KEY = "test-key";
     process.env.OPENAI_AUTH_PROBE_RETRY_MS = "0";
     process.env.OPENAI_AUTH_PROBE_ATTEMPTS = "2";
+    fsMock.existsSync.mockReturnValue(false);
   });
 
   afterEach(() => {
@@ -56,8 +71,16 @@ describe("openai-cron-auth-guard", () => {
           },
         };
       }
+      if (filePath.includes("provider-fallback-policy.json")) {
+        return {
+          providers: {
+            codex: { fallback_order: ["opus", "sonnet"] },
+          },
+        };
+      }
       return null;
     });
+    fsMock.existsSync.mockImplementation((filePath: string) => filePath.includes("provider-fallback-policy.json"));
 
     const fetchMock = vi
       .fn()
@@ -93,8 +116,12 @@ describe("openai-cron-auth-guard", () => {
       if (filePath.endsWith("config/openclaw.json")) {
         return { models: { providers: { openai: { apiKey: "test-key" } }, available: {} } };
       }
+      if (filePath.includes("provider-fallback-policy.json")) {
+        return { providers: { codex: { fallback_order: ["opus", "sonnet"] } } };
+      }
       return null;
     });
+    fsMock.existsSync.mockImplementation((filePath: string) => filePath.includes("provider-fallback-policy.json"));
 
     (globalThis as any).fetch = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "ok" });
 
@@ -126,8 +153,12 @@ describe("openai-cron-auth-guard", () => {
       if (filePath.endsWith("config/openclaw.json")) {
         return { models: { providers: { openai: { apiKey: "test-key" } }, available: {} } };
       }
+      if (filePath.includes("provider-fallback-policy.json")) {
+        return { providers: { codex: { fallback_order: ["opus", "sonnet"] } } };
+      }
       return null;
     });
+    fsMock.existsSync.mockImplementation((filePath: string) => filePath.includes("provider-fallback-policy.json"));
 
     (globalThis as any).fetch = vi.fn().mockResolvedValue({ ok: false, status: 401, text: async () => "unauthorized" });
 
@@ -144,6 +175,80 @@ describe("openai-cron-auth-guard", () => {
       "openclaw",
       ["cron", "run", "job-1"],
       expect.anything()
+    );
+    expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("skips the probe when the codex provider circuit is not currently attemptable", async () => {
+    const exitSpy = mockExit();
+    setArgv(["preflight"]);
+    useFixedTime("2026-03-10T13:00:00Z");
+
+    readJsonFile.mockImplementation((filePath: string) => {
+      if (filePath.includes(".openclaw/cron/jobs.json")) {
+        return {
+          jobs: [
+            {
+              id: "job-1",
+              name: "☀️ Morning brief (Hamel)",
+              enabled: true,
+              payload: { model: "openai-codex/gpt-5.3-codex" },
+            },
+          ],
+        };
+      }
+      if (filePath.endsWith("config/openclaw.json")) {
+        return { models: { providers: { openai: { apiKey: "test-key" } }, available: { "openai-codex/gpt-5.3-codex": {} } } };
+      }
+      if (filePath.includes("provider-fallback-policy.json")) {
+        return { providers: { codex: { fallback_order: ["opus", "sonnet"] } } };
+      }
+      if (filePath.includes("circuit-breaker-state.json")) {
+        return {
+          version: 2,
+          updated_at: "2026-03-10T13:00:00Z",
+          config: {},
+          providers: {
+            codex: {
+              provider: "codex",
+              circuit: "open",
+              opened_at: 1741611540,
+              half_open_since: null,
+              consecutive_successes: 0,
+              needs_human_page: false,
+              last_error_code: 503,
+              last_error_kind: "retryable",
+              last_trip_reason: "retryable_threshold",
+              last_trip_at: "2026-03-10T12:55:00Z",
+              updated_at: "2026-03-10T12:55:00Z",
+              metrics: { total: 3, retryable: 3, retryable_rate: 1, non_retryable: 0, fatal: 0, success: 0, non_retryable_rate: 0 },
+              window: [
+                { ts: 1741611300, status_code: 503, kind: "retryable" },
+                { ts: 1741611360, status_code: 503, kind: "retryable" },
+                { ts: 1741611420, status_code: 429, kind: "retryable" },
+              ],
+            },
+          },
+        };
+      }
+      return null;
+    });
+    fsMock.existsSync.mockImplementation((filePath: string) =>
+      filePath.includes("provider-fallback-policy.json") || filePath.includes("circuit-breaker-state.json")
+    );
+
+    const fetchMock = vi.fn();
+    (globalThis as any).fetch = fetchMock;
+
+    await importFresh("../../tools/alerting/openai-cron-auth-guard.ts");
+    await flushModuleSideEffects();
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(spawnSync).toHaveBeenCalledTimes(1);
+    expect(spawnSync).toHaveBeenCalledWith(
+      expect.stringContaining("telegram-delivery-guard.sh"),
+      expect.arrayContaining([expect.stringContaining("OpenAI provider circuit"), expect.stringContaining("probe skipped")]),
+      expect.objectContaining({ encoding: "utf8" })
     );
     expect(exitSpy).toHaveBeenCalledWith(1);
   });

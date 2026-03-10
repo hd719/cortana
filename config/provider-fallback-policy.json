@@ -1,4 +1,13 @@
 {
+  "circuit_breaker": {
+    "window_size": 10,
+    "trip_threshold": 0.2,
+    "retryable_trip_count": 3,
+    "retryable_trip_rate": 0.5,
+    "cooldown_sec": 300,
+    "recovery_probe_pct": 0.01,
+    "success_to_close": 3
+  },
   "providers": {
     "codex": {
       "fallback_order": ["opus", "sonnet", "4o-mini"],
