@@ -183,6 +183,10 @@ describe("openai-cron-auth-guard", () => {
     const exitSpy = mockExit();
     setArgv(["preflight"]);
     useFixedTime("2026-03-10T13:00:00Z");
+    const openedAt = Math.floor(Date.parse("2026-03-10T12:58:30Z") / 1000);
+    const firstFailureAt = Math.floor(Date.parse("2026-03-10T12:58:30Z") / 1000);
+    const secondFailureAt = Math.floor(Date.parse("2026-03-10T12:59:00Z") / 1000);
+    const thirdFailureAt = Math.floor(Date.parse("2026-03-10T12:59:30Z") / 1000);
 
     readJsonFile.mockImplementation((filePath: string) => {
       if (filePath.includes(".openclaw/cron/jobs.json")) {
@@ -212,7 +216,7 @@ describe("openai-cron-auth-guard", () => {
             codex: {
               provider: "codex",
               circuit: "open",
-              opened_at: 1741611540,
+              opened_at: openedAt,
               half_open_since: null,
               consecutive_successes: 0,
               needs_human_page: false,
@@ -220,12 +224,22 @@ describe("openai-cron-auth-guard", () => {
               last_error_kind: "retryable",
               last_trip_reason: "retryable_threshold",
               last_trip_at: "2026-03-10T12:55:00Z",
+              error_burst: {
+                active: true,
+                count: 3,
+                threshold: 3,
+                window_seconds: 120,
+                started_at: firstFailureAt,
+                last_error_at: thirdFailureAt,
+                last_status_code: 429,
+                last_triggered_at: "2026-03-10T12:59:30Z",
+              },
               updated_at: "2026-03-10T12:55:00Z",
               metrics: { total: 3, retryable: 3, retryable_rate: 1, non_retryable: 0, fatal: 0, success: 0, non_retryable_rate: 0 },
               window: [
-                { ts: 1741611300, status_code: 503, kind: "retryable" },
-                { ts: 1741611360, status_code: 503, kind: "retryable" },
-                { ts: 1741611420, status_code: 429, kind: "retryable" },
+                { ts: firstFailureAt, status_code: 503, kind: "retryable" },
+                { ts: secondFailureAt, status_code: 503, kind: "retryable" },
+                { ts: thirdFailureAt, status_code: 429, kind: "retryable" },
               ],
             },
           },
@@ -247,7 +261,11 @@ describe("openai-cron-auth-guard", () => {
     expect(spawnSync).toHaveBeenCalledTimes(1);
     expect(spawnSync).toHaveBeenCalledWith(
       expect.stringContaining("telegram-delivery-guard.sh"),
-      expect.arrayContaining([expect.stringContaining("OpenAI provider circuit"), expect.stringContaining("probe skipped")]),
+      expect.arrayContaining([
+        expect.stringContaining("OpenAI provider circuit"),
+        expect.stringContaining("probe skipped"),
+        expect.stringContaining("error burst 3/3 in 120s"),
+      ]),
       expect.objectContaining({ encoding: "utf8" })
     );
     expect(exitSpy).toHaveBeenCalledWith(1);

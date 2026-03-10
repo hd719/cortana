@@ -15,6 +15,8 @@ const RETRYABLE_TRIP_RATE = 0.5;
 const DEFAULT_COOLDOWN_SEC = 300;
 const RECOVERY_PROBE_PCT = 0.01;
 const SUCCESS_TO_CLOSE = 3;
+const ERROR_BURST_WINDOW_SEC = 120;
+const ERROR_BURST_COUNT = 3;
 
 const RETRYABLE_CODES = new Set([429, 500, 502, 503, 529]);
 const TIMEOUT_CODES = new Set([408, 504, 524]);
@@ -38,6 +40,8 @@ export type CircuitConfig = {
   cooldown_sec: number;
   recovery_probe_pct: number;
   success_to_close: number;
+  error_burst_window_sec: number;
+  error_burst_count: number;
 };
 
 export type RoutePolicy = {
@@ -71,6 +75,17 @@ export type ProviderWindowEntry = {
   kind: Classification;
 };
 
+export type ProviderErrorBurst = {
+  active: boolean;
+  count: number;
+  threshold: number;
+  window_seconds: number;
+  started_at: number | null;
+  last_error_at: number | null;
+  last_status_code: number | null;
+  last_triggered_at: string | null;
+};
+
 export type ProviderState = {
   provider: string;
   tier: number;
@@ -85,6 +100,7 @@ export type ProviderState = {
   last_error_kind: Classification | null;
   last_trip_reason: string | null;
   last_trip_at: string | null;
+  error_burst: ProviderErrorBurst;
   updated_at: string;
 };
 
@@ -144,6 +160,8 @@ function defaultConfig(policy?: RoutePolicy): CircuitConfig {
     cooldown_sec: Number(policy?.circuit_breaker?.cooldown_sec ?? DEFAULT_COOLDOWN_SEC),
     recovery_probe_pct: Number(policy?.circuit_breaker?.recovery_probe_pct ?? RECOVERY_PROBE_PCT),
     success_to_close: Number(policy?.circuit_breaker?.success_to_close ?? SUCCESS_TO_CLOSE),
+    error_burst_window_sec: Number(policy?.circuit_breaker?.error_burst_window_sec ?? ERROR_BURST_WINDOW_SEC),
+    error_burst_count: Number(policy?.circuit_breaker?.error_burst_count ?? ERROR_BURST_COUNT),
   };
 }
 
@@ -156,6 +174,19 @@ function defaultMetrics(): ProviderMetrics {
     fatal: 0,
     success: 0,
     non_retryable_rate: 0,
+  };
+}
+
+function defaultErrorBurst(cfg?: Partial<CircuitConfig>): ProviderErrorBurst {
+  return {
+    active: false,
+    count: 0,
+    threshold: Number(cfg?.error_burst_count ?? ERROR_BURST_COUNT),
+    window_seconds: Number(cfg?.error_burst_window_sec ?? ERROR_BURST_WINDOW_SEC),
+    started_at: null,
+    last_error_at: null,
+    last_status_code: null,
+    last_triggered_at: null,
   };
 }
 
@@ -223,6 +254,7 @@ export function classify(statusCode: number): Classification {
 }
 
 export function providerState(state: CircuitState, provider: string): ProviderState {
+  const cfg = state.config ?? defaultConfig();
   if (!state.providers[provider]) {
     state.providers[provider] = {
       provider,
@@ -238,10 +270,28 @@ export function providerState(state: CircuitState, provider: string): ProviderSt
       last_error_kind: null,
       last_trip_reason: null,
       last_trip_at: null,
+      error_burst: defaultErrorBurst(cfg),
       updated_at: iso(),
     };
   }
-  return state.providers[provider];
+  const p = state.providers[provider] as ProviderState & Record<string, any>;
+  p.provider = String(p.provider ?? provider);
+  p.tier = Number(p.tier ?? (TIER_MAP[provider] ?? 2));
+  p.circuit = p.circuit === "open" || p.circuit === "half_open" ? p.circuit : "closed";
+  p.opened_at = p.opened_at ?? null;
+  p.half_open_since = p.half_open_since ?? null;
+  p.window = Array.isArray(p.window) ? p.window : [];
+  p.metrics = { ...defaultMetrics(), ...(p.metrics ?? {}) };
+  p.consecutive_successes = Number(p.consecutive_successes ?? 0);
+  p.needs_human_page = Boolean(p.needs_human_page);
+  p.last_error_code = p.last_error_code ?? null;
+  p.last_error_kind = p.last_error_kind ?? null;
+  p.last_trip_reason = p.last_trip_reason ?? null;
+  p.last_trip_at = p.last_trip_at ?? null;
+  p.error_burst = { ...defaultErrorBurst(cfg), ...(p.error_burst ?? {}) };
+  p.updated_at = String(p.updated_at ?? iso());
+  refreshErrorBurst(p, cfg);
+  return p;
 }
 
 function openCircuit(p: ProviderState, reason: string): void {
@@ -272,6 +322,28 @@ function recomputeMetrics(p: ProviderState, cfg: CircuitConfig): void {
   };
 }
 
+function refreshErrorBurst(p: ProviderState, cfg: CircuitConfig, referenceTs = nowTs()): void {
+  const windowSeconds = Math.max(1, Number(cfg.error_burst_window_sec ?? ERROR_BURST_WINDOW_SEC));
+  const threshold = Math.max(1, Number(cfg.error_burst_count ?? ERROR_BURST_COUNT));
+  const recentErrors = (p.window ?? []).filter(
+    (entry) => entry.kind !== "success" && referenceTs - Number(entry.ts ?? 0) <= windowSeconds,
+  );
+  const latest = recentErrors[recentErrors.length - 1] ?? null;
+  const active = recentErrors.length >= threshold;
+  const prior = p.error_burst ?? defaultErrorBurst(cfg);
+  p.error_burst = {
+    ...prior,
+    active,
+    count: recentErrors.length,
+    threshold,
+    window_seconds: windowSeconds,
+    started_at: recentErrors[0]?.ts ?? null,
+    last_error_at: latest?.ts ?? prior.last_error_at ?? null,
+    last_status_code: latest?.status_code ?? prior.last_status_code ?? null,
+    last_triggered_at: active ? prior.last_triggered_at ?? iso(referenceTs) : prior.last_triggered_at ?? null,
+  };
+}
+
 function maybeTransitionForTime(p: ProviderState, cfg: CircuitConfig): void {
   if (p.circuit !== "open" || !p.opened_at) return;
   if (nowTs() - Number(p.opened_at) >= Number(cfg.cooldown_sec ?? DEFAULT_COOLDOWN_SEC)) {
@@ -292,6 +364,7 @@ export function providerAvailability(state: CircuitState, provider: string): Pro
   const p = providerState(state, provider);
   const cfg = state.config ?? defaultConfig();
   maybeTransitionForTime(p, cfg);
+  refreshErrorBurst(p, cfg);
 
   if (p.circuit === "closed") {
     return {
@@ -342,6 +415,7 @@ export function recordRequest(state: CircuitState, provider: string, statusCode:
 
   p.window.push({ ts: nowTs(), status_code: statusCode, kind });
   recomputeMetrics(p, cfg);
+  refreshErrorBurst(p, cfg);
 
   if (p.circuit === "closed") {
     if (kind === "fatal") {
@@ -385,6 +459,7 @@ export function routeFor(provider: string, statusCode: number, state: CircuitSta
   const providerPolicy = policy.providers?.[provider] ?? {};
   const p = providerState(state, provider);
   maybeTransitionForTime(p, cfg);
+  refreshErrorBurst(p, cfg);
 
   const fallbackOrder = (providerPolicy.fallback_order ?? DEFAULT_ORDER).filter((name) => name !== provider);
   const fallbackProvider =
@@ -433,6 +508,8 @@ export function routeFor(provider: string, statusCode: number, state: CircuitSta
     provider_probe_required: availability.probe_required,
     needs_human_page: p.needs_human_page,
     circuit_reason: p.last_trip_reason,
+    error_burst_active: p.error_burst.active,
+    error_burst: p.error_burst,
   };
 }
 

@@ -32,6 +32,7 @@ function cmdRecord(provider: string, statusCode: number, cooldownOverride: numbe
         metrics: providerState.metrics,
         needs_human_page: providerState.needs_human_page,
         last_trip_reason: providerState.last_trip_reason,
+        error_burst: providerState.error_burst,
         recommendation: rec,
         route_policy: route,
       },

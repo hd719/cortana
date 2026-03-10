@@ -9,6 +9,7 @@ import {
   loadRoutePolicy as loadProviderRoutePolicy,
   loadState as loadProviderHealthState,
   providerAvailability,
+  providerState as getProviderHealthState,
   recordRequest as recordProviderHealthRequest,
   routeFor as routeProviderHealth,
   saveState as saveProviderHealthState,
@@ -126,12 +127,19 @@ function providerStatusCode(kind: "auth" | "transient" | "unknown", detail: stri
   return 520;
 }
 
+function burstSuffix(provider: { error_burst?: { active?: boolean; count?: number; threshold?: number; window_seconds?: number } } | null | undefined): string {
+  const burst = provider?.error_burst;
+  if (!burst?.active) return "";
+  return `; error burst ${burst.count ?? 0}/${burst.threshold ?? 0} in ${burst.window_seconds ?? 0}s`;
+}
+
 function checkProviderCircuit() {
   const policy = loadProviderRoutePolicy();
   const state = loadProviderHealthState(policy);
+  const provider = getProviderHealthState(state, OPENAI_PROVIDER);
   const availability = providerAvailability(state, OPENAI_PROVIDER);
   const route = routeProviderHealth(OPENAI_PROVIDER, 503, state, policy);
-  return { availability, route };
+  return { provider, availability, route };
 }
 
 function recordProviderProbe(statusCode: number) {
@@ -155,7 +163,7 @@ async function probeOpenAIAuth(): Promise<{ ok: boolean; detail: string; kind: "
       const reason = gate.route.circuit_reason ? `; reason=${gate.route.circuit_reason}` : "";
       return {
         ok: false,
-        detail: `OpenAI provider circuit ${gate.availability.circuit}; probe skipped${fallback}${reason}`,
+        detail: `OpenAI provider circuit ${gate.availability.circuit}; probe skipped${fallback}${reason}${burstSuffix(gate.provider)}`,
         kind: "transient",
       };
     }
@@ -177,14 +185,16 @@ async function probeOpenAIAuth(): Promise<{ ok: boolean; detail: string; kind: "
       const kind = classifyProbeFailure(detail);
       const breaker = recordProviderProbe(res.status);
       const suffix = breaker.provider.circuit === "open" ? `; circuit=open reason=${breaker.provider.last_trip_reason ?? "unknown"}` : "";
-      lastFailure = { ok: false, detail: `${detail}${suffix} [attempt ${attempt}/${AUTH_PROBE_ATTEMPTS}]`, kind };
+      const burst = burstSuffix(breaker.provider);
+      lastFailure = { ok: false, detail: `${detail}${suffix}${burst} [attempt ${attempt}/${AUTH_PROBE_ATTEMPTS}]`, kind };
       if (kind !== "transient" || breaker.provider.circuit === "open" || attempt === AUTH_PROBE_ATTEMPTS) return lastFailure;
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
       const kind = classifyProbeFailure(detail);
       const breaker = recordProviderProbe(providerStatusCode(kind, detail));
       const suffix = breaker.provider.circuit === "open" ? `; circuit=open reason=${breaker.provider.last_trip_reason ?? "unknown"}` : "";
-      lastFailure = { ok: false, detail: `${detail}${suffix} [attempt ${attempt}/${AUTH_PROBE_ATTEMPTS}]`, kind };
+      const burst = burstSuffix(breaker.provider);
+      lastFailure = { ok: false, detail: `${detail}${suffix}${burst} [attempt ${attempt}/${AUTH_PROBE_ATTEMPTS}]`, kind };
       if (kind !== "transient" || breaker.provider.circuit === "open" || attempt === AUTH_PROBE_ATTEMPTS) return lastFailure;
     } finally {
       clearTimeout(timeout);
