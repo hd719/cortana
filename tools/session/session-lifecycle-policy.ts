@@ -1,6 +1,7 @@
 #!/usr/bin/env npx tsx
 import fs from 'node:fs';
 import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 type Bucket = 'chat' | 'subagent' | 'cron' | 'other';
@@ -17,9 +18,30 @@ type SessionItem = {
   sessionKey?: string;
 };
 
+const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
+const REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
+const POLICY_BASENAME = 'session-lifecycle-policy.json';
+
+export function resolvePolicyPath(explicitPath = process.env.SESSION_LIFECYCLE_POLICY_PATH): string {
+  const candidates = [
+    explicitPath,
+    path.join(REPO_ROOT, 'config', POLICY_BASENAME),
+    path.join(process.cwd(), 'config', POLICY_BASENAME),
+    '/Users/hd/openclaw/config/session-lifecycle-policy.json',
+  ].filter((value): value is string => Boolean(value));
+
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+
+  throw new Error(
+    `session lifecycle policy config not found. Tried: ${candidates.join(', ') || '(no candidate paths)'}`
+  );
+}
+
 function loadPolicy(): Policy {
-  const p = path.resolve(process.cwd(), 'config/session-lifecycle-policy.json');
-  return JSON.parse(fs.readFileSync(p, 'utf8')) as Policy;
+  const policyPath = resolvePolicyPath();
+  return JSON.parse(fs.readFileSync(policyPath, 'utf8')) as Policy;
 }
 
 function classify(key: string): Bucket {
@@ -78,4 +100,6 @@ function main() {
   console.log(lines.join('\n'));
 }
 
-main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main();
+}
