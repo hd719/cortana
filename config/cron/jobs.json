@@ -1688,6 +1688,33 @@
         "mode": "none",
         "accountId": "monitor"
       }
+    },
+    {
+      "id": "e6339d0b-52d6-4ca3-b135-4dff9f6cfeab",
+      "agentId": "cron-maintenance",
+      "name": "\ud83e\uddfe Focus Mode Digest Flush",
+      "enabled": true,
+      "createdAtMs": 1773105706841,
+      "updatedAtMs": 1773105706841,
+      "schedule": {
+        "kind": "cron",
+        "expr": "30 18 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/notifications/flush-digest.ts 8171372724`. If it reports no digest file or empty digest, return exactly NO_REPLY. If it sends successfully, return exactly NO_REPLY.",
+        "model": "openai-codex/gpt-5.1"
+      },
+      "state": {
+        "consecutiveErrors": 0
+      },
+      "delivery": {
+        "mode": "none",
+        "accountId": "monitor"
+      }
     }
   ]
 }

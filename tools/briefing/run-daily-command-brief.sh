@@ -16,7 +16,7 @@ if ! "${GEN[@]}" > "$OUT"; then
   exit 1
 fi
 
-if ! "$GUARD" "$(cat "$OUT")" 8171372724 0 daily_command_brief "daily-command-brief-$(date +%F)"; then
+if ! "$GUARD" "$(cat "$OUT")" 8171372724 0 daily_command_brief "daily-command-brief-$(date +%F)" immediate briefing; then
   "$GUARD" "🧭 Brief - Daily Command Brief ERROR\nTelegram delivery failed after retries." 8171372724 0 daily_command_brief_error "daily-command-brief-delivery-error-$(date +%F)"
   exit 1
 fi
