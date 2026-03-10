@@ -126,6 +126,18 @@ Before creating any new branch in a repo:
 
 Never branch from a stale feature/fix branch.
 
+### Merge Cleanup Rule (MANDATORY)
+
+If Hamel says a PR was **merged**, treat that as an automatic cleanup trigger.
+
+Immediate follow-up actions:
+1. `git checkout main`
+2. `git pull --ff-only`
+3. delete the merged local feature branch(es)
+4. confirm the repo is clean
+
+Do **not** wait for a second prompt like "clean local repo."
+
 ## Memory Protocol
 
 You wake up fresh each session. These files are your continuity:
