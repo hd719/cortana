@@ -98,7 +98,9 @@ function authFailureText(job: Job): string | null {
 }
 
 function sendGuard(message: string, alertType: string, dedupeKey: string): void {
-  spawnSync(TELEGRAM_GUARD, [message, TARGET, "", alertType, dedupeKey, "immediate", "monitor"], { encoding: "utf8" });
+  spawnSync(TELEGRAM_GUARD, [message, TARGET, "", alertType, dedupeKey, "P1", "monitor", "System", "now", "cron-maintenance"], {
+    encoding: "utf8",
+  });
 }
 
 function retryJob(jobId: string): { ok: boolean; detail: string } {

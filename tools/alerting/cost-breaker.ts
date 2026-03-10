@@ -38,10 +38,10 @@ function run(command: string, args: string[]) {
   return spawnSync(command, args, { encoding: "utf8", env });
 }
 
-function sendTelegramAlert(msg: string, severity: "immediate" | "digest" = "immediate") {
+function sendTelegramAlert(msg: string, severity: "P1" | "P2" = "P1") {
   try {
     fs.accessSync(TELEGRAM_GUARD, fs.constants.X_OK);
-    run(TELEGRAM_GUARD, [msg, TELEGRAM_CHAT_ID, "", "cost_breaker", `cost-breaker-${Date.now()}`, severity, "monitor"]);
+    run(TELEGRAM_GUARD, [msg, TELEGRAM_CHAT_ID, "", "cost_breaker", `cost-breaker-${Date.now()}`, severity, "monitor", "System", severity === "P1" ? "now" : "summary", "cron-health"]);
   } catch {
     logEvent("warning", "Telegram guard missing; alert not sent", { guard: TELEGRAM_GUARD });
   }
@@ -222,7 +222,7 @@ if (warnPreMidmonth) {
     pctBudgetUsed: pctBudget,
     dayOfMonth: nowDay,
   });
-  sendTelegramAlert(`⚠️ Cost breaker warning: ${pctBudget}% of budget used before mid-month (projected $${projectedMonthly.toFixed(2)}).`, "digest");
+  sendTelegramAlert(`⚠️ Cost breaker warning: ${pctBudget}% of budget used before mid-month (projected $${projectedMonthly.toFixed(2)}).`, "P2");
 }
 if (alert75Anytime) {
   logEvent("error", "Cost breaker alert threshold breached (75% anytime)", { pctBudgetUsed: pctBudget });

@@ -416,9 +416,13 @@ function sendFailureAlert(reasonItem: FailureFinding, now = new Date()): [boolea
   const detail = reasonItem.reasonDetail;
   const msg = `🚨 Sub-agent failure: ${label}\nSession: ${key}\nTerminal: ${terminalStatus}\nReason: ${reason} (${detail})`;
 
-  const proc = spawnSync(TELEGRAM_GUARD, [msg, "8171372724", "", "subagent_failure_alert", `subagent:${key}:${reason}`, "immediate", "monitor"], {
-    encoding: "utf8",
-  });
+  const proc = spawnSync(
+    TELEGRAM_GUARD,
+    [msg, "8171372724", "", "subagent_failure_alert", `subagent:${key}:${reason}`, "P1", "monitor", "System", "now", "cron-maintenance"],
+    {
+      encoding: "utf8",
+    }
+  );
   if (proc.status !== 0) {
     return [false, (proc.stderr ?? proc.stdout ?? "telegram guard failed").trim()];
   }

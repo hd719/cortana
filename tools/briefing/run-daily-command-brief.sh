@@ -12,12 +12,12 @@ if [[ "${1:-}" == "--dry-run" ]]; then
 fi
 
 if ! "${GEN[@]}" > "$OUT"; then
-  "$GUARD" "🧭 Brief - Daily Command Brief ERROR\nGeneration failed. Check /tmp/daily-command-brief.log" 8171372724 0 daily_command_brief_error "daily-command-brief-error-$(date +%F)"
+  "$GUARD" "Generation failed. Check /tmp/daily-command-brief.log" 8171372724 0 daily_command_brief_error "daily-command-brief-error-$(date +%F)" P1 monitor Brief now cron-maintenance
   exit 1
 fi
 
-if ! "$GUARD" "$(cat "$OUT")" 8171372724 0 daily_command_brief "daily-command-brief-$(date +%F)" immediate briefing; then
-  "$GUARD" "🧭 Brief - Daily Command Brief ERROR\nTelegram delivery failed after retries." 8171372724 0 daily_command_brief_error "daily-command-brief-delivery-error-$(date +%F)"
+if ! "$GUARD" "$(cat "$OUT")" 8171372724 0 daily_command_brief "daily-command-brief-$(date +%F)" P2 monitor Brief summary cron-maintenance; then
+  "$GUARD" "Telegram delivery failed after retries." 8171372724 0 daily_command_brief_error "daily-command-brief-delivery-error-$(date +%F)" P1 monitor Brief now cron-maintenance
   exit 1
 fi
 
