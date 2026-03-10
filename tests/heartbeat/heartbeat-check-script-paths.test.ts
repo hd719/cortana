@@ -5,7 +5,7 @@ describe("heartbeat check script compatibility paths", () => {
   it("provides task-board hygiene entrypoint", () => {
     expect(existsSync("tools/task-board/hygiene.ts")).toBe(true);
     const src = readFileSync("tools/task-board/hygiene.ts", "utf8");
-    expect(src).toContain("tools/task-board/stale-detector.ts");
+    expect(src).toContain("tools/task-board/reset-engine.ts");
   });
 
   it("provides task detection entrypoint", () => {
