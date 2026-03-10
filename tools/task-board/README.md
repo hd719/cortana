@@ -134,6 +134,23 @@ Idempotency:
 - Already-flagged pending tasks are skipped
 - Already-reset orphaned tasks become `pending`, so they are naturally skipped on reruns
 
+### 6b) reset-engine (sync + cleanup + tomorrow stack)
+
+```bash
+npx tsx tools/task-board/reset-engine.ts
+npx tsx tools/task-board/reset-engine.ts --json
+```
+
+Workflow:
+- runs `completion-sync` first so finished sub-agent work lands in `cortana_tasks`
+- runs `aggressive-reconcile --apply` to repair active-run / merged-PR drift
+- runs `stale-detector` to flag stale `ready` work and requeue orphaned `in_progress` work
+- promotes overdue `scheduled` tasks to `ready`
+- auto-closes `ready` tasks that were already stale-flagged and then remained idle past the grace window
+- emits a tomorrow mission stack from the cleaned board state
+
+Default output is a one-page tomorrow mission stack. `--json` returns the full workflow summary plus the rendered stack.
+
 ### 7) state-integrity audit/heal
 
 ```bash
