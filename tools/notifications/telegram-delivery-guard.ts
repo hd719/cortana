@@ -4,6 +4,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { appendDigestEntry, isFocusModeActive, normalizeSeverity, type NotificationSeverity } from "./focus-mode-policy.js";
 
 const DEFAULT_TARGET = "8171372724";
 const DEFAULT_ALERT_TYPE = "generic_alert";
@@ -16,6 +17,8 @@ type GuardArgs = {
   target: string;
   alertType: string;
   dedupeKey: string;
+  severity: NotificationSeverity;
+  owner: string;
 };
 
 export function parseGuardArgs(argv: string[]): GuardArgs {
@@ -24,6 +27,8 @@ export function parseGuardArgs(argv: string[]): GuardArgs {
     target: argv[1] || DEFAULT_TARGET,
     alertType: argv[3] || DEFAULT_ALERT_TYPE,
     dedupeKey: argv[4] ?? "",
+    severity: normalizeSeverity(argv[5]),
+    owner: argv[6] || "monitor",
   };
 }
 
@@ -123,7 +128,7 @@ export function sendWithRetries(target: string, chunks: string[], maxRetries = D
 }
 
 export function run(argv: string[]): number {
-  const { message, target, alertType, dedupeKey } = parseGuardArgs(argv);
+  const { message, target, alertType, dedupeKey, severity, owner } = parseGuardArgs(argv);
 
   if (!message) {
     console.error("[telegram-delivery-guard] missing message argument");
@@ -135,10 +140,17 @@ export function run(argv: string[]): number {
     return 0;
   }
 
+  const focusMode = isFocusModeActive();
+  if (focusMode && severity !== "immediate") {
+    const file = appendDigestEntry({ message, target, alertType, dedupeKey, severity, owner });
+    console.log(`[telegram-delivery-guard] queued (${alertType}) severity=${severity} owner=${owner} file=${file}`);
+    return 0;
+  }
+
   const chunks = chunkMessage(message);
   sendWithRetries(target, chunks);
 
-  console.log(`[telegram-delivery-guard] sent (${alertType}) to ${target} chunks=${chunks.length}`);
+  console.log(`[telegram-delivery-guard] sent (${alertType}) severity=${severity} owner=${owner} to ${target} chunks=${chunks.length}`);
   return 0;
 }
 
