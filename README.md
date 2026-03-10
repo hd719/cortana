@@ -18,12 +18,12 @@ This repository is public. Do **not** hardcode personal identifiers (phone/chat 
 
 ## 0. 2026-03-10 Operator Note — Cron Noise Cleanup (live)
 
-Today’s cron cleanup established a new delivery and noise policy for the live system:
+Today’s cron cleanup established a new live delivery and noise policy:
 
 - **Cortana stays** as the human-facing command voice for high-value summaries and strategic briefings.
 - **Monitor is now the primary cron/ops delivery voice** for most automated alerts.
-- Maintenance/watchdog/recovery jobs were tightened to be **exception-only** (healthy runs should return `NO_REPLY`).
-- Low-yield/noise-prone cron jobs were removed during the cleanup pass rather than kept by default.
+- Maintenance/watchdog/recovery jobs are **exception-only**: healthy runs should return `NO_REPLY`.
+- Low-yield/noise-prone cron jobs were removed instead of being preserved by default.
 
 ### 0.0 Current cron delivery policy
 
@@ -31,26 +31,49 @@ Today’s cron cleanup established a new delivery and noise policy for the live 
 - **Monitor**: newsletters, market alerts, system health, maintenance, watchdog/reliability, fitness summaries, and most routine cron outputs.
 - **Default rule**: if a cron is healthy and non-actionable, it should stay silent.
 
-### 0.1 Cleanup outcomes from this pass
+### 0.1 Current schedule shape (document the shape, not every minute)
 
-Direct changes made live in scheduler config:
-- Moved the majority of user-visible cron delivery under **Monitor**.
-- Silenced maintenance jobs that were previously capable of routine healthy chatter.
-- Removed clearly low-value cron noise, including:
+To avoid README rot, this file tracks the **schedule shape and operator intent**, not a brittle full dump of every live cron timestamp.
+
+Current shape after the 2026-03-10 cleanup:
+- **Calendar reminders**: hourly daytime checks; message only inside reminder windows.
+- **Newsletter alert (real-time)**: daytime `:07` cadence; silent when no new matching mail exists.
+- **Market alerts**: fixed weekday market-session checks.
+- **Morning delivery lane**: morning brief, fitness morning brief, stock market brief.
+- **Evening delivery lane**: fitness evening recap, bedtime checks, selected summaries.
+- **Maintenance/watchdog layer**: still scheduled, but healthy runs should stay silent.
+
+Authoritative exact schedules live in:
+- `config/cron/jobs.json`
+- runtime mirror: `~/.openclaw/cron/jobs.json`
+
+### 0.2 Cleanup outcomes from this pass
+
+Live scheduler changes included:
+- moving the majority of user-visible cron delivery under **Monitor**,
+- silencing maintenance jobs that were capable of routine healthy chatter,
+- deleting clearly low-yield cron noise, including:
   - `Weekly Cortana Status`
   - `Weekly Compounder Scoreboard`
   - `twitter-update-every-4h`
   - `Daily Upgrade Protocol`
-- Reduced active cron count materially while preserving core coverage (calendar, newsletter, market, fitness, maintenance, health).
+- reducing active cron count while preserving core coverage (calendar, newsletter, market, fitness, maintenance, health).
 
-### 0.2 Operator guidance
+### 0.3 Operator guidance
+
+### 0.3 Operator guidance
+>>>>>>> 2dd1fe2 (docs: add cron schedule shape note)
 
 When editing or adding future crons:
 - prefer **Monitor** for automated machine/ops delivery,
 - reserve **Cortana** for high-signal human-facing outputs,
 - make maintenance jobs **silent-by-default**,
 - require a clear reason for any cron that speaks routinely,
+<<<<<<< HEAD
 - delete low-yield noise instead of preserving it out of sentimentality.
+=======
+- document schedule *shape* here, but keep exact timing in `jobs.json`.
+>>>>>>> 2dd1fe2 (docs: add cron schedule shape note)
 
 ## 0. 2026-03-05 Operator Critical Update (live)
 
