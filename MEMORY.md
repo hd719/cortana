@@ -21,6 +21,7 @@
 - **Time format**: 12-hour AM/PM, not 24-hour.
 - **Group chats**: selective silence; read-only unless adding clear value.
 - **Heartbeat tag**: prefix heartbeat check-in messages with 🫀.
+- **Invisible Enterprise bias**: Hamel is especially interested in solo/tiny-team, automation-heavy, high-margin SaaS or agentic software aimed at narrow vertical niches with practical monetization and real operator leverage over VC-scale narrative games.
 
 ## Safety / Approvals
 
@@ -130,6 +131,8 @@
 - **Skills**: include clear "USE WHEN" / "DON'T USE" sections; move bulky templates into skills to save tokens.
 - **Calendar reminders**: prompts for reminder crons must specify time windows to avoid early/late alerts.
 - **clawdhub**: clean ghost entries via lock file edits, not just filesystem deletes.
+- **Alpaca targeting rule**: local portfolio/trading checks must verify `ALPACA_TARGET_ENVIRONMENT` and credential source (live env keys vs paper file keys). Treat account-context mismatch as a blocker, not a soft warning.
+- **Repo auto-sync hygiene**: keep volatile runtime/generated state out of tracked git paths (prefer ignored runtime-state locations) so sync automation stays reliable.
 
 ## Critical Tools (wired into heartbeat)
 
@@ -190,3 +193,9 @@
     - `agents.defaults.subagents.archiveAfterMinutes`: `5` → `15`
   - Rationale: concurrency ceiling at 4 was triggering intermittent "Request was aborted" failures when parallel sub-agent demand spiked.
   - Expected result: improved reliability for concurrent runs, clearer timeout control, and better short-term run trace availability.
+
+## Nightly Consolidation Notes (2026-03-11)
+
+- Reliability work entered execution phase under task-board epic **#33 (Reliability Overhaul v1)** with concrete follow-ons: completion-sync JSON contract guard, Dip Buyer wording hardening, market-session verification for 9:30/12:30/3:30 ET runs, Alpaca/portfolio heartbeat observability, long-running cron slimming audit, monitoring summary design, and cron output ambiguity/noise audit.
+- Monitor context rule strengthened: treat major AI ecosystem/policy/geopolitical headlines as **background risk signals** only; escalate when there is measurable impact to reliability, latency, pricing, procurement posture, or OpenClaw routing decisions.
+- Sleep behavior reinforcement remains valid: recurring bedtime check pattern around ~21:30–22:00 ET continues to appear; maintain Sleep Anchor nudges around that window.
