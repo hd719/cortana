@@ -1,9 +1,13 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { captureConsole, flushModuleSideEffects, importFresh, resetProcess, setArgv } from '../test-utils';
 
 const repoPolicy = path.resolve(__dirname, '../../config/session-lifecycle-policy.json');
+const spawnSync = vi.hoisted(() => vi.fn());
+
+vi.mock('node:child_process', () => ({ spawnSync }));
 
 describe('session lifecycle policy path resolution', () => {
   beforeEach(() => {
@@ -55,5 +59,73 @@ describe('session lifecycle policy path resolution', () => {
       fs.existsSync = originalExists;
       process.chdir(prev);
     }
+  });
+});
+
+describe('session lifecycle policy runtime behavior', () => {
+  beforeEach(() => {
+    spawnSync.mockReset();
+    resetProcess();
+  });
+
+  function sessionJson(keys: string[]) {
+    return JSON.stringify({ sessions: keys.map((key) => ({ sessionKey: key })) });
+  }
+
+  it('returns NO_REPLY when already healthy', async () => {
+    spawnSync
+      .mockReturnValueOnce({ status: 0, stdout: sessionJson(['agent:main:telegram', 'agent:cron:1']), stderr: '' });
+
+    setArgv([]);
+    const consoleSpy = captureConsole();
+    const mod = await importFresh('../../tools/session/session-lifecycle-policy.ts');
+    mod.main();
+    await flushModuleSideEffects();
+    consoleSpy.restore();
+
+    expect(consoleSpy.logs.join('\n')).toContain('NO_REPLY');
+    expect(spawnSync).toHaveBeenCalledTimes(1);
+  });
+
+  it('auto-cleans and stays silent when the breach is remediated', async () => {
+    const before = Array.from({ length: 12 }, (_, i) => `agent:cron:${i}`);
+    const after = Array.from({ length: 8 }, (_, i) => `agent:cron:${i}`);
+
+    spawnSync
+      .mockReturnValueOnce({ status: 0, stdout: sessionJson(before), stderr: '' })
+      .mockReturnValueOnce({ status: 0, stdout: JSON.stringify({ changedCount: 4 }), stderr: '' })
+      .mockReturnValueOnce({ status: 0, stdout: sessionJson(after), stderr: '' });
+
+    setArgv([]);
+    const consoleSpy = captureConsole();
+    const mod = await importFresh('../../tools/session/session-lifecycle-policy.ts');
+    mod.main();
+    await flushModuleSideEffects();
+    consoleSpy.restore();
+
+    expect(consoleSpy.logs.join('\n')).toContain('NO_REPLY');
+    expect(spawnSync).toHaveBeenCalledTimes(3);
+    expect(spawnSync.mock.calls[1]?.[1]).toEqual(['sessions', 'cleanup', '--all-agents', '--enforce', '--json']);
+  });
+
+  it('emits json status for remediated runs', async () => {
+    const before = Array.from({ length: 12 }, (_, i) => `agent:cron:${i}`);
+    const after = Array.from({ length: 8 }, (_, i) => `agent:cron:${i}`);
+
+    spawnSync
+      .mockReturnValueOnce({ status: 0, stdout: sessionJson(before), stderr: '' })
+      .mockReturnValueOnce({ status: 0, stdout: JSON.stringify({ changedCount: 4 }), stderr: '' })
+      .mockReturnValueOnce({ status: 0, stdout: sessionJson(after), stderr: '' });
+
+    setArgv(['--json']);
+    const consoleSpy = captureConsole();
+    const mod = await importFresh('../../tools/session/session-lifecycle-policy.ts');
+    mod.main();
+    await flushModuleSideEffects();
+    consoleSpy.restore();
+
+    const payload = JSON.parse(consoleSpy.logs.join(''));
+    expect(payload.status).toBe('remediated');
+    expect(payload.cleanupChangedCount).toBe(4);
   });
 });
