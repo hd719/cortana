@@ -1,0 +1,51 @@
+import { describe, expect, it } from "vitest";
+import { tonalTodayWorkouts, tonalWorkoutsFromPayload } from "../../tools/fitness/evening-recap-data.ts";
+
+describe("fitness evening recap tonal payload handling", () => {
+  it("extracts workouts when tonal.workouts is an object keyed by workout id", () => {
+    const payload = {
+      workouts: {
+        "f24d719e-e4dc-45d0-b757-5338b3c15deb": {
+          beginTime: "2026-03-10T05:53:57-04:00",
+          duration: 1800,
+          totalVolume: 12345,
+          stats: null,
+          detail: { title: "Upper Body Strength" },
+        },
+      },
+    };
+
+    const workouts = tonalWorkoutsFromPayload(payload);
+    expect(workouts).toHaveLength(1);
+    expect(workouts[0].id).toBe("f24d719e-e4dc-45d0-b757-5338b3c15deb");
+
+    const todays = tonalTodayWorkouts(payload, "2026-03-10");
+    expect(todays).toHaveLength(1);
+    expect(todays[0]).toMatchObject({
+      id: "f24d719e-e4dc-45d0-b757-5338b3c15deb",
+      time: "2026-03-10T05:53:57-04:00",
+      volume: 12345,
+      duration_minutes: 30,
+      title: "Upper Body Strength",
+    });
+  });
+
+  it("still supports array-style tonal workouts without regression", () => {
+    const payload = {
+      workouts: [
+        {
+          id: "abc",
+          beginTime: "2026-03-10T07:00:00-04:00",
+          duration: 900,
+          stats: { totalVolume: 5000 },
+        },
+      ],
+    };
+
+    const todays = tonalTodayWorkouts(payload, "2026-03-10");
+    expect(todays).toHaveLength(1);
+    expect(todays[0].id).toBe("abc");
+    expect(todays[0].volume).toBe(5000);
+    expect(todays[0].duration_minutes).toBe(15);
+  });
+});
