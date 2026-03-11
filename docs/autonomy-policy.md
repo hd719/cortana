@@ -70,6 +70,13 @@ Triggers:
 - Auto-act: close or revert clearly bad internal drift PRs, tighten ignore/routing rules, and document the fix path.
 - Escalate if the PR may contain real source changes mixed with noise, or if repo/running-state truth is ambiguous.
 
+## Activation / Visibility
+
+- Session lifecycle auto-remediation is active through `tools/session/session-lifecycle-policy.ts`.
+- Runtime drift suppression / actionable-only reporting is active through `tools/monitoring/runtime-repo-drift-monitor.ts`.
+- Operator visibility: run `npx tsx tools/monitoring/autonomy-status.ts` for a compact summary of auto-remediated, escalated, suppressed, and human-action items.
+- Validation coverage lives in `tests/session/session-lifecycle-policy.test.ts`, `tests/monitoring/runtime-repo-drift-monitor.test.ts`, and `tests/monitoring/autonomy-status.test.ts`.
+
 ## Guardrails
 
 - Prefer the smallest action that restores truth and stability.

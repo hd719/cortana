@@ -60,9 +60,36 @@ describe("runtime-repo-drift-monitor", () => {
     const output = await runMonitor(["--repo-root", "/repo"]);
 
     expect(output).toContain("🧭 Runtime/Repo Drift Detected");
-    expect(output).toContain("cron/jobs.json: checksum mismatch");
+    expect(output).toContain("cron/jobs.json: actionable config drift");
     expect(execSync).not.toHaveBeenCalled();
     expect(copyFileSync).not.toHaveBeenCalled();
+  });
+
+  it("suppresses broad runtime-only state drift and stays quiet", async () => {
+    seedFiles({
+      "/home/test/.openclaw/cron/jobs.json": JSON.stringify({ jobs: [{ id: "1", name: "A", state: { nextRunAtMs: 1 } }] }),
+      "/repo/config/cron/jobs.json": JSON.stringify({ jobs: [{ id: "1", name: "A", state: { nextRunAtMs: 2 } }] }),
+      "/home/test/.openclaw/agent-profiles.json": JSON.stringify({ profiles: [] }),
+      "/repo/config/agent-profiles.json": JSON.stringify({ profiles: [] }),
+    });
+
+    const output = await runMonitor(["--repo-root", "/repo"]);
+    expect(output).toContain("NO_REPLY");
+  });
+
+  it("emits json visibility with suppressed drift details", async () => {
+    seedFiles({
+      "/home/test/.openclaw/cron/jobs.json": JSON.stringify({ jobs: [{ id: "1", name: "A", state: { nextRunAtMs: 1 } }] }),
+      "/repo/config/cron/jobs.json": JSON.stringify({ jobs: [{ id: "1", name: "A", state: { nextRunAtMs: 2 } }] }),
+      "/home/test/.openclaw/agent-profiles.json": JSON.stringify({ profiles: [] }),
+      "/repo/config/agent-profiles.json": JSON.stringify({ profiles: [] }),
+    });
+
+    const output = await runMonitor(["--json", "--repo-root", "/repo"]);
+    const payload = JSON.parse(output);
+    expect(payload.status).toBe("healthy");
+    expect(payload.suppressed).toHaveLength(1);
+    expect(payload.suppressed[0].check.label).toBe("cron/jobs.json");
   });
 
   it("enables auto-pr when --auto-pr is passed", async () => {

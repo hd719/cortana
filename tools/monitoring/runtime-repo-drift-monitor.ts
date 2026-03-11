@@ -17,6 +17,7 @@ type Args = {
   repoRoot: string;
   base: string;
   branchPrefix: string;
+  json: boolean;
 };
 
 type DriftAssessment = {
@@ -52,17 +53,19 @@ function parseArgs(): Args {
   let repoRoot = process.env.DRIFT_REPO_ROOT || scriptRepoRoot;
   let base = process.env.DRIFT_BASE || "main";
   let branchPrefix = process.env.DRIFT_BRANCH_PREFIX || "chore/runtime-repo-drift-sync";
+  let json = false;
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
     if (arg === "--auto-pr") autoPr = true;
     else if (arg === "--dry-run") dryRun = true;
+    else if (arg === "--json") json = true;
     else if (arg === "--repo-root" && argv[i + 1]) repoRoot = argv[++i];
     else if (arg === "--base" && argv[i + 1]) base = argv[++i];
     else if (arg === "--branch-prefix" && argv[i + 1]) branchPrefix = argv[++i];
   }
 
-  return { autoPr, dryRun, repoRoot: path.resolve(repoRoot), base, branchPrefix };
+  return { autoPr, dryRun, json, repoRoot: path.resolve(repoRoot), base, branchPrefix };
 }
 
 function digestBytes(input: string): string {
@@ -222,6 +225,18 @@ function main() {
   const actionable = assessments.filter((a) => a.actionable);
   const suppressed = assessments.filter((a) => a.rawMismatch && !a.actionable && a.reason !== "missing file(s)");
   const missing = assessments.filter((a) => a.reason === "missing file(s)");
+
+  if (args.json) {
+    console.log(
+      JSON.stringify({
+        status: actionable.length || missing.length ? "needs_action" : "healthy",
+        actionable,
+        suppressed,
+        missing,
+      })
+    );
+    return;
+  }
 
   if (!actionable.length && !missing.length) {
     console.log("NO_REPLY");

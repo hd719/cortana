@@ -25,6 +25,19 @@ type CleanupResult = {
   error?: string;
 };
 
+type Mode = 'text' | 'json';
+
+type Report = {
+  status: 'healthy' | 'remediated' | 'cleanup_failed' | 'breach_persists';
+  beforeCounts: Record<Bucket, number>;
+  afterCounts: Record<Bucket, number>;
+  breachesBefore: Array<{ bucket: Bucket; count: number; max: number }>;
+  breachesAfter: Array<{ bucket: Bucket; count: number; max: number }>;
+  cleanupChangedCount: number;
+  cleanupOk: boolean;
+  cleanupError?: string;
+};
+
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
 const POLICY_BASENAME = 'session-lifecycle-policy.json';
@@ -119,45 +132,101 @@ function formatCounts(counts: Record<Bucket, number>) {
   return `chat=${counts.chat}, subagent=${counts.subagent}, cron=${counts.cron}, other=${counts.other}`;
 }
 
-function main() {
+function evaluate(): Report {
   const policy = loadPolicy();
   const beforeKeys = getSessions();
   const beforeCounts = countBuckets(beforeKeys);
-  const beforeBreaches = getBreaches(policy, beforeCounts);
+  const breachesBefore = getBreaches(policy, beforeCounts);
 
-  if (beforeBreaches.length === 0) {
-    console.log('NO_REPLY');
-    return;
+  if (breachesBefore.length === 0) {
+    return {
+      status: 'healthy',
+      beforeCounts,
+      afterCounts: beforeCounts,
+      breachesBefore,
+      breachesAfter: breachesBefore,
+      cleanupChangedCount: 0,
+      cleanupOk: true,
+    };
   }
 
   const cleanup = runCleanup();
   if (!cleanup.ok) {
+    return {
+      status: 'cleanup_failed',
+      beforeCounts,
+      afterCounts: beforeCounts,
+      breachesBefore,
+      breachesAfter: breachesBefore,
+      cleanupChangedCount: 0,
+      cleanupOk: false,
+      cleanupError: cleanup.error,
+    };
+  }
+
+  const afterKeys = getSessions();
+  const afterCounts = countBuckets(afterKeys);
+  const breachesAfter = getBreaches(policy, afterCounts);
+
+  if (breachesAfter.length === 0) {
+    return {
+      status: 'remediated',
+      beforeCounts,
+      afterCounts,
+      breachesBefore,
+      breachesAfter,
+      cleanupChangedCount: cleanup.changedCount,
+      cleanupOk: true,
+    };
+  }
+
+  return {
+    status: 'breach_persists',
+    beforeCounts,
+    afterCounts,
+    breachesBefore,
+    breachesAfter,
+    cleanupChangedCount: cleanup.changedCount,
+    cleanupOk: true,
+  };
+}
+
+function parseMode(argv: string[]): Mode {
+  return argv.includes('--json') ? 'json' : 'text';
+}
+
+export function main() {
+  const mode = parseMode(process.argv.slice(2));
+  const report = evaluate();
+
+  if (mode === 'json') {
+    console.log(JSON.stringify(report));
+    return;
+  }
+
+  if (report.status === 'healthy' || report.status === 'remediated') {
+    console.log('NO_REPLY');
+    return;
+  }
+
+  if (report.status === 'cleanup_failed') {
     const lines = [
       '⚠️ Session lifecycle cleanup failed',
-      `Counts: ${formatCounts(beforeCounts)}`,
-      ...beforeBreaches.map((b) => `- ${b.bucket}: ${b.count} > ${b.max}`),
-      `Root cause: cleanup command failed (${cleanup.error})`,
+      `Counts: ${formatCounts(report.beforeCounts)}`,
+      ...report.breachesBefore.map((b) => `- ${b.bucket}: ${b.count} > ${b.max}`),
+      `Root cause: cleanup command failed (${report.cleanupError})`,
       'Next: inspect session churn and rerun cleanup manually.',
     ];
     console.log(lines.join('\n'));
     return;
   }
 
-  const afterKeys = getSessions();
-  const afterCounts = countBuckets(afterKeys);
-  const afterBreaches = getBreaches(policy, afterCounts);
-
-  if (afterBreaches.length === 0) {
-    console.log('NO_REPLY');
-    return;
-  }
-
   const lines = [
     '⚠️ Session lifecycle breach persists after cleanup',
-    `Before: ${formatCounts(beforeCounts)}`,
-    `After: ${formatCounts(afterCounts)}`,
-    `Cleanup changed: ${cleanup.changedCount}`,
-    ...afterBreaches.map((b) => `- ${b.bucket}: ${b.count} > ${b.max}`),
+    `Before: ${formatCounts(report.beforeCounts)}`,
+    `After: ${formatCounts(report.afterCounts)}`,
+    `Cleanup changed: ${report.cleanupChangedCount}`,
+    ...report.breachesAfter.map((b) => `- ${b.bucket}: ${b.count} > ${b.max}`),
     'Next: inspect churn source and tighten session lifecycle caps or offending workflows.',
   ];
   console.log(lines.join('\n'));
