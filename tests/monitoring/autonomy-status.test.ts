@@ -29,7 +29,18 @@ describe("autonomy-status", () => {
       })
       .mockReturnValueOnce({
         status: 0,
-        stdout: JSON.stringify({ remediated: 2, escalated: 1, healthy: 0, skipped: 0 }),
+        stdout: JSON.stringify({
+          posture: "balanced",
+          remediated: 2,
+          escalated: 1,
+          healthy: 0,
+          skipped: 0,
+          items: [
+            { system: "gateway", status: "remediated" },
+            { system: "cron", status: "remediated" },
+            { system: "channel", status: "escalate" }
+          ]
+        }),
         stderr: "",
       });
 
@@ -41,10 +52,15 @@ describe("autonomy-status", () => {
 
     const output = consoleSpy.logs.join("\n");
     expect(output).toContain("🤖 Autonomy Status");
+    expect(output).toContain("posture: balanced");
     expect(output).toContain("auto-remediated: 3");
     expect(output).toContain("escalated: 1");
     expect(output).toContain("suppressed healthy/noise: 1");
     expect(output).toContain("needs human action: 2");
+    expect(output).toContain("auto-fixed today: gateway, cron");
+    expect(output).toContain("failed then recovered: gateway, cron");
+    expect(output).toContain("waiting on Hamel: 1 drift item(s), 1 escalated check(s)");
+    expect(output).toContain("deferred/exceeded authority: channel:escalate");
     expect(output).toContain("service remediation: remediated=2 escalated=1 healthy=0 skipped=0");
     expect(output).toContain("actionable drift: cron/jobs.json");
     expect(output).toContain("suppressed drift: agent-profiles.json");

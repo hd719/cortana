@@ -2,6 +2,7 @@
 
 import fs from "fs";
 import { spawnSync } from "child_process";
+import { classifyReliabilityLane, loadAutonomyConfig, type ReliabilityLane } from "../monitoring/autonomy-lanes.ts";
 
 const JOBS_FILE = `${process.env.HOME}/.openclaw/cron/jobs.json`;
 const PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql";
@@ -62,6 +63,7 @@ type FailureKind = "transient" | "auth" | "local_script" | "unknown";
 type RetryResult = {
   id: string;
   name: string;
+  lane: ReliabilityLane;
   previousFailures: number;
   failureKind: FailureKind;
   failureDetail?: string;
@@ -97,9 +99,13 @@ function parseArgs() {
 
 function criticalNames(): Set<string> {
   const raw = String(process.env.CRITICAL_CRON_NAMES ?? "").trim();
-  if (!raw) return DEFAULT_CRITICAL_JOB_NAMES;
-  const names = raw.split(",").map((item) => item.trim()).filter(Boolean);
-  return names.length ? new Set(names) : DEFAULT_CRITICAL_JOB_NAMES;
+  if (raw) {
+    const names = raw.split(",").map((item) => item.trim()).filter(Boolean);
+    return names.length ? new Set(names) : DEFAULT_CRITICAL_JOB_NAMES;
+  }
+
+  const config = loadAutonomyConfig();
+  return new Set([...DEFAULT_CRITICAL_JOB_NAMES, ...config.familyCriticalCronNames]);
 }
 
 function failureText(state: JsonRecord): string {
@@ -130,6 +136,7 @@ function logEvent(result: RetryResult): { ok: boolean; error?: string } {
   const metadata = {
     jobId: result.id,
     jobName: result.name,
+    lane: result.lane,
     previousFailures: result.previousFailures,
     retryExitCode: result.retryExitCode,
     failureKind: result.failureKind,
@@ -165,7 +172,7 @@ function main(): number {
   const jobs = Array.isArray(parsed.jobs) ? parsed.jobs : [];
   const criticalJobNames = criticalNames();
 
-  const candidates: Array<{ id: string; name: string; previousFailures: number; failureKind: FailureKind; failureDetail: string }> = [];
+  const candidates: Array<{ id: string; name: string; lane: ReliabilityLane; previousFailures: number; failureKind: FailureKind; failureDetail: string }> = [];
 
   for (const job of jobs) {
     if (!isRecord(job)) continue;
@@ -181,7 +188,8 @@ function main(): number {
 
     const detail = failureText(state);
     const failureKind = classifyFailure(detail);
-    candidates.push({ id, name, previousFailures: consecutiveFailures, failureKind, failureDetail: detail });
+    const lane = classifyReliabilityLane(name);
+    candidates.push({ id, name, lane, previousFailures: consecutiveFailures, failureKind, failureDetail: detail });
   }
 
   const results: RetryResult[] = [];
@@ -191,6 +199,7 @@ function main(): number {
       const result: RetryResult = {
         id: job.id,
         name: job.name,
+        lane: job.lane,
         previousFailures: job.previousFailures,
         failureKind: job.failureKind,
         failureDetail: job.failureDetail || undefined,
@@ -212,6 +221,7 @@ function main(): number {
       const result: RetryResult = {
         id: job.id,
         name: job.name,
+        lane: job.lane,
         previousFailures: job.previousFailures,
         failureKind: job.failureKind,
         failureDetail: job.failureDetail || undefined,
@@ -238,6 +248,7 @@ function main(): number {
     const result: RetryResult = {
       id: job.id,
       name: job.name,
+      lane: job.lane,
       previousFailures: job.previousFailures,
       failureKind: job.failureKind,
       failureDetail: job.failureDetail || undefined,
@@ -259,6 +270,7 @@ function main(): number {
 
   const summary = {
     checkedAt: new Date().toISOString(),
+    posture: loadAutonomyConfig().posture,
     jobsScanned: jobs.length,
     candidates: candidates.length,
     retried: results.filter((r) => r.retried).length,
@@ -266,6 +278,11 @@ function main(): number {
     succeeded: results.filter((r) => r.retried && r.success).length,
     failedAgain: results.filter((r) => r.retried && !r.success).length,
     escalations: results.filter((r) => !r.success).length,
+    familyCritical: {
+      candidates: results.filter((r) => r.lane === "family_critical").length,
+      escalations: results.filter((r) => r.lane === "family_critical" && !r.success).length,
+      recovered: results.filter((r) => r.lane === "family_critical" && r.retried && r.success).length,
+    },
     results,
   };
 

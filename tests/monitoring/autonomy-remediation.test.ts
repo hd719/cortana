@@ -52,6 +52,9 @@ describe("autonomy-remediation", () => {
           stderr: "",
         } as any;
       }
+      if (cmd === "npx" && String(args[2]).includes("session-lifecycle-policy.ts")) {
+        return { status: 0, stdout: JSON.stringify({ status: "remediated", cleanupChangedCount: 2 }), stderr: "" } as any;
+      }
       throw new Error(`unexpected spawn ${cmd} ${args.join(" ")}`);
     });
 
@@ -64,7 +67,9 @@ describe("autonomy-remediation", () => {
     expect(output).toContain('"status": "healthy"');
     expect(output).toContain('"system": "channel"');
     expect(output).toContain('"system": "cron"');
+    expect(output).toContain('"system": "session"');
     expect(output).toContain('"status": "remediated"');
+    expect(output).toContain('"posture": "balanced"');
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
@@ -91,6 +96,9 @@ describe("autonomy-remediation", () => {
       }
       if (cmd === "npx" && String(args[2]).includes("cron-auto-retry.ts")) {
         return { status: 0, stdout: JSON.stringify({ retried: 0, skipped: 0, failedAgain: 0 }), stderr: "" } as any;
+      }
+      if (cmd === "npx" && String(args[2]).includes("session-lifecycle-policy.ts")) {
+        return { status: 0, stdout: JSON.stringify({ status: "healthy" }), stderr: "" } as any;
       }
       throw new Error(`unexpected spawn ${cmd} ${args.join(" ")}`);
     });
