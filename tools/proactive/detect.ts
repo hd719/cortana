@@ -5,6 +5,7 @@ import http from "http";
 import https from "https";
 import { URL } from "url";
 import { query } from "../lib/db.js";
+import { fetchAlpacaPortfolioDiagnostics } from "./alpaca-heartbeat.js";
 const ET_TZ = "America/New_York";
 
 const STOPWORDS = new Set([
@@ -355,13 +356,24 @@ async function collectCalendar(now: Date): Promise<Signal[]> {
 
 async function collectPortfolio(now: Date): Promise<Signal[]> {
   const signals: Signal[] = [];
-  let port: any;
-  try {
-    port = await httpJson("http://localhost:3033/alpaca/portfolio");
-  } catch {
+  const diagnostic = await fetchAlpacaPortfolioDiagnostics();
+  if (!diagnostic.ok) {
+    signals.push(
+      new Signal({
+        source: "portfolio",
+        signal_type: `alpaca_${diagnostic.kind ?? "failure"}`,
+        title: diagnostic.title ?? "Alpaca portfolio path failed",
+        summary: diagnostic.summary ?? "Portfolio heartbeat could not read the Alpaca service path.",
+        confidence: 0.93,
+        severity: diagnostic.kind === "target_mismatch" || diagnostic.kind === "service_unhealthy" ? "high" : "medium",
+        opportunity: false,
+        metadata: diagnostic.metadata ?? null,
+      })
+    );
     return signals;
   }
 
+  const port = diagnostic.portfolio;
   const positions = port && typeof port === "object" ? port.positions ?? [] : [];
   const symbols = positions.map((p: any) => p.symbol).filter((s: any) => s);
   if (!symbols.length) return signals;
