@@ -18,6 +18,13 @@ type SessionItem = {
   sessionKey?: string;
 };
 
+type CleanupResult = {
+  ok: boolean;
+  changedCount: number;
+  raw: string;
+  error?: string;
+};
+
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(SCRIPT_DIR, '..', '..');
 const POLICY_BASENAME = 'session-lifecycle-policy.json';
@@ -67,35 +74,91 @@ function getSessions(): string[] {
     .filter((v): v is string => typeof v === 'string');
 }
 
-function main() {
-  const policy = loadPolicy();
-  const keys = getSessions();
+function countBuckets(keys: string[]): Record<Bucket, number> {
   const counts: Record<Bucket, number> = { chat: 0, subagent: 0, cron: 0, other: 0 };
-
   for (const key of keys) counts[classify(key)] += 1;
+  return counts;
+}
 
-  const breaches = Object.entries(policy.targets)
+function getBreaches(policy: Policy, counts: Record<Bucket, number>) {
+  return Object.entries(policy.targets)
     .map(([bucket, target]) => ({ bucket: bucket as Bucket, count: counts[bucket as Bucket], max: target.maxEntries }))
     .filter((x) => x.count > x.max);
+}
 
-  const report = {
-    totalSessions: keys.length,
-    counts,
-    targets: policy.targets,
-    breaches,
-  };
+function runCleanup(): CleanupResult {
+  const proc = spawnSync('openclaw', ['sessions', 'cleanup', '--all-agents', '--enforce', '--json'], { encoding: 'utf8' });
+  const raw = `${proc.stdout ?? ''}${proc.stderr ?? ''}`.trim();
+  if (proc.status !== 0) {
+    return { ok: false, changedCount: 0, raw, error: raw || 'openclaw sessions cleanup failed' };
+  }
 
-  if (breaches.length === 0) {
+  let changedCount = 0;
+  try {
+    const parsed = JSON.parse(proc.stdout || '{}');
+    const candidates = [
+      parsed?.changedCount,
+      parsed?.cleanedCount,
+      parsed?.removedCount,
+      parsed?.summary?.changedCount,
+      parsed?.summary?.cleanedCount,
+      parsed?.summary?.removedCount,
+      Array.isArray(parsed?.changed) ? parsed.changed.length : undefined,
+      Array.isArray(parsed?.cleaned) ? parsed.cleaned.length : undefined,
+      Array.isArray(parsed?.removed) ? parsed.removed.length : undefined,
+    ].filter((v) => typeof v === 'number' && Number.isFinite(v)) as number[];
+    changedCount = candidates.length ? Math.max(...candidates) : 0;
+  } catch {
+    changedCount = 0;
+  }
+
+  return { ok: true, changedCount, raw };
+}
+
+function formatCounts(counts: Record<Bucket, number>) {
+  return `chat=${counts.chat}, subagent=${counts.subagent}, cron=${counts.cron}, other=${counts.other}`;
+}
+
+function main() {
+  const policy = loadPolicy();
+  const beforeKeys = getSessions();
+  const beforeCounts = countBuckets(beforeKeys);
+  const beforeBreaches = getBreaches(policy, beforeCounts);
+
+  if (beforeBreaches.length === 0) {
+    console.log('NO_REPLY');
+    return;
+  }
+
+  const cleanup = runCleanup();
+  if (!cleanup.ok) {
+    const lines = [
+      '⚠️ Session lifecycle cleanup failed',
+      `Counts: ${formatCounts(beforeCounts)}`,
+      ...beforeBreaches.map((b) => `- ${b.bucket}: ${b.count} > ${b.max}`),
+      `Root cause: cleanup command failed (${cleanup.error})`,
+      'Next: inspect session churn and rerun cleanup manually.',
+    ];
+    console.log(lines.join('\n'));
+    return;
+  }
+
+  const afterKeys = getSessions();
+  const afterCounts = countBuckets(afterKeys);
+  const afterBreaches = getBreaches(policy, afterCounts);
+
+  if (afterBreaches.length === 0) {
     console.log('NO_REPLY');
     return;
   }
 
   const lines = [
-    '⚠️ Session Lifecycle Policy Drift',
-    `Total sessions: ${report.totalSessions}`,
-    `Counts: chat=${counts.chat}, subagent=${counts.subagent}, cron=${counts.cron}, other=${counts.other}`,
-    ...breaches.map((b) => `- ${b.bucket}: ${b.count} > ${b.max}`),
-    'Run `openclaw sessions cleanup --all-agents --enforce` and/or tighten session.maintenance caps.',
+    '⚠️ Session lifecycle breach persists after cleanup',
+    `Before: ${formatCounts(beforeCounts)}`,
+    `After: ${formatCounts(afterCounts)}`,
+    `Cleanup changed: ${cleanup.changedCount}`,
+    ...afterBreaches.map((b) => `- ${b.bucket}: ${b.count} > ${b.max}`),
+    'Next: inspect churn source and tighten session lifecycle caps or offending workflows.',
   ];
   console.log(lines.join('\n'));
 }
