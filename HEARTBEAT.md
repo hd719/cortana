@@ -25,6 +25,7 @@ Use `memory/heartbeat-state.json` to select the stalest 1–2 delegated checks p
 - Feedback pipeline reconciliation (every heartbeat)
 - System health / drift detection (daily health validation; drift watch)
 - Strategic tech/news situational-awareness scan
+- **Single owner lane for operational cron / maintenance alerts** (even when another agent executes the underlying check)
 
 ### Oracle (`agent:oracle:main`)
 - Portfolio + market pulse (market hours only; see threshold below)
@@ -38,6 +39,7 @@ Use `memory/heartbeat-state.json` to select the stalest 1–2 delegated checks p
 - Task board hygiene
 - Code maintenance tasks
 - Repo sync checks
+- Execution owner for repo/task-board maintenance checks when needed, but **Monitor should remain the user-facing owner lane for operational cron/maintenance alerts**
 
 ### Cortana Keeps (local, lightweight)
 - Read/validate `memory/heartbeat-state.json`
@@ -73,6 +75,13 @@ When Cortana dispatches a check to an owner agent, include these instructions:
 - If healthy/no-action checks are configured as silent, send `NO_REPLY`.
 - If broken, send concise actionable alert with failing step + root cause + immediate next action.
 - Do **not** send result back through Cortana unless explicitly asked.
+
+### Routing override for operational alerts
+
+For **operational cron / maintenance alerts** (for example repo sync failures, task-board hygiene failures, similar maintenance-health alerts):
+- **Monitor is the user-facing owner lane**.
+- Another specialist (for example Huragok) may still execute the underlying maintenance check/fix.
+- But user-visible operational alerting should be routed/labeled through **Monitor** rather than surfacing as mixed-lane maintenance chatter.
 
 ## Cortana Escalation Rules
 
