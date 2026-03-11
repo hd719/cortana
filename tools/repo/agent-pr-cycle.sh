@@ -7,6 +7,11 @@ set -euo pipefail
 # 3) run task command inside isolated worktree
 # 4) if changes exist, commit + push + open PR
 # 5) cleanup: remove temp worktree and return primary repo to clean main
+#
+# Completion contract (Step 7 hardening): every successful run must end in exactly one of
+#   - pr_opened     (changes exist and a PR URL is known)
+#   - no_pr_needed  (no changes, or caller explicitly opts out via --no-pr)
+#   - blocked       (branch/commit exists but PR was not opened or another blocker occurred)
 
 REPO="${REPO:-/Users/hd/Developer/cortana}"
 BASE_BRANCH="${BASE_BRANCH:-main}"
@@ -34,15 +39,46 @@ Options:
   --pr-body "..."         PR body
   --no-pr                 Skip gh pr create (push only)
   -h, --help              Help
-
-Examples:
-  agent-pr-cycle.sh \
-    --task-cmd "pnpm lint && pnpm test" \
-    --branch-prefix codex \
-    --commit-msg "fix: harden repo sync" \
-    --pr-title "Harden repo sync" \
-    --pr-body "..."
 EOF
+}
+
+json_escape() {
+  python3 - "$1" <<'PY'
+import json, sys
+print(json.dumps(sys.argv[1]))
+PY
+}
+
+print_result() {
+  local result="$1"
+  local reason="${2:-}"
+  local detail="${3:-}"
+  local pr_url="${4:-}"
+  local commit="${5:-}"
+  local branch="${6:-}"
+  local dirty="${7:-false}"
+
+  printf '{'
+  printf '"result":%s,' "$(json_escape "$result")"
+  printf '"reason":%s,' "$(json_escape "$reason")"
+  printf '"detail":%s,' "$(json_escape "$detail")"
+  if [[ -n "$pr_url" ]]; then
+    printf '"pr_url":%s,' "$(json_escape "$pr_url")"
+  else
+    printf '"pr_url":null,'
+  fi
+  if [[ -n "$commit" ]]; then
+    printf '"commit":%s,' "$(json_escape "$commit")"
+  else
+    printf '"commit":null,'
+  fi
+  if [[ -n "$branch" ]]; then
+    printf '"branch":%s,' "$(json_escape "$branch")"
+  else
+    printf '"branch":null,'
+  fi
+  printf '"dirty":%s' "$dirty"
+  printf '}\n'
 }
 
 NO_PR=0
@@ -76,7 +112,6 @@ if ! command -v gh >/dev/null 2>&1; then
   exit 2
 fi
 
-PRIMARY_START_BRANCH="$(git -C "$REPO" rev-parse --abbrev-ref HEAD)"
 WORKTREE="$(mktemp -d /tmp/agent-pr-cycle.XXXXXX)"
 CLEANUP_DONE=0
 
@@ -100,8 +135,8 @@ cleanup() {
 trap cleanup EXIT
 
 # Hard fail on tracked changes in primary worktree (protects human local edits).
-if [[ -n "$(git -C "$REPO" status --porcelain | awk 'substr($0,1,1)!="?" || substr($0,2,1)!="?"')" ]]; then
-  echo "ERROR: tracked changes present in $REPO; refusing to run" >&2
+if ! git -C "$REPO" diff --quiet --ignore-submodules -- || ! git -C "$REPO" diff --cached --quiet --ignore-submodules --; then
+  print_result "blocked" "primary_repo_dirty" "tracked changes present in $REPO; refusing to run" "" "" "$BRANCH_NAME" true
   exit 1
 fi
 
@@ -113,28 +148,62 @@ git -C "$REPO" pull --ff-only origin "$BASE_BRANCH"
 # Isolated branch worktree.
 git -C "$REPO" worktree add -b "$BRANCH_NAME" "$WORKTREE" "origin/$BASE_BRANCH"
 
-echo "INFO worktree=$WORKTREE branch=$BRANCH_NAME"
 (
   cd "$WORKTREE"
   bash -lc "$TASK_CMD"
 )
 
 if [[ -z "$(git -C "$WORKTREE" status --porcelain)" ]]; then
-  echo "INFO no changes detected; skipping commit/pr"
+  print_result "no_pr_needed" "no_changes_detected" "Task command finished cleanly with no repository changes" "" "" "$BRANCH_NAME" false
   exit 0
 fi
 
 git -C "$WORKTREE" add -A
 git -C "$WORKTREE" commit -m "$COMMIT_MSG"
+COMMIT_SHA="$(git -C "$WORKTREE" rev-parse HEAD)"
 git -C "$WORKTREE" push -u origin "$BRANCH_NAME"
 
-if [[ "$NO_PR" -eq 0 ]]; then
-  gh pr create \
-    --repo "$(git -C "$WORKTREE" config --get remote.origin.url | sed -E 's#(git@github.com:|https://github.com/)##; s#\.git$##')" \
-    --base "$BASE_BRANCH" \
-    --head "$BRANCH_NAME" \
-    --title "$PR_TITLE" \
-    --body "$PR_BODY"
+if [[ "$NO_PR" -eq 1 ]]; then
+  print_result "no_pr_needed" "push_only_requested" "Changes were committed and pushed, but PR creation was explicitly disabled via --no-pr" "" "$COMMIT_SHA" "$BRANCH_NAME" false
+  exit 0
 fi
 
-echo "INFO cycle complete branch=$BRANCH_NAME"
+PR_URL=""
+CREATE_ERR=""
+set +e
+CREATE_OUT="$(cd "$WORKTREE" && gh pr create --base "$BASE_BRANCH" --head "$BRANCH_NAME" --title "$PR_TITLE" --body "$PR_BODY" 2>&1)"
+CREATE_RC=$?
+set -e
+if [[ $CREATE_RC -eq 0 ]]; then
+  PR_URL="$(printf '%s\n' "$CREATE_OUT" | grep -Eo 'https://github.com/[^ ]+/pull/[0-9]+' | tail -n1 || true)"
+else
+  CREATE_ERR="$CREATE_OUT"
+fi
+
+if [[ -z "$PR_URL" ]]; then
+  set +e
+  PR_URL="$(cd "$WORKTREE" && gh pr list --head "$BRANCH_NAME" --json url --limit 1 2>/dev/null | python3 -c 'import json,sys
+try:
+    payload=json.load(sys.stdin)
+except Exception:
+    payload=[]
+if isinstance(payload, list) and payload:
+    print(payload[0].get("url", ""))')"
+  LIST_RC=$?
+  set -e
+  if [[ $LIST_RC -ne 0 && -z "$PR_URL" ]]; then
+    PR_URL=""
+  fi
+fi
+
+if [[ -n "$PR_URL" ]]; then
+  print_result "pr_opened" "pr_available" "Implementation changes committed, pushed, and linked to a PR" "$PR_URL" "$COMMIT_SHA" "$BRANCH_NAME" false
+  exit 0
+fi
+
+DETAIL="No pull request was created after branch work was committed and pushed. branch=$BRANCH_NAME commit=$COMMIT_SHA"
+if [[ -n "$CREATE_ERR" ]]; then
+  DETAIL+=" gh_error=$(printf '%s' "$CREATE_ERR" | tr '\n' ' ' | sed 's/  */ /g')"
+fi
+print_result "blocked" "branch_exists_no_pr" "$DETAIL" "" "$COMMIT_SHA" "$BRANCH_NAME" false
+exit 1
