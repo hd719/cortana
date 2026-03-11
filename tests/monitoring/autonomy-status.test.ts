@@ -2,11 +2,20 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureConsole, flushModuleSideEffects, importFresh, resetProcess, setArgv } from "../test-utils";
 
 const spawnSync = vi.hoisted(() => vi.fn());
+const collectAutonomyScorecard = vi.hoisted(() => vi.fn());
 vi.mock("node:child_process", () => ({ spawnSync }));
+vi.mock("../../tools/monitoring/autonomy-scorecard.ts", () => ({ collectAutonomyScorecard }));
 
 describe("autonomy-status", () => {
   beforeEach(() => {
     spawnSync.mockReset();
+    collectAutonomyScorecard.mockReset();
+    collectAutonomyScorecard.mockReturnValue({
+      windowHours: 168,
+      counts: { autoFixAttempted: 0, autoFixSucceeded: 0, escalations: 0, blockedOrExceededAuthority: 0, staleReportSuppressions: 0, familyCriticalFailures: 0 },
+      activeFollowUps: [],
+      incidentReviews: [],
+    });
     resetProcess();
   });
 
@@ -43,6 +52,20 @@ describe("autonomy-status", () => {
         }),
         stderr: "",
       });
+
+    collectAutonomyScorecard.mockReturnValue({
+      windowHours: 168,
+      counts: {
+        autoFixAttempted: 4,
+        autoFixSucceeded: 2,
+        escalations: 1,
+        blockedOrExceededAuthority: 0,
+        staleReportSuppressions: 1,
+        familyCriticalFailures: 1,
+      },
+      activeFollowUps: [{ system: "channel", taskId: 12 }],
+      incidentReviews: [],
+    });
 
     setArgv([]);
     const consoleSpy = captureConsole();
@@ -124,6 +147,20 @@ describe("autonomy-status", () => {
         stdout: JSON.stringify({ posture: "balanced", remediated: 0, escalated: 1, healthy: 3, skipped: 0, items: [{ system: "session", status: "escalate" }] }),
         stderr: "",
       });
+
+    collectAutonomyScorecard.mockReturnValue({
+      windowHours: 168,
+      counts: {
+        autoFixAttempted: 1,
+        autoFixSucceeded: 0,
+        escalations: 1,
+        blockedOrExceededAuthority: 0,
+        staleReportSuppressions: 0,
+        familyCriticalFailures: 0,
+      },
+      activeFollowUps: [{ system: "session", taskId: 55 }],
+      incidentReviews: [],
+    });
 
     setArgv(["--json"]);
     const consoleSpy = captureConsole();

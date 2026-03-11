@@ -20,6 +20,10 @@ type RemediationItem = {
   verification?: string;
   action?: string;
   familyCritical?: boolean;
+  laneLabel?: string;
+  verificationStatus?: "verified" | "uncertain";
+  escalationPath?: string;
+  policyLesson?: string;
   followUpTaskId?: number | null;
   freshnessSuppressed?: boolean;
 };
@@ -91,7 +95,7 @@ function gatewayHealthy(): { healthy: boolean; detail: string } {
 function remediateGateway(state: StateShape): RemediationItem {
   const initial = gatewayHealthy();
   if (initial.healthy) {
-    return { system: "gateway", status: "healthy", detail: "gateway reachable", verification: initial.detail };
+    return { system: "gateway", status: "healthy", detail: "gateway reachable", verification: initial.detail, verificationStatus: "verified" };
   }
 
   const now = Date.now();
@@ -104,6 +108,9 @@ function remediateGateway(state: StateShape): RemediationItem {
       detail: "gateway unhealthy and restart budget already spent",
       verification: initial.detail,
       action: "none",
+      verificationStatus: "uncertain",
+      escalationPath: "page Hamel with failing check + root cause + next action",
+      policyLesson: "gateway restart budget is bounded; do not loop on control-plane recovery",
     };
   }
 
@@ -118,6 +125,9 @@ function remediateGateway(state: StateShape): RemediationItem {
       detail: "gateway restart did not restore health",
       verification: verified.detail,
       action: "openclaw gateway restart",
+      verificationStatus: "uncertain",
+      escalationPath: "page Hamel with failing check + root cause + next action",
+      policyLesson: "one restart is enough; persistent gateway failure becomes an operator incident",
     };
   }
 
@@ -127,13 +137,15 @@ function remediateGateway(state: StateShape): RemediationItem {
     detail: "gateway restarted once and verified healthy",
     verification: verified.detail,
     action: "openclaw gateway restart",
+    verificationStatus: "verified",
+    policyLesson: "bounded single-action recovery works when health is explicitly re-checked",
   };
 }
 
 function remediateChannel(state: StateShape): RemediationItem {
   const check = runTs("tools/alerting/check-cron-delivery.ts");
   if (check.ok) {
-    return { system: "channel", status: "healthy", detail: "delivery path healthy", verification: check.stdout || "ok" };
+    return { system: "channel", status: "healthy", detail: "delivery path healthy", verification: check.stdout || "ok", verificationStatus: "verified" };
   }
 
   const issueKey = (check.stdout || check.stderr || "delivery_failed").split("\n").slice(0, 2).join("|");
@@ -145,6 +157,9 @@ function remediateChannel(state: StateShape): RemediationItem {
       detail: "delivery degradation repeated after one remediation attempt",
       verification: check.stdout || check.stderr,
       action: "none",
+      verificationStatus: "uncertain",
+      escalationPath: "page Hamel with delivery uncertainty and blocked personal reminders",
+      policyLesson: "delivery paths get one bounded remediation attempt before paging",
     };
   }
 
@@ -156,6 +171,9 @@ function remediateChannel(state: StateShape): RemediationItem {
       detail: "channel remediation deferred because gateway is unhealthy",
       verification: gateway.detail,
       action: "handled_by_gateway_recovery",
+      verificationStatus: "uncertain",
+      escalationPath: "recover gateway first, then page if delivery remains uncertain",
+      policyLesson: "delivery remediation should not mask a control-plane outage",
     };
   }
 
@@ -170,6 +188,9 @@ function remediateChannel(state: StateShape): RemediationItem {
       detail: "delivery degradation not recovered after gateway/channel restart",
       verification: [verifyGateway.detail, verifyDelivery.stdout || verifyDelivery.stderr].filter(Boolean).join(" | "),
       action: "openclaw gateway restart",
+      verificationStatus: "uncertain",
+      escalationPath: "page Hamel because verified delivery is still uncertain",
+      policyLesson: "never-miss reminders should not stay in watch mode after a failed verification",
     };
   }
 
@@ -179,6 +200,8 @@ function remediateChannel(state: StateShape): RemediationItem {
     detail: "delivery degradation recovered after one restart",
     verification: verifyDelivery.stdout || "delivery check passed",
     action: "openclaw gateway restart",
+    verificationStatus: "verified",
+    policyLesson: "delivery recovery only counts after a post-action verification passes",
   };
 }
 
@@ -188,7 +211,7 @@ function remediateSessionLifecycle(): RemediationItem {
   const status = String(parsed.status ?? "unknown");
 
   if (status === "healthy") {
-    return { system: "session", status: "healthy", detail: "session lifecycle within policy", verification: session.stdout || "ok" };
+    return { system: "session", status: "healthy", detail: "session lifecycle within policy", verification: session.stdout || "ok", verificationStatus: "verified" };
   }
 
   if (status === "remediated") {
@@ -198,6 +221,8 @@ function remediateSessionLifecycle(): RemediationItem {
       detail: "session lifecycle breach cleaned up and verified",
       verification: session.stdout || "ok",
       action: "session cleanup --enforce",
+      verificationStatus: "verified",
+      policyLesson: "cleanup only counts when the post-cleanup policy check returns healthy/remediated",
     };
   }
 
@@ -207,10 +232,15 @@ function remediateSessionLifecycle(): RemediationItem {
     detail: "session lifecycle breach persists or cleanup failed",
     verification: session.stdout || session.stderr || "unknown",
     action: "manual session churn review",
+    verificationStatus: "uncertain",
+    escalationPath: "page Hamel with cleanup failure and active session risk",
+    policyLesson: "stop after one cleanup pass when session churn remains abnormal",
   };
 }
 
 function remediateCriticalCron(): RemediationItem {
+  const config = loadAutonomyConfig();
+  const familyLane = config.familyCriticalLaneLabels.join(", ");
   const authSweep = runTs("tools/alerting/openai-cron-auth-guard.ts", ["sweep"]);
   if (!authSweep.ok) {
     const parsed = parseJson(authSweep.stdout);
@@ -222,6 +252,10 @@ function remediateCriticalCron(): RemediationItem {
       verification: authSweep.stdout || authSweep.stderr,
       action: retried > 0 ? "openai-cron-auth-guard sweep" : "none",
       familyCritical: true,
+      laneLabel: familyLane,
+      verificationStatus: retried > 0 ? "verified" : "uncertain",
+      escalationPath: retried > 0 ? undefined : "page Hamel because family-critical cron auth remains unresolved",
+      policyLesson: retried > 0 ? "auth recovery counts only after the guard verifies recovery" : "family-critical auth failures do not get repeated blind retries",
     };
   }
 
@@ -232,7 +266,7 @@ function remediateCriticalCron(): RemediationItem {
   const skipped = Number(parsed.skipped ?? 0);
 
   if (retried === 0 && skipped === 0) {
-    return { system: "cron", status: "healthy", detail: "no actionable critical cron failures", verification: retry.stdout || "ok", familyCritical: true };
+    return { system: "cron", status: "healthy", detail: "no actionable critical cron failures", verification: retry.stdout || "ok", familyCritical: true, laneLabel: familyLane, verificationStatus: "verified" };
   }
 
   if (failedAgain > 0 || skipped > 0) {
@@ -243,6 +277,10 @@ function remediateCriticalCron(): RemediationItem {
       verification: retry.stdout || retry.stderr,
       action: retried > 0 ? "single critical cron retry" : "none",
       familyCritical: true,
+      laneLabel: familyLane,
+      verificationStatus: "uncertain",
+      escalationPath: "page Hamel because family-critical delivery is still uncertain after one bounded retry",
+      policyLesson: "appointments, calendar logistics, pregnancy reminders, and other never-miss reminders escalate after one failed verification path",
     };
   }
 
@@ -253,6 +291,9 @@ function remediateCriticalCron(): RemediationItem {
     verification: retry.stdout,
     action: "single critical cron retry",
     familyCritical: true,
+    laneLabel: familyLane,
+    verificationStatus: "verified",
+    policyLesson: "family-critical reminders recover quietly only after the retry confirms delivery is back",
   };
 }
 
@@ -261,8 +302,9 @@ function createOrReuseFollowUp(item: RemediationItem): number | null {
   const system = sqlEscape(item.system);
   const detail = sqlEscape(item.detail);
   const action = sqlEscape(item.action ?? 'manual review');
-  const title = sqlEscape(`Autonomy follow-up: ${item.system} - ${item.detail}`.slice(0, 180));
-  const description = sqlEscape(`${item.detail}\nLatest verification: ${(item.verification ?? 'n/a').slice(0, 1200)}\nNext action: ${item.action ?? 'manual review'}`);
+  const urgency = item.familyCritical ? 'Family-critical' : 'Autonomy';
+  const title = sqlEscape(`${urgency} follow-up: ${item.system} - ${item.detail}`.slice(0, 180));
+  const description = sqlEscape(`${item.detail}\nLane: ${item.laneLabel ?? (item.familyCritical ? 'family-critical' : 'routine')}\nLatest verification: ${(item.verification ?? 'n/a').slice(0, 1200)}\nVerification status: ${item.verificationStatus ?? 'uncertain'}\nNext action: ${item.action ?? 'manual review'}\nEscalation path: ${item.escalationPath ?? 'review locally'}\nPolicy lesson: ${item.policyLesson ?? 'n/a'}`);
   const existing = psql(`
 SELECT id::text
 FROM cortana_tasks
@@ -322,7 +364,9 @@ VALUES (
   jsonb_build_object(
     'system', '${sqlEscape(item.system)}',
     'status', 'suppressed',
-    'detail', '${sqlEscape(item.detail)}'
+    'detail', '${sqlEscape(item.detail)}',
+    'family_critical', ${item.familyCritical ? 'true' : 'false'},
+    'lane_label', '${sqlEscape(item.laneLabel ?? (item.familyCritical ? 'family-critical' : 'routine'))}'
   )
 );
 `);
@@ -331,9 +375,12 @@ VALUES (
 
   const followUpTaskId = createOrReuseFollowUp(item);
   item.followUpTaskId = followUpTaskId;
-  const severity = item.status === 'remediated' ? 'info' : 'warning';
+  const severity = item.status === 'remediated' ? 'info' : item.familyCritical ? 'error' : 'warning';
   const verification = sqlEscape((item.verification ?? '').slice(0, 2000));
   const action = sqlEscape(item.action ?? 'none');
+  const escalationPath = sqlEscape(item.escalationPath ?? 'review locally');
+  const policyLesson = sqlEscape(item.policyLesson ?? 'n/a');
+  const laneLabel = sqlEscape(item.laneLabel ?? (item.familyCritical ? 'family-critical' : 'routine'));
   psql(`
 INSERT INTO cortana_events (event_type, source, severity, message, metadata)
 VALUES (
@@ -347,7 +394,11 @@ VALUES (
     'detail', '${sqlEscape(item.detail)}',
     'action', '${action}',
     'verification', '${verification}',
+    'verification_status', '${item.verificationStatus ?? 'uncertain'}',
+    'escalation_path', '${escalationPath}',
+    'policy_lesson', '${policyLesson}',
     'family_critical', ${item.familyCritical ? 'true' : 'false'},
+    'lane_label', '${laneLabel}',
     'followup_task_id', ${followUpTaskId ?? 'NULL'}
   )
 );

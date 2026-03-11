@@ -22,6 +22,20 @@ type AutonomyScorecard = {
     taskId: number | null;
     createdAt: string;
   }>;
+  incidentReviews: Array<{
+    system: string;
+    lane: string;
+    familyCritical: boolean;
+    status: string;
+    whatFailed: string;
+    actionTaken: string;
+    verificationStatus: string;
+    recovered: boolean;
+    followUp: string;
+    policyLesson: string;
+    taskId: number | null;
+    createdAt: string;
+  }>;
 };
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -87,6 +101,26 @@ SELECT json_build_object(
     ) ORDER BY l.timestamp DESC)
     FROM latest_open l
     WHERE l.status IN ('escalate','skipped')
+  ), '[]'::json),
+  'incidentReviews', COALESCE((
+    SELECT json_agg(json_build_object(
+      'system', COALESCE(r.metadata->>'system', 'unknown'),
+      'lane', COALESCE(r.metadata->>'lane_label', CASE WHEN COALESCE((r.metadata->>'family_critical')::boolean, false) THEN 'family-critical' ELSE 'routine' END),
+      'familyCritical', COALESCE((r.metadata->>'family_critical')::boolean, false),
+      'status', COALESCE(r.metadata->>'status', ''),
+      'whatFailed', COALESCE(r.metadata->>'detail', r.message, ''),
+      'actionTaken', COALESCE(r.metadata->>'action', 'none'),
+      'verificationStatus', COALESCE(r.metadata->>'verification_status', 'uncertain'),
+      'recovered', COALESCE(r.metadata->>'status', '') = 'remediated',
+      'followUp', COALESCE(r.metadata->>'escalation_path', 'review locally'),
+      'policyLesson', COALESCE(r.metadata->>'policy_lesson', 'n/a'),
+      'taskId', NULLIF(r.metadata->>'followup_task_id', '')::int,
+      'createdAt', r.timestamp
+    ) ORDER BY r.timestamp DESC)
+    FROM cortana_events r
+    WHERE r.source = 'autonomy-remediation'
+      AND r.event_type = 'autonomy_action_result'
+      AND r.timestamp >= NOW() - INTERVAL '${hours} hours'
   ), '[]'::json)
 )::text;
 `;
@@ -106,6 +140,20 @@ SELECT json_build_object(
       system: String(item.system ?? "unknown"),
       status: String(item.status ?? "unknown"),
       detail: String(item.detail ?? ""),
+      taskId: typeof item.taskId === 'number' ? item.taskId : item.taskId ? Number(item.taskId) : null,
+      createdAt: String(item.createdAt ?? ""),
+    })) : [],
+    incidentReviews: Array.isArray(parsed.incidentReviews) ? parsed.incidentReviews.map((item: any) => ({
+      system: String(item.system ?? "unknown"),
+      lane: String(item.lane ?? "routine"),
+      familyCritical: Boolean(item.familyCritical ?? false),
+      status: String(item.status ?? "unknown"),
+      whatFailed: String(item.whatFailed ?? ""),
+      actionTaken: String(item.actionTaken ?? "none"),
+      verificationStatus: String(item.verificationStatus ?? "uncertain"),
+      recovered: Boolean(item.recovered ?? false),
+      followUp: String(item.followUp ?? "review locally"),
+      policyLesson: String(item.policyLesson ?? "n/a"),
       taskId: typeof item.taskId === 'number' ? item.taskId : item.taskId ? Number(item.taskId) : null,
       createdAt: String(item.createdAt ?? ""),
     })) : [],

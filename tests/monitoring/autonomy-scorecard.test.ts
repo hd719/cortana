@@ -35,8 +35,24 @@ describe("autonomy-scorecard", () => {
             detail: "critical cron failures repeated",
             taskId: 42,
             createdAt: "2026-03-11T15:30:00Z",
-          },
+          }
         ],
+        incidentReviews: [
+          {
+            system: "cron",
+            lane: "pregnancy reminders/checklists",
+            familyCritical: true,
+            status: "escalate",
+            whatFailed: "critical cron failures were repeated",
+            actionTaken: "single critical cron retry",
+            verificationStatus: "uncertain",
+            recovered: false,
+            followUp: "page Hamel because family-critical delivery is still uncertain after one bounded retry",
+            policyLesson: "family-critical reminders escalate after one failed verification path",
+            taskId: 42,
+            createdAt: "2026-03-11T15:30:00Z"
+          }
+        ]
       }),
       stderr: "",
     });
@@ -62,6 +78,13 @@ describe("autonomy-scorecard", () => {
     expect(parsed.activeFollowUps).toHaveLength(1);
     expect(parsed.activeFollowUps[0]).toMatchObject({
       system: "cron",
+      taskId: 42,
+    });
+    expect(parsed.incidentReviews).toHaveLength(1);
+    expect(parsed.incidentReviews[0]).toMatchObject({
+      system: "cron",
+      familyCritical: true,
+      verificationStatus: "uncertain",
       taskId: 42,
     });
   });
