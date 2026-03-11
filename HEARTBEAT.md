@@ -24,6 +24,7 @@ Use `memory/heartbeat-state.json` to select the stalest 1–2 delegated checks p
 - Subagent watchdog (every heartbeat)
 - Feedback pipeline reconciliation (every heartbeat)
 - System health / drift detection (daily health validation; drift watch)
+- Strategic tech/news situational-awareness scan
 
 ### Oracle (`agent:oracle:main`)
 - Portfolio + market pulse (market hours only; see threshold below)
@@ -32,7 +33,6 @@ Use `memory/heartbeat-state.json` to select the stalest 1–2 delegated checks p
 ### Researcher (`agent:researcher:main`)
 - Email triage
 - News gathering
-- Tech news scan
 
 ### Huragok (`agent:huragok:main`)
 - Task board hygiene
@@ -55,7 +55,7 @@ Keep existing thresholds where already defined:
 - **Portfolio + market pulse** (Oracle): weekdays **09:30–16:00 ET** only; skip if run within **6h**.
 - **X sentiment scan** (Oracle): same window/cadence as market pulse; skip if run within **6h**.
 - **Fitness** (Cortana local): **1× daily (morning)**; skip if already briefed today.
-- **Tech/news scan** (Researcher): skip if run within **4h**.
+- **Strategic tech/news situational-awareness scan** (Monitor): skip if run within **4h**.
 - **Task board hygiene** (Huragok): **every heartbeat**.
 - **Feedback pipeline reconciliation** (Monitor): **every heartbeat**.
 - **Session size guard** (Monitor): **every heartbeat**.
