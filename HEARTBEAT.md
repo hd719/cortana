@@ -25,6 +25,7 @@ Use `memory/heartbeat-state.json` to select the stalest 1–2 delegated checks p
 - Feedback pipeline reconciliation (every heartbeat)
 - System health / drift detection (daily health validation; drift watch)
 - Strategic tech/news situational-awareness scan
+- Email triage / inbox-operational summaries
 - **Single owner lane for operational cron / maintenance alerts** (even when another agent executes the underlying check)
 
 ### Oracle (`agent:oracle:main`)
@@ -32,8 +33,8 @@ Use `memory/heartbeat-state.json` to select the stalest 1–2 delegated checks p
 - X sentiment scan on held positions (same market-hours window/cadence)
 
 ### Researcher (`agent:researcher:main`)
-- Email triage
 - News gathering
+- May assist with inbox/news analysis behind the scenes when asked, but **Monitor should remain the user-facing owner lane for email-triage / inbox-operational output**
 
 ### Huragok (`agent:huragok:main`)
 - Task board hygiene
@@ -78,10 +79,10 @@ When Cortana dispatches a check to an owner agent, include these instructions:
 
 ### Routing override for operational alerts
 
-For **operational cron / maintenance alerts** (for example repo sync failures, task-board hygiene failures, similar maintenance-health alerts):
+For **operational cron / maintenance alerts** (for example repo sync failures, task-board hygiene failures, similar maintenance-health alerts) and **email-triage / inbox-operational summaries**:
 - **Monitor is the user-facing owner lane**.
-- Another specialist (for example Huragok) may still execute the underlying maintenance check/fix.
-- But user-visible operational alerting should be routed/labeled through **Monitor** rather than surfacing as mixed-lane maintenance chatter.
+- Another specialist (for example Huragok or Researcher) may still execute the underlying maintenance or inbox-analysis work.
+- But user-visible operational alerting should be routed/labeled through **Monitor** rather than surfacing as mixed-lane maintenance chatter or Researcher-owned inbox chatter.
 
 ## Cortana Escalation Rules
 
