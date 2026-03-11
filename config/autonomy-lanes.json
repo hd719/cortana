@@ -6,9 +6,17 @@
     "✈️ Travel & logistics reminders",
     "🤰 Pregnancy reminders / checklist"
   ],
+  "familyCriticalLaneLabels": [
+    "appointments",
+    "calendar logistics",
+    "pregnancy reminders/checklists",
+    "family-critical reminders"
+  ],
   "notes": [
     "Balanced is the default posture: allow one bounded safe remediation, verify, then escalate.",
     "Family-critical lanes are never-miss personal operations: calendar reminders, appointments, family logistics, pregnancy-sensitive reminders/checklists, and other time-sensitive personal ops.",
-    "Family-critical failures should be escalated if the first bounded remediation does not restore verified delivery."
+    "Family-critical failures should be escalated if the first bounded remediation does not restore verified delivery.",
+    "Never-miss family-critical lanes require explicit verification; uncertain delivery after one bounded attempt pages Hamel instead of staying in watch mode.",
+    "Incident review should stay compact: record what failed, what was tried, whether it recovered, and the remaining follow-up or policy lesson."
   ]
 }

@@ -8,6 +8,7 @@ export type ReliabilityLane = "routine" | "family_critical";
 type ConfigShape = {
   posture?: AutonomyPosture;
   familyCriticalCronNames?: string[];
+  familyCriticalLaneLabels?: string[];
   notes?: string[];
 };
 
@@ -26,9 +27,16 @@ export function getDefaultAutonomyConfig(): Required<ConfigShape> {
   return {
     posture: "balanced",
     familyCriticalCronNames: [...DEFAULT_FAMILY_CRITICAL_CRON_NAMES],
+    familyCriticalLaneLabels: [
+      "appointments",
+      "calendar logistics",
+      "pregnancy reminders/checklists",
+      "family-critical reminders",
+    ],
     notes: [
       "family-critical lanes are never-miss operations: appointments, reminders, family logistics, pregnancy-sensitive reminders/checklists, and other time-sensitive personal ops",
       "balanced is the default posture: one bounded remediation attempt, then verify and escalate",
+      "never-miss family-critical lanes require explicit verification; uncertain delivery after one bounded attempt pages Hamel",
     ],
   };
 }
@@ -41,12 +49,16 @@ export function loadAutonomyConfig(): Required<ConfigShape> {
     const familyCriticalCronNames = Array.isArray(parsed.familyCriticalCronNames)
       ? parsed.familyCriticalCronNames.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
       : fallback.familyCriticalCronNames;
+    const familyCriticalLaneLabels = Array.isArray(parsed.familyCriticalLaneLabels)
+      ? parsed.familyCriticalLaneLabels.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+      : fallback.familyCriticalLaneLabels;
     const notes = Array.isArray(parsed.notes)
       ? parsed.notes.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
       : fallback.notes;
     return {
       posture,
       familyCriticalCronNames: familyCriticalCronNames.length ? familyCriticalCronNames : fallback.familyCriticalCronNames,
+      familyCriticalLaneLabels: familyCriticalLaneLabels.length ? familyCriticalLaneLabels : fallback.familyCriticalLaneLabels,
       notes: notes.length ? notes : fallback.notes,
     };
   } catch {
