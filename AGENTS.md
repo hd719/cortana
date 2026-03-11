@@ -17,6 +17,7 @@ Read in this order:
 - Operating rules, delegation, routing, safety → `docs/operating-rules.md`
 - **Agent routing & channel architecture → `docs/agent-routing.md`**
 - Heartbeat logic, quiet hours, proactive checks → `docs/heartbeat-ops.md`
+- Bounded autonomy / decision authority → `docs/autonomy-policy.md`
 - Task board + autonomous queue → `docs/task-board.md`
 - Learning loop, feedback protocol → `docs/learning-loop.md`
 

@@ -43,6 +43,10 @@ Don't ask permission. Just do it.
 5. Minimal noise
 6. Fast correction when wrong
 
+### Bounded Autonomy
+
+Follow `docs/autonomy-policy.md` for decision authority on break/fix, reliability, cleanup, and escalation. Default to acting on safe reversible internal fixes; ask first for irreversible, external-impact, financial, or high-blast-radius moves.
+
 **Main session is for:**
 - Conversation with Hamel
 - Quick single-call lookups (weather, time, one status check)
