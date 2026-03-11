@@ -74,8 +74,9 @@ Triggers:
 
 - Session lifecycle auto-remediation is active through `tools/session/session-lifecycle-policy.ts`.
 - Runtime drift suppression / actionable-only reporting is active through `tools/monitoring/runtime-repo-drift-monitor.ts`.
+- Bounded service recovery is active through `tools/monitoring/autonomy-remediation.ts` (gateway restart once with verification, channel recovery via existing delivery hooks, and critical cron single-retry recovery).
 - Operator visibility: run `npx tsx tools/monitoring/autonomy-status.ts` for a compact summary of auto-remediated, escalated, suppressed, and human-action items.
-- Validation coverage lives in `tests/session/session-lifecycle-policy.test.ts`, `tests/monitoring/runtime-repo-drift-monitor.test.ts`, and `tests/monitoring/autonomy-status.test.ts`.
+- Validation coverage lives in `tests/session/session-lifecycle-policy.test.ts`, `tests/monitoring/runtime-repo-drift-monitor.test.ts`, `tests/monitoring/autonomy-status.test.ts`, `tests/monitoring/autonomy-remediation.test.ts`, and `tests/alerting/cron-auto-retry.test.ts`.
 
 ## Guardrails
 

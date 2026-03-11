@@ -20,9 +20,10 @@ function runJson(script: string, args: string[] = []) {
 function main() {
   const session = runJson(path.join(ROOT, "tools", "session", "session-lifecycle-policy.ts"));
   const drift = runJson(path.join(ROOT, "tools", "monitoring", "runtime-repo-drift-monitor.ts"), ["--dry-run"]);
+  const remediation = runJson(path.join(ROOT, "tools", "monitoring", "autonomy-remediation.ts"));
 
-  const autoRemediated = session.status === "remediated" ? 1 : 0;
-  const escalated = session.status === "cleanup_failed" || session.status === "breach_persists" ? 1 : 0;
+  const autoRemediated = (session.status === "remediated" ? 1 : 0) + Number(remediation.remediated ?? 0);
+  const escalated = (session.status === "cleanup_failed" || session.status === "breach_persists" ? 1 : 0) + Number(remediation.escalated ?? 0);
   const suppressed = Array.isArray(drift.suppressed) ? drift.suppressed.length : 0;
   const needsHuman = (Array.isArray(drift.actionable) ? drift.actionable.length : 0) + (Array.isArray(drift.missing) ? drift.missing.length : 0) + escalated;
 
@@ -34,6 +35,7 @@ function main() {
     `- needs human action: ${needsHuman}`,
     `- session lifecycle: ${session.status}`,
     `- runtime drift: ${drift.status}`,
+    `- service remediation: remediated=${Number(remediation.remediated ?? 0)} escalated=${Number(remediation.escalated ?? 0)} healthy=${Number(remediation.healthy ?? 0)} skipped=${Number(remediation.skipped ?? 0)}`,
   ];
 
   if (Array.isArray(drift.actionable) && drift.actionable.length) {

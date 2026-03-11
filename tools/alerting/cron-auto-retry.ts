@@ -5,14 +5,69 @@ import { spawnSync } from "child_process";
 
 const JOBS_FILE = `${process.env.HOME}/.openclaw/cron/jobs.json`;
 const PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql";
+const SOURCE = "heartbeat";
+const DEFAULT_CRITICAL_JOB_NAMES = new Set([
+  "☀️ Morning brief (Hamel)",
+  "📈 Stock Market Brief (daily)",
+  "🏋️ Fitness Morning Brief (Hamel)",
+  "📅 Calendar reminders → Telegram (ALL calendars)",
+  "🌙 Weekend Pre-Bedtime (9:30pm Fri/Sat)",
+]);
+const TRANSIENT_ERROR_PATTERNS = [
+  /gatewaydrainingerror/i,
+  /timeout/i,
+  /timed out/i,
+  /deadline exceeded/i,
+  /temporar(y|ily) unavailable/i,
+  /overloaded?/i,
+  /rate limit/i,
+  /quota exceeded/i,
+  /429/i,
+  /5\d\d/i,
+  /econnreset/i,
+  /enotfound/i,
+  /network/i,
+  /fetch failed/i,
+  /socket/i,
+];
+const LOCAL_SCRIPT_PATTERNS = [
+  /syntaxerror/i,
+  /module not found/i,
+  /cannot find module/i,
+  /enoent/i,
+  /permission denied/i,
+  /traceback/i,
+  /typeerror/i,
+  /referenceerror/i,
+  /not executable/i,
+];
+const AUTH_PATTERNS = [
+  /401/i,
+  /403/i,
+  /unauthoriz/i,
+  /invalid[_ -]?api[_ -]?key/i,
+  /incorrect[_ -]?api[_ -]?key/i,
+  /authentication/i,
+  /expired token/i,
+  /token expired/i,
+  /invalid[_ -]?token/i,
+  /reauth/i,
+  /login required/i,
+  /session expired/i,
+];
 
 type JsonRecord = Record<string, unknown>;
+type FailureKind = "transient" | "auth" | "local_script" | "unknown";
 
 type RetryResult = {
   id: string;
   name: string;
   previousFailures: number;
+  failureKind: FailureKind;
+  failureDetail?: string;
+  followUp?: string | null;
   retried: boolean;
+  skippedReason?: string;
   success: boolean;
   retryExitCode: number | null;
   stdout?: string;
@@ -32,20 +87,60 @@ const toInt = (value: unknown): number | null => {
 
 const sqlLiteral = (value: string): string => `'${value.replace(/'/g, "''")}'`;
 
+function parseArgs() {
+  const args = new Set(process.argv.slice(2));
+  return {
+    criticalOnly: args.has("--critical-only"),
+    json: args.has("--json"),
+  };
+}
+
+function criticalNames(): Set<string> {
+  const raw = String(process.env.CRITICAL_CRON_NAMES ?? "").trim();
+  if (!raw) return DEFAULT_CRITICAL_JOB_NAMES;
+  const names = raw.split(",").map((item) => item.trim()).filter(Boolean);
+  return names.length ? new Set(names) : DEFAULT_CRITICAL_JOB_NAMES;
+}
+
+function failureText(state: JsonRecord): string {
+  const fields = [state.lastError, state.lastErrorMessage, state.lastRunError, state.lastOutput, state.lastStatusDetail]
+    .map((value) => String(value ?? "").trim())
+    .filter(Boolean);
+  return fields.join(" | ");
+}
+
+function classifyFailure(detail: string): FailureKind {
+  if (!detail) return "unknown";
+  if (AUTH_PATTERNS.some((pattern) => pattern.test(detail))) return "auth";
+  if (LOCAL_SCRIPT_PATTERNS.some((pattern) => pattern.test(detail))) return "local_script";
+  if (TRANSIENT_ERROR_PATTERNS.some((pattern) => pattern.test(detail))) return "transient";
+  return "unknown";
+}
+
+function followUpFor(result: Pick<RetryResult, "failureKind" | "success">): string | null {
+  if (!result.success) return "escalate_to_human";
+  if (result.failureKind === "transient") return "log_event_and_monitor_for_repeat";
+  return null;
+}
+
 function logEvent(result: RetryResult): { ok: boolean; error?: string } {
   const severity = result.success ? "info" : "warning";
-  const statusWord = result.success ? "succeeded" : "failed";
+  const statusWord = result.retried ? (result.success ? "succeeded" : "failed") : "skipped";
   const message = `Cron auto-retry ${statusWord}: ${result.name} (${result.id})`;
   const metadata = {
     jobId: result.id,
     jobName: result.name,
     previousFailures: result.previousFailures,
     retryExitCode: result.retryExitCode,
+    failureKind: result.failureKind,
+    failureDetail: result.failureDetail,
+    skippedReason: result.skippedReason ?? null,
+    followUp: result.followUp ?? null,
   };
 
   const sql = [
     "INSERT INTO cortana_events (event_type, source, severity, message, metadata)",
-    `VALUES (${sqlLiteral("cron_auto_retry")}, ${sqlLiteral("heartbeat")}, ${sqlLiteral(severity)}, ${sqlLiteral(message)}, ${sqlLiteral(JSON.stringify(metadata))}::jsonb);`,
+    `VALUES (${sqlLiteral("cron_auto_retry")}, ${sqlLiteral(SOURCE)}, ${sqlLiteral(severity)}, ${sqlLiteral(message)}, ${sqlLiteral(JSON.stringify(metadata))}::jsonb);`,
   ].join(" ");
 
   const run = spawnSync(PSQL_BIN, ["cortana", "-v", "ON_ERROR_STOP=1", "-c", sql], {
@@ -64,11 +159,13 @@ function logEvent(result: RetryResult): { ok: boolean; error?: string } {
 }
 
 function main(): number {
+  const args = parseArgs();
   const raw = fs.readFileSync(JOBS_FILE, "utf8");
   const parsed = JSON.parse(raw) as JsonRecord;
   const jobs = Array.isArray(parsed.jobs) ? parsed.jobs : [];
+  const criticalJobNames = criticalNames();
 
-  const failedJobs: Array<{ id: string; name: string; previousFailures: number }> = [];
+  const candidates: Array<{ id: string; name: string; previousFailures: number; failureKind: FailureKind; failureDetail: string }> = [];
 
   for (const job of jobs) {
     if (!isRecord(job)) continue;
@@ -76,21 +173,62 @@ function main(): number {
     if (!id) continue;
 
     const name = typeof job.name === "string" ? job.name : id;
+    if (args.criticalOnly && !criticalJobNames.has(name)) continue;
+
     const state = isRecord(job.state) ? job.state : {};
+    const consecutiveFailures = toInt(state.consecutiveFailures) ?? toInt(state.consecutiveErrors) ?? 0;
+    if (consecutiveFailures < 1) continue;
 
-    const consecutiveFailures =
-      toInt(state.consecutiveFailures) ??
-      toInt(state.consecutiveErrors) ??
-      0;
-
-    if (consecutiveFailures >= 1) {
-      failedJobs.push({ id, name, previousFailures: consecutiveFailures });
-    }
+    const detail = failureText(state);
+    const failureKind = classifyFailure(detail);
+    candidates.push({ id, name, previousFailures: consecutiveFailures, failureKind, failureDetail: detail });
   }
 
   const results: RetryResult[] = [];
 
-  for (const job of failedJobs) {
+  for (const job of candidates) {
+    if (job.previousFailures > 1) {
+      const result: RetryResult = {
+        id: job.id,
+        name: job.name,
+        previousFailures: job.previousFailures,
+        failureKind: job.failureKind,
+        failureDetail: job.failureDetail || undefined,
+        retried: false,
+        skippedReason: "repeated_failure_requires_escalation",
+        success: false,
+        retryExitCode: null,
+        logWritten: false,
+        followUp: "escalate_to_human",
+      };
+      const log = logEvent(result);
+      result.logWritten = log.ok;
+      if (!log.ok) result.logError = log.error;
+      results.push(result);
+      continue;
+    }
+
+    if (job.failureKind !== "transient") {
+      const result: RetryResult = {
+        id: job.id,
+        name: job.name,
+        previousFailures: job.previousFailures,
+        failureKind: job.failureKind,
+        failureDetail: job.failureDetail || undefined,
+        retried: false,
+        skippedReason: job.failureKind === "auth" ? "auth_failure_requires_specialized_recovery" : "non_transient_failure_requires_human_review",
+        success: false,
+        retryExitCode: null,
+        logWritten: false,
+        followUp: "escalate_to_human",
+      };
+      const log = logEvent(result);
+      result.logWritten = log.ok;
+      if (!log.ok) result.logError = log.error;
+      results.push(result);
+      continue;
+    }
+
     const run = spawnSync("openclaw", ["cron", "run", job.id], {
       encoding: "utf8",
       env: process.env,
@@ -101,6 +239,9 @@ function main(): number {
       id: job.id,
       name: job.name,
       previousFailures: job.previousFailures,
+      failureKind: job.failureKind,
+      failureDetail: job.failureDetail || undefined,
+      followUp: followUpFor({ failureKind: job.failureKind, success }),
       retried: true,
       success,
       retryExitCode: run.status,
@@ -119,10 +260,12 @@ function main(): number {
   const summary = {
     checkedAt: new Date().toISOString(),
     jobsScanned: jobs.length,
-    failedJobsFound: failedJobs.length,
-    retried: results.length,
-    succeeded: results.filter((r) => r.success).length,
-    failedAgain: results.filter((r) => !r.success).length,
+    candidates: candidates.length,
+    retried: results.filter((r) => r.retried).length,
+    skipped: results.filter((r) => !r.retried).length,
+    succeeded: results.filter((r) => r.retried && r.success).length,
+    failedAgain: results.filter((r) => r.retried && !r.success).length,
+    escalations: results.filter((r) => !r.success).length,
     results,
   };
 
