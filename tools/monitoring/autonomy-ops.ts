@@ -42,6 +42,7 @@ export function buildAutonomyOpsSummary() {
       actionable: status.actionable,
       suppressed: status.suppressed,
     },
+    scorecard: status.scorecard,
   };
 }
 
@@ -54,6 +55,7 @@ function fingerprintSummary(summary: ReturnType<typeof buildAutonomyOpsSummary>)
     blocked: [...summary.blocked].sort(),
     familyCritical: summary.familyCritical,
     counts: summary.counts,
+    scorecard: summary.scorecard,
   })).digest("hex");
 }
 
@@ -81,6 +83,8 @@ export function renderAutonomyOpsSummary(summary: ReturnType<typeof buildAutonom
     `- family-critical tracked: ${summary.familyCritical.tracked.length ? summary.familyCritical.tracked.join(", ") : "none"}`,
     `- family-critical failures: ${summary.familyCritical.failures}`,
     `- counts: autoRemediated=${summary.counts.autoRemediated} escalated=${summary.counts.escalated} needsHuman=${summary.counts.needsHuman} actionable=${summary.counts.actionable} suppressed=${summary.counts.suppressed}`,
+    `- scorecard(7d): attempts=${summary.scorecard.counts.autoFixAttempted} succeeded=${summary.scorecard.counts.autoFixSucceeded} escalations=${summary.scorecard.counts.escalations} blocked=${summary.scorecard.counts.blockedOrExceededAuthority} stale-suppressed=${summary.scorecard.counts.staleReportSuppressions} family-critical=${summary.scorecard.counts.familyCriticalFailures}`,
+    `- active follow-ups: ${summary.scorecard.activeFollowUps.length ? summary.scorecard.activeFollowUps.map((item) => `${item.system}${item.taskId ? `#${item.taskId}` : ''}`).join(', ') : 'none'}`,
   ];
   return lines.join("\n");
 }

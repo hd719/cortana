@@ -37,6 +37,7 @@ describe("autonomy-ops", () => {
       posture: "balanced",
       autoFixedItems: [], deferredItems: [], waitingOnHuman: [],
       autoRemediated: 0, escalated: 0, needsHuman: 0, actionable: 0, suppressed: 2,
+      scorecard: { counts: { autoFixAttempted: 0, autoFixSucceeded: 0, escalations: 0, blockedOrExceededAuthority: 0, staleReportSuppressions: 0, familyCriticalFailures: 0 }, activeFollowUps: [] },
     });
     buildRolloutSummary.mockReturnValue({ status: "live", reasons: [] });
     runAutonomyDrill.mockReturnValue({ status: "live", familyCriticalFailures: 0, scenarios: [] });
@@ -63,6 +64,7 @@ describe("autonomy-ops", () => {
       needsHuman: 1,
       actionable: 0,
       suppressed: 1,
+      scorecard: { counts: { autoFixAttempted: 4, autoFixSucceeded: 2, escalations: 1, blockedOrExceededAuthority: 1, staleReportSuppressions: 3, familyCriticalFailures: 0 }, activeFollowUps: [{ system: "channel", taskId: 12 }] },
     });
     buildRolloutSummary.mockReturnValue({ status: "attention", reasons: ["1 escalated check(s)"] });
     runAutonomyDrill.mockReturnValue({
@@ -97,6 +99,7 @@ describe("autonomy-ops", () => {
       needsHuman: 1,
       actionable: 0,
       suppressed: 1,
+      scorecard: { counts: { autoFixAttempted: 4, autoFixSucceeded: 2, escalations: 1, blockedOrExceededAuthority: 1, staleReportSuppressions: 3, familyCriticalFailures: 0 }, activeFollowUps: [{ system: "channel", taskId: 12 }] },
     };
 
     collectAutonomyStatus.mockReturnValue(response);

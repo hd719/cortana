@@ -54,6 +54,8 @@ export function buildDailyDigest(now = new Date()) {
     `Needs Hamel: ${summary.waitingOnHamel.length ? summary.waitingOnHamel.join(", ") : "none"}`,
     `Blocked / exceeded authority: ${summary.blocked.length ? summary.blocked.join(", ") : "none"}`,
     `Family-critical: tracked ${summary.familyCritical.tracked.length || 0}, failures ${summary.familyCritical.failures}`,
+    `Scorecard(7d): attempts ${status.scorecard.counts.autoFixAttempted}, succeeded ${status.scorecard.counts.autoFixSucceeded}, escalations ${status.scorecard.counts.escalations}, blocked ${status.scorecard.counts.blockedOrExceededAuthority}, stale-suppressed ${status.scorecard.counts.staleReportSuppressions}`,
+    `Active follow-ups: ${status.scorecard.activeFollowUps.length ? status.scorecard.activeFollowUps.map((item) => `${item.system}${item.taskId ? `#${item.taskId}` : ''}`).join(', ') : 'none'}`,
     `Noise suppressed: ${summary.counts.suppressed}`,
   ];
 

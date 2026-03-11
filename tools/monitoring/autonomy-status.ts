@@ -3,6 +3,7 @@ import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadAutonomyConfig } from "./autonomy-lanes.ts";
+import { collectAutonomyScorecard } from "./autonomy-scorecard.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..");
@@ -35,6 +36,7 @@ type AutonomyStatusSummary = {
   };
   actionableDriftLabels: string[];
   suppressedDriftLabels: string[];
+  scorecard: ReturnType<typeof collectAutonomyScorecard>;
 };
 
 function runJson(script: string, args: string[] = []): JsonMap {
@@ -63,6 +65,7 @@ export function collectAutonomyStatus(): AutonomyStatusSummary {
   const session = runJson(path.join(ROOT, "tools", "session", "session-lifecycle-policy.ts"));
   const drift = runJson(path.join(ROOT, "tools", "monitoring", "runtime-repo-drift-monitor.ts"), ["--dry-run"]);
   const remediation = runJson(path.join(ROOT, "tools", "monitoring", "autonomy-remediation.ts"));
+  const scorecard = collectAutonomyScorecard();
 
   const remediationItems = Array.isArray(remediation.items) ? remediation.items : [];
   const autoFixedItems = remediationItems.filter((item: any) => item?.status === "remediated").map((item: any) => String(item.system));
@@ -120,6 +123,7 @@ export function collectAutonomyStatus(): AutonomyStatusSummary {
     },
     actionableDriftLabels: Array.isArray(drift.actionable) ? drift.actionable.map((x: any) => x.check?.label).filter(Boolean) : [],
     suppressedDriftLabels: Array.isArray(drift.suppressed) ? drift.suppressed.map((x: any) => x.check?.label).filter(Boolean) : [],
+    scorecard,
   };
 }
 
@@ -139,6 +143,8 @@ export function renderAutonomyStatus(summary: AutonomyStatusSummary): string {
     `- session lifecycle: ${summary.sessionStatus}`,
     `- runtime drift: ${summary.driftStatus}`,
     `- service remediation: remediated=${summary.remediationCounts.remediated} escalated=${summary.remediationCounts.escalated} healthy=${summary.remediationCounts.healthy} skipped=${summary.remediationCounts.skipped}`,
+    `- scorecard(7d): attempts=${summary.scorecard.counts.autoFixAttempted} succeeded=${summary.scorecard.counts.autoFixSucceeded} escalations=${summary.scorecard.counts.escalations} blocked=${summary.scorecard.counts.blockedOrExceededAuthority} stale-suppressed=${summary.scorecard.counts.staleReportSuppressions} family-critical=${summary.scorecard.counts.familyCriticalFailures}`,
+    `- active follow-ups: ${summary.scorecard.activeFollowUps.length ? summary.scorecard.activeFollowUps.map((item) => `${item.system}${item.taskId ? `#${item.taskId}` : ''}`).join(', ') : 'none'}`,
   ];
 
   if (summary.actionableDriftLabels.length) {

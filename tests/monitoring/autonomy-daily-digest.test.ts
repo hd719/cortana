@@ -22,7 +22,13 @@ describe("autonomy-daily-digest", () => {
       familyCritical: { tracked: ["family_critical"], failures: 0 },
       counts: { suppressed: 3 },
     });
-    collectAutonomyStatus.mockReturnValue({ failedRecoveredItems: ["gateway", "cron"] });
+    collectAutonomyStatus.mockReturnValue({
+      failedRecoveredItems: ["gateway", "cron"],
+      scorecard: {
+        counts: { autoFixAttempted: 4, autoFixSucceeded: 2, escalations: 1, blockedOrExceededAuthority: 1, staleReportSuppressions: 3 },
+        activeFollowUps: [{ system: "channel", taskId: 12 }],
+      },
+    });
 
     const { buildDailyDigest } = await import("../../tools/monitoring/autonomy-daily-digest.ts");
     const digest = buildDailyDigest(new Date("2026-03-11T12:00:00Z"));

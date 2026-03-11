@@ -9,6 +9,8 @@ const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..",
 const STATE_FILE = process.env.AUTONOMY_REMEDIATION_STATE_FILE ?? path.join(os.tmpdir(), "cortana-autonomy-remediation-state.json");
 const MAX_GATEWAY_ACTIONS_PER_WINDOW = 1;
 const GATEWAY_WINDOW_MS = 30 * 60 * 1000;
+const DB = process.env.CORTANA_DB ?? "cortana";
+const PSQL = "/opt/homebrew/opt/postgresql@17/bin/psql";
 
 type JsonMap = Record<string, unknown>;
 type RemediationItem = {
@@ -17,6 +19,9 @@ type RemediationItem = {
   detail: string;
   verification?: string;
   action?: string;
+  familyCritical?: boolean;
+  followUpTaskId?: number | null;
+  freshnessSuppressed?: boolean;
 };
 
 type StateShape = {
@@ -60,6 +65,21 @@ function parseJson(text: string): JsonMap {
   } catch {
     return {};
   }
+}
+
+function sqlEscape(value: string): string {
+  return value.replaceAll("'", "''");
+}
+
+function psql(sql: string): string {
+  const proc = spawnSync(PSQL, [DB, "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-c", sql], {
+    cwd: ROOT,
+    encoding: "utf8",
+  });
+  if (proc.status !== 0) {
+    throw new Error((proc.stderr || proc.stdout || "psql failed").trim());
+  }
+  return String(proc.stdout ?? "").trim();
 }
 
 function gatewayHealthy(): { healthy: boolean; detail: string } {
@@ -201,6 +221,7 @@ function remediateCriticalCron(): RemediationItem {
       detail: retried > 0 ? "critical provider-auth cron failures retried and verified by guard" : "critical provider-auth cron failures require escalation",
       verification: authSweep.stdout || authSweep.stderr,
       action: retried > 0 ? "openai-cron-auth-guard sweep" : "none",
+      familyCritical: true,
     };
   }
 
@@ -211,7 +232,7 @@ function remediateCriticalCron(): RemediationItem {
   const skipped = Number(parsed.skipped ?? 0);
 
   if (retried === 0 && skipped === 0) {
-    return { system: "cron", status: "healthy", detail: "no actionable critical cron failures", verification: retry.stdout || "ok" };
+    return { system: "cron", status: "healthy", detail: "no actionable critical cron failures", verification: retry.stdout || "ok", familyCritical: true };
   }
 
   if (failedAgain > 0 || skipped > 0) {
@@ -221,6 +242,7 @@ function remediateCriticalCron(): RemediationItem {
       detail: "critical cron failures were repeated or non-transient; no looped retries",
       verification: retry.stdout || retry.stderr,
       action: retried > 0 ? "single critical cron retry" : "none",
+      familyCritical: true,
     };
   }
 
@@ -230,13 +252,113 @@ function remediateCriticalCron(): RemediationItem {
     detail: "critical transient cron failures retried once and recovered",
     verification: retry.stdout,
     action: "single critical cron retry",
+    familyCritical: true,
   };
+}
+
+function createOrReuseFollowUp(item: RemediationItem): number | null {
+  if (!['escalate', 'skipped'].includes(item.status)) return null;
+  const system = sqlEscape(item.system);
+  const detail = sqlEscape(item.detail);
+  const action = sqlEscape(item.action ?? 'manual review');
+  const title = sqlEscape(`Autonomy follow-up: ${item.system} - ${item.detail}`.slice(0, 180));
+  const description = sqlEscape(`${item.detail}\nLatest verification: ${(item.verification ?? 'n/a').slice(0, 1200)}\nNext action: ${item.action ?? 'manual review'}`);
+  const existing = psql(`
+SELECT id::text
+FROM cortana_tasks
+WHERE status IN ('ready','in_progress')
+  AND source = 'autonomy-remediation'
+  AND metadata->>'followup_system' = '${system}'
+ORDER BY created_at DESC
+LIMIT 1;
+`);
+  if (existing) return Number(existing);
+  const created = psql(`
+INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata)
+VALUES (
+  'autonomy-remediation',
+  '${title}',
+  '${description}',
+  ${item.familyCritical ? 1 : 2},
+  'ready',
+  FALSE,
+  '${action}',
+  jsonb_build_object(
+    'followup_system', '${system}',
+    'followup_status', '${item.status}',
+    'family_critical', ${item.familyCritical ? 'true' : 'false'}
+  )
+)
+RETURNING id::text;
+`);
+  return created ? Number(created) : null;
+}
+
+function latestStatusForSystem(system: string): string | null {
+  const out = psql(`
+SELECT COALESCE(metadata->>'status', '')
+FROM cortana_events
+WHERE source = 'autonomy-remediation'
+  AND event_type = 'autonomy_action_result'
+  AND metadata->>'system' = '${sqlEscape(system)}'
+ORDER BY timestamp DESC
+LIMIT 1;
+`);
+  return out || null;
+}
+
+function logActionResult(item: RemediationItem): RemediationItem {
+  if (item.status === 'healthy') return item;
+
+  const prior = latestStatusForSystem(item.system);
+  if ((item.status === 'remediated') && (prior === 'escalate' || prior === 'skipped')) {
+    psql(`
+INSERT INTO cortana_events (event_type, source, severity, message, metadata)
+VALUES (
+  'autonomy_followup_suppressed',
+  'autonomy-remediation',
+  'info',
+  'Suppressed stale autonomy follow-up after newer recovery',
+  jsonb_build_object(
+    'system', '${sqlEscape(item.system)}',
+    'status', 'suppressed',
+    'detail', '${sqlEscape(item.detail)}'
+  )
+);
+`);
+    item.freshnessSuppressed = true;
+  }
+
+  const followUpTaskId = createOrReuseFollowUp(item);
+  item.followUpTaskId = followUpTaskId;
+  const severity = item.status === 'remediated' ? 'info' : 'warning';
+  const verification = sqlEscape((item.verification ?? '').slice(0, 2000));
+  const action = sqlEscape(item.action ?? 'none');
+  psql(`
+INSERT INTO cortana_events (event_type, source, severity, message, metadata)
+VALUES (
+  'autonomy_action_result',
+  'autonomy-remediation',
+  '${severity}',
+  '${sqlEscape(`${item.system} ${item.status}: ${item.detail}`)}',
+  jsonb_build_object(
+    'system', '${sqlEscape(item.system)}',
+    'status', '${item.status}',
+    'detail', '${sqlEscape(item.detail)}',
+    'action', '${action}',
+    'verification', '${verification}',
+    'family_critical', ${item.familyCritical ? 'true' : 'false'},
+    'followup_task_id', ${followUpTaskId ?? 'NULL'}
+  )
+);
+`);
+  return item;
 }
 
 function main() {
   const state = readState();
   const config = loadAutonomyConfig();
-  const items = [remediateGateway(state), remediateChannel(state), remediateCriticalCron(), remediateSessionLifecycle()];
+  const items = [remediateGateway(state), remediateChannel(state), remediateCriticalCron(), remediateSessionLifecycle()].map(logActionResult);
   writeState(state);
 
   const summary = {
