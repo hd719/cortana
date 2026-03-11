@@ -72,10 +72,16 @@ Triggers:
 
 ## Activation / Visibility
 
+- Autonomy posture is configured in `config/autonomy-lanes.json`.
+  - `balanced` is the default posture.
+  - Current rollout keeps posture intentionally light-touch: one bounded remediation, verify, then escalate.
+- Family-critical reliability lanes are explicitly tracked in `config/autonomy-lanes.json` and currently include calendar reminders, appointments/family logistics, pregnancy-sensitive reminders/checklists, and other never-miss personal ops.
+  - These lanes should not silently degrade.
+  - If the first bounded remediation does not restore verified delivery, escalate.
 - Session lifecycle auto-remediation is active through `tools/session/session-lifecycle-policy.ts`.
 - Runtime drift suppression / actionable-only reporting is active through `tools/monitoring/runtime-repo-drift-monitor.ts`.
-- Bounded service recovery is active through `tools/monitoring/autonomy-remediation.ts` (gateway restart once with verification, channel recovery via existing delivery hooks, and critical cron single-retry recovery).
-- Operator visibility: run `npx tsx tools/monitoring/autonomy-status.ts` for a compact summary of auto-remediated, escalated, suppressed, and human-action items.
+- Bounded service recovery is active through `tools/monitoring/autonomy-remediation.ts` (gateway restart once with verification, channel recovery via existing delivery hooks, critical cron single-retry recovery, and session lifecycle cleanup verification).
+- Operator visibility: run `npx tsx tools/monitoring/autonomy-status.ts` for a compact executive summary of what was auto-fixed, what failed then recovered, what still needs Hamel, and what exceeded authority or was deferred.
 - Validation coverage lives in `tests/session/session-lifecycle-policy.test.ts`, `tests/monitoring/runtime-repo-drift-monitor.test.ts`, `tests/monitoring/autonomy-status.test.ts`, `tests/monitoring/autonomy-remediation.test.ts`, and `tests/alerting/cron-auto-retry.test.ts`.
 
 ## Guardrails

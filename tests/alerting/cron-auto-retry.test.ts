@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { flushModuleSideEffects, importFresh, mockExit, resetProcess, setArgv } from "../test-utils";
+import { captureStdout, flushModuleSideEffects, importFresh, mockExit, resetProcess, setArgv } from "../test-utils";
 
 const fsMock = vi.hoisted(() => ({
   readFileSync: vi.fn(),

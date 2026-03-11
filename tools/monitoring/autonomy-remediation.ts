@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { loadAutonomyConfig } from "./autonomy-lanes.ts";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..");
 const STATE_FILE = process.env.AUTONOMY_REMEDIATION_STATE_FILE ?? path.join(os.tmpdir(), "cortana-autonomy-remediation-state.json");
@@ -11,7 +12,7 @@ const GATEWAY_WINDOW_MS = 30 * 60 * 1000;
 
 type JsonMap = Record<string, unknown>;
 type RemediationItem = {
-  system: "gateway" | "channel" | "cron";
+  system: "gateway" | "channel" | "cron" | "session";
   status: "healthy" | "remediated" | "escalate" | "skipped";
   detail: string;
   verification?: string;
@@ -161,6 +162,34 @@ function remediateChannel(state: StateShape): RemediationItem {
   };
 }
 
+function remediateSessionLifecycle(): RemediationItem {
+  const session = runTs("tools/session/session-lifecycle-policy.ts", ["--json"]);
+  const parsed = parseJson(session.stdout);
+  const status = String(parsed.status ?? "unknown");
+
+  if (status === "healthy") {
+    return { system: "session", status: "healthy", detail: "session lifecycle within policy", verification: session.stdout || "ok" };
+  }
+
+  if (status === "remediated") {
+    return {
+      system: "session",
+      status: "remediated",
+      detail: "session lifecycle breach cleaned up and verified",
+      verification: session.stdout || "ok",
+      action: "session cleanup --enforce",
+    };
+  }
+
+  return {
+    system: "session",
+    status: "escalate",
+    detail: "session lifecycle breach persists or cleanup failed",
+    verification: session.stdout || session.stderr || "unknown",
+    action: "manual session churn review",
+  };
+}
+
 function remediateCriticalCron(): RemediationItem {
   const authSweep = runTs("tools/alerting/openai-cron-auth-guard.ts", ["sweep"]);
   if (!authSweep.ok) {
@@ -206,11 +235,13 @@ function remediateCriticalCron(): RemediationItem {
 
 function main() {
   const state = readState();
-  const items = [remediateGateway(state), remediateChannel(state), remediateCriticalCron()];
+  const config = loadAutonomyConfig();
+  const items = [remediateGateway(state), remediateChannel(state), remediateCriticalCron(), remediateSessionLifecycle()];
   writeState(state);
 
   const summary = {
     checkedAt: new Date().toISOString(),
+    posture: config.posture,
     items,
     remediated: items.filter((item) => item.status === "remediated").length,
     escalated: items.filter((item) => item.status === "escalate").length,
