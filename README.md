@@ -590,6 +590,12 @@ Internal operator scripts, grouped by domain. Highlights:
   - `tools/task-board/emit-run-event.sh` – lifecycle event emission for run ledgering/audit trails
   - `tools/auto-chain/` – automatic follow‑up task chaining rules engine
   - `tools/approvals/` – P0–P3 approval gate operators (`check-approval.sh`, `poll-approval.sh`, `resume-approval.sh`)
+  - `tools/monitoring/autonomy-status.ts` – raw autonomy health/status summary
+  - `tools/monitoring/autonomy-ops.ts` – single operator surface across status, rollout, blocked items, and family-critical state
+  - `tools/monitoring/autonomy-drill.ts` – bounded live-fire drill/readiness surface for gateway/channel/cron/repo-handoff/family-critical scenarios
+  - `tools/monitoring/autonomy-rollout.ts` – rollout/live-ops status gate
+  - `tools/monitoring/autonomy-daily-digest.ts` – compact executive autonomy digest
+  - `tools/monitoring/autonomy-scorecard.ts` – trust metrics, active follow-ups, and autonomy incident review view
 - **Memory & reflection**
   - `tools/memory/` – ingestion, quality gates, consolidation
   - `tools/memory/vector-health-gate.ts` + `tools/memory/safe-memory-search.ts` – safety gates for semantic recall quality
@@ -808,6 +814,20 @@ export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 - `cortana_chaos_runs`, `cortana_chaos_events`
 - `cortana_autonomy_incidents`, `cortana_autonomy_scorecard_snapshots`
 
+#### Autonomy stabilization stack (specific)
+
+The current autonomy stabilization work gives Cortana:
+- bounded auto-remediation for gateway/channel/critical-cron/session issues
+- one operator surface for current state (`tools/monitoring/autonomy-ops.ts`)
+- one raw status surface (`tools/monitoring/autonomy-status.ts`)
+- one drill/readiness surface (`tools/monitoring/autonomy-drill.ts`)
+- one daily digest surface (`tools/monitoring/autonomy-daily-digest.ts`)
+- one trust/incident scorecard surface (`tools/monitoring/autonomy-scorecard.ts`)
+- family-critical / never-miss lane handling with stricter escalation
+- freshness suppression for stale follow-up chatter
+- follow-up task creation/reuse for meaningful autonomy incidents
+- an incident review loop via scorecard incident reviews
+
 ---
 
 ## 6. Key config files
@@ -819,8 +839,12 @@ export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 - `MEMORY.md` – curated long‑term memory (MAIN session only)
 - `HEARTBEAT.md` – heartbeat rotation + proactive ops
 - `docs/heartbeat-sql-reference.md` – SQL reference for heartbeats
+- `docs/autonomy-policy.md` – autonomy doctrine, boundaries, remediation model, rollout/drill entrypoints
+- `docs/autonomy-stabilization-overview.md` – plain-English map of the autonomy stack built across Steps 1–11
+- `docs/autonomy-stabilization-intake.md` – how any agent should log new autonomy issues into the standing stabilization epic
 - `TOOLS.md` – environment‑specific notes and symlinks
 - `config/cron/jobs.json` – OpenClaw cron definitions
+- `config/autonomy-lanes.json` – posture + family-critical / never-miss lane configuration
 - `memory/YYYY-MM-DD.md` – daily memory logs
 
 ### Symlinks (repo → runtime mappings)
