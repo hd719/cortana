@@ -767,7 +767,7 @@
         "kind": "agentTurn",
         "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: oracle\nDo not rely on announce delivery.\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nRun the CANSLIM alert scanner and return its output exactly (no extra commentary).\n\nCommands:\ncd ~/Developer/cortana-external/backtester\n./.venv/bin/python canslim_alert.py --limit 8 --min-score 6\n\nRules:\n- Output must include market status summary and candidate signals (BUY/WATCH/NO_BUY).\n- ALWAYS forward full scan output exactly, even when results are all NO_BUY (never suppress no-signal runs).\n- If the script errors, return one concise error line starting with: '📈 Trading Advisor - Error:'",
         "model": "openai-codex/gpt-5.3-codex",
-        "timeoutSeconds": 240
+        "timeoutSeconds": 360
       },
       "delivery": {
         "mode": "none",
@@ -1280,7 +1280,7 @@
       "payload": {
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
-        "timeoutSeconds": 120,
+        "timeoutSeconds": 180,
         "message": "Collect robust data for Fitness Evening Recap and write JSON artifact to /tmp/cron-fitness-evening-recap.json.\nDo NOT send Telegram messages.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts > /tmp/cron-fitness-evening-recap.json`\n\nWhy: Tonal `workouts` may be a keyed object rather than an array, and this script normalizes both shapes so valid same-day workouts are not silently missed.\n\nValidation:\n- ensure `/tmp/cron-fitness-evening-recap.json` is valid JSON\n- ensure `tonal_today_workouts` includes today's Tonal workout when one exists\n- if the script fails, return one-line error only\n\nReturn exactly NO_REPLY on success, one-line error on failure."
       },
       "delivery": {
