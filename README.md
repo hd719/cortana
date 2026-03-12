@@ -67,6 +67,7 @@ When editing or adding future crons:
 - make maintenance jobs **silent-by-default**,
 - require a clear reason for any cron that speaks routinely,
 - document schedule *shape* here, but keep exact timing in `jobs.json`.
+- stable routing/preferences are not one-file tweaks: update `MEMORY.md`, `HEARTBEAT.md`, `docs/agent-routing.md`, `docs/operating-rules.md`, and `config/cron/jobs.json` together.
 
 ## 0. 2026-03-05 Operator Critical Update (live)
 

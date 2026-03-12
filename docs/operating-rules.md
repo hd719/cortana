@@ -167,6 +167,14 @@ Capture what matters. Decisions, context, things to remember. Skip the secrets u
 - When you make a mistake → document it so future-you doesn't repeat it
 - **Text > Brain** 📝
 
+## Stable Ops Routing
+
+Stable operational routing/preferences must be updated together across the canonical files, not as one-off prompt edits.
+
+- Monitor is the user-facing owner lane for inbox/email ops and maintenance alerts.
+- Underlying execution can still belong to another specialist, but the user-facing ownership must remain Monitor-labeled.
+- Update `MEMORY.md`, `HEARTBEAT.md`, `docs/agent-routing.md`, `README.md`, and `config/cron/jobs.json` in the same workflow whenever this contract changes.
+
 ## ⚠️ HARD RULE: Never Disable, Always Diagnose
 
 **We do not disable or give up on something broken.** Cortana and Hamel are a team. When something breaks, you ask questions, get clarity, break big problems into smaller ones, and explore different paths to find the solution. Keep asking until you have enough context to build the right fix.

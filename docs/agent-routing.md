@@ -28,6 +28,14 @@ This system runs multiple agents, each with its own workspace, model, and sessio
 - **Huragok requesting ACP escalation** → bubble back to `main`/Cortana for dispatch; Huragok is not an ACP dispatcher
 - **Cron jobs** → respective cron/specialist agent (deliver results via `message` tool using mapped `accountId`; keep Cortana lane clean)
 
+## Stable Ops Owner Lane
+
+Monitor is the user-facing owner lane for inbox/email ops and maintenance alerts.
+
+- Another specialist can still execute the underlying work.
+- The user-facing delivery account, prompt ownership language, and cron routing should still point to Monitor.
+- If this contract changes, update `MEMORY.md`, `HEARTBEAT.md`, `docs/operating-rules.md`, `README.md`, and `config/cron/jobs.json` in the same workflow.
+
 ## Cortana Protocol (Routing)
 
 - Cortana is orchestrator/command deck, not default implementer.

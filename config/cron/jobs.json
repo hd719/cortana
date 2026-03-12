@@ -394,7 +394,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Newsletter scan. This is non-urgent by default; do NOT send a real-time Telegram drip.\n\n1) Fetch unread:\ngog --account hameldesai3@gmail.com gmail search 'is:unread (category:updates OR from:substack OR list:)' --max 10 --json\n2) Keep likely newsletters (substack/cooperpress/tldrnewsletter/morningbrew/etc).\n3) Dedup with ~/openclaw/memory/newsletter-alerted.json (keep last 100 ids).\n4) If new items exist, create a compact summary with Gmail links.\n5) If no new items: return exactly NO_REPLY.\n\nDelivery:\n- Queue ONE P2 digest item via:\n  /Users/hd/openclaw/tools/notifications/telegram-delivery-guard.sh \"$SUMMARY\" 8171372724 0 newsletter_digest_rollup newsletters-$(date +%F-%H) P2 researcher Newsletter summary\n- Then return exactly NO_REPLY.\n\nUser-facing text must begin with 'Newsletter - Digest Queue'.",
+        "message": "Newsletter scan. This is non-urgent by default; do NOT send a real-time Telegram drip.\n\n1) Fetch unread:\ngog --account hameldesai3@gmail.com gmail search 'is:unread (category:updates OR from:substack OR list:)' --max 10 --json\n2) Keep likely newsletters (substack/cooperpress/tldrnewsletter/morningbrew/etc).\n3) Dedup with ~/openclaw/memory/newsletter-alerted.json (keep last 100 ids).\n4) If new items exist, create a compact summary with Gmail links.\n5) If no new items: return exactly NO_REPLY.\n\nDelivery:\n- Queue ONE P2 digest item through Monitor via:\n  /Users/hd/openclaw/tools/notifications/telegram-delivery-guard.sh \"$SUMMARY\" 8171372724 0 newsletter_digest_rollup newsletters-$(date +%F-%H) P2 monitor Newsletter summary\n- Then return exactly NO_REPLY.\n\nUser-facing text must begin with 'Newsletter - Digest Queue'.",
         "model": "openai-codex/gpt-5.1",
         "timeoutSeconds": 90
       },
@@ -496,7 +496,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: huragok\nDo not rely on announce delivery.\n\nDaily Upgrade Protocol.\nPrefix: \ud83d\udd27 Upgrade - Daily Proposal. Delivery: message tool to telegram target 8171372724.\nIf memory/upgrades/YYYY-MM-DD.md already has today's proposal: output NOTHING.\n\nAuto-commit pending changes:\ncd ~/openclaw && git add -A && git diff --cached --quiet || git commit -m \"Daily auto-commit $(date +%Y-%m-%d)\"\n\nInput validation + path resolution (MANDATORY, do before analysis):\n- Resolve base paths from ~/openclaw (repo-relative only; do not hardcode alternate roots).\n- Resolve yesterday memory with a date glob: memory/YYYY-MM-DD.md (yesterday), not a single hardcoded filename.\n- Resolve required inputs:\n  1) projects/cortana-autonomy-roadmap.md\n  2) yesterday memory/YYYY-MM-DD.md\n  3) at least one recent file in memory/upgrades/*.md\n- If ANY required input is missing/unreadable:\n  - Bail out early (no generic proposal).\n  - Emit explicit failure log with exact missing path(s) + error (e.g., ENOENT).\n  - Send concise Telegram alert that Daily Upgrade was skipped due to missing inputs.\n\nThen (only if all required inputs exist):\n- Read projects/cortana-autonomy-roadmap.md\n- Read yesterday memory file\n- Review recent memory/upgrades history\n- Query corrections:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -c \"SELECT context, lesson FROM cortana_feedback WHERE timestamp > NOW() - INTERVAL '3 days' ORDER BY timestamp DESC LIMIT 10;\"\n- Identify ONE real friction from yesterday\n- Propose concrete fix with effort + autonomy gain\n\nOutput:\n\ud83d\udd27 Daily Upgrade Proposal\nGit: [committed X files / nothing to commit]\nYesterday's gap: ...\nProposed fix: ...\nEffort: Low/Medium/High\nAutonomy gain: ...\nApprove? Or discuss?\n\nLog to memory/upgrades/YYYY-MM-DD.md and postgres:\npsql cortana -c \"INSERT INTO cortana_upgrades (gap_identified, proposed_fix, effort, status) VALUES ('<gap>', '<fix>', '<effort>', 'proposed');\"",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nDaily Upgrade Protocol.\nPrefix: \ud83d\udd27 Upgrade - Daily Proposal. Delivery: message tool to telegram target 8171372724 using accountId monitor.\nIf memory/upgrades/YYYY-MM-DD.md already has today's proposal: output NOTHING.\n\nAuto-commit pending changes:\ncd ~/openclaw && git add -A && git diff --cached --quiet || git commit -m \"Daily auto-commit $(date +%Y-%m-%d)\"\n\nInput validation + path resolution (MANDATORY, do before analysis):\n- Resolve base paths from ~/openclaw (repo-relative only; do not hardcode alternate roots).\n- Resolve yesterday memory with a date glob: memory/YYYY-MM-DD.md (yesterday), not a single hardcoded filename.\n- Resolve required inputs:\n  1) projects/cortana-autonomy-roadmap.md\n  2) yesterday memory/YYYY-MM-DD.md\n  3) at least one recent file in memory/upgrades/*.md\n- If ANY required input is missing/unreadable:\n  - Bail out early (no generic proposal).\n  - Emit explicit failure log with exact missing path(s) + error (e.g., ENOENT).\n  - Send concise Telegram alert that Daily Upgrade was skipped due to missing inputs.\n\nThen (only if all required inputs exist):\n- Read projects/cortana-autonomy-roadmap.md\n- Read yesterday memory file\n- Review recent memory/upgrades history\n- Query corrections:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -c \"SELECT context, lesson FROM cortana_feedback WHERE timestamp > NOW() - INTERVAL '3 days' ORDER BY timestamp DESC LIMIT 10;\"\n- Identify ONE real friction from yesterday\n- Propose concrete fix with effort + autonomy gain\n\nOutput:\n\ud83d\udd27 Daily Upgrade Proposal\nGit: [committed X files / nothing to commit]\nYesterday's gap: ...\nProposed fix: ...\nEffort: Low/Medium/High\nAutonomy gain: ...\nApprove? Or discuss?\n\nLog to memory/upgrades/YYYY-MM-DD.md and postgres:\npsql cortana -c \"INSERT INTO cortana_upgrades (gap_identified, proposed_fix, effort, status) VALUES ('<gap>', '<fix>', '<effort>', 'proposed');\"",
         "timeoutSeconds": 180,
         "model": "openai-codex/gpt-5.1"
       },
@@ -597,7 +597,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: huragok\nDo not rely on announce delivery.\n\nPREFIX: Always prefix your output with: \ud83e\udde0 Memory - Weekly Consolidation. Example: \ud83e\udde0 Memory - Weekly Consolidation\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nWeekly Memory Consolidation (Sunday 3 AM). You are Cortana maintaining long-term memory.\n\n1. Read the last 7 days of memory files:\n   ls ~/openclaw/memory/2026-*.md | tail -7\n   Read each file.\n\n2. Read current MEMORY.md:\n   cat ~/openclaw/MEMORY.md\n\n3. Identify significant items from the week that should be in long-term memory:\n   - Key decisions made\n   - New preferences learned\n   - Important events or milestones\n   - Lessons from corrections/mistakes\n   - New integrations or capabilities added\n\n4. Update MEMORY.md with new insights (append to relevant sections or create new ones).\n   Keep it curated \u2014 MEMORY.md is distilled wisdom, not raw logs.\n\n5. Archive processed daily files:\n   mkdir -p ~/openclaw/memory/archive/2026\n   mv ~/openclaw/memory/2026-MM-DD.md ~/openclaw/memory/archive/2026/ (for files older than 14 days)\n\n6. Query postgres for patterns learned this week:\n   export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n   psql cortana -c \"SELECT pattern_type, COUNT(*) FROM cortana_patterns WHERE timestamp > NOW() - INTERVAL '7 days' GROUP BY pattern_type;\"\n\n7. Send brief Telegram summary:\n   - Items added to MEMORY.md\n   - Files archived\n   - Pattern summary\n\nKeep it maintenance-focused. This is sleep-time compute \u2014 consolidate and prune.\n\nAfter generating your response, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery.",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nPREFIX: Always prefix your output with: \ud83e\udde0 Memory - Weekly Consolidation. Example: \ud83e\udde0 Memory - Weekly Consolidation\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram, accountId=monitor) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nWeekly Memory Consolidation (Sunday 3 AM). You are Cortana maintaining long-term memory.\n\n1. Read the last 7 days of memory files:\n   ls ~/openclaw/memory/2026-*.md | tail -7\n   Read each file.\n\n2. Read current MEMORY.md:\n   cat ~/openclaw/MEMORY.md\n\n3. Identify significant items from the week that should be in long-term memory:\n   - Key decisions made\n   - New preferences learned\n   - Important events or milestones\n   - Lessons from corrections/mistakes\n   - New integrations or capabilities added\n\n4. Update MEMORY.md with new insights (append to relevant sections or create new ones).\n   Keep it curated \u2014 MEMORY.md is distilled wisdom, not raw logs.\n\n5. Archive processed daily files:\n   mkdir -p ~/openclaw/memory/archive/2026\n   mv ~/openclaw/memory/2026-MM-DD.md ~/openclaw/memory/archive/2026/ (for files older than 14 days)\n\n6. Query postgres for patterns learned this week:\n   export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\n   psql cortana -c \"SELECT pattern_type, COUNT(*) FROM cortana_patterns WHERE timestamp > NOW() - INTERVAL '7 days' GROUP BY pattern_type;\"\n\n7. Send brief Telegram summary:\n   - Items added to MEMORY.md\n   - Files archived\n   - Pattern summary\n\nKeep it maintenance-focused. This is sleep-time compute \u2014 consolidate and prune.\n\nAfter generating your response, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery.",
         "timeoutSeconds": 300,
         "model": "openai-codex/gpt-5.2-codex"
       },
@@ -698,7 +698,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: huragok\nDo not rely on announce delivery.\n\nPREFIX: \ud83d\udd2e Status - Weekly Self-Reflection\nWeekly self-reflection. Query cortana DB and send concise Telegram message to 8171372724 via message tool.\n\nInclude:\n1) Feedback Analysis: cortana_feedback last 7 days, grouped by type; repeated mistakes.\n2) Pattern Review: cortana_patterns sequences/habits worth automating.\n3) Auto-Heal Log: cortana_events auto_heal events and recurrences.\n4) Watchlist Health: cortana_watchlist stale/outdated items.\n5) Proposed Improvements: 1-3 concrete upgrades (automations/rules/watchlist additions).\n\nAfter generating output, send it with message tool (channel=telegram, target=8171372724).",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nPREFIX: \ud83d\udd2e Status - Weekly Self-Reflection\nWeekly self-reflection. Query cortana DB and send concise Telegram message to 8171372724 via message tool using accountId monitor.\n\nInclude:\n1) Feedback Analysis: cortana_feedback last 7 days, grouped by type; repeated mistakes.\n2) Pattern Review: cortana_patterns sequences/habits worth automating.\n3) Auto-Heal Log: cortana_events auto_heal events and recurrences.\n4) Watchlist Health: cortana_watchlist stale/outdated items.\n5) Proposed Improvements: 1-3 concrete upgrades (automations/rules/watchlist additions).\n\nAfter generating output, send it with message tool (channel=telegram, target=8171372724).",
         "timeoutSeconds": 120,
         "model": "openai-codex/gpt-5.2-codex"
       },
@@ -1446,10 +1446,11 @@
       "payload": {
         "kind": "agentTurn",
         "timeoutSeconds": 90,
-        "message": "Run /Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal. If recovered after retry, report one line. If fallback_manual_required appears, send concise alert with run context."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nRun /Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal.\nPolicy:\n- If recovered after retry, keep it quiet unless the script explicitly needs escalation.\n- If fallback_manual_required appears, send one concise Monitor-owned alert with run context.\n- Otherwise return exactly NO_REPLY."
       },
       "delivery": {
-        "mode": "none"
+        "mode": "none",
+        "accountId": "monitor"
       },
       "state": {
         "nextRunAtMs": 1772789400000,
@@ -1478,10 +1479,11 @@
       "payload": {
         "kind": "agentTurn",
         "timeoutSeconds": 60,
-        "message": "Run: npx --yes tsx /Users/hd/Developer/cortana/tools/session/session-lifecycle-policy.ts\nIf output is NO_REPLY, stay silent. Otherwise send concise alert to Telegram target 8171372724 via message tool and include counts + breaches."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nRun: npx --yes tsx /Users/hd/Developer/cortana/tools/session/session-lifecycle-policy.ts\nPolicy:\n- If output is NO_REPLY, return exactly NO_REPLY.\n- Otherwise send one concise Monitor-owned alert with counts + breaches, then return exactly NO_REPLY."
       },
       "delivery": {
-        "mode": "none"
+        "mode": "none",
+        "accountId": "monitor"
       },
       "state": {
         "nextRunAtMs": 1772803800000,
@@ -1510,10 +1512,11 @@
       "payload": {
         "kind": "agentTurn",
         "timeoutSeconds": 90,
-        "message": "Run DRIFT_AUTO_PR=1 /Users/hd/Developer/cortana/tools/repo/drift-watchdog.sh\nIf no drift: NO_REPLY. If drift: send concise Telegram alert to 8171372724, and if auto-PR opened include URL."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nRun DRIFT_AUTO_PR=1 /Users/hd/Developer/cortana/tools/repo/drift-watchdog.sh\nPolicy:\n- If output is NO_REPLY, return exactly NO_REPLY.\n- If drift exists, send one concise Monitor-owned alert and include any auto-PR URL.\n- Healthy path stays quiet."
       },
       "delivery": {
-        "mode": "none"
+        "mode": "none",
+        "accountId": "monitor"
       },
       "state": {
         "nextRunAtMs": 1772804700000,
@@ -1526,6 +1529,40 @@
         "consecutiveErrors": 0
       },
       "updatedAtMs": 1772718327598
+    },
+    {
+      "id": "ops-routing-drift-check-daily-20260312",
+      "agentId": "cron-health",
+      "name": "\ud83e\udded Ops Routing Drift Check (daily)",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "40 8 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "model": "openai-codex/gpt-5.1",
+        "timeoutSeconds": 90,
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/ops-routing-drift-check.ts\nPolicy:\n- If the script outputs NO_REPLY, return exactly NO_REPLY.\n- If drift exists, send the output exactly once as a Monitor-owned ops alert.\n- Stable routing/preferences updates belong in MEMORY.md, HEARTBEAT.md, docs/agent-routing.md, docs/operating-rules.md, README.md, and config/cron/jobs.json together."
+      },
+      "delivery": {
+        "mode": "none",
+        "accountId": "monitor"
+      },
+      "state": {
+        "nextRunAtMs": 1772804400000,
+        "lastRunAtMs": 1772717700000,
+        "lastRunStatus": "ok",
+        "lastStatus": "ok",
+        "lastDurationMs": 0,
+        "lastDelivered": false,
+        "lastDeliveryStatus": "not-delivered",
+        "consecutiveErrors": 0
+      },
+      "updatedAtMs": 1772717700000
     },
     {
       "id": "ede79bb6-d540-4203-9bf3-46634e11bfbe",
@@ -1544,11 +1581,12 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Run /Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents.ts --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal. Use aggregated/deduped alert behavior from latest watchdog logic. If no actionable failures, return NO_REPLY.",
+        "message": "Run /Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents.ts --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal. Use aggregated/deduped alert behavior from latest watchdog logic.\n\nRouting:\n- This watcher is Monitor-owned on the user-facing side.\n- If no actionable failures, return exactly NO_REPLY.\n- If the script emits or routes an alert, keep it Monitor-labeled only.",
         "timeoutSeconds": 90
       },
       "delivery": {
-        "mode": "none"
+        "mode": "none",
+        "accountId": "monitor"
       },
       "state": {
         "nextRunAtMs": 1772789400000,
@@ -1580,13 +1618,14 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.4",
         "timeoutSeconds": 180,
-        "message": "Run repo auto-sync hygiene for both repos without invoking external helper scripts.\n\nRepos:\n- /Users/hd/Developer/cortana\n- /Users/hd/Developer/cortana-external\n\nFor EACH repo, do this sequence directly with standard git commands:\n1) `git -C <repo> status --porcelain --untracked-files=all`\n2) If there are tracked changes, do NOT pull immediately. First classify whether dirty state is EXPECTED or ACTIONABLE:\n   - collect branch: `git -C <repo> branch --show-current`\n   - collect status short form\n   - collect latest commit age on HEAD: `git -C <repo> log -1 --format=%ct`\n   - collect whether branch is `main` or a feature branch\n   - collect ahead/behind vs upstream when possible\n\nDirty-state policy:\n- EXPECTED / SILENT (return NO_REPLY for that repo):\n  - repo is on a non-main feature branch with tracked changes\n  - repo is on `main` but tracked changes are very recent active work / cleanup residue (fresh within ~6h)\n  - repo is dirty in a way that clearly looks like in-flight local implementation and not unattended drift\n- ACTIONABLE (report):\n  - repo is dirty on `main` and the dirty state looks stale/orphaned (older than ~6h)\n  - repo is dirty and diverged in a way that suggests abandoned work or manual intervention needed\n  - repo is dirty and ahead/behind state is ambiguous or risky enough that maintenance should not stay silent\n\n3) If repo is clean or untracked-only, run:\n   - `git -C <repo> fetch --all --prune`\n   - `git -C <repo> checkout main`\n4) Determine ahead/behind vs origin/main:\n   - `git -C <repo> rev-list --left-right --count origin/main...HEAD`\n5) Behavior:\n   - behind only -> `git -C <repo> pull --ff-only origin main`\n   - ahead only -> report one concise line ONLY if on `main`; otherwise treat feature-branch ahead state as expected and silent\n   - diverged -> report one concise line: `<repo> branch-state: diverged-manual-intervention-required`\n   - equal -> report one concise line only when useful; otherwise remain silent\n6) Cleanup merged local branches only (never remote):\n   - list local branches merged into origin/main\n   - skip protected branches: main/master/dev/develop\n   - delete merged local branches when safe\n\nOutput policy:\n- If both repos are healthy/safe OR only have expected in-flight dirty state, return exactly NO_REPLY.\n- If any repo has a real actionable issue, send ONE concise Telegram message via message tool to 8171372724 with only the affected repo + failing step + one-line detail.\n- Prefer exception-only behavior. Do not bark about expected active work.\n- Keep native safety behavior: no force reset, no hard clean, no remote branch deletion."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nRun: /Users/hd/Developer/cortana/tools/repo/repo-auto-sync.sh\nPolicy:\n- If the script outputs NO_REPLY, return exactly NO_REPLY.\n- The script may auto-clean only safe/reversible cases: merged local branches, obvious /tmp worktrees, and volatile runtime-state false alarms.\n- If it outputs alert text, send it exactly once as a Monitor-owned maintenance alert.\n- Healthy and auto-healed paths stay quiet."
       },
       "delivery": {
         "mode": "none",
         "channel": "telegram",
         "to": "8171372724",
-        "bestEffort": true
+        "bestEffort": true,
+        "accountId": "monitor"
       },
       "state": {
         "nextRunAtMs": 1772789400000,
@@ -1651,7 +1690,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts preflight`.\nIf it exits 0: return exactly NO_REPLY.\nIf it exits non-zero: do not add extra commentary; the script already alerted Hamel via Telegram guard. Return exactly NO_REPLY.",
+        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts preflight`.\nRouting:\n- This preflight is Monitor-owned on the user-facing side.\n- If it exits 0: return exactly NO_REPLY.\n- If it exits non-zero: do not add extra commentary; the script already alerted Hamel through the Monitor guard. Return exactly NO_REPLY.",
         "model": "openai-codex/gpt-5.3-codex"
       },
       "state": {
@@ -1678,7 +1717,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts sweep`.\nIf it exits 0: return exactly NO_REPLY.\nIf it exits non-zero: do not add extra commentary; the script already retried/alerted. Return exactly NO_REPLY.",
+        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts sweep`.\nRouting:\n- This sweep is Monitor-owned on the user-facing side.\n- If it exits 0: return exactly NO_REPLY.\n- If it exits non-zero: do not add extra commentary; the script already retried/alerted through the Monitor guard. Return exactly NO_REPLY.",
         "model": "openai-codex/gpt-5.3-codex"
       },
       "state": {
@@ -1705,7 +1744,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/notifications/flush-digest.ts 8171372724`. If it reports no digest file or empty digest, return exactly NO_REPLY. If it sends successfully, return exactly NO_REPLY.",
+        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/notifications/flush-digest.ts 8171372724`.\nRouting:\n- This flush is Monitor-owned on the user-facing side.\n- If it reports no digest file or empty digest, return exactly NO_REPLY.\n- If it sends successfully, return exactly NO_REPLY.",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
