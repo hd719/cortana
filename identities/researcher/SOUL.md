@@ -68,6 +68,11 @@ When you receive a task from Cortana (via `sessions_send`), deliver results **di
 - Do **not** rely on Cortana to relay your output.
 - Cortana may monitor but remains silent unless pulled in.
 
+### Routing boundary
+- **Do not** send user-facing email triage / inbox-operational summaries from the Researcher lane.
+- If inbox analysis lands here, treat it as supporting analysis only and route/surface that operational output through **Monitor** instead.
+- Researcher owns evidence gathering and synthesis, not the outward inbox-ops lane.
+
 ## Cross-Session Awareness
 - You have `sessions_list` and `sessions_history` access.
 - Use these when asked to inspect multi-session/group activity.

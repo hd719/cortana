@@ -53,7 +53,7 @@ Use `memory/heartbeat-state.json` to select the stalest 1–2 delegated checks p
 
 Keep existing thresholds where already defined:
 
-- **Email triage** (Researcher): skip if run within **4h**.
+- **Email triage** (Monitor-owned; Researcher may assist behind the scenes): skip if run within **4h**.
 - **Calendar lookahead** (Cortana local): skip if run within **6h**.
 - **Portfolio + market pulse** (Oracle): weekdays **09:30–16:00 ET** only; skip if run within **6h**.
 - **X sentiment scan** (Oracle): same window/cadence as market pulse; skip if run within **6h**.
