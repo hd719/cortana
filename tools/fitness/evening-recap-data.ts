@@ -77,12 +77,19 @@ export function tonalTodayWorkouts(payload: unknown, today = localTodayYmd()): T
 }
 
 function main(): void {
-  const tonal = curlJson("http://127.0.0.1:3033/tonal/data", 10);
+  const tonalHealth = curlJson("http://127.0.0.1:3033/tonal/health", 5);
+  let tonal = curlJson("http://127.0.0.1:3033/tonal/data?fresh=true", 20);
   const today = localTodayYmd();
-  const todayWorkouts = tonalTodayWorkouts(tonal, today);
+  let todayWorkouts = tonalTodayWorkouts(tonal, today);
+
+  if (todayWorkouts.length === 0) {
+    tonal = curlJson("http://127.0.0.1:3033/tonal/data?fresh=true", 20);
+    todayWorkouts = tonalTodayWorkouts(tonal, today);
+  }
+
   const out = {
     timestamp: new Date().toISOString(),
-    tonal_health: { status: "unknown" },
+    tonal_health: toObj(tonalHealth),
     whoop_recovery_latest: null,
     whoop_sleep_latest: null,
     whoop_today_workouts: [],
