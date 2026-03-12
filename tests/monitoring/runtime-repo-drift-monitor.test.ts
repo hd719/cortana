@@ -4,6 +4,7 @@ import { captureConsole, flushModuleSideEffects, importFresh, resetProcess, setA
 const execSync = vi.hoisted(() => vi.fn());
 const readFileSync = vi.hoisted(() => vi.fn());
 const copyFileSync = vi.hoisted(() => vi.fn());
+const writeFileSync = vi.hoisted(() => vi.fn());
 const homedir = vi.hoisted(() => vi.fn(() => "/home/test"));
 
 vi.mock("node:child_process", () => ({ execSync }));
@@ -11,6 +12,7 @@ vi.mock("node:fs", () => ({
   default: {
     readFileSync,
     copyFileSync,
+    writeFileSync,
   },
 }));
 vi.mock("node:os", () => ({ default: { homedir } }));
@@ -20,6 +22,7 @@ describe("runtime-repo-drift-monitor", () => {
     execSync.mockReset();
     readFileSync.mockReset();
     copyFileSync.mockReset();
+    writeFileSync.mockReset();
     useFixedTime("2026-03-03T11:00:00.000Z");
   });
 
@@ -33,6 +36,15 @@ describe("runtime-repo-drift-monitor", () => {
     readFileSync.mockImplementation((file: string) => {
       if (!(file in entries)) throw new Error(`missing: ${file}`);
       return Buffer.from(entries[file]);
+    });
+  }
+
+  function cronJobsJson(nameA = "Runtime Job", nameB = "Repo Job") {
+    return JSON.stringify({
+      jobs: [
+        { id: "job-1", name: nameA, payload: { kind: "agentTurn", message: "runtime" }, state: { nextRunAtMs: 1 } },
+        { id: "job-2", name: nameB, payload: { kind: "agentTurn", message: "shared" } },
+      ],
     });
   }
 
@@ -51,9 +63,9 @@ describe("runtime-repo-drift-monitor", () => {
 
   it("uses vitest-style module side-effect execution and is non-destructive by default", async () => {
     seedFiles({
-      "/home/test/.openclaw/cron/jobs.json": "runtime-jobs",
+      "/home/test/.openclaw/cron/jobs.json": cronJobsJson("Runtime Job", "Shared Job"),
       "/home/test/.openclaw/agent-profiles.json": "same-profiles",
-      "/repo/config/cron/jobs.json": "repo-jobs",
+      "/repo/config/cron/jobs.json": cronJobsJson("Repo Job", "Shared Job"),
       "/repo/config/agent-profiles.json": "same-profiles",
     });
 
@@ -94,9 +106,9 @@ describe("runtime-repo-drift-monitor", () => {
 
   it("enables auto-pr when --auto-pr is passed", async () => {
     seedFiles({
-      "/home/test/.openclaw/cron/jobs.json": "runtime-jobs",
+      "/home/test/.openclaw/cron/jobs.json": cronJobsJson("Runtime Job", "Shared Job"),
       "/home/test/.openclaw/agent-profiles.json": "same-profiles",
-      "/repo/config/cron/jobs.json": "repo-jobs",
+      "/repo/config/cron/jobs.json": cronJobsJson("Repo Job", "Shared Job"),
       "/repo/config/agent-profiles.json": "same-profiles",
     });
 
@@ -109,18 +121,16 @@ describe("runtime-repo-drift-monitor", () => {
     const output = await runMonitor(["--auto-pr", "--repo-root", "/repo"]);
 
     expect(execSync).toHaveBeenCalled();
-    expect(copyFileSync).toHaveBeenCalledWith(
-      "/home/test/.openclaw/cron/jobs.json",
-      "/repo/config/cron/jobs.json",
-    );
+    expect(copyFileSync).not.toHaveBeenCalled();
+    expect(writeFileSync).toHaveBeenCalled();
     expect(output).toContain("auto-pr opened: https://github.com/acme/repo/pull/999");
   });
 
   it("enables auto-pr when DRIFT_AUTO_PR=1", async () => {
     seedFiles({
-      "/home/test/.openclaw/cron/jobs.json": "runtime-jobs",
+      "/home/test/.openclaw/cron/jobs.json": cronJobsJson("Runtime Job", "Shared Job"),
       "/home/test/.openclaw/agent-profiles.json": "same-profiles",
-      "/repo/config/cron/jobs.json": "repo-jobs",
+      "/repo/config/cron/jobs.json": cronJobsJson("Repo Job", "Shared Job"),
       "/repo/config/agent-profiles.json": "same-profiles",
     });
 
@@ -138,9 +148,9 @@ describe("runtime-repo-drift-monitor", () => {
 
   it("supports dry-run auto-pr mode without mutating files or running git/gh", async () => {
     seedFiles({
-      "/home/test/.openclaw/cron/jobs.json": "runtime-jobs",
+      "/home/test/.openclaw/cron/jobs.json": cronJobsJson("Runtime Job", "Shared Job"),
       "/home/test/.openclaw/agent-profiles.json": "same-profiles",
-      "/repo/config/cron/jobs.json": "repo-jobs",
+      "/repo/config/cron/jobs.json": cronJobsJson("Repo Job", "Shared Job"),
       "/repo/config/agent-profiles.json": "same-profiles",
     });
 
@@ -153,9 +163,9 @@ describe("runtime-repo-drift-monitor", () => {
 
   it("parses repo-root/base/branch-prefix arguments for git/gh commands", async () => {
     seedFiles({
-      "/home/test/.openclaw/cron/jobs.json": "runtime-jobs",
+      "/home/test/.openclaw/cron/jobs.json": cronJobsJson("Runtime Job", "Shared Job"),
       "/home/test/.openclaw/agent-profiles.json": "same-profiles",
-      "/custom/repo/config/cron/jobs.json": "repo-jobs",
+      "/custom/repo/config/cron/jobs.json": cronJobsJson("Repo Job", "Shared Job"),
       "/custom/repo/config/agent-profiles.json": "same-profiles",
     });
 
@@ -181,9 +191,7 @@ describe("runtime-repo-drift-monitor", () => {
     expect(commands).toContain("git pull --ff-only origin develop");
     expect(commands).toContain("git checkout -b chore/custom-drift-202603031100");
     expect(commands.some((c) => c.includes("gh pr create --base develop --head chore/custom-drift-202603031100"))).toBe(true);
-    expect(copyFileSync).toHaveBeenCalledWith(
-      "/home/test/.openclaw/cron/jobs.json",
-      "/custom/repo/config/cron/jobs.json",
-    );
+    expect(copyFileSync).not.toHaveBeenCalled();
+    expect(writeFileSync).toHaveBeenCalled();
   });
 });

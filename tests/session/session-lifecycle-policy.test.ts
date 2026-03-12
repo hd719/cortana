@@ -88,7 +88,7 @@ describe('session lifecycle policy runtime behavior', () => {
   });
 
   it('auto-cleans and stays silent when the breach is remediated', async () => {
-    const before = Array.from({ length: 12 }, (_, i) => `agent:cron:${i}`);
+    const before = Array.from({ length: 150 }, (_, i) => `agent:cron:${i}`);
     const after = Array.from({ length: 8 }, (_, i) => `agent:cron:${i}`);
 
     spawnSync
@@ -109,7 +109,7 @@ describe('session lifecycle policy runtime behavior', () => {
   });
 
   it('emits json status for remediated runs', async () => {
-    const before = Array.from({ length: 12 }, (_, i) => `agent:cron:${i}`);
+    const before = Array.from({ length: 150 }, (_, i) => `agent:cron:${i}`);
     const after = Array.from({ length: 8 }, (_, i) => `agent:cron:${i}`);
 
     spawnSync
