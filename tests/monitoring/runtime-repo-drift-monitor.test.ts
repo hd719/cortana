@@ -115,9 +115,10 @@ describe("runtime-repo-drift-monitor", () => {
       }),
     });
 
-    const output = await runMonitor(["--repo-root", "/repo"]);
-    expect(output).toContain("suppressed drift: cron/jobs.json (intentional runtime patch cooldown active");
-    expect(output).not.toContain("auto-pr opened:");
+    const output = await runMonitor(["--json", "--repo-root", "/repo"]);
+    const payload = JSON.parse(output);
+    expect(payload.status).toBe("healthy");
+    expect(payload.suppressed[0].reason).toContain("intentional runtime patch cooldown active");
   });
 
   it("enables auto-pr when --auto-pr is passed", async () => {
