@@ -1,0 +1,134 @@
+{
+  "version": 1,
+  "repoHygiene": {
+    "dirtyMainStaleHours": 6,
+    "staleTempWorktreeHours": 24,
+    "tempWorktreeRoots": [
+      "/tmp/",
+      "/private/tmp/"
+    ],
+    "volatileRuntimeFiles": [
+      "memory/calendar-reminders-sent.json",
+      "memory/newsletter-alerted.json",
+      "memory/x-trending-seen.json",
+      "memory/circuit-breaker-state.json",
+      "memory/cron-health-48h.json",
+      "memory/cron-health-48h-errors.json"
+    ]
+  },
+  "stablePreferenceRules": [
+    {
+      "id": "monitor-owner-lane-doc-contract",
+      "summary": "Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.",
+      "updateFiles": [
+        "HEARTBEAT.md",
+        "docs/agent-routing.md",
+        "docs/operating-rules.md",
+        "README.md",
+        "config/cron/jobs.json"
+      ],
+      "requiredDocs": [
+        {
+          "path": "HEARTBEAT.md",
+          "phrases": [
+            "Monitor is the user-facing owner lane",
+            "email-triage / inbox-operational",
+            "operational cron / maintenance alerts"
+          ]
+        },
+        {
+          "path": "docs/agent-routing.md",
+          "phrases": [
+            "Monitor is the user-facing owner lane for inbox/email ops and maintenance alerts"
+          ]
+        },
+        {
+          "path": "docs/operating-rules.md",
+          "phrases": [
+            "Stable operational routing/preferences must be updated together",
+            "Monitor is the user-facing owner lane for inbox/email ops and maintenance alerts"
+          ]
+        },
+        {
+          "path": "README.md",
+          "phrases": [
+            "Monitor is now the primary cron/ops delivery voice",
+            "prefer Monitor for automated machine/ops delivery"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "stable-routing-preferences-live-in-canonical-files",
+      "summary": "Stable operational routing/preferences belong in memory/docs/config and must be updated in the same workflow.",
+      "updateFiles": [
+        "MEMORY.md",
+        "HEARTBEAT.md",
+        "docs/agent-routing.md",
+        "docs/operating-rules.md",
+        "README.md",
+        "config/cron/jobs.json"
+      ],
+      "requiredDocs": [
+        {
+          "path": "MEMORY.md",
+          "phrases": [
+            "Stable operational routing/preferences belong in HEARTBEAT.md, docs/agent-routing.md, docs/operating-rules.md, README.md, and config/cron/jobs.json together."
+          ]
+        }
+      ]
+    }
+  ],
+  "routingRules": [
+    {
+      "id": "monitor-owns-inbox-ops",
+      "scopeLabel": "inbox/email ops",
+      "expectedOwner": "monitor",
+      "jobKeywords": [
+        "newsletter",
+        "gmail",
+        "inbox",
+        "email triage"
+      ],
+      "requireExplicitOwner": true,
+      "requireQuietHealthy": true
+    },
+    {
+      "id": "monitor-owns-maintenance-alerts",
+      "scopeLabel": "maintenance alerts",
+      "expectedOwner": "monitor",
+      "jobKeywords": [
+        "repo auto sync",
+        "repo drift",
+        "session lifecycle",
+        "subagent reliability",
+        "daily upgrade",
+        "weekly memory consolidation",
+        "weekly cortana status",
+        "openai auth preflight",
+        "openai auth sweep",
+        "focus mode digest flush",
+        "autonomy operator cadence"
+      ],
+      "requireExplicitOwner": true,
+      "requireQuietHealthy": false
+    },
+    {
+      "id": "quiet-watchers-stay-quiet",
+      "scopeLabel": "quiet maintenance watcher",
+      "expectedOwner": "monitor",
+      "jobKeywords": [
+        "repo auto sync",
+        "repo drift",
+        "session lifecycle",
+        "subagent reliability",
+        "openai auth preflight",
+        "openai auth sweep",
+        "focus mode digest flush",
+        "autonomy operator cadence"
+      ],
+      "requireExplicitOwner": true,
+      "requireQuietHealthy": true
+    }
+  ]
+}

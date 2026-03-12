@@ -71,6 +71,19 @@ function hasLocalBranch(repoDir: string, branchName: string): boolean {
   return result.status === 0;
 }
 
+function runRepoAutoSync(repoDir: string, extraArgs: string[] = []): { stdout: string; stderr: string; status: number } {
+  const result = spawnSync("bash", [scriptPath, "--repo", repoDir, ...extraArgs], {
+    cwd: repoDir,
+    encoding: "utf8",
+  });
+
+  return {
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+    status: result.status ?? 1,
+  };
+}
+
 afterEach(() => {
   for (const target of cleanupPaths) {
     fs.rmSync(target, { recursive: true, force: true });
@@ -145,5 +158,26 @@ describe("repo-auto-sync worktree conflict automation", () => {
     expect(result.stderr).toContain("detail=delete-skipped-worktree-blocked");
     expect(fs.existsSync(externalWorktree)).toBe(true);
     expect(hasLocalBranch(repoDir, branchName)).toBe(true);
+  });
+
+  it("auto-restores volatile runtime-state dirt on main and stays quiet", () => {
+    const { repoDir } = setupMergedBranchRepo("repo-auto-sync-volatile-runtime-state");
+    const runtimeState = path.join(repoDir, "memory", "newsletter-alerted.json");
+
+    fs.mkdirSync(path.dirname(runtimeState), { recursive: true });
+    fs.writeFileSync(runtimeState, '{"ids":["seed"]}\n', "utf8");
+    run("git add memory/newsletter-alerted.json", repoDir);
+    run("git commit -m 'track runtime state file for regression'", repoDir);
+    run("git push origin main", repoDir);
+
+    fs.writeFileSync(runtimeState, '{"ids":["runtime-change"]}\n', "utf8");
+
+    const result = runRepoAutoSync(repoDir);
+
+    expect(result.status).toBe(0);
+    expect(result.stdout.trim()).toBe("NO_REPLY");
+    expect(result.stderr).toContain("detail=volatile-runtime-state-restored");
+    expect(run("git status --short", repoDir)).toBe("");
+    expect(fs.readFileSync(runtimeState, "utf8")).toContain("seed");
   });
 });

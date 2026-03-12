@@ -18,11 +18,18 @@ Execute remediation (destructive):
 /Users/hd/Developer/cortana/tools/repo/hygiene-check.sh --fix --confirm-destructive --execute
 ```
 
-## Post-merge local sync
+## Post-merge local cleanup
 
 ```bash
-/Users/hd/Developer/cortana/tools/repo/post-merge-sync.sh
+/Users/hd/Developer/cortana/tools/repo/post-pr-cleanup.sh
 ```
+
+This uses the same safe hygiene engine as routine repo overwatch:
+- fast-forward local `main` when safe
+- delete merged local branches only
+- remove obvious `/tmp` worktrees for merged branches
+- suppress volatile runtime-state false dirt
+- verify clean and only report actionable/risky leftovers
 
 ## Drift watchdog (manual)
 
@@ -33,6 +40,17 @@ Execute remediation (destructive):
 Exit codes:
 - `0`: no drift/no dirt
 - `1`: drift/dirty/missing repo detected
+
+## Routing drift checker
+
+```bash
+npx tsx /Users/hd/Developer/cortana/tools/monitoring/ops-routing-drift-check.ts
+```
+
+This enforces the stable owner-lane contract:
+- inbox/email ops + maintenance alerts route through **Monitor**
+- healthy watcher paths stay quiet with `NO_REPLY`
+- stable routing/preferences updates belong in `MEMORY.md`, `HEARTBEAT.md`, `docs/agent-routing.md`, `docs/operating-rules.md`, `README.md`, and `config/cron/jobs.json` together
 
 ## PR completion protocol (standard)
 

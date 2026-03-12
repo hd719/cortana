@@ -9,26 +9,28 @@ describe("repo-auto-sync.sh hygiene policy", () => {
   it("fails fast on dirty/untracked state, but allows stash with snapshot logging", () => {
     expect(script).toContain("git -C \"$repo\" status --porcelain --untracked-files=all");
     expect(script).toContain("git -C \"$repo\" stash list");
-    expect(script).toContain('fail "$repo" "preflight-clean"');
     expect(script).toContain("snapshot_existing_stash_metadata");
     expect(script).toContain("detail=stash-present-continue");
     expect(script).toContain("detail=stash-snapshot-written");
     expect(script).not.toContain('stash list not empty');
   });
 
-  it("keeps safe order: preflight before branch-state/pull, cleanup after sync decision", () => {
+  it("keeps safe order: preflight before branch-state/pull, stale worktree cleanup before branch cleanup", () => {
     const syncRepoBody = script.match(/sync_repo\(\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
     const preflight = syncRepoBody.indexOf("ensure_clean_preflight");
     const branchState = syncRepoBody.indexOf("rev-list --left-right --count origin/main...HEAD");
+    const staleTemp = syncRepoBody.indexOf("cleanup_stale_temp_worktrees");
     const pull = syncRepoBody.indexOf("pull --ff-only origin main");
     const cleanup = syncRepoBody.indexOf("cleanup_local_merged_branches");
 
     expect(syncRepoBody).toBeTruthy();
     expect(preflight).toBeGreaterThan(-1);
     expect(branchState).toBeGreaterThan(-1);
+    expect(staleTemp).toBeGreaterThan(-1);
     expect(pull).toBeGreaterThan(-1);
     expect(cleanup).toBeGreaterThan(-1);
     expect(preflight).toBeLessThan(branchState);
+    expect(staleTemp).toBeLessThan(cleanup);
     expect(branchState).toBeLessThan(cleanup);
     expect(pull).toBeLessThan(cleanup);
   });
@@ -44,6 +46,7 @@ describe("repo-auto-sync.sh hygiene policy", () => {
   it("automates temp worktree conflicts with stash+remove and skips non-temp worktrees", () => {
     expect(script).toContain("is_temp_worktree_path");
     expect(script).toContain("list_worktrees_for_branch");
+    expect(script).toContain("cleanup_stale_temp_worktrees");
     expect(script).toContain('stash push --include-untracked -m "$stash_message"');
     expect(script).toContain('detail=temp-worktree-stashed');
     expect(script).toContain('worktree remove -- "$worktree_path"');
@@ -61,9 +64,16 @@ describe("repo-auto-sync.sh hygiene policy", () => {
 
   it("handles ahead/diverged main safely before attempting pull", () => {
     expect(script).toContain('rev-list --left-right --count origin/main...HEAD');
-    expect(script).toContain('detail=local-main-ahead');
-    expect(script).toContain('detail=skip-local-main-ahead');
-    expect(script).toContain('main diverged from origin/main');
+    expect(script).toContain('local-main-ahead');
+    expect(script).toContain('diverged-main-manual-intervention-required');
+  });
+
+  it("suppresses volatile runtime-state false dirt and renders NO_REPLY when healthy", () => {
+    expect(script).toContain('memory/calendar-reminders-sent.json');
+    expect(script).toContain('memory/newsletter-alerted.json');
+    expect(script).toContain('detail=volatile-runtime-state-restored');
+    expect(script).toContain("render_output");
+    expect(script).toContain("NO_REPLY");
   });
 
   it("runs main flow only when executed directly", () => {

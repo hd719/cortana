@@ -99,6 +99,7 @@
 
 - **README sync**: README.md must reflect crons, agents, integrations, and major system changes.
 - **Document as you go**: when a decision or change matters long-term, update the right doc immediately.
+- **Stable operational routing/preferences belong in HEARTBEAT.md, docs/agent-routing.md, docs/operating-rules.md, README.md, and config/cron/jobs.json together.**
 - **Cron definitions**: runtime source of truth is `~/.openclaw/cron/jobs.json`. Gateway overwrites symlinks on restart, so edit runtime directly. Sync to `config/cron/jobs.json` in repo as version-controlled backup after changes.
 - **Symlinks**: any repo↔runtime symlink must be documented in both MEMORY.md and TOOLS.md.
 - **Post-update integrity**: after every OpenClaw update, verify critical symlinks (especially `~/.openclaw/cron/jobs.json`) and self-heal drift immediately.

@@ -1,9 +1,43 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPOS=("/Users/hd/Developer/cortana" "/Users/hd/Developer/cortana-external")
+REPO_ROOT="${REPO_ROOT:-/Users/hd/Developer}"
+DEFAULT_REPOS=("$REPO_ROOT/cortana" "$REPO_ROOT/cortana-external")
+REPOS=()
 PROTECTED_BRANCHES=("main" "master" "dev" "develop")
-VOLATILE_STATE_FILES=("memory/calendar-reminders-sent.json" "memory/newsletter-alerted.json" "memory/x-trending-seen.json")
+VOLATILE_STATE_FILES=(
+  "memory/calendar-reminders-sent.json"
+  "memory/newsletter-alerted.json"
+  "memory/x-trending-seen.json"
+  "memory/circuit-breaker-state.json"
+  "memory/cron-health-48h.json"
+  "memory/cron-health-48h-errors.json"
+)
+
+DIRTY_MAIN_STALE_HOURS="${DIRTY_MAIN_STALE_HOURS:-6}"
+STALE_TEMP_WORKTREE_HOURS="${STALE_TEMP_WORKTREE_HOURS:-24}"
+POST_MERGE_MODE=false
+
+ACTIONABLE_ALERTS=()
+
+usage() {
+  cat <<'EOF'
+Safe repo hygiene sync for local worktrees and merged branches.
+
+Usage:
+  repo-auto-sync.sh [--repo <path>] [--repo-root <path>] [--post-merge]
+
+Flags:
+  --repo <path>       Limit to a specific repo. May be repeated.
+  --repo-root <path>  Build default repo list from this root.
+  --post-merge        Strict mode: require merged-cleanup outcome on local main.
+  -h, --help          Show this help.
+
+Output:
+  - `NO_REPLY` when all repos are healthy or only safe auto-clean happened.
+  - Concise actionable lines when manual intervention is required.
+EOF
+}
 
 fail() {
   local repo="$1"
@@ -11,6 +45,13 @@ fail() {
   local detail="$3"
   printf 'FAIL repo=%s step=%s detail=%s\n' "$repo" "$step" "$detail" >&2
   return 1
+}
+
+queue_actionable_alert() {
+  local repo="$1"
+  local step="$2"
+  local detail="$3"
+  ACTIONABLE_ALERTS+=("repo=$(basename "$repo") step=$step detail=$detail")
 }
 
 is_protected_branch() {
@@ -35,8 +76,78 @@ sanitize_branch_token() {
 }
 
 is_temp_worktree_path() {
-  local path="$1"
-  [[ "$path" == /tmp/* || "$path" == /private/tmp/* ]]
+  local worktree_path="${1%/}/"
+  [[ "$worktree_path" == /tmp/* || "$worktree_path" == /private/tmp/* ]]
+}
+
+path_mtime_epoch() {
+  local target="$1"
+  local mtime=""
+
+  mtime="$(stat -f '%m' "$target" 2>/dev/null || true)"
+  if [[ -z "$mtime" ]]; then
+    mtime="$(stat -c '%Y' "$target" 2>/dev/null || true)"
+  fi
+
+  if [[ "$mtime" =~ ^[0-9]+$ ]]; then
+    printf '%s\n' "$mtime"
+    return 0
+  fi
+
+  return 1
+}
+
+status_tracked_lines() {
+  local status="$1"
+
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    if [[ "${line:0:2}" != "??" ]]; then
+      printf '%s\n' "$line"
+    fi
+  done <<< "$status"
+}
+
+newest_status_path_age_seconds() {
+  local repo="$1"
+  local status="$2"
+  local now path full_path mtime age newest=0
+  now="$(date +%s)"
+
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    path="${line:3}"
+    path="${path##* -> }"
+    full_path="$repo/$path"
+    if ! mtime="$(path_mtime_epoch "$full_path")"; then
+      continue
+    fi
+    age=$(( now - mtime ))
+    if (( age > newest )); then
+      newest="$age"
+    fi
+  done < <(status_tracked_lines "$status")
+
+  printf '%s\n' "$newest"
+}
+
+restore_volatile_runtime_state() {
+  local repo="$1"
+  local restored=()
+  local rel
+
+  for rel in "${VOLATILE_STATE_FILES[@]}"; do
+    if git -C "$repo" status --porcelain -- "$rel" | grep -q .; then
+      if git -C "$repo" restore --worktree -- "$rel" >/dev/null 2>&1; then
+        restored+=("$rel")
+      fi
+    fi
+  done
+
+  if (( ${#restored[@]} > 0 )); then
+    printf 'INFO repo=%s step=preflight-clean detail=volatile-runtime-state-restored files=%q\n' \
+      "$repo" "${restored[*]}" >&2
+  fi
 }
 
 list_worktrees_for_branch() {
@@ -66,6 +177,49 @@ list_worktrees_for_branch() {
       current_branch=""
     fi
   done < <(git -C "$repo" worktree list --porcelain; printf '\n')
+}
+
+list_all_worktrees() {
+  local repo="$1"
+  local current_worktree=""
+  local current_branch=""
+
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if [[ "$line" == worktree\ * ]]; then
+      current_worktree="${line#worktree }"
+      current_branch=""
+      continue
+    fi
+
+    if [[ "$line" == branch\ * ]]; then
+      current_branch="${line#branch }"
+      continue
+    fi
+
+    if [[ -z "$line" ]]; then
+      if [[ -n "$current_worktree" ]]; then
+        printf '%s\t%s\n' "$current_worktree" "$current_branch"
+      fi
+      current_worktree=""
+      current_branch=""
+    fi
+  done < <(git -C "$repo" worktree list --porcelain; printf '\n')
+}
+
+worktree_branch_name_from_ref() {
+  local ref="${1:-}"
+  if [[ "$ref" == refs/heads/* ]]; then
+    printf '%s\n' "${ref#refs/heads/}"
+  fi
+}
+
+branch_is_merged_into_origin_main() {
+  local repo="$1"
+  local branch="$2"
+
+  git -C "$repo" show-ref --verify --quiet "refs/heads/$branch" || return 1
+  git -C "$repo" rev-parse --verify --quiet "origin/main" >/dev/null || return 1
+  git -C "$repo" merge-base --is-ancestor "$branch" "origin/main"
 }
 
 auto_stash_dirty_worktree() {
@@ -101,6 +255,7 @@ remove_temp_worktree_for_branch() {
 
   if ! is_temp_worktree_path "$worktree_path"; then
     printf 'WARN repo=%s step=branch-cleanup detail=non-temp-worktree-skip branch=%q worktree=%q\n' "$repo" "$branch" "$worktree_path" >&2
+    queue_actionable_alert "$repo" "branch-cleanup" "merged-branch-blocked-non-temp-worktree branch=$branch worktree=$worktree_path"
     return 1
   fi
 
@@ -110,9 +265,9 @@ remove_temp_worktree_for_branch() {
       return 0
     fi
     printf 'WARN repo=%s step=branch-cleanup detail=temp-worktree-remove-failed branch=%q worktree=%q\n' "$repo" "$branch" "$worktree_path" >&2
-    return 1
   fi
 
+  queue_actionable_alert "$repo" "branch-cleanup" "merged-branch-temp-worktree-remove-failed branch=$branch worktree=$worktree_path"
   return 1
 }
 
@@ -127,6 +282,7 @@ resolve_branch_worktree_conflicts() {
 
     if [[ "$worktree_path" == "$repo" ]]; then
       printf 'WARN repo=%s step=branch-cleanup detail=branch-checked-out-in-primary-worktree branch=%q worktree=%q\n' "$repo" "$branch" "$worktree_path" >&2
+      queue_actionable_alert "$repo" "branch-cleanup" "merged-branch-checked-out-in-primary-worktree branch=$branch"
       blocked=1
       continue
     fi
@@ -143,50 +299,59 @@ resolve_branch_worktree_conflicts() {
   return 0
 }
 
-ensure_clean_preflight() {
+cleanup_stale_temp_worktrees() {
   local repo="$1"
+  local threshold_seconds=$(( STALE_TEMP_WORKTREE_HOURS * 3600 ))
+  local now age_seconds branch_ref branch_name worktree_path status
+  now="$(date +%s)"
 
-  if [[ "$repo" == "/Users/hd/Developer/cortana" ]]; then
-    git -C "$repo" restore --worktree -- "${VOLATILE_STATE_FILES[@]}" >/dev/null 2>&1 || true
-  fi
+  while IFS=$'\t' read -r worktree_path branch_ref; do
+    [[ -n "$worktree_path" ]] || continue
+    [[ "$worktree_path" == "$repo" ]] && continue
+    is_temp_worktree_path "$worktree_path" || continue
 
-  local status
-  status="$(git -C "$repo" status --porcelain --untracked-files=all)"
-  if [[ -z "$status" ]]; then
-    return 0
-  fi
-
-  local tracked_dirty=0
-  local untracked_only=0
-
-  while IFS= read -r line; do
-    [[ -z "$line" ]] && continue
-
-    local xy path
-    xy="${line:0:2}"
-    path="${line:3}"
-
-    printf 'WARN repo=%s step=preflight-clean detail=status-entry kind=%q entry=%q\n' "$repo" "$xy" "$line" >&2
-
-    if [[ "$xy" == "??" ]]; then
-      untracked_only=1
+    local mtime
+    if ! mtime="$(path_mtime_epoch "$worktree_path")"; then
       continue
     fi
 
-    tracked_dirty=1
-  done <<< "$status"
+    age_seconds=$(( now - mtime ))
+    if (( age_seconds < threshold_seconds )); then
+      continue
+    fi
 
-  if [[ "$tracked_dirty" -eq 1 ]]; then
-    printf 'WARN repo=%s step=preflight-clean detail=tracked-changes-present-skip\n' "$repo" >&2
-    return 2
-  fi
+    branch_name="$(worktree_branch_name_from_ref "$branch_ref")"
+    status="$(git -C "$worktree_path" status --porcelain --untracked-files=all 2>/dev/null || true)"
 
-  if [[ "$untracked_only" -eq 1 ]]; then
-    printf 'WARN repo=%s step=preflight-clean detail=untracked-only-continue\n' "$repo" >&2
-    return 0
-  fi
+    if [[ -n "$branch_name" ]] && branch_is_merged_into_origin_main "$repo" "$branch_name"; then
+      if remove_temp_worktree_for_branch "$repo" "$branch_name" "$worktree_path"; then
+        printf 'INFO repo=%s step=stale-temp-worktree detail=stale-temp-worktree-removed branch=%q worktree=%q age_hours=%s\n' \
+          "$repo" "$branch_name" "$worktree_path" "$(( age_seconds / 3600 ))" >&2
+      fi
+      continue
+    fi
 
-  return 0
+    if [[ -z "$branch_name" && -z "$status" ]]; then
+      if git -C "$repo" worktree remove -- "$worktree_path" >/dev/null 2>&1; then
+        printf 'INFO repo=%s step=stale-temp-worktree detail=detached-clean-temp-worktree-removed worktree=%q age_hours=%s\n' \
+          "$repo" "$worktree_path" "$(( age_seconds / 3600 ))" >&2
+        continue
+      fi
+    fi
+
+    if [[ -n "$branch_name" ]] && ! git -C "$repo" show-ref --verify --quiet "refs/heads/$branch_name" && [[ -z "$status" ]]; then
+      if git -C "$repo" worktree remove -- "$worktree_path" >/dev/null 2>&1; then
+        printf 'INFO repo=%s step=stale-temp-worktree detail=orphan-clean-temp-worktree-removed branch=%q worktree=%q age_hours=%s\n' \
+          "$repo" "$branch_name" "$worktree_path" "$(( age_seconds / 3600 ))" >&2
+        continue
+      fi
+    fi
+
+    queue_actionable_alert \
+      "$repo" \
+      "stale-temp-worktree" \
+      "manual-review-required worktree=$worktree_path branch=${branch_name:-detached} age_hours=$(( age_seconds / 3600 )) dirty=$([[ -n "$status" ]] && printf yes || printf no)"
+  done < <(list_all_worktrees "$repo")
 }
 
 snapshot_existing_stash_metadata() {
@@ -233,6 +398,56 @@ ensure_no_stash_preflight() {
   return 0
 }
 
+ensure_clean_preflight() {
+  local repo="$1"
+
+  restore_volatile_runtime_state "$repo"
+
+  local status
+  status="$(git -C "$repo" status --porcelain --untracked-files=all)"
+  if [[ -z "$status" ]]; then
+    return 0
+  fi
+
+  local tracked_status=""
+  tracked_status="$(status_tracked_lines "$status")"
+
+  if [[ -z "$tracked_status" ]]; then
+    printf 'WARN repo=%s step=preflight-clean detail=untracked-only-continue\n' "$repo" >&2
+    return 0
+  fi
+
+  local current_branch
+  current_branch="$(git -C "$repo" branch --show-current 2>/dev/null || true)"
+
+  if [[ "$current_branch" != "main" ]]; then
+    if [[ "$POST_MERGE_MODE" == true ]]; then
+      queue_actionable_alert "$repo" "preflight-clean" "post-merge-blocked-dirty-non-main branch=${current_branch:-detached}"
+      return 3
+    fi
+    printf 'WARN repo=%s step=preflight-clean detail=feature-branch-dirty-expected branch=%q\n' "$repo" "$current_branch" >&2
+    return 2
+  fi
+
+  local newest_age_seconds threshold_seconds
+  newest_age_seconds="$(newest_status_path_age_seconds "$repo" "$tracked_status")"
+  threshold_seconds=$(( DIRTY_MAIN_STALE_HOURS * 3600 ))
+
+  if (( newest_age_seconds > threshold_seconds )) || [[ "$POST_MERGE_MODE" == true ]]; then
+    queue_actionable_alert \
+      "$repo" \
+      "preflight-clean" \
+      "dirty-main-manual-intervention-required age_hours=$(( newest_age_seconds / 3600 ))"
+    printf 'WARN repo=%s step=preflight-clean detail=dirty-main-manual-intervention-required age_hours=%s\n' \
+      "$repo" "$(( newest_age_seconds / 3600 ))" >&2
+    return 3
+  fi
+
+  printf 'WARN repo=%s step=preflight-clean detail=dirty-main-fresh-expected age_hours=%s\n' \
+    "$repo" "$(( newest_age_seconds / 3600 ))" >&2
+  return 2
+}
+
 cleanup_local_merged_branches() {
   local repo="$1"
 
@@ -264,9 +479,36 @@ cleanup_local_merged_branches() {
           continue
         fi
 
-        git -C "$repo" branch -d -- "$b" >/dev/null 2>&1 || \
+        if git -C "$repo" branch -d -- "$b" >/dev/null 2>&1; then
+          printf 'INFO repo=%s step=branch-cleanup detail=merged-local-branch-deleted branch=%q\n' "$repo" "$b" >&2
+        else
           printf 'INFO repo=%s step=branch-cleanup detail=delete-skipped branch=%q\n' "$repo" "$b" >&2
+          queue_actionable_alert "$repo" "branch-cleanup" "merged-local-branch-delete-skipped branch=$b"
+        fi
       done
+}
+
+verify_repo_clean() {
+  local repo="$1"
+
+  restore_volatile_runtime_state "$repo"
+  local status current_branch
+  status="$(git -C "$repo" status --porcelain --untracked-files=all)"
+  current_branch="$(git -C "$repo" branch --show-current 2>/dev/null || true)"
+
+  if [[ "$current_branch" != "main" && "$POST_MERGE_MODE" == true ]]; then
+    queue_actionable_alert "$repo" "verify-clean" "post-merge-ended-off-main branch=${current_branch:-detached}"
+    return 1
+  fi
+
+  local tracked_status
+  tracked_status="$(status_tracked_lines "$status")"
+  if [[ -n "$tracked_status" && "$current_branch" == "main" ]]; then
+    queue_actionable_alert "$repo" "verify-clean" "dirty-main-after-sync"
+    return 1
+  fi
+
+  return 0
 }
 
 sync_repo() {
@@ -278,7 +520,12 @@ sync_repo() {
   ensure_clean_preflight "$repo" || preflight_rc=$?
   if [[ "$preflight_rc" -ne 0 ]]; then
     if [[ "$preflight_rc" -eq 2 ]]; then
-      printf 'SKIP repo=%s step=preflight-clean detail=manual-intervention-required\n' "$repo" >&2
+      if [[ "$POST_MERGE_MODE" == true ]]; then
+        queue_actionable_alert "$repo" "preflight-clean" "post-merge-blocked-inflight-worktree"
+      fi
+      return 0
+    fi
+    if [[ "$preflight_rc" -eq 3 ]]; then
       return 0
     fi
     fail "$repo" "preflight-clean" "preflight check failed"
@@ -287,7 +534,8 @@ sync_repo() {
   ensure_no_stash_preflight "$repo" || fail "$repo" "preflight-stash" "stash preflight logging failed"
 
   git -C "$repo" fetch --all --prune || fail "$repo" "fetch" "git fetch --all --prune failed"
-  git -C "$repo" checkout main || fail "$repo" "checkout" "git checkout main failed"
+  cleanup_stale_temp_worktrees "$repo"
+  git -C "$repo" checkout main >/dev/null 2>&1 || fail "$repo" "checkout" "git checkout main failed"
 
   local ahead behind counts
   counts="$(git -C "$repo" rev-list --left-right --count origin/main...HEAD)" || fail "$repo" "branch-state" "git rev-list origin/main...HEAD failed"
@@ -295,29 +543,74 @@ sync_repo() {
   ahead="${counts##*$'\t'}"
 
   if [[ "$ahead" -gt 0 && "$behind" -gt 0 ]]; then
-    fail "$repo" "branch-state" "main diverged from origin/main (ahead=$ahead behind=$behind)"
+    queue_actionable_alert "$repo" "branch-state" "diverged-main-manual-intervention-required ahead=$ahead behind=$behind"
+    return 0
   elif [[ "$ahead" -gt 0 ]]; then
-    printf 'WARN repo=%s step=branch-state detail=local-main-ahead ahead=%s behind=%s\n' "$repo" "$ahead" "$behind" >&2
-    printf 'INFO repo=%s step=pull detail=skip-local-main-ahead\n' "$repo" >&2
+    queue_actionable_alert "$repo" "branch-state" "local-main-ahead ahead=$ahead behind=$behind"
   elif [[ "$behind" -gt 0 ]]; then
-    git -C "$repo" pull --ff-only origin main || fail "$repo" "pull" "git pull --ff-only origin main failed"
+    git -C "$repo" pull --ff-only origin main >/dev/null 2>&1 || fail "$repo" "pull" "git pull --ff-only origin main failed"
   else
     printf 'INFO repo=%s step=pull detail=already-up-to-date\n' "$repo" >&2
   fi
 
   cleanup_local_merged_branches "$repo" || fail "$repo" "branch-cleanup" "local merged branch cleanup failed"
+  verify_repo_clean "$repo" || true
+}
+
+render_output() {
+  if (( ${#ACTIONABLE_ALERTS[@]} == 0 )); then
+    printf 'NO_REPLY\n'
+    return
+  fi
+
+  printf '🧹 Repo Hygiene Watcher\n'
+  local line
+  for line in "${ACTIONABLE_ALERTS[@]}"; do
+    printf -- '- %s\n' "$line"
+  done
 }
 
 main() {
-  local repo
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --repo)
+        [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+        REPOS+=("$2")
+        shift 2
+        ;;
+      --repo-root)
+        [[ $# -ge 2 ]] || { usage >&2; exit 2; }
+        REPO_ROOT="$2"
+        DEFAULT_REPOS=("$REPO_ROOT/cortana" "$REPO_ROOT/cortana-external")
+        shift 2
+        ;;
+      --post-merge)
+        POST_MERGE_MODE=true
+        shift
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        usage >&2
+        exit 2
+        ;;
+    esac
+  done
 
+  if (( ${#REPOS[@]} == 0 )); then
+    REPOS=("${DEFAULT_REPOS[@]}")
+  fi
+
+  local repo
   for repo in "${REPOS[@]}"; do
     sync_repo "$repo"
   done
 
-  printf 'Repo auto-sync hygiene complete for %s repos.\n' "${#REPOS[@]}"
+  render_output
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
-  main
+  main "$@"
 fi

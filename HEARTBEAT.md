@@ -83,6 +83,7 @@ For **operational cron / maintenance alerts** (for example repo sync failures, t
 - **Monitor is the user-facing owner lane**.
 - Another specialist (for example Huragok or Researcher) may still execute the underlying maintenance or inbox-analysis work.
 - But user-visible operational alerting should be routed/labeled through **Monitor** rather than surfacing as mixed-lane maintenance chatter or Researcher-owned inbox chatter.
+- If that owner-lane rule changes, update `MEMORY.md`, `HEARTBEAT.md`, `docs/agent-routing.md`, `docs/operating-rules.md`, `README.md`, and `config/cron/jobs.json` in the same workflow.
 
 ## Cortana Escalation Rules
 
