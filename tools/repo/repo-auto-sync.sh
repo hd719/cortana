@@ -218,8 +218,8 @@ branch_is_merged_into_origin_main() {
   local branch="$2"
 
   git -C "$repo" show-ref --verify --quiet "refs/heads/$branch" || return 1
-  git -C "$repo" show-ref --verify --quiet "refs/remotes/origin/main" || return 1
-  git -C "$repo" merge-base --is-ancestor "refs/heads/$branch" "refs/remotes/origin/main"
+  git -C "$repo" rev-parse --verify --quiet "origin/main" >/dev/null || return 1
+  git -C "$repo" merge-base --is-ancestor "$branch" "origin/main"
 }
 
 auto_stash_dirty_worktree() {
