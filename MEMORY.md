@@ -164,7 +164,7 @@
 ## Agent Spawn Rules (added Feb 28, 2026)
 
 - **Always use `sessions_spawn`** for coding work — never `exec` + Codex PTY directly. `sessions_spawn` shows up in Mission Control; raw PTY processes are invisible.
-- **OpenClaw update method**: `pnpm update -g openclaw@latest` then `bash ~/openclaw/tools/openclaw/post-update.sh`. Never use npm. Never call it Clawdbot.
+- **OpenClaw update method**: `pnpm update -g openclaw@latest` then `bash ~/Developer/cortana/tools/openclaw/post-update.sh`. Never use npm. Never call it Clawdbot.
 - **LanceDB**: removed. Using OpenClaw built-in memory search (OpenAI text-embedding-3-small). Do not reinstall.
 
 ## Weekly Consolidation Notes (2026-03-01)

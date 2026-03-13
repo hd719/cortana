@@ -36,7 +36,7 @@ This keeps routine decisions inexpensive while preserving quality for high-stake
 ### 1) Simple approval flow
 
 ```bash
-~/openclaw/tools/council/council.sh create \
+~/Developer/cortana/tools/council/council.sh create \
   --type approval \
   --title "Deploy to prod" \
   --initiator cortana \
@@ -44,7 +44,7 @@ This keeps routine decisions inexpensive while preserving quality for high-stake
   --expires 60 \
   --context '{"action":"deploy","risk":"high"}'
 
-~/openclaw/tools/council/council.sh vote \
+~/Developer/cortana/tools/council/council.sh vote \
   --session <UUID> \
   --voter oracle \
   --vote approve \
@@ -53,7 +53,7 @@ This keeps routine decisions inexpensive while preserving quality for high-stake
   --model "openai/gpt-4o-mini" \
   --tokens 150
 
-~/openclaw/tools/council/council.sh decide \
+~/Developer/cortana/tools/council/council.sh decide \
   --session <UUID> \
   --decision '{"outcome":"approved","reasoning":"Unanimous approval"}'
 ```
@@ -61,7 +61,7 @@ This keeps routine decisions inexpensive while preserving quality for high-stake
 ### 2) Deliberation fan-out + tally
 
 ```bash
-~/openclaw/tools/council/council-deliberate.sh \
+~/Developer/cortana/tools/council/council-deliberate.sh \
   --title "Portfolio rebalancing strategy" \
   --participants "oracle,researcher" \
   --context '{"question":"Should we diversify out of 95% tech?"}' \
@@ -69,15 +69,15 @@ This keeps routine decisions inexpensive while preserving quality for high-stake
 
 # Cortana spawns participant agents to cast votes...
 
-~/openclaw/tools/council/council-tally.sh --session <UUID>
+~/Developer/cortana/tools/council/council-tally.sh --session <UUID>
 ```
 
 ### 3) Housekeeping
 
 ```bash
-~/openclaw/tools/council/council.sh list --status open --type deliberation
-~/openclaw/tools/council/council.sh status --session <UUID>
-~/openclaw/tools/council/council.sh expire
+~/Developer/cortana/tools/council/council.sh list --status open --type deliberation
+~/Developer/cortana/tools/council/council.sh status --session <UUID>
+~/Developer/cortana/tools/council/council.sh expire
 ```
 
 ## Notes

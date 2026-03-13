@@ -56,7 +56,7 @@ Migrated 4 major daily briefs to pull from sitrep + insights instead of gatherin
 
 ## Cortical Loop (Event-Driven Complement)
 
-The SAE gathers world state on a schedule (3x/day). The **Cortical Loop** (`~/openclaw/cortical-loop/`) adds real-time event detection between SAE runs. Watchers poll sources every 2-15 min, inserting events into `cortana_event_stream`. An evaluator matches events against wake rules and triggers the LLM only when something needs attention. See `~/openclaw/cortical-loop/README.md`.
+The SAE gathers world state on a schedule (3x/day). The **Cortical Loop** (`~/Developer/cortana/cortical-loop/`) adds real-time event detection between SAE runs. Watchers poll sources every 2-15 min, inserting events into `cortana_event_stream`. An evaluator matches events against wake rules and triggers the LLM only when something needs attention. See `~/Developer/cortana/cortical-loop/README.md`.
 
 ## Phase 4 — Prediction & Automation
 - Pattern detection across domains (e.g. poor sleep → market decisions)

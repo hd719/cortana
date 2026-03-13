@@ -21,7 +21,7 @@ Data source priority:
 3. Optional fallback: `FMP_API_KEY`
 
 ```bash
-cd ~/openclaw/tools/earnings
+cd ~/Developer/cortana/tools/earnings
 cp .env.example .env
 # edit .env with your key(s)
 ```
@@ -29,10 +29,10 @@ cp .env.example .env
 ## Usage
 
 ```bash
-~/openclaw/tools/earnings/check-earnings.sh
-~/openclaw/tools/earnings/create-calendar-events.sh
+~/Developer/cortana/tools/earnings/check-earnings.sh
+~/Developer/cortana/tools/earnings/create-calendar-events.sh
 # or pipe explicit JSON
-~/openclaw/tools/earnings/check-earnings.sh | ~/openclaw/tools/earnings/create-calendar-events.sh
+~/Developer/cortana/tools/earnings/check-earnings.sh | ~/Developer/cortana/tools/earnings/create-calendar-events.sh
 ```
 
 ## Notes

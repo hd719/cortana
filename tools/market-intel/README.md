@@ -6,7 +6,7 @@ Unified market intelligence pipeline combining:
 - `markets` skill (market open/close status)
 - Alpaca local endpoints for portfolio overlay
 
-This README documents the source repo layout. The deployed runtime checkout mirrors the same relative paths under `/Users/hd/openclaw`.
+This README documents the source repo layout. Legacy callers can still resolve the same relative paths via the `/Users/hd/openclaw` compatibility shim.
 
 ## Location
 - Script: `tools/market-intel/market-intel.sh`

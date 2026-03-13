@@ -58,7 +58,7 @@ Reads OpenAI usage data (Anthropic only as fallback) and computes:
 - **Per-category breakdown** from session labels: `main`, `cron:*`, `subagent:*`, `covenant:*`
 - **Threshold alerts** at 50%, 75%, 90% of $200 budget
 
-Source: `node ~/openclaw/skills/telegram-usage/handler.js` + session file sizes as proxy for token volume.
+Source: `node ~/Developer/cortana/skills/telegram-usage/handler.js` + session file sizes as proxy for token volume.
 
 ### 2. Cron Health Monitor (`cron-health.sh`)
 **Interval:** Every 15 min (shell, $0) — replaces watchdog's cron check

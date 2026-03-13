@@ -23,16 +23,16 @@ Cleans up stale sub-agent runs that are stuck in `running`/`in_progress` with no
 
 ```bash
 # Default: reaps runs older than 2 hours
-~/openclaw/tools/reaper/reaper.sh
+~/Developer/cortana/tools/reaper/reaper.sh
 
 # Custom age threshold (4 hours)
-~/openclaw/tools/reaper/reaper.sh --max-age-hours 4
+~/Developer/cortana/tools/reaper/reaper.sh --max-age-hours 4
 
 # Dry run (no file/DB writes)
-~/openclaw/tools/reaper/reaper.sh --dry-run
+~/Developer/cortana/tools/reaper/reaper.sh --dry-run
 
 # Emit JSON summary
-~/openclaw/tools/reaper/reaper.sh --emit-json
+~/Developer/cortana/tools/reaper/reaper.sh --emit-json
 ```
 
 ## Output shape (when --emit-json)

@@ -52,7 +52,7 @@ Insert: domain=`health`, key=`whoop_recovery`, key=`whoop_sleep`, key=`tonal_hea
 
 ### E) Portfolio (TSLA, NVDA, QQQ, GLD)
 ```bash
-cd ~/openclaw/skills/stock-analysis && npx tsx src/stock_analysis/main.ts analyze SYMBOL --json
+cd ~/Developer/cortana/skills/stock-analysis && npx tsx src/stock_analysis/main.ts analyze SYMBOL --json
 ```
 Insert: domain=`finance`, key=`stock_TSLA`, `stock_NVDA`, `stock_QQQ`, `stock_GLD` (price, change%, signal).
 

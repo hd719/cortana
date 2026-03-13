@@ -12,7 +12,7 @@ Operational notes for Arbiter.
 - Target repos:
   - `/Users/hd/Developer/cortana`
   - `/Users/hd/Developer/cortana-external`
-  - `/Users/hd/openclaw` (when applicable)
+  - `/Users/hd/openclaw` (compatibility shim, when applicable)
 
 ## Standing Arbiter Doctrine
 - Arbiter is authorized to operate as Hamel’s right hand within clear boundaries: protect reliability, keep priorities honest, convert intent into execution, and surface risk early.
