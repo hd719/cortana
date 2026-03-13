@@ -2,9 +2,12 @@
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import { resolveRepoPath } from "../lib/paths.js";
 
 const ET = "America/New_York";
 const DEFAULT_LOG = "/tmp/daily-command-brief.log";
+const FITNESS_DATA_SCRIPT = resolveRepoPath("tools", "fitness", "morning-brief-data.ts");
+const MARKET_INTEL_SCRIPT = resolveRepoPath("tools", "market-intel", "market-intel.sh");
 
 export type BriefData = {
   nowEt: string;
@@ -123,7 +126,7 @@ function collectData(): BriefData {
   const cal = run("gog", ["--account", "hameldesai3@gmail.com", "cal", "list", "Clawdbot-Calendar", "--from", "today", "--plain"]);
   const calendar = cal.ok ? parseCalendar(cal.stdout) : [];
 
-  const fit = run("npx", ["tsx", "/Users/hd/openclaw/tools/fitness/morning-brief-data.ts"]);
+  const fit = run("npx", ["tsx", FITNESS_DATA_SCRIPT]);
   let fitness: BriefData["fitness"] = { whoopWorkoutsToday: [], tonalWorkoutsToday: [], status: "degraded" };
   if (fit.ok) {
     try {
@@ -146,7 +149,7 @@ function collectData(): BriefData {
     }
   }
 
-  const marketRun = run("/Users/hd/openclaw/tools/market-intel/market-intel.sh", ["--pulse"]);
+  const marketRun = run(MARKET_INTEL_SCRIPT, ["--pulse"]);
   const marketLines = (marketRun.stdout || "").split(/\r?\n/).map((x) => x.trim()).filter(Boolean);
   const market = {
     headline: marketLines[0] ?? "Unavailable",

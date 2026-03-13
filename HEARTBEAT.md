@@ -97,7 +97,7 @@ Otherwise: Cortana remains silent (`HEARTBEAT_OK` behavior preserved).
 
 ## Rules
 
-1. Validate state each heartbeat: `npx tsx ~/openclaw/tools/heartbeat/validate-heartbeat-state.ts`.
+1. Validate state each heartbeat: `npx tsx ~/Developer/cortana/tools/heartbeat/validate-heartbeat-state.ts`.
 2. Update `memory/heartbeat-state.json` every run and set `lastHeartbeat = Date.now()` at start.
 3. Select the stalest 1–2 delegated checks per heartbeat (plus required always-run checks).
 4. Always route delegated checks through `sessions_send` to the owning agent session.

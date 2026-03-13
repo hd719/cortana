@@ -1,9 +1,9 @@
 #!/usr/bin/env npx tsx
 
 import { spawnSync } from "child_process";
-import { PSQL_BIN, POSTGRES_PATH } from "../lib/paths.js";
+import { PSQL_BIN, POSTGRES_PATH, resolveRepoPath } from "../lib/paths.js";
 const DB = "cortana";
-const USAGE_HANDLER = "/Users/hd/openclaw/skills/telegram-usage/handler.js";
+const USAGE_HANDLER = resolveRepoPath("skills", "telegram-usage", "handler.ts");
 const COOLDOWN_SEC = 15 * 60;
 const HYSTERESIS_STEPS = 2;
 

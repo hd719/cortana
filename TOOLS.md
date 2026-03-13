@@ -86,7 +86,7 @@ psql cortana -c "SELECT * FROM cortana_feedback WHERE applied = FALSE;"
 ## OpenClaw Update Procedure
 
 After `npm update -g openclaw`:
-1. `bash ~/openclaw/tools/openclaw/post-update.sh`
+1. `bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh`
 2. Verify: `openclaw status | grep "app"` (CLI and gateway versions must match)
 
 Post-update script handles:
@@ -94,13 +94,15 @@ Post-update script handles:
 - `openclaw gateway install --force`
 - `openclaw gateway restart`
 
+The deployed runtime checkout also contains the same script at `/Users/hd/openclaw/tools/openclaw/post-update.sh`, but the canonical source copy lives in this repo.
+
 ## Runtime Deploy Model
 
 - **Source repo**: `/Users/hd/Developer/cortana`
 - **Runtime repo**: `/Users/hd/openclaw`
 - **Deploy command**: `/Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh`
 - **Runtime state file**: `~/.openclaw/cron/jobs.json`
-- **Tracked cron source**: `/Users/hd/openclaw/config/cron/jobs.json`
+- **Tracked cron source**: `/Users/hd/Developer/cortana/config/cron/jobs.json`
 - **Do NOT symlink** `jobs.json` — gateway destroys symlinks on restart.
 - Change tracked cron config in the repo, then deploy. Do not back-sync runtime edits into source.
 
@@ -117,14 +119,16 @@ See `skills/weather/SKILL.md` for details and code reference.
 
 ## Market Intelligence Tool
 
-- Script: `~/openclaw/tools/market-intel/market-intel.sh`
-- README: `~/openclaw/tools/market-intel/README.md`
+Canonical source path is in this repo; the deployed runtime checkout mirrors the same relative layout.
+
+- Script: `/Users/hd/Developer/cortana/tools/market-intel/market-intel.sh`
+- README: `/Users/hd/Developer/cortana/tools/market-intel/README.md`
 
 Usage:
 ```bash
-~/openclaw/tools/market-intel/market-intel.sh --ticker NVDA
-~/openclaw/tools/market-intel/market-intel.sh --portfolio
-~/openclaw/tools/market-intel/market-intel.sh --pulse
+/Users/hd/Developer/cortana/tools/market-intel/market-intel.sh --ticker NVDA
+/Users/hd/Developer/cortana/tools/market-intel/market-intel.sh --portfolio
+/Users/hd/Developer/cortana/tools/market-intel/market-intel.sh --pulse
 ```
 
 Notes:

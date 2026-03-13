@@ -6,15 +6,17 @@ Unified market intelligence pipeline combining:
 - `markets` skill (market open/close status)
 - Alpaca local endpoints for portfolio overlay
 
+This README documents the source repo layout. The deployed runtime checkout mirrors the same relative paths under `/Users/hd/openclaw`.
+
 ## Location
-- Script: `~/openclaw/tools/market-intel/market-intel.sh`
-- Python engine: `~/openclaw/tools/market-intel/market-intel.py`
+- Script: `tools/market-intel/market-intel.sh`
+- Python engine: `tools/market-intel/market-intel.py`
 
 ## Modes
 
 ### 1) Single ticker deep dive
 ```bash
-~/openclaw/tools/market-intel/market-intel.sh --ticker NVDA
+tools/market-intel/market-intel.sh --ticker NVDA
 ```
 Output includes:
 - Quote + daily move signal
@@ -24,7 +26,7 @@ Output includes:
 
 ### 2) Portfolio sentiment scan
 ```bash
-~/openclaw/tools/market-intel/market-intel.sh --portfolio
+tools/market-intel/market-intel.sh --portfolio
 ```
 - Pulls Alpaca positions from `http://localhost:3033/alpaca/portfolio`
 - Scans 5 X tweets per held ticker
@@ -32,9 +34,9 @@ Output includes:
 
 ### 3) Market pulse
 ```bash
-~/openclaw/tools/market-intel/market-intel.sh --pulse
+tools/market-intel/market-intel.sh --pulse
 ```
-- Market status from `~/openclaw/skills/markets/check_market_status.sh`
+- Market status from `skills/markets/check_market_status.sh`
 - Broad X sentiment scan (`stock market today`, `SPY`, `QQQ`)
 - Latest flow from `@DeItaone` + `@unusual_whales`
 - Top cashtags mentioned
@@ -46,7 +48,7 @@ Output includes:
 
 ## Quick test
 ```bash
-~/openclaw/tools/market-intel/market-intel.sh --ticker AAPL
-~/openclaw/tools/market-intel/market-intel.sh --portfolio
-~/openclaw/tools/market-intel/market-intel.sh --pulse
+tools/market-intel/market-intel.sh --ticker AAPL
+tools/market-intel/market-intel.sh --portfolio
+tools/market-intel/market-intel.sh --pulse
 ```

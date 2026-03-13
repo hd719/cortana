@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-ROOT="/Users/hd/openclaw"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 OUT="/tmp/daily-command-brief.txt"
 GUARD="$ROOT/tools/notifications/telegram-delivery-guard.sh"
 GEN=(npx tsx "$ROOT/tools/briefing/daily-command-brief.ts")

@@ -1,8 +1,10 @@
-# Cortana Workspace (`~/openclaw`)
+# Cortana Workspace (source repo: `~/Developer/cortana`)
 
 [![CI](https://github.com/hd719/cortana/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hd719/cortana/actions/workflows/ci.yml)
 
 This repo is **Cortana’s command brain** – memory, policy, orchestration, cron prompts, and internal automation.
+
+Canonical source lives here at `~/Developer/cortana`. The controlled deployed runtime checkout remains `~/openclaw` until cutover is complete.
 
 If `~/Developer/cortana-external` is the runtime body (services + Mission Control), this repo is the **mind and nervous system**.
 
@@ -177,7 +179,7 @@ flowchart LR
 If someone new opens this repo, they should assume:
 
 1. **This is a live command system, not a demo.**
-   `~/openclaw` contains active operating policy for a production personal assistant workflow.
+   `~/Developer/cortana` is the canonical source repo, and `~/openclaw` remains the active deployed runtime checkout.
 
 2. **Cortana is orchestration-first by design.**
    Cortana should route work to specialist lanes and avoid default implementation/PR authoring.
@@ -533,7 +535,7 @@ graph TD
 ## 3. Directory structure (top level)
 
 ```text
-~/openclaw
+~/Developer/cortana
 ├── AGENTS.md           # Harness + delegation/routing rules
 ├── SOUL.md             # Persona, tone, mission
 ├── USER.md             # Hamel context + standing requests
@@ -882,7 +884,7 @@ Rules:
 - Deploy with: `/Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh`
 - Standard merged-and-deploy flow: `/Users/hd/Developer/cortana/tools/repo/post-merge-sync.sh`
 
-Full operator doc: [`docs/runtime-deploy-model.md`](/private/tmp/cortana-runtime-deploy/docs/runtime-deploy-model.md)
+Full operator doc: `docs/runtime-deploy-model.md`
 
 ---
 

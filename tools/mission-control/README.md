@@ -1,7 +1,7 @@
 # Mission Control Deploy Script
 
 ## Path
-`~/openclaw/tools/mission-control/deploy.sh`
+`tools/mission-control/deploy.ts`
 
 ## What it does
 1. `cd /Users/hd/Developer/cortana-external`
@@ -10,11 +10,11 @@
 4. `pnpm install --frozen-lockfile`
 5. `pnpm build`
 6. `launchctl kickstart -k gui/$(id -u)/com.cortana.mission-control`
-7. Logs success/failure to `~/openclaw/tools/mission-control/logs/deploy.log`
+7. Logs success/failure to `tools/mission-control/logs/deploy.log`
 
 ## Usage
 ```bash
-~/openclaw/tools/mission-control/deploy.sh
+npx tsx tools/mission-control/deploy.ts
 ```
 
 ## Notes

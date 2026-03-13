@@ -2,8 +2,9 @@
 import fs from "fs";
 import path from "path";
 import { spawnSync } from "child_process";
+import { resolveRepoPath } from "../lib/paths.js";
 
-const LOG_DIR = "/Users/hd/openclaw/tools/mission-control/logs";
+const LOG_DIR = resolveRepoPath("tools", "mission-control", "logs");
 const LOG_FILE = path.join(LOG_DIR, "deploy.log");
 
 function pad(value: number): string {
