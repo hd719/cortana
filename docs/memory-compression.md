@@ -58,8 +58,8 @@ Loaded with launchd label:
 - `com.cortana.memory-compression`
 
 Log files:
-- `/Users/hd/openclaw/logs/memory-compress.log`
-- `/Users/hd/openclaw/logs/memory-compress.err.log`
+- `/Users/hd/Developer/cortana/logs/memory-compress.log`
+- `/Users/hd/Developer/cortana/logs/memory-compress.err.log`
 
 Common commands:
 ```bash

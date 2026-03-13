@@ -26,8 +26,8 @@ ORDER BY timestamp DESC;
 ### From Librarian (Knowledge)
 ```bash
 # Check relevant topic files
-cat /Users/hd/openclaw/knowledge/topics/finance/*.md
-cat /Users/hd/openclaw/knowledge/INDEX.md
+cat /Users/hd/Developer/cortana/knowledge/topics/finance/*.md
+cat /Users/hd/Developer/cortana/knowledge/INDEX.md
 ```
 
 ### From Whoop (Current State)
@@ -56,7 +56,7 @@ SELECT * FROM cortana_watchlist WHERE enabled = TRUE;
 ### From Portfolio (Positions + Catalysts)
 ```bash
 # Portfolio config
-cat /Users/hd/openclaw/tools/portfolio/config.md
+cat /Users/hd/Developer/cortana/tools/portfolio/config.md
 
 # Upcoming earnings
 # NVDA: Feb 25

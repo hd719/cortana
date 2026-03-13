@@ -29,16 +29,16 @@ I am the command layer — **dispatcher and chief of staff, not the doer.** The 
 ### Pre-Spawn Enforcement (required)
 1. Route the mission to the correct identity/chain:
 ```bash
-python3 /Users/hd/openclaw/tools/covenant/route_workflow.py --plan /path/to/routing-request.json
+python3 /Users/hd/Developer/cortana/tools/covenant/route_workflow.py --plan /path/to/routing-request.json
 ```
 2. Build a machine-readable handshake JSON payload.
 3. Prepare spawn artifacts via the default identity-v1 path (validation + prompt build):
 ```bash
-python3 /Users/hd/openclaw/tools/covenant/prepare_spawn.py /path/to/handshake.json --output-dir /tmp/covenant-spawn
+python3 /Users/hd/Developer/cortana/tools/covenant/prepare_spawn.py /path/to/handshake.json --output-dir /tmp/covenant-spawn
 ```
    - compatibility input (legacy payload shape):
 ```bash
-python3 /Users/hd/openclaw/tools/covenant/prepare_spawn.py /path/to/legacy.json --legacy-shim --output-dir /tmp/covenant-spawn
+python3 /Users/hd/Developer/cortana/tools/covenant/prepare_spawn.py /path/to/legacy.json --legacy-shim --output-dir /tmp/covenant-spawn
 ```
 3. Use `/tmp/covenant-spawn/spawn.prompt.txt` as the `task` body when spawning.
 4. Require sub-agent output protocol lines in replies:
@@ -46,18 +46,18 @@ python3 /Users/hd/openclaw/tools/covenant/prepare_spawn.py /path/to/legacy.json 
    - `COVENANT_COMPLETION_JSON: { ... }`
 5. On timeout/failure, run routing playbook and follow returned action (`retry_same_agent`, `escalate_immediately`, or `escalate_with_route_suggestion`):
 ```bash
-python3 /Users/hd/openclaw/tools/covenant/route_workflow.py --failure /path/to/failure-event.json
+python3 /Users/hd/Developer/cortana/tools/covenant/route_workflow.py --failure /path/to/failure-event.json
 ```
 6. Validate status/completion payloads before marking work complete:
 ```bash
-python3 /Users/hd/openclaw/tools/covenant/validate_agent_protocol.py --extract /path/to/subagent-output.txt
+python3 /Users/hd/Developer/cortana/tools/covenant/validate_agent_protocol.py --extract /path/to/subagent-output.txt
 ```
 7. If validation/build fails, reject spawn or completion and request corrected payload (do not accept malformed outputs).
 
 ### Memory Boundary Guardrails (required)
 Before delegating any write target to a sub-agent, validate path scope:
 ```bash
-python3 /Users/hd/openclaw/tools/covenant/validate_memory_boundary.py <agent_identity_id> <target_path>
+python3 /Users/hd/Developer/cortana/tools/covenant/validate_memory_boundary.py <agent_identity_id> <target_path>
 ```
 This blocks writes to `MEMORY.md`, `memory/**`, and other agents' scratch directories.
 
@@ -96,9 +96,9 @@ sessions_spawn({
 You are {AGENT_NAME}, a Covenant agent.
 
 ## Your Files (read in order)
-1. /Users/hd/openclaw/covenant/CONTEXT.md — Shared context
-2. /Users/hd/openclaw/covenant/{agent}/SOUL.md — Your identity  
-3. /Users/hd/openclaw/covenant/{agent}/AGENTS.md — Your operational manual
+1. /Users/hd/Developer/cortana/covenant/CONTEXT.md — Shared context
+2. /Users/hd/Developer/cortana/covenant/{agent}/SOUL.md — Your identity  
+3. /Users/hd/Developer/cortana/covenant/{agent}/AGENTS.md — Your operational manual
 
 ## Mission
 {SPECIFIC_MISSION_DESCRIPTION}
@@ -132,9 +132,9 @@ sessions_spawn({
 You are Huragok, the Research Agent.
 
 ## Your Files
-1. /Users/hd/openclaw/covenant/CONTEXT.md
-2. /Users/hd/openclaw/covenant/huragok/SOUL.md
-3. /Users/hd/openclaw/covenant/huragok/AGENTS.md
+1. /Users/hd/Developer/cortana/covenant/CONTEXT.md
+2. /Users/hd/Developer/cortana/covenant/huragok/SOUL.md
+3. /Users/hd/Developer/cortana/covenant/huragok/AGENTS.md
 
 ## Mission
 Research Palantir (PLTR) as a potential portfolio addition.
@@ -147,11 +147,11 @@ Focus areas:
 
 ## Constraints  
 - Budget: $2.50 max
-- Output: /Users/hd/openclaw/knowledge/research/2026-02-13-pltr-analysis.md
+- Output: /Users/hd/Developer/cortana/knowledge/research/2026-02-13-pltr-analysis.md
 - Update INDEX.md when done
 
 ## Portfolio Context
-See /Users/hd/openclaw/tools/portfolio/config.md for current holdings and rules.
+See /Users/hd/Developer/cortana/tools/portfolio/config.md for current holdings and rules.
 
 Begin.
   `,
@@ -167,9 +167,9 @@ sessions_spawn({
 You are Monitor, the Pattern Analyst.
 
 ## Your Files
-1. /Users/hd/openclaw/covenant/CONTEXT.md
-2. /Users/hd/openclaw/covenant/monitor/SOUL.md
-3. /Users/hd/openclaw/covenant/monitor/AGENTS.md
+1. /Users/hd/Developer/cortana/covenant/CONTEXT.md
+2. /Users/hd/Developer/cortana/covenant/monitor/SOUL.md
+3. /Users/hd/Developer/cortana/covenant/monitor/AGENTS.md
 
 ## Mission
 Weekly pattern analysis for Feb 10-16, 2026.
@@ -182,7 +182,7 @@ Analyze:
 
 ## Constraints
 - Budget: $0.50 max
-- Output: /Users/hd/openclaw/knowledge/patterns/2026-02-16-weekly-analysis.md
+- Output: /Users/hd/Developer/cortana/knowledge/patterns/2026-02-16-weekly-analysis.md
 - Log significant patterns to cortana_patterns table
 
 Begin.
@@ -199,9 +199,9 @@ sessions_spawn({
 You are Oracle, the Prediction Agent.
 
 ## Your Files
-1. /Users/hd/openclaw/covenant/CONTEXT.md
-2. /Users/hd/openclaw/covenant/oracle/SOUL.md
-3. /Users/hd/openclaw/covenant/oracle/AGENTS.md
+1. /Users/hd/Developer/cortana/covenant/CONTEXT.md
+2. /Users/hd/Developer/cortana/covenant/oracle/SOUL.md
+3. /Users/hd/Developer/cortana/covenant/oracle/AGENTS.md
 
 ## Mission
 Pre-trip forecast for Mexico City trip (Feb 19-22).
@@ -214,7 +214,7 @@ Predict:
 
 ## Constraints
 - Budget: $0.75 max  
-- Output: /Users/hd/openclaw/knowledge/predictions/2026-02-17-mexico-trip-forecast.md
+- Output: /Users/hd/Developer/cortana/knowledge/predictions/2026-02-17-mexico-trip-forecast.md
 - Log predictions to cortana_predictions table
 
 Begin.

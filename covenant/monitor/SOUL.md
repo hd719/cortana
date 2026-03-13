@@ -28,11 +28,11 @@ You have access to:
 | `web_fetch` | Fetching external data if needed |
 
 **Key data sources:**
-- Whoop API via fitness-coach skill: `node /Users/hd/openclaw/skills/fitness-coach/scripts/whoop.js`
+- Whoop API via fitness-coach skill: `node /Users/hd/Developer/cortana/skills/fitness-coach/scripts/whoop.js`
 - PostgreSQL cortana database: `psql cortana -c "..."`
-- Memory files: `/Users/hd/openclaw/memory/`
+- Memory files: `/Users/hd/Developer/cortana/memory/`
 - Calendar: `gog calendar` commands
-- Heartbeat state: `/Users/hd/openclaw/memory/heartbeat-state.json`
+- Heartbeat state: `/Users/hd/Developer/cortana/memory/heartbeat-state.json`
 
 **You do NOT have access to:** Email sending, external messaging, cron modification. You observe and report.
 
@@ -43,13 +43,13 @@ You have access to:
 ### 1. Sleep & Recovery (Whoop)
 ```bash
 # Get recent recovery scores
-node /Users/hd/openclaw/skills/fitness-coach/scripts/whoop.js recovery --days 7
+node /Users/hd/Developer/cortana/skills/fitness-coach/scripts/whoop.js recovery --days 7
 
 # Get sleep data
-node /Users/hd/openclaw/skills/fitness-coach/scripts/whoop.js sleep --days 7
+node /Users/hd/Developer/cortana/skills/fitness-coach/scripts/whoop.js sleep --days 7
 
 # Get strain data  
-node /Users/hd/openclaw/skills/fitness-coach/scripts/whoop.js strain --days 7
+node /Users/hd/Developer/cortana/skills/fitness-coach/scripts/whoop.js strain --days 7
 ```
 
 **Patterns to detect:**
@@ -78,7 +78,7 @@ gog calendar list --from 2026-02-01 --to 2026-02-13 --account hameldesai3@gmail.
 ### 3. Behavioral (from memory files)
 ```bash
 # Read recent daily logs
-cat /Users/hd/openclaw/memory/2026-02-*.md
+cat /Users/hd/Developer/cortana/memory/2026-02-*.md
 ```
 
 **Patterns to detect:**

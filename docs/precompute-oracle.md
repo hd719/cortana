@@ -41,13 +41,13 @@ Based on both sources, precompute now targets:
 ### Script
 - Path: `~/Developer/cortana/tools/oracle/precompute.ts`
 - Command modes:
-  - `npx tsx ~/openclaw/tools/oracle/precompute.ts run`
-  - `npx tsx ~/openclaw/tools/oracle/precompute.ts status`
-  - `npx tsx ~/openclaw/tools/oracle/precompute.ts read`
-  - `npx tsx ~/openclaw/tools/oracle/precompute.ts read <weather|calendar|portfolio|recovery|email>`
+  - `npx tsx ~/Developer/cortana/tools/oracle/precompute.ts run`
+  - `npx tsx ~/Developer/cortana/tools/oracle/precompute.ts status`
+  - `npx tsx ~/Developer/cortana/tools/oracle/precompute.ts read`
+  - `npx tsx ~/Developer/cortana/tools/oracle/precompute.ts read <weather|calendar|portfolio|recovery|email>`
 
 ### Cache
-- Path: `~/openclaw/tmp/oracle-cache.json`
+- Path: `~/Developer/cortana/tmp/oracle-cache.json`
 - Format:
   - `generated_at`, `expires_at`, `ttl_seconds`
   - `sources.<name>.{ok,fetched_at,expires_at,ttl_seconds,data,error}`
@@ -74,12 +74,12 @@ Based on both sources, precompute now targets:
 ## launchd Schedule (5:30 AM daily)
 
 ### Plist files
-- Source-managed copy: `~/openclaw/config/launchd/com.cortana.oracle-precompute.plist`
+- Source-managed copy: `~/Developer/cortana/config/launchd/com.cortana.oracle-precompute.plist`
 - Installed copy: `~/Library/LaunchAgents/com.cortana.oracle-precompute.plist`
 
 ### Schedule
 - `StartCalendarInterval`: Hour `5`, Minute `30`
-- Runs: `npx tsx /Users/hd/openclaw/tools/oracle/precompute.ts run`
+- Runs: `npx tsx /Users/hd/Developer/cortana/tools/oracle/precompute.ts run`
 
 ### Load / reload commands
 ```bash
@@ -90,9 +90,9 @@ launchctl enable gui/$(id -u)/com.cortana.oracle-precompute
 
 ### Verify
 ```bash
-npx tsx ~/openclaw/tools/oracle/precompute.ts run
-npx tsx ~/openclaw/tools/oracle/precompute.ts status
-npx tsx ~/openclaw/tools/oracle/precompute.ts read weather
+npx tsx ~/Developer/cortana/tools/oracle/precompute.ts run
+npx tsx ~/Developer/cortana/tools/oracle/precompute.ts status
+npx tsx ~/Developer/cortana/tools/oracle/precompute.ts read weather
 ```
 
 ---
@@ -102,9 +102,9 @@ npx tsx ~/openclaw/tools/oracle/precompute.ts read weather
 The brief can read the cache directly and avoid live API/tool latency:
 
 ```bash
-npx tsx ~/openclaw/tools/oracle/precompute.ts read --allow-stale
-npx tsx ~/openclaw/tools/oracle/precompute.ts read weather
-npx tsx ~/openclaw/tools/oracle/precompute.ts read calendar
+npx tsx ~/Developer/cortana/tools/oracle/precompute.ts read --allow-stale
+npx tsx ~/Developer/cortana/tools/oracle/precompute.ts read weather
+npx tsx ~/Developer/cortana/tools/oracle/precompute.ts read calendar
 ```
 
 Use `--allow-stale` only if fallback display is preferred over hard failure.

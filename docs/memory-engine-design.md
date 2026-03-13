@@ -49,7 +49,7 @@ Current ingestion hooks:
 
 Heartbeat-callable command:
 ```bash
-npx tsx /Users/hd/openclaw/tools/memory/ingest_unified_memory.ts --since-hours 24
+npx tsx /Users/hd/Developer/cortana/tools/memory/ingest_unified_memory.ts --since-hours 24
 ```
 
 ## Retrieval policy

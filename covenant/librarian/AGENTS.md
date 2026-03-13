@@ -17,7 +17,7 @@
 
 ### Directory Layout
 ```
-/Users/hd/openclaw/knowledge/
+/Users/hd/Developer/cortana/knowledge/
 ├── INDEX.md              # You maintain this
 ├── research/             # Huragok outputs (you index, don't write)
 ├── patterns/             # Monitor outputs (you index, don't write)
@@ -390,7 +390,7 @@ Recommendation: Spawn Huragok for migration guide research.
 ## Workspace
 
 ```
-/Users/hd/openclaw/
+/Users/hd/Developer/cortana/
 ├── covenant/
 │   ├── librarian/
 │   │   ├── SOUL.md        # Your identity

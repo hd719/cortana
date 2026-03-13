@@ -27,7 +27,7 @@ Decision behavior:
 
 ### 2) Governor module
 
-Created: `~/openclaw/tools/governor/risk_score.ts`
+Created: `~/Developer/cortana/tools/governor/risk_score.ts`
 
 Responsibilities:
 - Load governor policy config
@@ -39,7 +39,7 @@ Responsibilities:
 CLI usage example:
 
 ```bash
-npx tsx ~/openclaw/tools/governor/risk_score.ts \
+npx tsx ~/Developer/cortana/tools/governor/risk_score.ts \
   --db cortana \
   --task-json '{"id":123,"execution_plan":"cat README.md","metadata":{}}' \
   --actor auto-executor \
@@ -51,7 +51,7 @@ npx tsx ~/openclaw/tools/governor/risk_score.ts \
 
 ### 3) Policy config
 
-Created: `~/openclaw/tools/governor/policy.json`
+Created: `~/Developer/cortana/tools/governor/policy.json`
 
 Contains:
 - canonical action types + risk scores
@@ -66,7 +66,7 @@ Override path at runtime via `--policy <path>`.
 
 ### 4) Decision logging table
 
-Migration added: `~/openclaw/migrations/012_autonomy_governor_v2.sql`
+Migration added: `~/Developer/cortana/migrations/012_autonomy_governor_v2.sql`
 
 Creates:
 - `cortana_governor_decisions`
@@ -78,7 +78,7 @@ Creates:
 
 ### 5) Integration into auto-execution path
 
-Updated: `~/openclaw/tools/task-board/auto-executor.sh`
+Updated: `~/Developer/cortana/tools/task-board/auto-executor.sh`
 
 Flow now:
 1. Select next dependency-ready `auto_executable` task.

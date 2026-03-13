@@ -46,7 +46,7 @@ Hamel: "Don't use heart emojis, we're not like that"
 ### Review Cycle
 Automated reflection loop now runs daily (heartbeat + cortical-loop):
 ```bash
-npx tsx /Users/hd/openclaw/tools/reflection/reflect.ts --mode sweep --trigger-source heartbeat --window-days 30
+npx tsx /Users/hd/Developer/cortana/tools/reflection/reflect.ts --mode sweep --trigger-source heartbeat --window-days 30
 ```
 
 It writes:

@@ -52,7 +52,7 @@ echo "semantic search is local now" | ~/Developer/cortana/tools/embeddings/embed
 
 ### 4) Benchmark
 ```bash
-~/openclaw/tools/embeddings/embed benchmark --runs 40 --batch-multiplier 64 --pretty
+~/Developer/cortana/tools/embeddings/embed benchmark --runs 40 --batch-multiplier 64 --pretty
 ```
 
 ### 5) Run local service
@@ -75,7 +75,7 @@ curl -s -X POST http://127.0.0.1:8765/embed \
 ## Benchmark results (Mac mini M-series)
 Run command:
 ```bash
-~/openclaw/tools/embeddings/embed benchmark --runs 40 --batch-multiplier 64 --pretty
+~/Developer/cortana/tools/embeddings/embed benchmark --runs 40 --batch-multiplier 64 --pretty
 ```
 
 Observed output:
