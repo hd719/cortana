@@ -1,7 +1,21 @@
 import { describe, expect, it } from "vitest";
-import { buildCronAlertFromPipelineReport } from "../../tools/trading/trading-cron-alert";
+import { applyTradingCronReliabilityDefaults, buildCronAlertFromPipelineReport } from "../../tools/trading/trading-cron-alert";
 
 describe("trading cron alert formatter", () => {
+  it("applies chunked scan defaults for the live cron path without overwriting explicit env", () => {
+    const env: NodeJS.ProcessEnv = {
+      TRADING_SCAN_CHUNK_SIZE_CANSLIM: "",
+      TRADING_SCAN_CHUNK_PARALLELISM_CANSLIM: "4",
+    };
+
+    applyTradingCronReliabilityDefaults(env);
+
+    expect(env.TRADING_SCAN_CHUNK_SIZE_CANSLIM).toBe("20");
+    expect(env.TRADING_SCAN_CHUNK_PARALLELISM_CANSLIM).toBe("4");
+    expect(env.TRADING_SCAN_CHUNK_SIZE_DIP).toBe("20");
+    expect(env.TRADING_SCAN_CHUNK_PARALLELISM_DIP).toBe("2");
+  });
+
   it("builds a compact combined CANSLIM and Dip Buyer alert", () => {
     const report = `📈 Trading Advisor - Unified Pipeline
 Run: 3/13/2026, 3:30:00 PM ET

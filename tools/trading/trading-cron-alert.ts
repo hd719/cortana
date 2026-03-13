@@ -2,16 +2,31 @@
 
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
-import { runTradingPipeline } from "./trading-pipeline";
+import { runTradingPipeline, type RunCommandOptions } from "./trading-pipeline";
 
 const BACKTESTER_CWD = "/Users/hd/Developer/cortana-external/backtester";
 const PYTHON_BIN = resolve(BACKTESTER_CWD, ".venv/bin/python");
 const DEFAULT_SCAN_TIMEOUT_MS = 360_000;
+const DEFAULT_CRON_RELIABILITY_ENV = {
+  TRADING_SCAN_CHUNK_SIZE_CANSLIM: "20",
+  TRADING_SCAN_CHUNK_PARALLELISM_CANSLIM: "2",
+  TRADING_SCAN_CHUNK_SIZE_DIP: "20",
+  TRADING_SCAN_CHUNK_PARALLELISM_DIP: "2",
+} as const;
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.trunc(parsed);
+}
+
+export function applyTradingCronReliabilityDefaults(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
+  for (const [key, value] of Object.entries(DEFAULT_CRON_RELIABILITY_ENV)) {
+    if (env[key] == null || env[key] === "") {
+      env[key] = value;
+    }
+  }
+  return env;
 }
 
 function getScanTimeoutMs(scriptName: string): number {
@@ -25,17 +40,17 @@ function getScanTimeoutMs(scriptName: string): number {
   return base;
 }
 
-function boundedRunCommand(command: string, args: string[]): string {
+function boundedRunCommand(command: string, args: string[], options: RunCommandOptions = {}): string {
   const resolvedCommand = command === "python3" ? PYTHON_BIN : command;
   const scriptName = args[0] ?? "";
-  const timeoutMs = getScanTimeoutMs(scriptName);
+  const timeoutMs = parsePositiveInt(String(options.timeoutMs ?? ""), getScanTimeoutMs(scriptName));
   const strategyName =
     scriptName === "dipbuyer_alert.py" ? "Dip Buyer" : scriptName === "canslim_alert.py" ? "CANSLIM" : scriptName || command;
 
   const result = spawnSync(resolvedCommand, args, {
     cwd: BACKTESTER_CWD,
     encoding: "utf8",
-    env: process.env,
+    env: { ...process.env, ...(options.env ?? {}) },
     timeout: timeoutMs,
   });
 
@@ -128,6 +143,7 @@ export function buildCronAlertFromPipelineReport(report: string): string {
 
 async function main(): Promise<void> {
   try {
+    applyTradingCronReliabilityDefaults();
     const report = await runTradingPipeline({ runCommand: boundedRunCommand });
     console.log(buildCronAlertFromPipelineReport(report));
   } catch (error) {

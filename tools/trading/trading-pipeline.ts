@@ -43,7 +43,7 @@ interface PipelineDeps {
   getUniverse: (limit: number) => Promise<string[]>;
 }
 
-interface RunCommandOptions {
+export interface RunCommandOptions {
   env?: NodeJS.ProcessEnv;
   timeoutMs?: number;
 }
@@ -666,8 +666,10 @@ export async function runTradingPipeline(deps?: Partial<PipelineDeps>): Promise<
   const canslimLimit = getScanLimit("CANSLIM");
   const dipLimit = getScanLimit("Dip Buyer");
 
-  const canslimOutput = await runChunkedStrategy("CANSLIM", "canslim_alert.py", 8, { runCommand, getUniverse });
-  const dipOutput = await runChunkedStrategy("Dip Buyer", "dipbuyer_alert.py", 8, { runCommand, getUniverse });
+  const [canslimOutput, dipOutput] = await Promise.all([
+    runChunkedStrategy("CANSLIM", "canslim_alert.py", 8, { runCommand, getUniverse }),
+    runChunkedStrategy("Dip Buyer", "dipbuyer_alert.py", 8, { runCommand, getUniverse }),
+  ]);
 
   const canslimSummary = parseSummaryCounts(canslimOutput);
   const dipSummary = parseSummaryCounts(dipOutput);
