@@ -39,7 +39,7 @@ Based on both sources, precompute now targets:
 ## Implementation
 
 ### Script
-- Path: `~/openclaw/tools/oracle/precompute.ts`
+- Path: `~/Developer/cortana/tools/oracle/precompute.ts`
 - Command modes:
   - `npx tsx ~/openclaw/tools/oracle/precompute.ts run`
   - `npx tsx ~/openclaw/tools/oracle/precompute.ts status`

@@ -6,7 +6,7 @@ Use this helper to log Cortana decision traces into PostgreSQL (`cortana_decisio
 
 ### Script
 
-`/Users/hd/openclaw/tools/log-decision.sh`
+`/Users/hd/Developer/cortana/tools/log-decision.sh`
 
 ### Usage
 

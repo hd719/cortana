@@ -123,7 +123,7 @@ Analyze sleep-recovery correlation over 30 days.
 - Deep sleep / REM thresholds
 - Time-to-bed patterns
 
-Output: ~/openclaw/memory/fitness/analysis/sleep-recovery-correlation.md
+Output: ~/Developer/cortana/memory/fitness/analysis/sleep-recovery-correlation.md
 ```
 
 ### Strength Progression
@@ -134,7 +134,7 @@ Analyze strength progression through Tonal program.
 - Which muscle groups showing most gains
 - Compare early weeks to recent
 
-Output: ~/openclaw/memory/fitness/analysis/strength-progression.md
+Output: ~/Developer/cortana/memory/fitness/analysis/strength-progression.md
 ```
 
 ### Optimal Strain Analysis
@@ -145,7 +145,7 @@ Analyze strain vs next-day recovery relationship.
 - Cumulative strain patterns
 - Recovery time after different strain levels
 
-Output: ~/openclaw/memory/fitness/analysis/optimal-strain.md
+Output: ~/Developer/cortana/memory/fitness/analysis/optimal-strain.md
 ```
 
 ### HRV Trend Analysis
@@ -157,7 +157,7 @@ Deep dive into HRV patterns.
 - Personal baseline and ranges
 - Warning signs
 
-Output: ~/openclaw/memory/fitness/analysis/hrv-trends.md
+Output: ~/Developer/cortana/memory/fitness/analysis/hrv-trends.md
 ```
 
 ## Cron Jobs (Reference)
@@ -186,8 +186,8 @@ These are already set up:
 - Tonal: `~/Developer/cortana-external/tonal_tokens.json` (auto-refreshes)
 
 **Data Files:**
-- Daily snapshots: `~/openclaw/memory/fitness/YYYY-MM-DD.json`
-- Weekly summaries: `~/openclaw/memory/fitness/weekly/`
+- Daily snapshots: `~/Developer/cortana/memory/fitness/YYYY-MM-DD.json`
+- Weekly summaries: `~/Developer/cortana/memory/fitness/weekly/`
 
 **Tonal Program API (direct, if needed):**
 ```bash

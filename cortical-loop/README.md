@@ -49,7 +49,7 @@ Runs every 5 min. Processes unprocessed events against rules. If matched, wakes 
 ## Kill Switch
 
 ```bash
-bash ~/openclaw/cortical-loop/toggle.sh  # Toggle on/off
+bash ~/Developer/cortana/cortical-loop/toggle.sh  # Toggle on/off
 ```
 
 Also auto-disables when daily wake cap (default: 10) is reached.
@@ -70,13 +70,13 @@ VALUES ('my_rule', 'Description', 'source_name', 'event_type', '{"key": "value"}
 
 ## Logs
 
-All in `~/openclaw/cortical-loop/logs/`:
+All in `~/Developer/cortana/cortical-loop/logs/`:
 - `email-watcher.log`, `calendar-watcher.log`, etc.
 - `evaluator.log`
 
 ## State Files
 
-All in `~/openclaw/cortical-loop/state/`:
+All in `~/Developer/cortana/cortical-loop/state/`:
 - `email-last-ids.txt` — dedup email events
 - `calendar-alerts-sent.txt` — dedup calendar alerts
 - `health-last-recovery.txt` — dedup recovery updates

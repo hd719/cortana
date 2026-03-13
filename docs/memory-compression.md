@@ -42,12 +42,12 @@ fidelity_score IS NULL OR (fidelity_score >= 0 AND fidelity_score <= 1)
 
 ## Run manually
 ```bash
-npx tsx /Users/hd/openclaw/tools/memory/compress.ts --since-hours 36
+npx tsx /Users/hd/Developer/cortana/tools/memory/compress.ts --since-hours 36
 ```
 
 Dry run:
 ```bash
-npx tsx /Users/hd/openclaw/tools/memory/compress.ts --since-hours 36 --dry-run
+npx tsx /Users/hd/Developer/cortana/tools/memory/compress.ts --since-hours 36 --dry-run
 ```
 
 ## Scheduling (launchd @ 2:00 AM)

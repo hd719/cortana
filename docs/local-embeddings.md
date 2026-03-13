@@ -3,12 +3,12 @@
 ## Overview
 This implementation provides **fully local text embeddings** on the Mac mini (Apple Silicon) with no API dependency after initial model download.
 
-- Runtime: Node.js + `tsx` in `~/openclaw/tools/embeddings`
+- Runtime: Node.js + `tsx` in `~/Developer/cortana/tools/embeddings`
 - Engine: `fastembed` (ONNX Runtime)
 - Default model: `BAAI/bge-small-en-v1.5` (384-dim vectors)
 - Entry points:
-  - CLI wrapper: `~/openclaw/tools/embeddings/embed`
-  - TypeScript script: `~/openclaw/tools/embeddings/embed.ts`
+  - CLI wrapper: `~/Developer/cortana/tools/embeddings/embed`
+  - TypeScript script: `~/Developer/cortana/tools/embeddings/embed.ts`
   - Optional local HTTP service: `embed serve`
 
 ## Why this stack
@@ -24,12 +24,12 @@ I evaluated practical local options for Apple Silicon:
 Given the host environment, **fastembed is the fastest path to production-ready local embeddings**.
 
 ## Installed files
-- `~/openclaw/tools/embeddings/embed.ts` — embedding CLI + benchmark + HTTP server
-- `~/openclaw/tools/embeddings/embed` — wrapper script for local embedding commands
+- `~/Developer/cortana/tools/embeddings/embed.ts` — embedding CLI + benchmark + HTTP server
+- `~/Developer/cortana/tools/embeddings/embed` — wrapper script for local embedding commands
 
 ## Setup
 ```bash
-cd ~/openclaw/tools/embeddings
+cd ~/Developer/cortana/tools/embeddings
 npm install
 chmod +x embed.ts embed
 ```
@@ -37,17 +37,17 @@ chmod +x embed.ts embed
 ## Usage
 ### 1) Embed direct text
 ```bash
-~/openclaw/tools/embeddings/embed embed --text "hello world"
+~/Developer/cortana/tools/embeddings/embed embed --text "hello world"
 ```
 
 ### 2) Embed from stdin
 ```bash
-echo "semantic search is local now" | ~/openclaw/tools/embeddings/embed embed --stdin --pretty
+echo "semantic search is local now" | ~/Developer/cortana/tools/embeddings/embed embed --stdin --pretty
 ```
 
 ### 3) Embed from file (one text per line)
 ```bash
-~/openclaw/tools/embeddings/embed embed --text-file ./sentences.txt
+~/Developer/cortana/tools/embeddings/embed embed --text-file ./sentences.txt
 ```
 
 ### 4) Benchmark
@@ -57,7 +57,7 @@ echo "semantic search is local now" | ~/openclaw/tools/embeddings/embed embed --
 
 ### 5) Run local service
 ```bash
-~/openclaw/tools/embeddings/embed serve --host 127.0.0.1 --port 8765
+~/Developer/cortana/tools/embeddings/embed serve --host 127.0.0.1 --port 8765
 ```
 
 Health check:
@@ -94,7 +94,7 @@ Observed output:
 For other tools, the easiest integration path is shelling out to the wrapper CLI:
 
 ```bash
-~/openclaw/tools/embeddings/embed embed --stdin
+~/Developer/cortana/tools/embeddings/embed embed --stdin
 ```
 
 and passing either line-delimited text or JSON array on stdin.

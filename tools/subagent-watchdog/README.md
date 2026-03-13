@@ -31,16 +31,16 @@ Closes the visibility gap where a sub-agent can fail/timeout silently unless man
 
 ```bash
 # Default: 5 min timeout, scan last 24h, de-dupe logs for 6h
-~/openclaw/tools/subagent-watchdog/check-subagents.sh
+~/Developer/cortana/tools/subagent-watchdog/check-subagents.sh
 
 # Custom timeout (10 min)
-~/openclaw/tools/subagent-watchdog/check-subagents.sh --max-runtime-seconds 600
+~/Developer/cortana/tools/subagent-watchdog/check-subagents.sh --max-runtime-seconds 600
 
 # Scan only last 4 hours
-~/openclaw/tools/subagent-watchdog/check-subagents.sh --active-minutes 240
+~/Developer/cortana/tools/subagent-watchdog/check-subagents.sh --active-minutes 240
 
 # Reaper standalone (stale runs >2h)
-~/openclaw/tools/reaper/reaper.sh --max-age-hours 2
+~/Developer/cortana/tools/reaper/reaper.sh --max-age-hours 2
 ```
 
 ## Output shape
@@ -71,7 +71,7 @@ Closes the visibility gap where a sub-agent can fail/timeout silently unless man
 
 ## De-dup behavior
 
-The script stores watchdog state in `~/openclaw/memory/heartbeat-state.json` under `subagentWatchdog`:
+The script stores watchdog state in `~/Developer/cortana/memory/heartbeat-state.json` under `subagentWatchdog`:
 
 - `lastRun` timestamp
 - `lastLogged` map (`<session_key>|<reason>` => timestamp)
