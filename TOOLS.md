@@ -90,20 +90,21 @@ After `npm update -g openclaw`:
 2. Verify: `openclaw status | grep "app"` (CLI and gateway versions must match)
 
 Post-update script handles:
-- Syncing `/Users/hd/openclaw/config/cron/jobs.json` -> `~/.openclaw/cron/jobs.json` while preserving runtime-only state fields
+- Syncing `/Users/hd/Developer/cortana/config/cron/jobs.json` -> `~/.openclaw/cron/jobs.json` while preserving runtime-only state fields
 - `openclaw gateway install --force`
 - `openclaw gateway restart`
+- Ensuring `/Users/hd/openclaw` points at the canonical source repo as a compatibility shim
 
-The deployed runtime checkout also contains the same script at `/Users/hd/openclaw/tools/openclaw/post-update.sh`, but the canonical source copy lives in this repo.
+The canonical source copy lives in this repo. `/Users/hd/openclaw/tools/openclaw/post-update.sh` only works via the compatibility shim path.
 
 ## Runtime Deploy Model
 
 - **Source repo**: `/Users/hd/Developer/cortana`
-- **Runtime repo**: `/Users/hd/openclaw`
+- **Compatibility shim path**: `/Users/hd/openclaw`
 - **Deploy command**: `/Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh`
 - **Runtime state file**: `~/.openclaw/cron/jobs.json`
 - **Tracked cron source**: `/Users/hd/Developer/cortana/config/cron/jobs.json`
-- **Do NOT symlink** `jobs.json` — gateway destroys symlinks on restart.
+- **Do NOT symlink** `jobs.json` — gateway destroys symlinks on restart. The shim only applies to the repo path.
 - Change tracked cron config in the repo, then deploy. Do not back-sync runtime edits into source.
 
 ## Weather
@@ -119,7 +120,7 @@ See `skills/weather/SKILL.md` for details and code reference.
 
 ## Market Intelligence Tool
 
-Canonical source path is in this repo; the deployed runtime checkout mirrors the same relative layout.
+Canonical source path is in this repo; `/Users/hd/openclaw` only mirrors it through the compatibility shim path.
 
 - Script: `/Users/hd/Developer/cortana/tools/market-intel/market-intel.sh`
 - README: `/Users/hd/Developer/cortana/tools/market-intel/README.md`

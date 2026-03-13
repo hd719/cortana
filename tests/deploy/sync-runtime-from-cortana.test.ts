@@ -72,7 +72,7 @@ function makeFixture() {
 describe("sync-runtime-from-cortana.sh", () => {
   const script = path.resolve("tools/deploy/sync-runtime-from-cortana.sh");
 
-  it("fast-forwards the runtime repo and syncs repo cron config into runtime state", () => {
+  it("migrates the legacy runtime checkout into a shim and syncs repo cron config into runtime state", () => {
     const fixture = makeFixture();
 
     fs.writeFileSync(path.join(fixture.source, "README.md"), "source v2\n", "utf8");
@@ -92,8 +92,8 @@ describe("sync-runtime-from-cortana.sh", () => {
     );
 
     const sourceHead = git(fixture.source, "rev-parse", "HEAD");
-    const runtimeHead = git(fixture.runtime, "rev-parse", "HEAD");
-    expect(runtimeHead).toBe(sourceHead);
+    expect(fs.lstatSync(fixture.runtime).isSymbolicLink()).toBe(true);
+    expect(fs.realpathSync(fixture.runtime)).toBe(fs.realpathSync(fixture.source));
     expect(result.stdout).toContain("Runtime deploy complete");
 
     const runtimeCron = JSON.parse(fs.readFileSync(path.join(fixture.home, ".openclaw", "cron", "jobs.json"), "utf8")) as {
@@ -104,12 +104,13 @@ describe("sync-runtime-from-cortana.sh", () => {
 
     const stateFile = JSON.parse(
       fs.readFileSync(path.join(fixture.home, ".openclaw", "state", "runtime-deploy.json"), "utf8"),
-    ) as { previousRuntimeCommit: string; deployedCommit: string };
-    expect(stateFile.previousRuntimeCommit).toBe(previousRuntimeCommit);
+    ) as { previousCompatCommit: string; deployedCommit: string; mode: string };
+    expect(stateFile.mode).toBe("compat_shim");
+    expect(stateFile.previousCompatCommit).toBe(previousRuntimeCommit);
     expect(stateFile.deployedCommit).toBe(sourceHead);
   });
 
-  it("refuses to deploy over a dirty runtime repo", () => {
+  it("refuses to migrate a dirty legacy runtime repo", () => {
     const fixture = makeFixture();
     fs.writeFileSync(path.join(fixture.runtime, "README.md"), "runtime dirty\n", "utf8");
 
@@ -124,6 +125,6 @@ describe("sync-runtime-from-cortana.sh", () => {
     );
 
     expect(result.status).not.toBe(0);
-    expect(`${result.stdout}\n${result.stderr}`).toContain("runtime repo has local changes");
+    expect(`${result.stdout}\n${result.stderr}`).toContain("compat repo has local changes");
   });
 });

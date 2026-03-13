@@ -1,12 +1,21 @@
 #!/usr/bin/env npx tsx
 
 import fs from "fs";
+import path from "path";
 import lancedb from "lancedb";
+import { compatRepoRoot, resolveRepoPath, resolveRuntimeStatePath } from "../lib/paths.js";
 
 function arg(name: string, argv: string[]): string | undefined {
   const i = argv.indexOf(name);
   if (i === -1) return undefined;
   return argv[i + 1];
+}
+
+function firstExistingPath(candidates: string[]): string {
+  for (const candidate of candidates) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  throw new Error(`missing required file/path; tried:\n- ${candidates.join("\n- ")}`);
 }
 
 export async function runCli(argv = process.argv.slice(2)): Promise<number> {
@@ -24,7 +33,19 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
   const topK = Number(arg("--top-k", argv) ?? "5");
   const candidateK = Number(arg("--candidate-k", argv) ?? String(Math.max(topK * 2, 10)));
 
-  const cfgRaw = fs.readFileSync("/Users/hd/openclaw/config/openmemory.json", "utf8");
+  const configPath = firstExistingPath([
+    process.env.OPENMEMORY_CONFIG_PATH ?? "",
+    resolveRuntimeStatePath("config", "openmemory.json"),
+    resolveRepoPath("config", "openmemory.json"),
+    path.join(compatRepoRoot(), "config", "openmemory.json"),
+  ].filter(Boolean));
+  const dbPath = firstExistingPath([
+    process.env.OPENMEMORY_LANCEDB_PATH ?? "",
+    resolveRuntimeStatePath("memory", "lancedb"),
+    path.join(compatRepoRoot(), ".memory", "lancedb"),
+  ].filter(Boolean));
+
+  const cfgRaw = fs.readFileSync(configPath, "utf8");
   const cfg = JSON.parse(cfgRaw || "{}");
   const apiKey = cfg?.plugins?.entries?.["memory-lancedb"]?.config?.embedding?.apiKey;
 
@@ -37,7 +58,7 @@ export async function runCli(argv = process.argv.slice(2)): Promise<number> {
   const embJson: any = await embRes.json();
   const embedding = embJson?.data?.[0]?.embedding;
 
-  const db = await lancedb.connect("/Users/hd/openclaw/.memory/lancedb");
+  const db = await lancedb.connect(dbPath);
   const table = await db.openTable("memory");
   const rows: any[] = await table.vectorSearch(embedding).limit(candidateK).toArray();
 

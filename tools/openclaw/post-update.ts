@@ -63,6 +63,19 @@ function syncCronConfig(runtimeJobs: string, repoJobs: string): void {
   fs.copyFileSync(repoJobs, runtimeJobs);
 }
 
+function ensureCompatShim(): void {
+  const shimScript = resolveRepoPath("tools", "openclaw", "install-compat-shim.sh");
+  if (!fs.existsSync(shimScript)) {
+    throw new Error(`compat shim installer missing: ${shimScript}`);
+  }
+
+  log("Ensuring ~/openclaw compatibility shim points at the canonical source repo");
+  const res = spawnSync("bash", [shimScript, "--source-repo", resolveRepoPath()], { stdio: "inherit" });
+  if (res.status !== 0) {
+    throw new Error(`compat shim install failed with status ${res.status ?? 1}`);
+  }
+}
+
 function buildDetachedLaunchdRestartScript(uid: string, label: string, plistPath: string, helperLog: string): string {
   const notifyScript = resolveRepoPath("tools", "notifications", "telegram-delivery-guard.sh");
   const failureMsg = "🚨 System - OpenClaw post-update restart failed. Gateway did not verify as running after detached restart helper. Manual check needed.";
@@ -139,6 +152,7 @@ async function main(): Promise<number> {
 
   log("Starting OpenClaw post-update...");
 
+  ensureCompatShim();
   ensureRegularRuntimeJobs(runtimeJobs);
   syncCronConfig(runtimeJobs, repoJobs);
   validatePostUpdate(runtimeJobs, repoJobs);

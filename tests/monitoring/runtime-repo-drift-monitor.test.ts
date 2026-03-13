@@ -3,11 +3,13 @@ import { captureConsole, flushModuleSideEffects, importFresh, resetProcess, setA
 
 const execSync = vi.hoisted(() => vi.fn());
 const existsSync = vi.hoisted(() => vi.fn(() => true));
+const realpathSync = vi.hoisted(() => vi.fn((p: string) => p));
 
 vi.mock("node:child_process", () => ({ execSync }));
 vi.mock("node:fs", () => ({
   default: {
     existsSync,
+    realpathSync,
   },
 }));
 
@@ -25,7 +27,9 @@ describe("runtime-repo-drift-monitor", () => {
   beforeEach(() => {
     execSync.mockReset();
     existsSync.mockReset();
+    realpathSync.mockReset();
     existsSync.mockReturnValue(true);
+    realpathSync.mockImplementation((p: string) => p);
   });
 
   afterEach(() => {
@@ -148,6 +152,31 @@ describe("runtime-repo-drift-monitor", () => {
         expect.objectContaining({
           check: expect.objectContaining({ label: "runtime-repo" }),
           reason: "missing repo",
+        }),
+      ]),
+    );
+  });
+
+  it("treats a runtime shim to source as healthy when source is healthy", async () => {
+    realpathSync.mockImplementation((p: string) => (p === "/runtime" ? "/source" : p));
+    seedRepos({
+      "/source": {
+        branch: "main",
+        upstream: "origin/main",
+        head: "abc123",
+        originHead: "abc123",
+        remoteUrl: "git@github-cortana:hd719/cortana.git",
+        clean: true,
+      },
+    });
+
+    const output = await runMonitor(["--json", "--source-repo", "/source", "--runtime-repo", "/runtime"]);
+    const payload = JSON.parse(output);
+    expect(payload.status).toBe("healthy");
+    expect(payload.suppressed).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          reason: "runtime path is a compatibility shim to the source repo",
         }),
       ]),
     );

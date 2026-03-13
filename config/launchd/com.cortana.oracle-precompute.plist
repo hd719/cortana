@@ -9,7 +9,7 @@
     <array>
       <string>/usr/bin/env</string>
       <string>python3</string>
-      <string>/Users/hd/openclaw/tools/oracle/precompute.py</string>
+      <string>/Users/hd/Developer/cortana/tools/oracle/precompute.py</string>
       <string>run</string>
     </array>
 
@@ -22,7 +22,7 @@
     </dict>
 
     <key>WorkingDirectory</key>
-    <string>/Users/hd/openclaw</string>
+    <string>/Users/hd/Developer/cortana</string>
 
     <key>EnvironmentVariables</key>
     <dict>
@@ -34,8 +34,8 @@
     <true/>
 
     <key>StandardOutPath</key>
-    <string>/Users/hd/openclaw/tmp/oracle-precompute.stdout.log</string>
+    <string>/Users/hd/Developer/cortana/tmp/oracle-precompute.stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/hd/openclaw/tmp/oracle-precompute.stderr.log</string>
+    <string>/Users/hd/Developer/cortana/tmp/oracle-precompute.stderr.log</string>
   </dict>
 </plist>

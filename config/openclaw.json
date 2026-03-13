@@ -49,7 +49,7 @@
         "openai-codex/gpt-5.1": {},
         "openai-codex/gpt-5.2-codex": {}
       },
-      "workspace": "/Users/hd/openclaw",
+      "workspace": "/Users/hd/Developer/cortana",
       "bootstrapMaxChars": 8000,
       "bootstrapTotalMaxChars": 13200,
       "memorySearch": {
@@ -86,7 +86,7 @@
     "list": [
       {
         "id": "main",
-        "workspace": "/Users/hd/openclaw",
+        "workspace": "/Users/hd/Developer/cortana",
         "identityNamespace": "main",
         "model": {
           "primary": "anthropic/claude-opus-4-6",
@@ -122,13 +122,13 @@
       },
       {
         "id": "huragok",
-        "workspace": "/Users/hd/openclaw",
+        "workspace": "/Users/hd/Developer/cortana",
         "identityNamespace": "huragok",
         "model": "openai-codex/gpt-5.3-codex"
       },
       {
         "id": "researcher",
-        "workspace": "/Users/hd/openclaw",
+        "workspace": "/Users/hd/Developer/cortana",
         "identityNamespace": "researcher",
         "model": "openai-codex/gpt-5.3-codex"
       }
@@ -232,7 +232,7 @@
       "enabled": true,
       "load": {
         "extraDirs": [
-          "/Users/hd/openclaw/hooks"
+          "/Users/hd/Developer/cortana/hooks"
         ]
       },
       "entries": {

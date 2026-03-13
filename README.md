@@ -4,7 +4,7 @@
 
 This repo is **Cortana’s command brain** – memory, policy, orchestration, cron prompts, and internal automation.
 
-Canonical source lives here at `~/Developer/cortana`. The controlled deployed runtime checkout remains `~/openclaw` until cutover is complete.
+Canonical source lives here at `~/Developer/cortana`. `~/openclaw` is now a compatibility shim path only; it is no longer the primary repo/workspace.
 
 If `~/Developer/cortana-external` is the runtime body (services + Mission Control), this repo is the **mind and nervous system**.
 
@@ -179,7 +179,7 @@ flowchart LR
 If someone new opens this repo, they should assume:
 
 1. **This is a live command system, not a demo.**
-   `~/Developer/cortana` is the canonical source repo, and `~/openclaw` remains the active deployed runtime checkout.
+   `~/Developer/cortana` is the canonical source repo and active agent workspace. `~/openclaw` is retained only as a compatibility shim path.
 
 2. **Cortana is orchestration-first by design.**
    Cortana should route work to specialist lanes and avoid default implementation/PR authoring.
@@ -574,7 +574,7 @@ Key files:
 - `docs/heartbeat-sql-reference.md` – canonical SQL snippets for heartbeats
 - `docs/memory-compaction-policy.md` – guardrails and retention policy for memory compaction
 - `docs/subagent-reliability-runbook.md` – incident runbook for sub-agent abort/timeout recovery
-- `docs/runtime-deploy-model.md` – source repo vs runtime checkout deploy contract
+- `docs/runtime-deploy-model.md` – source repo + compatibility shim deploy contract
 
 ### 3.2 `config/`
 
@@ -854,7 +854,7 @@ The current autonomy stabilization work gives Cortana:
 ### Runtime Deploy Paths
 
 - Source repo: `/Users/hd/Developer/cortana`
-- Runtime repo: `/Users/hd/openclaw`
+- Compatibility shim path: `/Users/hd/openclaw`
 - Runtime state: `~/.openclaw/cron/jobs.json`
 - Deploy command: `/Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh`
 
@@ -880,7 +880,7 @@ Rules:
 ### 7.1 Runtime deploy contract
 
 - Source repo: `/Users/hd/Developer/cortana`
-- Controlled runtime/backup checkout: `/Users/hd/openclaw`
+- Compatibility shim path: `/Users/hd/openclaw`
 - Deploy with: `/Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh`
 - Standard merged-and-deploy flow: `/Users/hd/Developer/cortana/tools/repo/post-merge-sync.sh`
 
@@ -943,7 +943,7 @@ launchctl list | grep com.cortana.watchdog
 This repo is a **personal Cortana setup for one human on one machine**. It assumes:
 
 - macOS with local PostgreSQL and OpenClaw installed
-- Hamel’s directory layout (`~/openclaw`, `~/Developer/cortana-external`, etc.)
+- Hamel’s directory layout (`~/Developer/cortana`, compatibility shim `~/openclaw`, `~/Developer/cortana-external`, etc.)
 - Local skills configured via OpenClaw (see `skills/`)
 
 It is **not** a generic framework or turnkey product. You can read it for ideas, but expect to adapt heavily if you try to replicate it elsewhere.
@@ -1057,10 +1057,10 @@ openclaw sessions --all-agents --active 120
 
 ```bash
 # Verify runtime cron deploy state
-npx tsx /Users/hd/Developer/cortana/tools/cron/sync-cron-to-runtime.ts --check --repo-root /Users/hd/openclaw --runtime-home /Users/hd
+npx tsx /Users/hd/Developer/cortana/tools/cron/sync-cron-to-runtime.ts --check --repo-root /Users/hd/Developer/cortana --runtime-home /Users/hd
 
 # Show delivery account routing snippets
-rg -n 'accountId|DELIVERY ROUTING' /Users/hd/openclaw/config/cron/jobs.json
+rg -n 'accountId|DELIVERY ROUTING' /Users/hd/Developer/cortana/config/cron/jobs.json
 ```
 
 ### 13.2 PR/branch verification

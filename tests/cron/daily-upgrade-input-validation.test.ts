@@ -15,7 +15,7 @@ describe("Daily Upgrade Protocol input validation contract", () => {
 
     const message = String(job?.payload?.message ?? "");
     expect(message).toContain("Input validation + path resolution (MANDATORY, do before analysis):");
-    expect(message).toContain("Resolve base paths from ~/openclaw (repo-relative only; do not hardcode alternate roots).");
+    expect(message).toContain("Resolve base paths from /Users/hd/Developer/cortana (repo-relative only; do not hardcode alternate roots).");
     expect(message).toContain("Resolve yesterday memory with a date glob: memory/YYYY-MM-DD.md (yesterday), not a single hardcoded filename.");
     expect(message).toContain("If ANY required input is missing/unreadable:");
     expect(message).toContain("Bail out early (no generic proposal).");

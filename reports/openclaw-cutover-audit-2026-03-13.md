@@ -8,131 +8,129 @@ Audit target:
 
 Method:
 - `rg -n --hidden --glob '!.git' -e '/Users/hd/openclaw' -e '~/openclaw' .`
-- review of executable files, config, and docs containing live path assumptions
+- review of executable files, config, cron payloads, launchd config, and operator docs
 
-Current model confirmed during audit:
-- source repo: `/Users/hd/Developer/cortana`
-- controlled runtime/deploy checkout: `/Users/hd/openclaw`
+Current model after this cutover pass:
+- canonical source repo + primary workspace: `/Users/hd/Developer/cortana`
+- compatibility shim path only: `/Users/hd/openclaw`
+- runtime-owned mutable state: `~/.openclaw/*`
 - external apps/services: `/Users/hd/Developer/cortana-external`
 
-## Classification
+## What Actually Changed
 
-### 1. INTENTIONAL runtime/deploy reference
+### 1. Workspace ownership moved to source
 
-These references are still correct because they describe the deployed runtime checkout, agent workspaces, launchd jobs, or cron payloads that execute against the live runtime.
-
-Files and families:
+Updated:
 - `config/openclaw.json`
 - `config/agent-profiles.json`
-- `config/launchd/*.plist`
-- `docs/agent-routing.md`
-- `docs/runtime-deploy-model.md`
+
+Result:
+- main, huragok, researcher, oracle, monitor, and cortana-acp now point at `/Users/hd/Developer/cortana`
+- hook loading now resolves from `/Users/hd/Developer/cortana/hooks`
+- `~/openclaw` is no longer the configured primary workspace for agents
+
+### 2. Runtime/deploy model changed from separate checkout to shim
+
+Updated:
 - `tools/deploy/sync-runtime-from-cortana.sh`
+- `tools/openclaw/post-update.ts`
+- `tools/openclaw/install-compat-shim.sh` (new)
 - `tools/monitoring/runtime-repo-drift-monitor.ts`
-- `tools/repo/drift-watchdog.sh`
-- runtime-facing prompts in `config/cron/jobs.json` that intentionally invoke deployed scripts under `/Users/hd/openclaw`
 
-Why these stay:
-- OpenClaw agents are still configured to boot from `/Users/hd/openclaw`
-- launchd and cron payloads execute against the deployed runtime tree, not the source checkout
-- drift detection and deploy tooling need both source and runtime paths simultaneously
+Result:
+- deploy flow now treats `/Users/hd/openclaw` as a compatibility shim path, not a separate git checkout
+- existing clean legacy runtime checkout can be moved into `~/.openclaw/backups/` and replaced with a symlink to the source repo
+- post-update now reasserts the shim and syncs cron state
+- drift monitor now understands the shimmed runtime path and does not falsely page on source==runtime realpath
 
-### 2. STALE source/canonical reference
+### 3. High-priority executable files cut over to shared path contracts
 
-These were assuming `~/openclaw` was the authoring repo or local source root. They are safe to move to source-owned or repo-relative paths.
-
-Updated in this patch:
-- `README.md`
-- `HEARTBEAT.md`
-- `TOOLS.md`
-- `tools/market-intel/README.md`
-- `tools/mission-control/README.md`
-- `tools/morning-brief/README.md`
-- `tools/briefing/daily-command-brief.ts`
-- `tools/briefing/run-daily-command-brief.sh`
-- `tools/monitoring/update-self-model.ts`
-- `tools/mission-control/deploy.ts`
-
-Change pattern:
-- docs now distinguish source repo from deployed runtime
-- examples prefer source-owned or repo-relative paths
-- selected code paths now resolve repo-local scripts instead of hardcoding `/Users/hd/openclaw`
-
-### 3. NEEDS SHIM/CONFIG indirection
-
-These still embed runtime paths, but changing them blindly would risk behavioral drift. They need an explicit env/config contract before `~/openclaw` can be retired.
-
-High-priority blockers:
+Updated:
 - `tools/task-board/auto-executor.ts`
-  - embeds a long shell script with multiple `/Users/hd/openclaw/...` tool paths
-  - should move to repo-root/runtime-root environment variables or a standalone script with clear inputs
+- `tools/task-board/auto-executor.sh` (new)
 - `tools/guardrails/provider-health.ts`
-  - mixes repo-tracked config with mutable state under `/Users/hd/openclaw`
-  - needs a decision on whether circuit-breaker state belongs in runtime state under `~/.openclaw` or in a configurable repo root
 - `tools/alerting/cost-breaker.ts`
-  - still shells out to repo-local skills and the telegram delivery guard through `/Users/hd/openclaw`
-  - likely fixable, but should be moved under a single repo-root resolver rather than piecemeal edits
 - `tools/memory/decay-scorer.ts`
-  - points at `/Users/hd/openclaw/config/openmemory.json` and `/Users/hd/openclaw/.memory/lancedb`
-  - needs explicit data-root configuration, not a hardcoded source/runtime guess
 - `tools/openclaw/upstream-reliability-tracker.ts`
-  - assumes repo root is `/Users/hd/openclaw`
-  - low-risk to refactor later, but not required for this safe patch set
+- `tools/lib/paths.ts`
 
-`config/cron/jobs.json` also needs a second pass:
-- some payload strings intentionally reference runtime paths and should stay until runtime cutover
-- some payload strings still treat `~/openclaw` as the canonical repo root for reads/writes
-- because those strings are executable behavior, this file should be migrated job-by-job with runtime validation, not by bulk replace
+Result:
+- task-board auto-executor now runs from a real shell script with explicit `SOURCE_REPO` / `EXTERNAL_REPO`
+- provider-health state moved toward runtime-owned `~/.openclaw/state/` with legacy fallback for old state files
+- cost-breaker now resolves telegram usage + delivery guard from the source repo
+- decay-scorer now resolves openmemory config + LanceDB path via runtime state / repo / legacy fallback instead of hardcoding `/Users/hd/openclaw`
+- upstream reliability tracker now uses repo-relative source paths
 
-### 4. HISTORICAL/DOC ONLY
+### 4. Cron payloads no longer treat `~/openclaw` as canonical source
 
-These references are historical evidence, generated artifacts, or past audits. They should not block source cutover by themselves.
+Updated:
+- `config/cron/jobs.json`
+
+Result:
+- source-owned script/prompt references now point to `/Users/hd/Developer/cortana`
+- mutable dedupe/state files moved to `~/.openclaw/state/*`
+- the only intentional remaining `/Users/hd/openclaw` reference in cron payloads is the runtime drift monitor, and that prompt now explicitly documents it as a compatibility shim path
+
+### 5. Launchd/operator docs no longer describe `~/openclaw` as the real repo
+
+Updated:
+- `config/launchd/*.plist`
+- `README.md`
+- `TOOLS.md`
+- `docs/runtime-deploy-model.md`
+- `docs/agent-routing.md`
+
+Result:
+- launchd plists now point at `/Users/hd/Developer/cortana`
+- deploy/operator docs describe `/Users/hd/openclaw` as shim-only
+- verification examples now use the source repo as the tracked config root
+
+## Remaining Blockers / Risks
+
+### 1. Legacy launchd entries still reference missing scripts
+
+Still missing in this repo:
+- `tools/memory/extract_facts.py`
+- `tools/oracle/precompute.py`
+- `tools/hygiene/sweep.py`
+- `tools/memory/promote_insights.py`
+
+Impact:
+- path retirement is fixed, but those specific launchd jobs are still not runnable until the missing scripts are restored or the plists are removed
+
+### 2. Some historical/docs/archive references still mention `~/openclaw`
 
 Examples:
-- `reports/system-audit-2026-03-01.md`
-- `reports/deep-audit-2026-03-01.md`
-- `tools/cron-verification-report.md`
-- generated/local result artifacts such as `.vitest-results.json`
-- archival references inside `memory/` and other historical notes
+- old reports
+- archived memory notes
+- historical design docs outside the operational hot path
 
-## Safe patch set applied
+Impact:
+- they do not drive runtime behavior
+- they were intentionally not mass-rewritten in this pass
 
-Code:
-- repo-relative resolution for daily command brief helper scripts
-- repo-relative resolution for `skills/telegram-usage/handler.ts`
-- repo-relative mission-control deploy log path
+### 3. Compatibility shim still exists by design
 
-Docs:
-- clarified source-vs-runtime ownership in top-level docs
-- corrected stale source-root examples that still pointed at `~/openclaw`
-- preserved explicit runtime-path docs where those paths are still operationally correct
+Intentional leftover:
+- `/Users/hd/openclaw` still appears in deploy/monitoring code and one cron payload because it is now the compatibility alias
 
-## Blockers To A Real PR
+Impact:
+- canonical operation no longer depends on it as the primary workspace
+- true deletion of the alias itself should wait until all external callers outside this repo are confirmed migrated
 
-- `config/cron/jobs.json` still contains mixed runtime-intent and canonical-source assumptions; it needs per-job migration with runtime testing
-- several executable files still hardcode `/Users/hd/openclaw` and need a shared repo-root/runtime-root abstraction
-- runtime agent workspace config still points at `/Users/hd/openclaw`; source cutover is not real until workspace ownership is redesigned or shims are installed
-- launchd jobs and runtime verification docs still assume `~/openclaw` exists as a deploy checkout
+## Validation Performed
 
-## Suggested Next Cutover Steps
+- updated path search across the high-priority files and cron config
+- added/updated tests for:
+  - deploy shim migration
+  - runtime drift monitor shim awareness
+  - auto-executor wrapper behavior
+  - daily-upgrade cron prompt contract
 
-1. Introduce one shared path contract:
-   - `CORTANA_SOURCE_REPO`
-   - `CORTANA_RUNTIME_REPO`
-   - optional `CORTANA_RUNTIME_STATE_HOME`
+## Summary
 
-2. Refactor executable code first, before cron prompts:
-   - `tools/task-board/auto-executor.ts`
-   - `tools/guardrails/provider-health.ts`
-   - `tools/alerting/cost-breaker.ts`
-   - `tools/memory/decay-scorer.ts`
-   - `tools/openclaw/upstream-reliability-tracker.ts`
+This branch is no longer an audit-only safe patch.
 
-3. Audit `config/cron/jobs.json` job-by-job:
-   - keep runtime-only invocations explicit
-   - change stale canonical reads/writes to source-owned or env-driven paths
-   - validate each changed job against the deployed runtime
+It converts the repo/workspace model so `/Users/hd/Developer/cortana` is the primary workspace, moves runtime state toward `~/.openclaw`, replaces the separate `~/openclaw` deploy checkout with a managed compatibility shim, and updates the live cron/config/runtime assumptions accordingly.
 
-4. Add a compatibility shim only if needed:
-   - if runtime retirement must be staged, use a narrow shim from `~/openclaw` to the new deploy/runtime location
-   - do not remove `~/openclaw` until agent workspace config, launchd jobs, and cron payloads are all migrated
+What still remains is cleanup of dead launchd jobs and any external callers outside this repo that still assume `/Users/hd/openclaw` is a real standalone checkout.

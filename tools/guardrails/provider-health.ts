@@ -2,9 +2,11 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { readJsonFile } from "../lib/json-file.js";
+import { compatRepoRoot, resolveRepoPath, resolveRuntimeStatePath } from "../lib/paths.js";
 
-export const STATE_PATH = "/Users/hd/openclaw/memory/circuit-breaker-state.json";
-export const POLICY_PATH = "/Users/hd/openclaw/config/provider-fallback-policy.json";
+export const LEGACY_STATE_PATH = path.join(compatRepoRoot(), "memory", "circuit-breaker-state.json");
+export const STATE_PATH = process.env.CORTANA_CIRCUIT_BREAKER_STATE_PATH ?? resolveRuntimeStatePath("state", "circuit-breaker-state.json");
+export const POLICY_PATH = process.env.CORTANA_PROVIDER_FALLBACK_POLICY_PATH ?? resolveRepoPath("config", "provider-fallback-policy.json");
 export const DEFAULT_ORDER = ["opus", "codex", "sonnet", "4o-mini"];
 
 const STATE_VERSION = 2;
@@ -211,10 +213,11 @@ export function loadRoutePolicy(): RoutePolicy {
 
 export function loadState(policy?: RoutePolicy): CircuitState {
   const effectivePolicy = policy ?? loadRoutePolicy();
-  if (!fs.existsSync(STATE_PATH)) return defaultState(effectivePolicy);
+  const statePath = fs.existsSync(STATE_PATH) ? STATE_PATH : LEGACY_STATE_PATH;
+  if (!fs.existsSync(statePath)) return defaultState(effectivePolicy);
 
   try {
-    const data = readJsonFile<Record<string, any>>(STATE_PATH);
+    const data = readJsonFile<Record<string, any>>(statePath);
     if (!data || typeof data !== "object") return defaultState(effectivePolicy);
 
     const migrated = Number(data.version ?? 0) >= STATE_VERSION;

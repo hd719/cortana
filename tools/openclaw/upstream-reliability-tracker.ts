@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
+import { resolveRepoPath } from "../lib/paths.js";
 
 interface Workaround {
   name: string;
@@ -22,8 +23,8 @@ interface Watchlist {
   issues: Issue[];
 }
 
-const root = "/Users/hd/openclaw";
-const watchlistPath = path.join(root, "config/upstream-reliability-watchlist.json");
+const root = resolveRepoPath();
+const watchlistPath = path.join(root, "config", "upstream-reliability-watchlist.json");
 
 function parseArgs() {
   const args = process.argv.slice(2);

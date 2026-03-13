@@ -8,15 +8,15 @@ This system runs multiple agents, each with its own workspace, model, and sessio
 
 | Agent | Purpose | Workspace | Model | Accepts DMs? |
 |-------|---------|-----------|-------|-------------|
-| **main** (Cortana) | Primary assistant, conversation, coordination | `/Users/hd/openclaw` | opus | Yes (Telegram, webchat) |
+| **main** (Cortana) | Primary assistant, conversation, coordination | `/Users/hd/Developer/cortana` | opus | Yes (Telegram, webchat) |
 | cron-health | Health checks (X session, fitness service, etc.) | `~/.openclaw/workspaces/cron-health` | gpt-5.1 | No — cron only |
 | cron-comms | Communication checks | `~/.openclaw/workspaces/cron-comms` | gpt-5.3-codex | No — cron only |
 | cron-fitness | Fitness data | `~/.openclaw/workspaces/cron-fitness` | gpt-5.3-codex | No — cron only |
 | cron-market | Market analysis | `~/.openclaw/workspaces/cron-market` | gpt-5.3-codex | No — cron only |
 | cron-maintenance | System updates | `~/.openclaw/workspaces/cron-maintenance` | gpt-5.1 | No — cron only |
-| **huragok** | Standalone Huragok identity (dedicated Telegram-bound lane + spawn target) | `/Users/hd/openclaw` | gpt-5.3-codex | Yes (bound group/channel) |
-| **researcher** | Dedicated investigation/research execution lane for Cortana delegation | `/Users/hd/openclaw` | gpt-5.3-codex | No — spawn target only |
-| cortana-acp | On-demand specialist coding lane for explicit ACP runtime requests | `/Users/hd/openclaw` | gpt-5.3-codex | No — spawn target only |
+| **huragok** | Standalone Huragok identity (dedicated Telegram-bound lane + spawn target) | `/Users/hd/Developer/cortana` | gpt-5.3-codex | Yes (bound group/channel) |
+| **researcher** | Dedicated investigation/research execution lane for Cortana delegation | `/Users/hd/Developer/cortana` | gpt-5.3-codex | No — spawn target only |
+| cortana-acp | On-demand specialist coding lane for explicit ACP runtime requests | `/Users/hd/Developer/cortana` | gpt-5.3-codex | No — spawn target only |
 
 ## Channel Routing
 
@@ -125,8 +125,8 @@ If a namespace file is missing, the hook logs a warning and keeps the workspace 
 
 ```bash
 # 1) apply repo config updates
-cp /Users/hd/openclaw/config/openclaw.json ~/.openclaw/openclaw.json
-cp /Users/hd/openclaw/config/agent-profiles.json ~/.openclaw/agent-profiles.json
+cp /Users/hd/Developer/cortana/config/openclaw.json ~/.openclaw/openclaw.json
+cp /Users/hd/Developer/cortana/config/agent-profiles.json ~/.openclaw/agent-profiles.json
 
 # 2) restart gateway
 openclaw gateway restart
@@ -150,14 +150,14 @@ This rollback preserves all existing agent routing and reverts bootstrap identit
 Durable memory write destinations are now namespace-aware for identity agents.
 
 - `main` writes to:
-  - `/Users/hd/openclaw/MEMORY.md`
-  - `/Users/hd/openclaw/memory/*.md`
+  - `/Users/hd/Developer/cortana/MEMORY.md`
+  - `/Users/hd/Developer/cortana/memory/*.md`
 - `researcher` writes to:
-  - `/Users/hd/openclaw/identities/researcher/MEMORY.md`
-  - `/Users/hd/openclaw/identities/researcher/memory/*.md`
+  - `/Users/hd/Developer/cortana/identities/researcher/MEMORY.md`
+  - `/Users/hd/Developer/cortana/identities/researcher/memory/*.md`
 - `huragok` writes to:
-  - `/Users/hd/openclaw/identities/huragok/MEMORY.md`
-  - `/Users/hd/openclaw/identities/huragok/memory/*.md`
+  - `/Users/hd/Developer/cortana/identities/huragok/MEMORY.md`
+  - `/Users/hd/Developer/cortana/identities/huragok/memory/*.md`
 
 ### Fallback behavior (non-breaking)
 
@@ -166,7 +166,7 @@ If the resolved namespace memory path is missing (either `MEMORY.md` or `memory/
 ### Rollout
 
 ```bash
-cd /Users/hd/openclaw
+cd /Users/hd/Developer/cortana
 npm test -- tests/lib/identity-namespace.test.ts
 openclaw gateway restart
 ```
@@ -174,7 +174,7 @@ openclaw gateway restart
 ### Rollback
 
 ```bash
-cd /Users/hd/openclaw
+cd /Users/hd/Developer/cortana
 git revert <slice3_commit_sha>
 openclaw gateway restart
 ```

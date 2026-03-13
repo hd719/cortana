@@ -9,7 +9,7 @@
     <array>
       <string>/bin/zsh</string>
       <string>-lc</string>
-      <string>cd /Users/hd/openclaw &amp;&amp; /usr/bin/env python3 tools/memory/promote_insights.py scan --source session --since-hours 24 &amp;&amp; /usr/bin/env python3 tools/memory/promote_insights.py scan --source daily-notes --since-hours 24</string>
+      <string>cd /Users/hd/Developer/cortana &amp;&amp; /usr/bin/env python3 tools/memory/promote_insights.py scan --source session --since-hours 24 &amp;&amp; /usr/bin/env python3 tools/memory/promote_insights.py scan --source daily-notes --since-hours 24</string>
     </array>
 
     <key>StartCalendarInterval</key>
@@ -21,7 +21,7 @@
     </dict>
 
     <key>WorkingDirectory</key>
-    <string>/Users/hd/openclaw</string>
+    <string>/Users/hd/Developer/cortana</string>
 
     <key>EnvironmentVariables</key>
     <dict>
@@ -33,8 +33,8 @@
     <false/>
 
     <key>StandardOutPath</key>
-    <string>/Users/hd/openclaw/tmp/insight-promotion.stdout.log</string>
+    <string>/Users/hd/Developer/cortana/tmp/insight-promotion.stdout.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/hd/openclaw/tmp/insight-promotion.stderr.log</string>
+    <string>/Users/hd/Developer/cortana/tmp/insight-promotion.stderr.log</string>
   </dict>
 </plist>

@@ -5,24 +5,24 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 SOURCE_REPO="${SOURCE_REPO:-/Users/hd/Developer/cortana}"
-RUNTIME_REPO="${RUNTIME_REPO:-/Users/hd/openclaw}"
+COMPAT_REPO="${COMPAT_REPO:-${RUNTIME_REPO:-/Users/hd/openclaw}}"
 SOURCE_BRANCH="${SOURCE_BRANCH:-main}"
-RUNTIME_BRANCH="${RUNTIME_BRANCH:-main}"
 RUNTIME_HOME="${RUNTIME_HOME:-$HOME}"
 SKIP_OPENCLAW_CHECK=false
 SKIP_CRON_SYNC=false
+SKIP_COMPAT_SHIM=false
 
 usage() {
   cat <<'EOF'
-Controlled runtime deploy: sync /Users/hd/openclaw from /Users/hd/Developer/cortana.
+Canonical runtime deploy: source repo stays authoritative; ~/openclaw becomes a compatibility shim.
 
 Usage:
-  sync-runtime-from-cortana.sh [--source-repo <path>] [--runtime-repo <path>] [--runtime-home <path>] [--skip-openclaw-check] [--skip-cron-sync]
+  sync-runtime-from-cortana.sh [--source-repo <path>] [--compat-repo <path>] [--runtime-home <path>] [--skip-openclaw-check] [--skip-cron-sync] [--skip-compat-shim]
 
 Safety rules:
   - source repo must be clean, on main, and exactly at origin/main
-  - runtime repo must be clean, on main, and fast-forwardable to the source commit
   - no destructive reset is performed
+  - existing ~/openclaw checkout is backed up before being replaced with a shim
 EOF
 }
 
@@ -45,8 +45,8 @@ while [[ $# -gt 0 ]]; do
       SOURCE_REPO="$2"
       shift 2
       ;;
-    --runtime-repo)
-      RUNTIME_REPO="$2"
+    --compat-repo|--runtime-repo)
+      COMPAT_REPO="$2"
       shift 2
       ;;
     --runtime-home)
@@ -61,6 +61,10 @@ while [[ $# -gt 0 ]]; do
       SKIP_CRON_SYNC=true
       shift
       ;;
+    --skip-compat-shim)
+      SKIP_COMPAT_SHIM=true
+      shift
+      ;;
     -h|--help)
       usage
       exit 0
@@ -72,7 +76,6 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -d "$SOURCE_REPO/.git" ]] || die "source repo missing: $SOURCE_REPO"
-[[ -d "$RUNTIME_REPO/.git" ]] || die "runtime repo missing: $RUNTIME_REPO"
 
 require_clean_repo() {
   local repo="$1"
@@ -116,9 +119,10 @@ require_synced_with_origin() {
   [[ "$head" == "$remote_head" ]] || die "$label repo is not synced with origin/$branch"
 }
 
-source_remote="$(git_out "$SOURCE_REPO" remote get-url origin)"
-runtime_remote="$(git_out "$RUNTIME_REPO" remote get-url origin)"
-[[ "$source_remote" == "$runtime_remote" ]] || die "source/runtime origin remotes differ"
+previous_compat_commit=""
+if [[ -d "$COMPAT_REPO/.git" ]]; then
+  previous_compat_commit="$(git_out "$COMPAT_REPO" rev-parse HEAD)"
+fi
 
 log "Verifying source repo"
 fetch_branch "$SOURCE_REPO" "$SOURCE_BRANCH"
@@ -128,41 +132,31 @@ require_upstream "$SOURCE_REPO" "source" "$SOURCE_BRANCH"
 require_synced_with_origin "$SOURCE_REPO" "source" "$SOURCE_BRANCH"
 
 target_commit="$(git_out "$SOURCE_REPO" rev-parse HEAD)"
-previous_runtime_commit="$(git_out "$RUNTIME_REPO" rev-parse HEAD)"
 
-log "Verifying runtime repo"
-fetch_branch "$RUNTIME_REPO" "$RUNTIME_BRANCH"
-require_clean_repo "$RUNTIME_REPO" "runtime"
-require_branch "$RUNTIME_REPO" "runtime" "$RUNTIME_BRANCH"
-require_upstream "$RUNTIME_REPO" "runtime" "$RUNTIME_BRANCH"
-
-if [[ "$previous_runtime_commit" != "$target_commit" ]]; then
-  if ! git_out "$RUNTIME_REPO" merge-base --is-ancestor "$previous_runtime_commit" "$target_commit" >/dev/null 2>&1; then
-    die "runtime repo cannot fast-forward from $previous_runtime_commit to $target_commit"
-  fi
-fi
-
-log "Deploying $target_commit to runtime repo"
-if [[ "$previous_runtime_commit" == "$target_commit" ]]; then
-  log "Runtime repo already at target commit"
-else
-  git_out "$RUNTIME_REPO" merge --ff-only "$target_commit" >/dev/null
+if [[ "$SKIP_COMPAT_SHIM" == false ]]; then
+  log "Ensuring compatibility shim at $COMPAT_REPO"
+  bash "$ROOT_DIR/tools/openclaw/install-compat-shim.sh" \
+    --source-repo "$SOURCE_REPO" \
+    --compat-repo "$COMPAT_REPO"
 fi
 
 if [[ "$SKIP_CRON_SYNC" == false ]]; then
   log "Syncing repo cron config into runtime state"
   npx tsx "$ROOT_DIR/tools/cron/sync-cron-to-runtime.ts" \
-    --repo-root "$RUNTIME_REPO" \
+    --repo-root "$SOURCE_REPO" \
     --runtime-home "$RUNTIME_HOME" >/dev/null
 fi
 
-log "Verifying runtime deploy"
-runtime_head="$(git_out "$RUNTIME_REPO" rev-parse HEAD)"
-[[ "$runtime_head" == "$target_commit" ]] || die "runtime repo HEAD mismatch after deploy"
-require_clean_repo "$RUNTIME_REPO" "runtime"
+log "Verifying deploy state"
+if [[ "$SKIP_COMPAT_SHIM" == false ]]; then
+  bash "$ROOT_DIR/tools/openclaw/install-compat-shim.sh" \
+    --source-repo "$SOURCE_REPO" \
+    --compat-repo "$COMPAT_REPO" \
+    --check >/dev/null
+fi
 
 if [[ "$SKIP_CRON_SYNC" == false ]]; then
-  cron_check="$(npx tsx "$ROOT_DIR/tools/cron/sync-cron-to-runtime.ts" --check --repo-root "$RUNTIME_REPO" --runtime-home "$RUNTIME_HOME")"
+  cron_check="$(npx tsx "$ROOT_DIR/tools/cron/sync-cron-to-runtime.ts" --check --repo-root "$SOURCE_REPO" --runtime-home "$RUNTIME_HOME")"
   [[ "$cron_check" == "IN_SYNC" ]] || die "runtime cron state failed verification"
 fi
 
@@ -180,14 +174,15 @@ mkdir -p "$(dirname "$state_file")"
 cat >"$state_file" <<EOF
 {
   "deployedAt": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+  "mode": "compat_shim",
   "sourceRepo": "$SOURCE_REPO",
-  "runtimeRepo": "$RUNTIME_REPO",
+  "compatRepo": "$COMPAT_REPO",
   "branch": "$SOURCE_BRANCH",
-  "previousRuntimeCommit": "$previous_runtime_commit",
+  "previousCompatCommit": "${previous_compat_commit}",
   "deployedCommit": "$target_commit"
 }
 EOF
 
 log "Runtime deploy complete"
-printf 'source=%s\nruntime=%s\nprevious=%s\ndeployed=%s\n' \
-  "$SOURCE_REPO" "$RUNTIME_REPO" "$previous_runtime_commit" "$target_commit"
+printf 'source=%s\ncompat=%s\nprevious=%s\ndeployed=%s\n' \
+  "$SOURCE_REPO" "$COMPAT_REPO" "$previous_compat_commit" "$target_commit"

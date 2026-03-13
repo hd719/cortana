@@ -17,7 +17,7 @@ afterEach(() => {
 });
 
 describe("auto-executor", () => {
-  it("uses a BASH_SOURCE fallback so bash -c with set -u does not crash", async () => {
+  it("delegates to the standalone shell runner", async () => {
     const exitSpy = mockExit();
     setArgv([]);
     spawnSync.mockReturnValue({ status: 0 } as any);
@@ -25,9 +25,9 @@ describe("auto-executor", () => {
     await importFresh("../../tools/task-board/auto-executor.ts");
     await flushModuleSideEffects();
 
-    const [, args] = spawnSync.mock.calls[0] as [string, string[]];
-    expect(args[1]).toContain('${BASH_SOURCE[0]-}');
-    expect(args[1]).not.toContain('${BASH_SOURCE[0]}" == "$0"');
+    const [cmd, args] = spawnSync.mock.calls[0] as [string, string[]];
+    expect(cmd).toBe("bash");
+    expect(args[0]).toContain("auto-executor.sh");
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 });

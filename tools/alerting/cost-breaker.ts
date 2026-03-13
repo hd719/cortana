@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import { spawnSync } from "child_process";
 import { withPostgresPath, runPsql } from "../lib/db.js";
-import { resolveHomePath } from "../lib/paths.js";
+import { resolveHomePath, resolveRepoPath, resolveRuntimeStatePath } from "../lib/paths.js";
 import { readJsonFile } from "../lib/json-file.js";
 
 const env = {
@@ -13,12 +13,12 @@ const env = {
 };
 
 const DB = process.env.CORTANA_DB ?? "cortana";
-const USAGE_CMD = ["npx", "tsx", "/Users/hd/openclaw/skills/telegram-usage/handler.ts", "json"];
+const USAGE_CMD = ["npx", "tsx", resolveRepoPath("skills", "telegram-usage", "handler.ts"), "json"];
 const SESSIONS_FILE = process.env.OPENCLAW_SESSIONS_FILE ?? resolveHomePath(".openclaw/agents/main/sessions/sessions.json");
-const FLAG_FILE = process.env.COST_ALERT_FLAG_FILE ?? resolveHomePath(".openclaw/cost-alert.flag");
+const FLAG_FILE = process.env.COST_ALERT_FLAG_FILE ?? resolveRuntimeStatePath("cost-alert.flag");
 let MONTHLY_BUDGET_USD = Number(process.env.COST_BREAKER_MONTHLY_BUDGET_USD ?? "200");
 let RUNAWAY_TOKEN_LIMIT = Number(process.env.RUNAWAY_TOKEN_LIMIT ?? "200000");
-const TELEGRAM_GUARD = process.env.TELEGRAM_GUARD ?? "/Users/hd/openclaw/tools/notifications/telegram-delivery-guard.sh";
+const TELEGRAM_GUARD = process.env.TELEGRAM_GUARD ?? resolveRepoPath("tools", "notifications", "telegram-delivery-guard.sh");
 const TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID ?? "8171372724";
 
 function sqlEscape(v: string): string {

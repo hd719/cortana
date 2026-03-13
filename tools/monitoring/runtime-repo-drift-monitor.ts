@@ -74,6 +74,23 @@ function repoExists(repo: string): boolean {
   return fs.existsSync(`${repo}/.git`);
 }
 
+function pathExists(repo: string): boolean {
+  return fs.existsSync(repo);
+}
+
+function realpath(repo: string): string {
+  return fs.realpathSync.native?.(repo) ?? fs.realpathSync(repo);
+}
+
+function isShimmedRuntime(sourceRepo: string, runtimeRepo: string): boolean {
+  if (!pathExists(sourceRepo) || !pathExists(runtimeRepo)) return false;
+  try {
+    return realpath(sourceRepo) === realpath(runtimeRepo);
+  } catch {
+    return false;
+  }
+}
+
 function collectRepoState(repo: string, branch: string): RepoState {
   run(`git fetch origin ${branch} --prune --quiet`, repo);
   return {
@@ -221,6 +238,40 @@ function main(): void {
   }
 
   const sourceState = collectRepoState(args.sourceRepo, args.sourceBranch);
+  if (isShimmedRuntime(args.sourceRepo, args.runtimeRepo)) {
+    const actionable = assessSource(sourceState, args.sourceBranch);
+    const payload = {
+      status: actionable.length ? "needs_action" : "healthy",
+      actionable,
+      suppressed: [
+        {
+          check: { label: "runtime-repo", repo: args.runtimeRepo },
+          actionable: false,
+          reason: "runtime path is a compatibility shim to the source repo",
+        },
+      ],
+      missing: [],
+    };
+
+    if (args.json) {
+      console.log(JSON.stringify(payload));
+      return;
+    }
+
+    if (!actionable.length) {
+      console.log("NO_REPLY");
+      return;
+    }
+
+    const lines = ["🧭 Runtime Deploy Drift"];
+    for (const item of actionable) {
+      lines.push(`- ${item.check.label}: ${item.reason}`);
+    }
+    lines.push(`- runtime-repo: compatibility shim target=${args.runtimeRepo}`);
+    console.log(lines.join("\n"));
+    return;
+  }
+
   const runtimeState = collectRepoState(args.runtimeRepo, args.runtimeBranch);
   const actionable = [
     ...assessSource(sourceState, args.sourceBranch),

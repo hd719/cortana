@@ -16,7 +16,11 @@ const readJsonFile = vi.hoisted(() => vi.fn());
 vi.mock("fs", () => ({ default: fsMock, ...fsMock }));
 vi.mock("child_process", () => ({ spawnSync }));
 vi.mock("../../tools/lib/db.js", () => ({ runPsql, withPostgresPath: (env: NodeJS.ProcessEnv) => env }));
-vi.mock("../../tools/lib/paths.js", () => ({ resolveHomePath: (...parts: string[]) => `/home/${parts.join("/")}` }));
+vi.mock("../../tools/lib/paths.js", () => ({
+  resolveHomePath: (...parts: string[]) => `/home/${parts.join("/")}`,
+  resolveRuntimeStatePath: (...parts: string[]) => `/home/.openclaw/${parts.join("/")}`,
+  resolveRepoPath: (...parts: string[]) => `/repo/${parts.join("/")}`,
+}));
 vi.mock("../../tools/lib/json-file.js", () => ({ readJsonFile }));
 
 beforeEach(() => {

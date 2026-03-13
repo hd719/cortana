@@ -1,7 +1,7 @@
 [
   {
     "id": "main",
-    "workspace": "/Users/hd/openclaw",
+    "workspace": "/Users/hd/Developer/cortana",
     "identityNamespace": "main",
     "model": "anthropic/claude-opus-4-6"
   },
@@ -32,30 +32,30 @@
   },
   {
     "id": "huragok",
-    "workspace": "/Users/hd/openclaw",
+    "workspace": "/Users/hd/Developer/cortana",
     "identityNamespace": "huragok",
     "model": "openai-codex/gpt-5.3-codex"
   },
   {
     "id": "researcher",
-    "workspace": "/Users/hd/openclaw",
+    "workspace": "/Users/hd/Developer/cortana",
     "identityNamespace": "researcher",
     "model": "openai-codex/gpt-5.3-codex"
   },
   {
     "id": "cortana-acp",
-    "workspace": "/Users/hd/openclaw",
+    "workspace": "/Users/hd/Developer/cortana",
     "model": "openai-codex/gpt-5.3-codex"
   },
   {
     "id": "oracle",
-    "workspace": "/Users/hd/openclaw",
+    "workspace": "/Users/hd/Developer/cortana",
     "identityNamespace": "oracle",
     "model": "openai-codex/gpt-5.3-codex"
   },
   {
     "id": "monitor",
-    "workspace": "/Users/hd/openclaw",
+    "workspace": "/Users/hd/Developer/cortana",
     "identityNamespace": "monitor",
     "model": "openai-codex/gpt-5.3-codex"
   }
