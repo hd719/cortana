@@ -396,13 +396,13 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: oracle\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nRun the CANSLIM alert scanner and return its output exactly (no extra commentary).\n\nCommands:\ncd ~/Developer/cortana-external/backtester\n./.venv/bin/python canslim_alert.py --limit 8 --min-score 6\n\nRules:\n- Output must include market status summary and candidate signals (BUY/WATCH/NO_BUY).\n- ALWAYS forward full scan output exactly, even when results are all NO_BUY (never suppress no-signal runs).\n- If the script errors, return one concise error line starting with: '\ud83d\udcc8 Trading Advisor - Error:'",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY):\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nMonitor is the user-facing owner lane for this alert.\n\nThis is the unified CANSLIM + Dip Buyer market-session alert.\n\nRun exactly:\nbash /Users/hd/Developer/cortana/tools/trading/run-trading-cron-alert.sh\n\nRules:\n- The wrapper handles Telegram delivery directly; do not use the `message` tool separately.\n- Do not run `canslim_alert.py` or `dipbuyer_alert.py` yourself.\n- Do not rewrite the alert body.\n- If the wrapper exits 0, return exactly: trading-cron-alert sent\n- If the wrapper exits non-zero, return the wrapper stderr only.",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 360
       },
       "delivery": {
         "mode": "none",
-        "accountId": "oracle"
+        "accountId": "monitor"
       },
       "state": {
         "nextRunAtMs": 1772807426140,

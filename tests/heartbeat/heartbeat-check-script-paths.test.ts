@@ -2,6 +2,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("heartbeat check script compatibility paths", () => {
+  it("provides heartbeat validator and health-check shell entrypoints", () => {
+    expect(existsSync("tools/heartbeat/validate-heartbeat-state.sh")).toBe(true);
+    expect(existsSync("tools/heartbeat/check-heartbeat-health.sh")).toBe(true);
+  });
+
   it("provides task-board hygiene entrypoint", () => {
     expect(existsSync("tools/task-board/hygiene.ts")).toBe(true);
     const src = readFileSync("tools/task-board/hygiene.ts", "utf8");

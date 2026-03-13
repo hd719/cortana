@@ -129,6 +129,18 @@
       ],
       "requireExplicitOwner": true,
       "requireQuietHealthy": true
+    },
+    {
+      "id": "monitor-owns-trading-alert-scans",
+      "scopeLabel": "trading alert scans",
+      "expectedOwner": "monitor",
+      "jobKeywords": [
+        "canslim alert scan",
+        "dip buyer",
+        "trading-cron-alert.ts"
+      ],
+      "requireExplicitOwner": true,
+      "requireQuietHealthy": false
     }
   ]
 }
