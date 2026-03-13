@@ -47,7 +47,6 @@ describe('session lifecycle policy path resolution', () => {
       const value = String(candidate);
       if (value === missing) return false;
       if (value === repoPolicy) return false;
-      if (value === '/Users/hd/openclaw/config/session-lifecycle-policy.json') return false;
       if (value.endsWith('/config/session-lifecycle-policy.json')) return false;
       return originalExists(candidate);
     }) as typeof fs.existsSync;

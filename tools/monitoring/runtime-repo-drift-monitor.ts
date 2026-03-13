@@ -34,7 +34,7 @@ type RepoState = {
 };
 
 const DEFAULT_SOURCE_REPO = process.env.CORTANA_SOURCE_REPO || "/Users/hd/Developer/cortana";
-const DEFAULT_RUNTIME_REPO = process.env.CORTANA_RUNTIME_REPO || "/Users/hd/openclaw";
+const DEFAULT_RUNTIME_REPO = process.env.CORTANA_RUNTIME_REPO || DEFAULT_SOURCE_REPO;
 
 function parseArgs(): Args {
   const argv = process.argv.slice(2);

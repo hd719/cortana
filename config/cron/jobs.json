@@ -1348,7 +1348,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 120,
-        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/runtime-repo-drift-monitor.ts --source-repo /Users/hd/Developer/cortana --runtime-repo /Users/hd/openclaw\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- If drift exists, send output via message tool to telegram target 8171372724 exactly once.\n- `/Users/hd/openclaw` is now treated as a compatibility shim path, not the primary workspace.\n- This monitor is read-only. Runtime deploys happen explicitly through /Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/runtime-repo-drift-monitor.ts --source-repo /Users/hd/Developer/cortana\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- If drift exists, send output via message tool to telegram target 8171372724 exactly once.\n- Runtime repo defaults to the canonical source repo unless CORTANA_RUNTIME_REPO overrides it.\n- This monitor is read-only. Runtime deploys happen explicitly through /Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh."
       },
       "delivery": {
         "mode": "none",

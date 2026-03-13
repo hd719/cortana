@@ -2,8 +2,8 @@
 set -euo pipefail
 
 SOURCE_REPO="${SOURCE_REPO:-/Users/hd/Developer/cortana}"
-RUNTIME_REPO="${RUNTIME_REPO:-/Users/hd/openclaw}"
-MONITOR="${MONITOR:-/Users/hd/Developer/cortana/tools/monitoring/runtime-repo-drift-monitor.ts}"
+RUNTIME_REPO="${RUNTIME_REPO:-$SOURCE_REPO}"
+MONITOR="${MONITOR:-$SOURCE_REPO/tools/monitoring/runtime-repo-drift-monitor.ts}"
 
 if [[ ! -f "$MONITOR" ]]; then
   echo "[repo-drift-watchdog] monitor missing: $MONITOR" >&2

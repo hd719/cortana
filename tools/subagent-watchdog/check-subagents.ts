@@ -14,6 +14,7 @@ import {
   touchHeartbeat,
   validateHeartbeatState,
 } from "../lib/heartbeat-schema.js";
+import { resolveRepoPath } from "../lib/paths.js";
 
 const TERMINAL_TIMEOUT_STATUSES = new Set(["timeout", "timed_out"]);
 const TERMINAL_KILLED_STATUSES = new Set(["killed", "kill", "terminated", "aborted", "cancelled", "canceled"]);
@@ -23,9 +24,11 @@ const FAIL_STATUSES = new Set([
   ...Array.from(TERMINAL_KILLED_STATUSES),
   ...Array.from(TERMINAL_FAILED_STATUSES),
 ]);
-const TELEGRAM_GUARD = "/Users/hd/openclaw/tools/notifications/telegram-delivery-guard.sh";
-const COMPLETION_SYNC = "/Users/hd/openclaw/tools/task-board/completion-sync.sh";
-const AGGRESSIVE_RECONCILE = "/Users/hd/openclaw/tools/task-board/aggressive-reconcile.sh";
+const TELEGRAM_GUARD = process.env.TELEGRAM_DELIVERY_GUARD || resolveRepoPath("tools", "notifications", "telegram-delivery-guard.sh");
+const COMPLETION_SYNC =
+  process.env.CORTANA_COMPLETION_SYNC_SCRIPT || resolveRepoPath("tools", "task-board", "completion-sync.sh");
+const AGGRESSIVE_RECONCILE =
+  process.env.CORTANA_AGGRESSIVE_RECONCILE_SCRIPT || resolveRepoPath("tools", "task-board", "aggressive-reconcile.sh");
 const DB_NAME = "cortana";
 const DEFAULT_HEARTBEAT_STATE_FILE = path.join(os.homedir(), ".openclaw", "memory", "heartbeat-state.json");
 const DEFAULT_SESSION_ALERT_STATE_FILE = "/tmp/subagent-watchdog-cooldown.json";

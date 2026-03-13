@@ -4,7 +4,10 @@ import { flushModuleSideEffects, importFresh, resetProcess } from "../test-utils
 const spawnSync = vi.hoisted(() => vi.fn());
 
 vi.mock("node:child_process", () => ({ spawnSync }));
-vi.mock("../../tools/lib/paths.js", () => ({ PSQL_BIN: "/opt/homebrew/opt/postgresql@17/bin/psql" }));
+vi.mock("../../tools/lib/paths.js", () => ({
+  PSQL_BIN: "/opt/homebrew/opt/postgresql@17/bin/psql",
+  resolveRepoPath: (...parts: string[]) => ["/repo", ...parts].join("/"),
+}));
 
 beforeEach(() => {
   spawnSync.mockReset();

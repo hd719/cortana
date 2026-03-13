@@ -47,7 +47,6 @@ export function resolvePolicyPath(explicitPath = process.env.SESSION_LIFECYCLE_P
     explicitPath,
     path.join(REPO_ROOT, 'config', POLICY_BASENAME),
     path.join(process.cwd(), 'config', POLICY_BASENAME),
-    '/Users/hd/openclaw/config/session-lifecycle-policy.json',
   ].filter((value): value is string => Boolean(value));
 
   for (const candidate of candidates) {

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 set -u
 
-TEST_CMD=(npx tsx ~/openclaw/tools/tests/integration-tests.ts)
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TEST_CMD=(npx tsx "$SCRIPT_DIR/integration-tests.ts")
 PSQL_BIN="/opt/homebrew/opt/postgresql@17/bin/psql"
 DB_NAME="cortana"
 
