@@ -1,6 +1,6 @@
-import fs from "fs";
-import path from "path";
-import os from "os";
+import * as fs from "node:fs";
+import * as path from "node:path";
+import * as os from "node:os";
 import { fileURLToPath } from "url";
 
 export const POSTGRES_PATH = "/opt/homebrew/opt/postgresql@17/bin";
