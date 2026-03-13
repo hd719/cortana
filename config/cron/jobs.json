@@ -396,9 +396,8 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY):\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nMonitor is the user-facing owner lane for this alert.\n\nThis is the unified CANSLIM + Dip Buyer market-session alert.\n\nRun exactly:\nbash /Users/hd/Developer/cortana/tools/trading/run-trading-cron-alert.sh\n\nRules:\n- The wrapper handles Telegram delivery directly; do not use the `message` tool separately.\n- Do not run `canslim_alert.py` or `dipbuyer_alert.py` yourself.\n- Do not rewrite the alert body.\n- If the wrapper exits 0, return exactly: trading-cron-alert sent\n- If the wrapper exits non-zero, return the wrapper stderr only.",
+        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nThis is Cron A for the unified CANSLIM + Dip Buyer market-session pipeline.\nIt performs compute only and must NOT send Telegram messages directly.\n\nRun exactly:\nBACKTEST_PRESET='trading-unified' \\\nBACKTEST_STRATEGY='Trading market-session unified' \\\nbash /Users/hd/Developer/cortana/tools/trading/run-backtest-compute.sh\n\nRules:\n- Compute only: write artifacts + atomic summary.json under /Users/hd/Developer/cortana/var/backtests/runs.\n- Do not use the message tool.\n- Do not rewrite alert copy.\n- If the compute wrapper exits 0, return exactly: backtest-compute complete\n- If the wrapper exits non-zero, return the wrapper stderr only.",
         "model": "openai-codex/gpt-5.3-codex",
-        "lightContext": true,
         "timeoutSeconds": 360
       },
       "delivery": {
@@ -917,6 +916,31 @@
       },
       "state": {
         "consecutiveErrors": 0
+      },
+      "delivery": {
+        "mode": "none",
+        "accountId": "monitor"
+      }
+    },
+    {
+      "id": "35e3be71-260a-4b2f-9e9e-892e20aa70cb",
+      "agentId": "main",
+      "name": "\ud83d\udce3 Trading Backtest Notify (market sessions)",
+      "enabled": true,
+      "createdAtMs": 1773443868479,
+      "updatedAtMs": 1773443868479,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/5 9-16 * * 1-5",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "model": "openai-codex/gpt-5.1",
+        "timeoutSeconds": 90,
+        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nThis is Cron B for the unified CANSLIM + Dip Buyer market-session pipeline.\nIt performs notify only.\n\nRun exactly:\nbash /Users/hd/Developer/cortana/tools/trading/run-backtest-notify.sh\n\nRules:\n- Notify only: send the latest completed summary.json whose notifiedAt is null.\n- If there is nothing pending, return exactly: NO_REPLY\n- Send at most one run per invocation.\n- Do not recompute scans here.\n- Use the durable message persisted by the compute phase when available.\n- If notifier exits 0 after sending, return exactly: backtest-notify sent\n- If notifier exits 0 with no pending work, return exactly: NO_REPLY\n- If notifier exits non-zero, return the notifier stderr only."
       },
       "delivery": {
         "mode": "none",

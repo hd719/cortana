@@ -9,12 +9,13 @@ import { config as loadDotenv } from "dotenv";
 import { parseSignals, runTradingCouncil, type CouncilVerdict, type TradingSignal } from "../council/trading-council";
 
 const DEFAULT_SCAN_LIMIT = 120;
-const BACKTESTER_CWD = "/Users/hd/Developer/cortana-external/backtester";
+export const BACKTESTER_CWD = "/Users/hd/Developer/cortana-external/backtester";
 const BACKTESTER_ENV_PATH = resolve(BACKTESTER_CWD, ".env");
 const SHARED_EXTERNAL_ENV_PATH = "/Users/hd/Developer/cortana-external/.env";
+export type TradingStrategyName = "CANSLIM" | "Dip Buyer";
 
 interface ScanResult {
-  name: "CANSLIM" | "Dip Buyer";
+  name: TradingStrategyName;
   output: string;
   signals: TradingSignal[];
   marketRegime?: string;
@@ -143,7 +144,7 @@ function runCommandAsync(command: string, args: string[], options: RunCommandOpt
   });
 }
 
-function getChunkSize(strategy: "CANSLIM" | "Dip Buyer"): number {
+function getChunkSize(strategy: TradingStrategyName): number {
   const raw =
     strategy === "CANSLIM"
       ? process.env.TRADING_SCAN_CHUNK_SIZE_CANSLIM ?? process.env.TRADING_SCAN_CHUNK_SIZE
@@ -153,7 +154,7 @@ function getChunkSize(strategy: "CANSLIM" | "Dip Buyer"): number {
   return Math.round(parsed);
 }
 
-function getChunkParallelism(strategy: "CANSLIM" | "Dip Buyer"): number {
+function getChunkParallelism(strategy: TradingStrategyName): number {
   const raw =
     strategy === "CANSLIM"
       ? process.env.TRADING_SCAN_CHUNK_PARALLELISM_CANSLIM ?? process.env.TRADING_SCAN_CHUNK_PARALLELISM
@@ -184,7 +185,7 @@ function chunkArray<T>(items: T[], chunkSize: number): T[][] {
   return out;
 }
 
-function buildMergedStrategyOutput(name: "CANSLIM" | "Dip Buyer", outputs: string[], universe: string[], scanLimit: number): string {
+function buildMergedStrategyOutput(name: TradingStrategyName, outputs: string[], universe: string[], scanLimit: number): string {
   const summaries = outputs.map(parseSummaryCounts);
   const allSignals = outputs.flatMap((output) => parseSignals(output));
   const marketLine = outputs.map((output) => parseMarketLine(output).marketLine).find(Boolean);
@@ -243,7 +244,7 @@ function buildMergedStrategyOutput(name: "CANSLIM" | "Dip Buyer", outputs: strin
 }
 
 async function runChunkedStrategy(
-  name: "CANSLIM" | "Dip Buyer",
+  name: TradingStrategyName,
   scriptName: "canslim_alert.py" | "dipbuyer_alert.py",
   limit: number,
   deps: Pick<PipelineDeps, "runCommand" | "getUniverse">,
@@ -372,7 +373,7 @@ function parseCommonDiagnostics(text: string): { blockerLine?: string; blockerSa
   };
 }
 
-function getScanLimit(strategy: "CANSLIM" | "Dip Buyer"): number {
+function getScanLimit(strategy: TradingStrategyName): number {
   const raw =
     strategy === "CANSLIM"
       ? process.env.TRADING_SCAN_LIMIT_CANSLIM ?? process.env.TRADING_SCAN_LIMIT
@@ -708,6 +709,24 @@ export async function runTradingPipeline(deps?: Partial<PipelineDeps>): Promise<
   }
 
   return buildFinalReport(guardedOutputs, councilVerdicts);
+}
+
+export async function runTradingStrategy(strategy: TradingStrategyName, deps?: Partial<PipelineDeps>): Promise<string> {
+  const runCommand = deps?.runCommand ?? defaultRunCommand;
+  const getUniverse = deps?.getUniverse ?? ((limit: number) => getDeterministicUniverse(limit, runCommand));
+
+  loadBacktesterEnv();
+  ensurePythonModuleAvailable("dotenv", { optional: true });
+  if (strategy === "Dip Buyer") {
+    ensureFredApiKey();
+  }
+
+  return runChunkedStrategy(
+    strategy,
+    strategy === "CANSLIM" ? "canslim_alert.py" : "dipbuyer_alert.py",
+    8,
+    { runCommand, getUniverse },
+  );
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
