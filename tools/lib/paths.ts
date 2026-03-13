@@ -10,12 +10,19 @@ export function getScriptDir(importMetaUrl: string): string {
   return path.dirname(fileURLToPath(importMetaUrl));
 }
 
+function safeExistsSync(filePath: string): boolean {
+  const fn = (fs as typeof import("node:fs") & { default?: { existsSync?: (p: string) => boolean } }).existsSync
+    ?? (fs as { default?: { existsSync?: (p: string) => boolean } }).default?.existsSync;
+  if (typeof fn !== "function") return false;
+  return fn(filePath);
+}
+
 export function findRepoRoot(startDir?: string): string {
   let dir = startDir ?? getScriptDir(import.meta.url);
   for (let i = 0; i < 12; i += 1) {
     if (
-      fs.existsSync(path.join(dir, "AGENTS.md")) ||
-      fs.existsSync(path.join(dir, ".git"))
+      safeExistsSync(path.join(dir, "AGENTS.md")) ||
+      safeExistsSync(path.join(dir, ".git"))
     ) {
       return dir;
     }
@@ -28,14 +35,12 @@ export function findRepoRoot(startDir?: string): string {
   return startDir ?? process.cwd();
 }
 
-const cachedRepoRoot = findRepoRoot();
-
 export function repoRoot(): string {
-  return cachedRepoRoot;
+  return findRepoRoot();
 }
 
 export function resolveRepoPath(...segments: string[]): string {
-  return path.join(cachedRepoRoot, ...segments);
+  return path.join(repoRoot(), ...segments);
 }
 
 export function resolveHomePath(...segments: string[]): string {
