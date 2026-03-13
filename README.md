@@ -29,6 +29,13 @@ Today’s cron cleanup established a new live delivery and noise policy:
 
 ### 0.0 Current cron delivery policy
 
+### 0.1 Cron brevity cap
+
+- **Every user-visible cron message must be 150 words or less.**
+- If a cron cannot say it clearly in 150 words, it should summarize harder or stay silent.
+- Do not send multi-part cron essays. Short, actionable, then shut up.
+
+
 - **Cortana/main**: morning brief, mission-level synthesis, command-presence summaries.
 - **Monitor**: newsletters, market alerts, system health, maintenance, watchdog/reliability, fitness summaries, and most routine cron outputs.
 - **Default rule**: if a cron is healthy and non-actionable, it should stay silent.
