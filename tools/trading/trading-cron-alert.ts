@@ -6,7 +6,7 @@ import { runTradingPipeline } from "./trading-pipeline";
 
 const BACKTESTER_CWD = "/Users/hd/Developer/cortana-external/backtester";
 const PYTHON_BIN = resolve(BACKTESTER_CWD, ".venv/bin/python");
-const DEFAULT_SCAN_TIMEOUT_MS = 45_000;
+const DEFAULT_SCAN_TIMEOUT_MS = 120_000;
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
