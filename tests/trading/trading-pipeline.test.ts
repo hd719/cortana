@@ -46,6 +46,12 @@ afterEach(() => {
   delete process.env.TRADING_SCAN_LIMIT;
   delete process.env.TRADING_SCAN_LIMIT_CANSLIM;
   delete process.env.TRADING_SCAN_LIMIT_DIP;
+  delete process.env.TRADING_SCAN_CHUNK_SIZE;
+  delete process.env.TRADING_SCAN_CHUNK_SIZE_CANSLIM;
+  delete process.env.TRADING_SCAN_CHUNK_SIZE_DIP;
+  delete process.env.TRADING_SCAN_CHUNK_PARALLELISM;
+  delete process.env.TRADING_SCAN_CHUNK_PARALLELISM_CANSLIM;
+  delete process.env.TRADING_SCAN_CHUNK_PARALLELISM_DIP;
   delete process.env.TRADING_DIP_CORRECTION_MAX_BUYS;
   delete process.env.TRADING_DIP_CORRECTION_MIN_BUY_SCORE;
 });
@@ -240,6 +246,45 @@ Summary: 1 candidates | BUY 0 | WATCH 0 | NO_BUY 1
     const dipCall = calls.find((args) => args[0] === "dipbuyer_alert.py") ?? [];
     expect(canslimCall).toContain("140");
     expect(dipCall).toContain("90");
+  });
+
+  it("preserves merged chunk summaries so combined CANSLIM output is parsed correctly", async () => {
+    process.env.TRADING_SCAN_LIMIT_CANSLIM = "4";
+    process.env.TRADING_SCAN_CHUNK_SIZE_CANSLIM = "2";
+    process.env.TRADING_SCAN_CHUNK_PARALLELISM_CANSLIM = "1";
+
+    const canslimChunks = [
+      `📈 Trading Advisor - CANSLIM Scan
+Market: confirmed_uptrend | Position Sizing: 100%
+Status: Trend healthy.
+Summary: scanned 2 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY 0
+• AAPL (7/12) → WATCH
+  Watch setup`,
+      `📈 Trading Advisor - CANSLIM Scan
+Market: confirmed_uptrend | Position Sizing: 100%
+Status: Trend healthy.
+Summary: scanned 2 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY 0
+• MSFT (8/12) → WATCH
+  Watch setup`,
+    ];
+
+    const calls: Array<{ args: string[]; priorityFile?: string }> = [];
+    const report = await runTradingPipeline({
+      getUniverse: async (limit) => ["AAPL", "MSFT", "NVDA", "TSLA"].slice(0, limit),
+      runCommand: (_cmd, args, options) => {
+        calls.push({ args, priorityFile: options?.env?.TRADING_PRIORITY_FILE });
+        if (args[0] === "canslim_alert.py") {
+          return canslimChunks.shift() ?? CANSLIM_NO_BUY;
+        }
+        return DIP_NO_BUY;
+      },
+      council: async () => ({ verdicts: [] }),
+    });
+
+    expect(calls.filter((call) => call.args[0] === "canslim_alert.py")).toHaveLength(2);
+    expect(calls.filter((call) => call.priorityFile).length).toBeGreaterThanOrEqual(2);
+    expect(report).toContain("CANSLIM: scanned 4 | evaluated 2 | threshold-passed 2 | emitted BUY 0 / WATCH 2 / NO_BUY 0");
+    expect(report).toContain("Summary: BUY 0 | WATCH 3 | NO_BUY 0");
   });
 
   it("enforces CANSLIM correction hard gate and skips council when blocked", async () => {

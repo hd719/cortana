@@ -1,8 +1,10 @@
 #!/usr/bin/env npx tsx
 
-import { spawnSync } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
 import { config as loadDotenv } from "dotenv";
 import { parseSignals, runTradingCouncil, type CouncilVerdict, type TradingSignal } from "../council/trading-council";
 
@@ -36,8 +38,14 @@ interface ScanResult {
 type DecisionState = "BUY" | "WATCH" | "NO_TRADE";
 
 interface PipelineDeps {
-  runCommand: (command: string, args: string[]) => string;
+  runCommand: (command: string, args: string[], options?: RunCommandOptions) => string | Promise<string>;
   council: (alertText: string) => Promise<{ verdicts: CouncilVerdict[] }>;
+  getUniverse: (limit: number) => Promise<string[]>;
+}
+
+interface RunCommandOptions {
+  env?: NodeJS.ProcessEnv;
+  timeoutMs?: number;
 }
 
 interface CorrectionProfile {
@@ -93,14 +101,225 @@ function ensureFredApiKey(): void {
   }
 }
 
-function defaultRunCommand(command: string, args: string[]): string {
+function runCommandAsync(command: string, args: string[], options: RunCommandOptions = {}): Promise<string> {
+  const resolvedCommand = command === "python3" ? `${BACKTESTER_CWD}/.venv/bin/python` : command;
+
+  return new Promise((resolvePromise, rejectPromise) => {
+    const child = spawn(resolvedCommand, args, {
+      cwd: BACKTESTER_CWD,
+      env: { ...process.env, ...(options.env ?? {}) },
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (chunk) => { stdout += chunk.toString(); });
+    child.stderr.on("data", (chunk) => { stderr += chunk.toString(); });
+
+    let timer: NodeJS.Timeout | undefined;
+    if (options.timeoutMs && options.timeoutMs > 0) {
+      timer = setTimeout(() => {
+        child.kill("SIGTERM");
+      }, options.timeoutMs);
+    }
+
+    child.on("error", (error) => {
+      if (timer) clearTimeout(timer);
+      rejectPromise(error);
+    });
+
+    child.on("close", (code, signal) => {
+      if (timer) clearTimeout(timer);
+      if (signal) {
+        rejectPromise(new Error(`${command} terminated by ${signal}`));
+        return;
+      }
+      if (code !== 0) {
+        rejectPromise(new Error(stderr || stdout || `${command} failed`));
+        return;
+      }
+      resolvePromise(stdout.trim());
+    });
+  });
+}
+
+function getChunkSize(strategy: "CANSLIM" | "Dip Buyer"): number {
+  const raw =
+    strategy === "CANSLIM"
+      ? process.env.TRADING_SCAN_CHUNK_SIZE_CANSLIM ?? process.env.TRADING_SCAN_CHUNK_SIZE
+      : process.env.TRADING_SCAN_CHUNK_SIZE_DIP ?? process.env.TRADING_SCAN_CHUNK_SIZE;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 0;
+  return Math.round(parsed);
+}
+
+function getChunkParallelism(strategy: "CANSLIM" | "Dip Buyer"): number {
+  const raw =
+    strategy === "CANSLIM"
+      ? process.env.TRADING_SCAN_CHUNK_PARALLELISM_CANSLIM ?? process.env.TRADING_SCAN_CHUNK_PARALLELISM
+      : process.env.TRADING_SCAN_CHUNK_PARALLELISM_DIP ?? process.env.TRADING_SCAN_CHUNK_PARALLELISM;
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return 1;
+  return Math.max(1, Math.round(parsed));
+}
+
+async function getDeterministicUniverse(
+  limit: number,
+  runCommand: (command: string, args: string[], options?: RunCommandOptions) => string | Promise<string>,
+): Promise<string[]> {
+  const code = [
+    "import json",
+    "from advisor import TradingAdvisor",
+    "u = TradingAdvisor().screener.get_universe()",
+    `print(json.dumps(list(u)[:${limit}]))`,
+  ].join("; ");
+  const raw = await Promise.resolve(runCommand("python3", ["-c", code], { timeoutMs: 120_000 }));
+  const parsed = JSON.parse(raw);
+  return Array.isArray(parsed) ? parsed.map((v) => String(v)) : [];
+}
+
+function chunkArray<T>(items: T[], chunkSize: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += chunkSize) out.push(items.slice(i, i + chunkSize));
+  return out;
+}
+
+function buildMergedStrategyOutput(name: "CANSLIM" | "Dip Buyer", outputs: string[], universe: string[], scanLimit: number): string {
+  const summaries = outputs.map(parseSummaryCounts);
+  const allSignals = outputs.flatMap((output) => parseSignals(output));
+  const marketLine = outputs.map((output) => parseMarketLine(output).marketLine).find(Boolean);
+  const statusLine = outputs.map((output) => parseMarketLine(output).statusLine).find(Boolean);
+  const common = outputs.map(parseCommonDiagnostics);
+  const blockerCandidates = common.map((x) => x.blockerLine).filter(Boolean);
+  const blockerSamples = common.map((x) => x.blockerSamplesLine).filter(Boolean);
+  const primaryStatus = outputs
+    .map((output) => output.split(/\r?\n/).find((line) => line.startsWith("Status:")))
+    .find(Boolean);
+  const primaryMarket = outputs
+    .map((output) => output.split(/\r?\n/).find((line) => line.startsWith("Market:")))
+    .find(Boolean);
+  const dipDiagnostics = name === "Dip Buyer" ? outputs.map(parseDipDiagnostics) : [];
+
+  const candidatesEvaluated = summaries.reduce((sum, item) => sum + item.candidatesEvaluated, 0);
+  const scanned = summaries.reduce((sum, item) => sum + item.scanned, 0);
+  const thresholdPassed = summaries.reduce((sum, item) => sum + item.thresholdPassed, 0);
+  const buyCount = allSignals.filter((signal) => signal.action === "BUY").length;
+  const watchCount = allSignals.filter((signal) => signal.action === "WATCH").length;
+  const noBuyCount = allSignals.filter((signal) => signal.action === "NO_BUY").length;
+  const topNames = Array.from(new Set(allSignals.map((signal) => signal.ticker))).slice(0, 3);
+  const scannedCount = scanned > 0 ? scanned : universe.length || scanLimit;
+
+  const lines = [`${name} Scan`, primaryMarket ?? marketLine ?? "Market: correction — no new positions"];
+  lines.push(primaryStatus ?? statusLine ?? "Status: unavailable");
+  if (name === "Dip Buyer") {
+    const macroGateLine = dipDiagnostics.map((x) => x.macroGateLine).find(Boolean);
+    const hyNoteLine = dipDiagnostics.map((x) => x.hyNoteLine).find(Boolean);
+    const dipProfileLine = dipDiagnostics.map((x) => x.dipProfileLine).find(Boolean);
+    if (macroGateLine) lines.push(macroGateLine);
+    if (hyNoteLine) lines.push(hyNoteLine);
+    if (dipProfileLine) lines.push(dipProfileLine);
+  }
+
+  lines.push(
+    `Summary: scanned ${scannedCount} | evaluated ${candidatesEvaluated} | threshold-passed ${thresholdPassed} | BUY ${buyCount} | WATCH ${watchCount} | NO_BUY ${noBuyCount}`,
+  );
+  lines.push(`Top names considered: ${(topNames.length ? topNames : universe.slice(0, 3)).join(", ") || "none"}`);
+
+  if (buyCount === 0 && watchCount === 0) {
+    const fallback = name === "CANSLIM" ? "no names cleared the CANSLIM threshold" : "no names cleared the Dip Buyer threshold";
+    const reason = blockerCandidates[0]?.replace(/^Blockers:\s*/i, "") ?? fallback;
+    lines.push(`Why no buys: ${reason}`);
+  } else {
+    if (blockerCandidates[0]) lines.push(blockerCandidates[0]!);
+    if (blockerSamples[0]) lines.push(blockerSamples[0]!);
+    for (const signal of allSignals.slice(0, 8)) lines.push(formatSignalLine(signal));
+  }
+
+  if (noBuyCount > 0 && !blockerCandidates[0]) {
+    lines.push(`Blockers: NO_BUY ${noBuyCount}`);
+  }
+
+  return lines.join("\n").trim();
+}
+
+async function runChunkedStrategy(
+  name: "CANSLIM" | "Dip Buyer",
+  scriptName: "canslim_alert.py" | "dipbuyer_alert.py",
+  limit: number,
+  deps: Pick<PipelineDeps, "runCommand" | "getUniverse">,
+): Promise<string> {
+  const runCommand = deps.runCommand;
+  const scanLimit = getScanLimit(name);
+  const chunkSize = Math.min(getChunkSize(name) || scanLimit, scanLimit);
+  const timeoutMs = Number(
+    name === "CANSLIM"
+      ? process.env.TRADING_SCAN_TIMEOUT_MS_CANSLIM ?? 360_000
+      : process.env.TRADING_SCAN_TIMEOUT_MS_DIP ?? 180_000,
+  );
+
+  if (chunkSize <= 0 || scanLimit <= chunkSize) {
+    return Promise.resolve(
+      runCommand(
+        "python3",
+        [scriptName, "--limit", String(limit), "--min-score", "6", "--universe-size", String(scanLimit)],
+        { timeoutMs },
+      ),
+    );
+  }
+
+  const universe = await deps.getUniverse(scanLimit);
+  const chunks = chunkArray(universe, chunkSize);
+  const parallelism = Math.min(getChunkParallelism(name), chunks.length || 1);
+  const tempDir = await mkdtemp(join(tmpdir(), `${name.toLowerCase().replace(/\s+/g, "-")}-chunks-`));
+
+  try {
+    const outputs: string[] = [];
+    for (let i = 0; i < chunks.length; i += parallelism) {
+      const batch = chunks.slice(i, i + parallelism);
+      console.error(`[${name}] batch ${Math.floor(i / parallelism) + 1}/${Math.ceil(chunks.length / parallelism)} starting (${batch.length} chunk(s))`);
+      const results = await Promise.all(batch.map(async (symbols, batchIndex) => {
+        const chunkNumber = i + batchIndex + 1;
+        console.error(`[${name}] chunk ${chunkNumber}/${chunks.length} starting (${symbols.length} symbols): ${symbols.join(", ")}`);
+        const file = join(tempDir, `chunk-${i + batchIndex}.txt`);
+        await writeFile(file, `${symbols.join("\n")}\n`, "utf8");
+        const output = await Promise.resolve(
+          runCommand(
+            "python3",
+            [scriptName, "--limit", String(limit), "--min-score", "6", "--universe-size", String(symbols.length)],
+            {
+              timeoutMs,
+              env: {
+                TRADING_PRIORITY_FILE: file,
+                TRADING_INCLUDE_WATCHLIST_PRIORITY: "0",
+              },
+            },
+          ),
+        );
+        console.error(`[${name}] chunk ${chunkNumber}/${chunks.length} done`);
+        return output;
+      }));
+      outputs.push(...results);
+      console.error(`[${name}] batch ${Math.floor(i / parallelism) + 1}/${Math.ceil(chunks.length / parallelism)} done`);
+    }
+    return buildMergedStrategyOutput(name, outputs, universe, scanLimit);
+  } finally {
+    await rm(tempDir, { recursive: true, force: true });
+  }
+}
+
+function defaultRunCommand(command: string, args: string[], options: RunCommandOptions = {}): string {
   const resolvedCommand = command === "python3" ? `${BACKTESTER_CWD}/.venv/bin/python` : command;
 
   const result = spawnSync(resolvedCommand, args, {
     cwd: BACKTESTER_CWD,
     encoding: "utf8",
-    env: process.env,
+    env: { ...process.env, ...(options.env ?? {}) },
+    timeout: options.timeoutMs,
   });
+
+  if (result.error) {
+    throw result.error;
+  }
 
   if (result.status !== 0) {
     throw new Error(result.stderr || result.stdout || `${command} failed`);
@@ -438,6 +657,7 @@ function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): stri
 export async function runTradingPipeline(deps?: Partial<PipelineDeps>): Promise<string> {
   const runCommand = deps?.runCommand ?? defaultRunCommand;
   const council = deps?.council ?? (async (alertText: string) => runTradingCouncil(alertText));
+  const getUniverse = deps?.getUniverse ?? ((limit: number) => getDeterministicUniverse(limit, runCommand));
 
   loadBacktesterEnv();
   ensurePythonModuleAvailable("dotenv", { optional: true });
@@ -446,8 +666,8 @@ export async function runTradingPipeline(deps?: Partial<PipelineDeps>): Promise<
   const canslimLimit = getScanLimit("CANSLIM");
   const dipLimit = getScanLimit("Dip Buyer");
 
-  const canslimOutput = runCommand("python3", ["canslim_alert.py", "--limit", String(canslimLimit), "--min-score", "6"]);
-  const dipOutput = runCommand("python3", ["dipbuyer_alert.py", "--limit", String(dipLimit), "--min-score", "6"]);
+  const canslimOutput = await runChunkedStrategy("CANSLIM", "canslim_alert.py", 8, { runCommand, getUniverse });
+  const dipOutput = await runChunkedStrategy("Dip Buyer", "dipbuyer_alert.py", 8, { runCommand, getUniverse });
 
   const canslimSummary = parseSummaryCounts(canslimOutput);
   const dipSummary = parseSummaryCounts(dipOutput);
