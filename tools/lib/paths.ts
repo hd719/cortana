@@ -10,7 +10,14 @@ export function getScriptDir(importMetaUrl: string): string {
 }
 
 export function findRepoRoot(startDir?: string): string {
-  return startDir ?? process.env.CORTANA_SOURCE_REPO ?? process.cwd();
+  const cwd = process.cwd();
+  if (startDir) {
+    const absoluteStart = path.resolve(startDir);
+    if (absoluteStart === cwd || absoluteStart.startsWith(`${cwd}${path.sep}`)) {
+      return cwd;
+    }
+  }
+  return process.env.CORTANA_SOURCE_REPO ?? cwd;
 }
 
 export function repoRoot(): string {
