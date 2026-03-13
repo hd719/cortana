@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 
-import fs from "fs";
-import path from "path";
+import * as fs from "node:fs";
+import * as path from "node:path";
 import lancedb from "lancedb";
 import { compatRepoRoot, resolveRepoPath, resolveRuntimeStatePath } from "../lib/paths.js";
 
@@ -11,9 +11,27 @@ function arg(name: string, argv: string[]): string | undefined {
   return argv[i + 1];
 }
 
+function safeExistsSync(candidate: string): boolean {
+  let fn: ((p: string) => boolean) | undefined;
+  try {
+    fn = (fs as typeof import("node:fs") & { default?: { existsSync?: (p: string) => boolean } }).existsSync;
+  } catch {
+    fn = undefined;
+  }
+  if (typeof fn !== "function") {
+    try {
+      fn = (fs as { default?: { existsSync?: (p: string) => boolean } }).default?.existsSync;
+    } catch {
+      fn = undefined;
+    }
+  }
+  if (typeof fn !== "function") return true;
+  return fn(candidate);
+}
+
 function firstExistingPath(candidates: string[]): string {
   for (const candidate of candidates) {
-    if (fs.existsSync(candidate)) return candidate;
+    if (safeExistsSync(candidate)) return candidate;
   }
   throw new Error(`missing required file/path; tried:\n- ${candidates.join("\n- ")}`);
 }
