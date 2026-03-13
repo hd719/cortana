@@ -1120,3 +1120,12 @@ Because this repository is public:
 - [ ] No secrets/tokens in diffs
 - [ ] No accidental local paths that reveal sensitive context beyond operational need
 - [ ] Public-safe wording for all examples
+
+## Stable Ops Routing
+
+Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.
+
+- Another specialist can execute the underlying work.
+- User-visible ownership, prompt language, and delivery routing stay Monitor-labeled.
+- If this contract changes, update `HEARTBEAT.md`, `docs/agent-routing.md`, `docs/operating-rules.md`, `README.md`, and `config/cron/jobs.json` together.
+

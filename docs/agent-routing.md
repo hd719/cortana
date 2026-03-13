@@ -227,3 +227,8 @@ If you need to restrict which agents can talk to each other, use `tools.agentToA
 ### Migration note
 
 If an older config still uses `routing.agentToAgent`, move it to `tools.agentToAgent`.
+
+
+## Stable Ops Routing
+
+Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.

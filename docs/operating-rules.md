@@ -268,3 +268,8 @@ Execution plans make epics durable and resumable across sessions. Treat them as 
 - Any session can read `plans/active/` to quickly understand the state of ongoing epics and resume work **without reconstructing intent** from scratch.
 
 Execution plans are the source of truth for epic-level context; the task board tracks granular tasks, and git tracks code.
+
+
+## Stable Ops Routing
+
+Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.

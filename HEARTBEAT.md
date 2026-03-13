@@ -117,3 +117,8 @@ Otherwise: Cortana remains silent (`HEARTBEAT_OK` behavior preserved).
 - **23:00–06:00 ET:** default silent unless urgent.
 - Urgent/P1 failures may still alert.
 - Auto-heal operations may run silently.
+
+
+## Stable Ops Routing
+
+Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.

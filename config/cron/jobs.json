@@ -85,7 +85,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nCreate Hamel's end-of-day newsletter digest from today's Gmail newsletters.\nSteps:\n1) Run: gog --account hameldesai3@gmail.com gmail search 'newer_than:1d (category:updates OR from:substack OR list:)' --max 20 --json\n2) Keep newsletter senders only; group by sender (max 5 senders, max 3 items/sender).\n3) Include Gmail deep links: https://mail.google.com/mail/u/0/#inbox/<messageId>\n4) If none, send a short 'no newsletters today' note.\n\nFormat prefix: \ud83d\udcf0 Newsletter - Daily Digest\nDelivery is MANUAL: send with message tool (channel=telegram, target=8171372724, accountId=monitor) exactly once; do not rely on announce.\nAfter sending, return one-line confirmation only.",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nRouting owner:\n- Monitor is the user-facing owner lane for inbox/email ops.\n- Healthy/no-news path must stay silent as NO_REPLY.\n\nCreate Hamel's end-of-day newsletter digest from today's Gmail newsletters.\nSteps:\n1) Run: gog --account hameldesai3@gmail.com gmail search 'newer_than:1d (category:updates OR from:substack OR list:)' --max 20 --json\n2) Keep newsletter senders only; group by sender (max 5 senders, max 3 items/sender).\n3) Include Gmail deep links: https://mail.google.com/mail/u/0/#inbox/<messageId>\n4) If none, return exactly NO_REPLY. Do not send a 'no newsletters today' note.\n\nFormat prefix: \ud83d\udcf0 Newsletter - Daily Digest\nDelivery is MANUAL: send with message tool (channel=telegram, target=8171372724, accountId=monitor) exactly once; do not rely on announce.\nAfter sending, return one-line confirmation only.",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
@@ -152,7 +152,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "PREFIX: \u23f0 Calendar - Event Reminder\nDELIVERY: send via message tool (action=send, channel=telegram, target=8171372724).\nTimezone: America/New_York.\n\nRun:\ngog --account hameldesai3@gmail.com calendar events \"60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com\" --from today --to tomorrow --json\n\nRules:\n- Use only events that start TODAY (ET). Skip tomorrow/later and all-day events.\n- Compute minutes-until-start from now.\n- Send only when in reminder windows: 55-65 (60-min) or 25-35 (30-min).\n- Deduplicate using ~/.openclaw/state/calendar-reminders-sent.json.\n- Format: \u23f0 [Event Title] in [X] minutes\\nWhen: HH:MM AM/PM ET\n- If no reminders due or any failure: output NOTHING.\n\nAfter generating output, send it with message tool. If nothing to report, return NO_REPLY and do not send.",
+        "message": "Routing owner:\n- Monitor is the user-facing owner lane for inbox/email ops.\n- Healthy/no-reminder path must stay silent as NO_REPLY.\n\nPREFIX: \u23f0 Calendar - Event Reminder\nDELIVERY: send via message tool (action=send, channel=telegram, target=8171372724).\nTimezone: America/New_York.\n\nRun:\ngog --account hameldesai3@gmail.com calendar events \"60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com\" --from today --to tomorrow --json\n\nRules:\n- Use only events that start TODAY (ET). Skip tomorrow/later and all-day events.\n- Compute minutes-until-start from now.\n- Send only when in reminder windows: 55-65 (60-min) or 25-35 (30-min).\n- Deduplicate using ~/.openclaw/state/calendar-reminders-sent.json.\n- Format: \u23f0 [Event Title] in [X] minutes\\nWhen: HH:MM AM/PM ET\n- If no reminders are due: return exactly NO_REPLY and do not send a message.\n- If the calendar read fails: return exactly NO_REPLY unless there is an actionable Monitor-owned maintenance alert.\n\nAfter generating output, send it with message tool. If nothing to report, return NO_REPLY and do not send.",
         "model": "openai-codex/gpt-5.1",
         "timeoutSeconds": 90
       },
@@ -1446,7 +1446,7 @@
       "payload": {
         "kind": "agentTurn",
         "timeoutSeconds": 90,
-        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nRun /Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal.\nPolicy:\n- If recovered after retry, keep it quiet unless the script explicitly needs escalation.\n- If fallback_manual_required appears, send one concise Monitor-owned alert with run context.\n- Otherwise return exactly NO_REPLY."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nRun /Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal.\nPolicy:\n- If recovered after retry, keep it quiet unless the script explicitly needs escalation.\n- If fallback_manual_required appears, send one concise Monitor-owned alert with run context.\n- Otherwise return exactly NO_REPLY.\n- Monitor is the user-facing owner lane for maintenance alerts.\n- This is a quiet maintenance watcher: healthy/recovered paths return exactly NO_REPLY.\n"
       },
       "delivery": {
         "mode": "none",
@@ -1581,7 +1581,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Run /Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents.ts --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal. Use aggregated/deduped alert behavior from latest watchdog logic.\n\nRouting:\n- This watcher is Monitor-owned on the user-facing side.\n- If no actionable failures, return exactly NO_REPLY.\n- If the script emits or routes an alert, keep it Monitor-labeled only.",
+        "message": "Run /Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents.ts --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal. Use aggregated/deduped alert behavior from latest watchdog logic.\n\nRouting:\n- This watcher is Monitor-owned on the user-facing side.\n- If no actionable failures, return exactly NO_REPLY.\n- If the script emits or routes an alert, keep it Monitor-labeled only.\n- Monitor is the user-facing owner lane for maintenance alerts.\n- This is a quiet maintenance watcher: healthy/recovered paths return exactly NO_REPLY.\n",
         "timeoutSeconds": 90
       },
       "delivery": {
@@ -1690,7 +1690,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts preflight`.\nRouting:\n- This preflight is Monitor-owned on the user-facing side.\n- If it exits 0: return exactly NO_REPLY.\n- If it exits non-zero: do not add extra commentary; the script already alerted Hamel through the Monitor guard. Return exactly NO_REPLY.",
+        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts preflight`.\nRouting:\n- This preflight is Monitor-owned on the user-facing side.\n- If it exits 0: return exactly NO_REPLY.\n- If it exits non-zero: do not add extra commentary; the script already alerted Hamel through the Monitor guard. Return exactly NO_REPLY.\n- Monitor is the user-facing owner lane for maintenance alerts.\n- This is a quiet maintenance watcher: healthy paths return exactly NO_REPLY.\n",
         "model": "openai-codex/gpt-5.3-codex"
       },
       "state": {
@@ -1717,7 +1717,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts sweep`.\nRouting:\n- This sweep is Monitor-owned on the user-facing side.\n- If it exits 0: return exactly NO_REPLY.\n- If it exits non-zero: do not add extra commentary; the script already retried/alerted through the Monitor guard. Return exactly NO_REPLY.",
+        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts sweep`.\nRouting:\n- This sweep is Monitor-owned on the user-facing side.\n- If it exits 0: return exactly NO_REPLY.\n- If it exits non-zero: do not add extra commentary; the script already retried/alerted through the Monitor guard. Return exactly NO_REPLY.\n- Monitor is the user-facing owner lane for maintenance alerts.\n- This is a quiet maintenance watcher: healthy/recovered paths return exactly NO_REPLY.\n",
         "model": "openai-codex/gpt-5.3-codex"
       },
       "state": {
@@ -1744,7 +1744,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/notifications/flush-digest.ts 8171372724`.\nRouting:\n- This flush is Monitor-owned on the user-facing side.\n- If it reports no digest file or empty digest, return exactly NO_REPLY.\n- If it sends successfully, return exactly NO_REPLY.",
+        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/notifications/flush-digest.ts 8171372724`.\nRouting:\n- This flush is Monitor-owned on the user-facing side.\n- If it reports no digest file or empty digest, return exactly NO_REPLY.\n- If it sends successfully, return exactly NO_REPLY.\n- Monitor is the user-facing owner lane for maintenance alerts.\n- This is a quiet maintenance watcher: empty/healthy paths return exactly NO_REPLY.\n",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
@@ -1771,7 +1771,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/monitoring/autonomy-ops.ts`.\n- If it prints nothing, return exactly NO_REPLY.\n- If it prints an operator surface, send that output exactly once with the `message` tool to telegram target 8171372724 using accountId `monitor`, then return exactly NO_REPLY.\nHealthy paths stay quiet; unchanged operator states should not resend.",
+        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/monitoring/autonomy-ops.ts`.\nRouting:\n- Monitor is the user-facing owner lane for maintenance alerts.\n- This is a quiet maintenance watcher: unchanged healthy paths return exactly NO_REPLY.\n- If it prints nothing, return exactly NO_REPLY.\n- If it prints an operator surface, send that output exactly once with the `message` tool to telegram target 8171372724 using accountId `monitor`, then return exactly NO_REPLY.\nHealthy paths stay quiet; unchanged operator states should not resend.",
         "model": "openai-codex/gpt-5.4"
       },
       "state": {
