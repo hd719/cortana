@@ -79,12 +79,12 @@ describe("autonomy-ops", () => {
     consoleSpy.restore();
 
     const output = consoleSpy.logs.join("\n");
-    expect(output).toContain("🧭 Cortana Operator Surface");
-    expect(output).toContain("operator state: attention");
-    expect(output).toContain("auto-fixed: gateway");
-    expect(output).toContain("degraded: channel:escalate");
-    expect(output).toContain("waiting on Hamel: 1 escalated check(s)");
-    expect(output).toContain("family-critical tracked: family_critical");
+    expect(output).toContain("🧭 Autonomy - Operator Attention");
+    expect(output).toContain("Posture: balanced");
+    expect(output).toContain("Auto-fixed: gateway");
+    expect(output).toContain("Degraded: channel:escalate");
+    expect(output).toContain("Waiting on Hamel: 1 escalated check(s)");
+    expect(output).toContain("Family-critical failures: 0");
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
@@ -125,7 +125,7 @@ describe("autonomy-ops", () => {
     await flushModuleSideEffects();
     secondConsole.restore();
 
-    expect(firstConsole.logs.join("\n")).toContain("🧭 Cortana Operator Surface");
+    expect(firstConsole.logs.join("\n")).toContain("🧭 Autonomy - Operator Attention");
     expect(secondConsole.logs).toEqual([]);
     expect(secondExit).not.toHaveBeenCalled();
   });
