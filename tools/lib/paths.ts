@@ -11,8 +11,19 @@ export function getScriptDir(importMetaUrl: string): string {
 }
 
 function safeExistsSync(filePath: string): boolean {
-  const fn = (fs as typeof import("node:fs") & { default?: { existsSync?: (p: string) => boolean } }).existsSync
-    ?? (fs as { default?: { existsSync?: (p: string) => boolean } }).default?.existsSync;
+  let fn: ((p: string) => boolean) | undefined;
+  try {
+    fn = (fs as typeof import("node:fs") & { default?: { existsSync?: (p: string) => boolean } }).existsSync;
+  } catch {
+    fn = undefined;
+  }
+  if (typeof fn !== "function") {
+    try {
+      fn = (fs as { default?: { existsSync?: (p: string) => boolean } }).default?.existsSync;
+    } catch {
+      fn = undefined;
+    }
+  }
   if (typeof fn !== "function") return false;
   return fn(filePath);
 }
