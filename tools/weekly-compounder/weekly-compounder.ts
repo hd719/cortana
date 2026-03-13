@@ -1,12 +1,15 @@
 #!/usr/bin/env npx tsx
 import { spawnSync } from "child_process";
+import { resolveRepoPath } from "../lib/paths.js";
+
+const ROOT_DIR = resolveRepoPath();
 
 const script = String.raw`set -euo pipefail
 
 # Weekly Compounder Scoreboard
 # Builds a Telegram-ready weekly brief for Time / Health / Wealth / Career.
 
-ROOT="/Users/hd/openclaw"
+ROOT="${WEEKLY_COMPOUNDER_ROOT:?missing WEEKLY_COMPOUNDER_ROOT}"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 
@@ -207,7 +210,11 @@ PY
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  const r = spawnSync("bash", ["-lc", script, "script", ...args], { encoding: "utf8" });
+  const r = spawnSync("bash", ["-lc", script, "script", ...args], {
+    encoding: "utf8",
+    cwd: ROOT_DIR,
+    env: { ...process.env, WEEKLY_COMPOUNDER_ROOT: ROOT_DIR },
+  });
   if (r.stdout) process.stdout.write(r.stdout);
   if (r.stderr) process.stderr.write(r.stderr);
   process.exit(r.status ?? 1);

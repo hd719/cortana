@@ -1,11 +1,15 @@
 #!/usr/bin/env npx tsx
 import { spawnSync } from "child_process";
+import { externalRepoRoot, resolveRepoPath } from "../lib/paths.js";
+
+const CACHE_DIR = resolveRepoPath("tools", "trade-alerts", "cache");
+const SCANNER_SCRIPT = `${externalRepoRoot()}/backtester/canslim_alert.py`;
 
 const script = String.raw`set -u
 
-SCRIPT="/Users/hd/Developer/cortana-external/backtester/canslim_alert.py"
+SCRIPT="${CANSLIM_SCANNER_SCRIPT:?missing CANSLIM_SCANNER_SCRIPT}"
 PYTHON_BIN="python3"
-CACHE_DIR="/Users/hd/openclaw/tools/trade-alerts/cache"
+CACHE_DIR="${CANSLIM_CACHE_DIR:?missing CANSLIM_CACHE_DIR}"
 OUT_FILE="$CACHE_DIR/canslim-latest.txt"
 META_FILE="$CACHE_DIR/canslim-latest.meta.json"
 
@@ -37,7 +41,15 @@ exit 0
 
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
-  const r = spawnSync("bash", ["-lc", script, "script", ...args], { encoding: "utf8" });
+  const r = spawnSync("bash", ["-lc", script, "script", ...args], {
+    encoding: "utf8",
+    cwd: resolveRepoPath(),
+    env: {
+      ...process.env,
+      CANSLIM_CACHE_DIR: CACHE_DIR,
+      CANSLIM_SCANNER_SCRIPT: SCANNER_SCRIPT,
+    },
+  });
   if (r.stdout) process.stdout.write(r.stdout);
   if (r.stderr) process.stderr.write(r.stderr);
   process.exit(r.status ?? 1);

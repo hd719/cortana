@@ -96,6 +96,28 @@ describe("runtime-repo-drift-monitor", () => {
     expect(output).toContain("NO_REPLY");
   });
 
+  it("defaults runtime repo to the source repo when no runtime override is provided", async () => {
+    const sourceRepo = {
+      branch: "main",
+      upstream: "origin/main",
+      head: "abc123",
+      originHead: "abc123",
+      remoteUrl: "git@github-cortana:hd719/cortana.git",
+      clean: true,
+    };
+
+    seedRepos({
+      "/source": sourceRepo,
+      "/Users/hd/Developer/cortana": sourceRepo,
+    });
+
+    const output = await runMonitor(["--json", "--source-repo", "/source"]);
+    const payload = JSON.parse(output);
+    expect(payload.status).toBe("healthy");
+    expect(payload.actionable ?? []).toEqual([]);
+    expect(payload.missing ?? []).toEqual([]);
+  });
+
   it("flags runtime lag behind the source deploy commit", async () => {
     seedRepos({
       "/source": {

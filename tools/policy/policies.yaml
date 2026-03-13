@@ -36,7 +36,7 @@
       "escalation_tier": 1,
       "requires_approval": false,
       "risk_base": 20,
-      "allowed_paths": ["/Users/hd/openclaw"],
+      "allowed_paths": ["/Users/hd/Developer/cortana"],
       "tags": ["internal"]
     },
     {

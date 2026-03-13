@@ -7,11 +7,11 @@
 
   <key>ProgramArguments</key>
   <array>
-    <string>/Users/hd/openclaw/tools/trade-alerts/canslim-precompute.sh</string>
+    <string>/Users/hd/Developer/cortana/tools/trade-alerts/canslim-precompute.sh</string>
   </array>
 
   <key>WorkingDirectory</key>
-  <string>/Users/hd/openclaw/tools/trade-alerts</string>
+  <string>/Users/hd/Developer/cortana/tools/trade-alerts</string>
 
   <key>StartCalendarInterval</key>
   <array>
