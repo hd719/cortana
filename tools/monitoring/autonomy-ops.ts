@@ -71,23 +71,34 @@ function writeState(fingerprint: string): void {
   fs.writeFileSync(STATE_FILE, JSON.stringify({ fingerprint }, null, 2));
 }
 
-export function renderAutonomyOpsSummary(summary: ReturnType<typeof buildAutonomyOpsSummary>): string {
-  const lines = [
-    "🧭 Cortana Operator Surface",
-    `- posture: ${summary.posture}`,
-    `- operator state: ${summary.operatorState}`,
-    `- auto-fixed: ${summary.autoFixed.length ? summary.autoFixed.join(", ") : "none"}`,
-    `- degraded: ${summary.degraded.length ? summary.degraded.join(", ") : "none"}`,
-    `- waiting on Hamel: ${summary.waitingOnHamel.length ? summary.waitingOnHamel.join(", ") : "none"}`,
-    `- blocked/exceeded authority: ${summary.blocked.length ? summary.blocked.join(", ") : "none"}`,
-    `- family-critical tracked: ${summary.familyCritical.tracked.length ? summary.familyCritical.tracked.join(", ") : "none"}`,
-    `- family-critical failures: ${summary.familyCritical.failures}`,
-    `- counts: autoRemediated=${summary.counts.autoRemediated} escalated=${summary.counts.escalated} needsHuman=${summary.counts.needsHuman} actionable=${summary.counts.actionable} suppressed=${summary.counts.suppressed}`,
-    `- scorecard(7d): attempts=${summary.scorecard.counts.autoFixAttempted} succeeded=${summary.scorecard.counts.autoFixSucceeded} escalations=${summary.scorecard.counts.escalations} blocked=${summary.scorecard.counts.blockedOrExceededAuthority} stale-suppressed=${summary.scorecard.counts.staleReportSuppressions} family-critical=${summary.scorecard.counts.familyCriticalFailures}`,
-    `- active follow-ups: ${summary.scorecard.activeFollowUps.length ? summary.scorecard.activeFollowUps.map((item) => `${item.system}${item.taskId ? `#${item.taskId}` : ''}`).join(', ') : 'none'}`,
-  ];
-  return lines.join("\n");
+function summarizeList(values: string[], maxItems = 3): string {
+  if (!values.length) return "none";
+  const shown = values.slice(0, maxItems);
+  const remainder = values.length - shown.length;
+  return remainder > 0 ? `${shown.join(", ")} (+${remainder} more)` : shown.join(", ");
 }
+
+export function renderAutonomyOpsSummary(summary: ReturnType<typeof buildAutonomyOpsSummary>): string {
+  const activeFollowUps = summary.scorecard.activeFollowUps
+    .slice(0, 3)
+    .map((item) => `${item.system}${item.taskId ? `#${item.taskId}` : ""}`);
+
+  const lines = [
+    `🧭 Autonomy - Operator ${summary.operatorState[0].toUpperCase()}${summary.operatorState.slice(1)}`,
+    `Posture: ${summary.posture}`,
+    `Auto-fixed: ${summarizeList(summary.autoFixed)}`,
+    `Degraded: ${summarizeList(summary.degraded)}`,
+    `Waiting on Hamel: ${summarizeList(summary.waitingOnHamel)}`,
+    `Blocked: ${summarizeList(summary.blocked)}`,
+    `Family-critical failures: ${summary.familyCritical.failures}`,
+    `Counts: fixed ${summary.counts.autoRemediated}, escalated ${summary.counts.escalated}, needs-human ${summary.counts.needsHuman}`,
+    `Follow-ups: ${activeFollowUps.length ? activeFollowUps.join(", ") : "none"}`,
+  ];
+
+  const rendered = lines.join("\n");
+  return rendered.length <= 1200 ? rendered : `${rendered.slice(0, 1160)}\n…trimmed`;
+}
+
 
 function main() {
   const summary = buildAutonomyOpsSummary();

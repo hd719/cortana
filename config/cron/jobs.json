@@ -1771,7 +1771,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/monitoring/autonomy-ops.ts`.\nRouting:\n- Monitor is the user-facing owner lane for maintenance alerts.\n- This is a quiet maintenance watcher: unchanged healthy paths return exactly NO_REPLY.\n- If it prints nothing, return exactly NO_REPLY.\n- If it prints an operator surface, send that output exactly once with the `message` tool to telegram target 8171372724 using accountId `monitor`, then return exactly NO_REPLY.\nHealthy paths stay quiet; unchanged operator states should not resend.",
+        "message": "Run `npx tsx /Users/hd/Developer/cortana/tools/monitoring/autonomy-ops.ts`.\nRouting:\n- Monitor is the user-facing owner lane for maintenance alerts.\n- This is a quiet maintenance watcher: unchanged healthy paths return exactly NO_REPLY.\n- If it prints nothing, return exactly NO_REPLY.\n- If it prints an operator surface, send that output exactly once with the `message` tool to telegram target 8171372724 using accountId `monitor`, then return exactly NO_REPLY.\nHealthy paths stay quiet; unchanged operator states should not resend.\n- Never send files or attachments. Send plain Telegram text only.\n- Keep the sent summary under 1200 characters; summarize instead of dumping raw operator output.\n",
         "model": "openai-codex/gpt-5.4"
       },
       "state": {
