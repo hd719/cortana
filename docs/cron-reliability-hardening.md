@@ -26,11 +26,11 @@ This update bundles low-risk reliability improvements across cron scheduling and
 
 5. **Runtime-vs-repo drift monitor**
    - Added `tools/monitoring/runtime-repo-drift-monitor.ts`
-   - Read-only checksum comparison for runtime vs repo snapshots.
+   - Read-only git-aware comparison for source repo vs runtime checkout health.
    - Alerts only on detected drift; `NO_REPLY` when healthy.
 
 ## Operational notes
 
 - Monitors are read-only and non-destructive.
 - No direct edits to `~/.openclaw` runtime files were made.
-- To apply repo cron changes to runtime, use existing sync flow (runtime remains source of truth).
+- To apply repo cron changes to runtime, deploy from source repo into the runtime checkout and sync runtime state from tracked config.

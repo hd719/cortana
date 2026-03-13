@@ -8,6 +8,7 @@
     "smoke:post-merge": "npx vitest run tests/qa/validate-system.test.ts --no-file-parallelism",
     "ops:repo-hygiene": "bash tools/repo/repo-auto-sync.sh",
     "ops:post-merge": "bash tools/repo/post-pr-cleanup.sh",
+    "ops:deploy-runtime": "bash tools/deploy/sync-runtime-from-cortana.sh",
     "ops:routing-drift": "npx tsx tools/monitoring/ops-routing-drift-check.ts",
     "release:done-gates": "npx tsx tools/release/done-gates.ts",
     "session:lifecycle": "npx --yes tsx tools/session/session-lifecycle-policy.ts",

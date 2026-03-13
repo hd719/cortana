@@ -90,16 +90,19 @@ After `npm update -g openclaw`:
 2. Verify: `openclaw status | grep "app"` (CLI and gateway versions must match)
 
 Post-update script handles:
-- Syncing `~/.openclaw/cron/jobs.json` ↔ `/Users/hd/openclaw/config/cron/jobs.json` (copy runtime → repo when content differs, then restore symlink)
+- Syncing `/Users/hd/openclaw/config/cron/jobs.json` -> `~/.openclaw/cron/jobs.json` while preserving runtime-only state fields
 - `openclaw gateway install --force`
 - `openclaw gateway restart`
 
-## Cron Config Sync (Runtime → Repo)
+## Runtime Deploy Model
 
-- **Runtime is source of truth**: `~/.openclaw/cron/jobs.json` (gateway writes state here; overwrites symlinks).
-- **Repo is backup**: `config/cron/jobs.json` — synced from runtime via `tools/cron/sync-cron-to-repo.sh`.
+- **Source repo**: `/Users/hd/Developer/cortana`
+- **Runtime repo**: `/Users/hd/openclaw`
+- **Deploy command**: `/Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh`
+- **Runtime state file**: `~/.openclaw/cron/jobs.json`
+- **Tracked cron source**: `/Users/hd/openclaw/config/cron/jobs.json`
 - **Do NOT symlink** `jobs.json` — gateway destroys symlinks on restart.
-- Edit runtime directly for cron changes. Sync to repo afterward.
+- Change tracked cron config in the repo, then deploy. Do not back-sync runtime edits into source.
 
 ## Weather
 

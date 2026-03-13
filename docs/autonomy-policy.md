@@ -79,7 +79,7 @@ Triggers:
   - These lanes should not silently degrade.
   - If the first bounded remediation does not restore verified delivery, escalate.
 - Session lifecycle auto-remediation is active through `tools/session/session-lifecycle-policy.ts`.
-- Runtime drift suppression / actionable-only reporting is active through `tools/monitoring/runtime-repo-drift-monitor.ts`.
+- Runtime deploy drift detection / actionable-only reporting is active through `tools/monitoring/runtime-repo-drift-monitor.ts`.
 - Bounded service recovery is active through `tools/monitoring/autonomy-remediation.ts` (gateway restart once with verification, channel recovery via existing delivery hooks, critical cron single-retry recovery, and session lifecycle cleanup verification).
 - Operator visibility: run `npx tsx tools/monitoring/autonomy-status.ts` for a compact executive summary of what was auto-fixed, what failed then recovered, what still needs Hamel, and what exceeded authority or was deferred.
 - Operator surface: run `npx tsx tools/monitoring/autonomy-ops.ts` for one clean operator view across status, rollout state, family-critical handling, and blocked/deferred attention items. It suppresses unchanged repeat chatter so stale copies do not keep paging.

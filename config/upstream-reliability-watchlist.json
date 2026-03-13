@@ -49,16 +49,16 @@
     },
     {
       "key": "runtime-repo-drift",
-      "title": "Runtime/repo drift and deploy warning gaps",
+      "title": "Source/runtime deploy drift and warning gaps",
       "url": "https://github.com/openclaw/openclaw/issues",
       "local_workarounds": [
         {
-          "name": "runtime-repo drift monitor",
+          "name": "runtime deploy drift monitor",
           "path": "tools/monitoring/runtime-repo-drift-monitor.ts"
         },
         {
-          "name": "deploy drift warning",
-          "path": "tools/release/deploy-drift-warning.sh"
+          "name": "controlled runtime deploy",
+          "path": "tools/deploy/sync-runtime-from-cortana.sh"
         }
       ]
     }

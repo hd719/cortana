@@ -9,7 +9,7 @@
 
 ## Checks
 
-1. Symlink integrity (`~/.openclaw/cron/jobs.json` -> `config/cron/jobs.json`)
+1. Runtime cron deploy integrity (`config/cron/jobs.json` semantically aligned with `~/.openclaw/cron/jobs.json`)
 2. Cron definitions (`config/cron/jobs.json` required fields + missing `model` flag)
 3. PostgreSQL connectivity and required `cortana` tables
 4. Critical executable tools (required + optional-if-present)
@@ -30,7 +30,7 @@
 # detailed output
 ./tools/qa/validate-system.sh --verbose
 
-# auto-fix recoverable issues (currently: symlink repair)
+# auto-fix recoverable issues (currently: runtime cron sync)
 ./tools/qa/validate-system.sh --fix
 ```
 

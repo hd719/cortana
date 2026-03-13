@@ -1,4 +1,4 @@
-# Repo Hygiene Ops (cortana + cortana-external)
+# Repo Hygiene Ops (cortana + openclaw runtime)
 
 ## Pre-flight branch hygiene (before coding)
 
@@ -30,6 +30,28 @@ This uses the same safe hygiene engine as routine repo overwatch:
 - remove obvious `/tmp` worktrees for merged branches
 - suppress volatile runtime-state false dirt
 - verify clean and only report actionable/risky leftovers
+
+## Controlled runtime deploy
+
+Deploy source `main` into the runtime checkout:
+
+```bash
+/Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh
+```
+
+This is git-aware and non-destructive:
+- source repo must be clean, on `main`, and synced with `origin/main`
+- runtime repo must be clean, on `main`, and fast-forwardable
+- runtime moves by git fast-forward, not blind file copying
+- cron state is deployed repo -> runtime with volatile fields preserved
+
+Standard merged-and-deploy flow:
+
+```bash
+/Users/hd/Developer/cortana/tools/repo/post-merge-sync.sh
+```
+
+This runs `post-pr-cleanup.sh` first, then the controlled runtime deploy.
 
 ## Drift watchdog (manual)
 
@@ -79,7 +101,7 @@ If a subagent run returns empty output or aborts:
 
 ## Deploy-time drift warning
 
-Run before deploy/restart to warn (non-blocking) if runtime and repo differ:
+Run before deploy/restart to warn (non-blocking) if source and runtime differ:
 
 ```bash
 /Users/hd/Developer/cortana/tools/release/deploy-drift-warning.sh

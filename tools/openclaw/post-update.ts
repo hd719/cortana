@@ -45,30 +45,22 @@ function ensureRegularRuntimeJobs(runtimeJobs: string): void {
 }
 
 function syncCronConfig(runtimeJobs: string, repoJobs: string): void {
-  const syncShellScript = resolveRepoPath("tools", "cron", "sync-cron-to-repo.sh");
-  const syncTsScript = resolveRepoPath("tools", "cron", "sync-cron-to-repo.ts");
-
-  if (isExecutable(syncShellScript)) {
-    log("Syncing cron config via shell script: runtime → repo");
-    const syncRes = spawnSync(syncShellScript, { stdio: "inherit" });
-    if (syncRes.status !== 0) {
-      throw new Error(`sync script failed with status ${syncRes.status ?? 1}`);
-    }
-    return;
-  }
+  const syncTsScript = resolveRepoPath("tools", "cron", "sync-cron-to-runtime.ts");
 
   if (fs.existsSync(syncTsScript)) {
-    log("Syncing cron config via tsx script: runtime → repo");
-    const syncRes = spawnSync("npx", ["tsx", syncTsScript], { stdio: "inherit" });
+    log("Syncing cron config via tsx script: repo → runtime state");
+    const syncRes = spawnSync("npx", ["tsx", syncTsScript, "--repo-root", resolveRepoPath(), "--runtime-home", os.homedir()], {
+      stdio: "inherit",
+    });
     if (syncRes.status !== 0) {
       throw new Error(`sync ts script failed with status ${syncRes.status ?? 1}`);
     }
     return;
   }
 
-  log("Sync script not found, copying jobs.json manually");
-  fs.mkdirSync(path.dirname(repoJobs), { recursive: true });
-  fs.copyFileSync(runtimeJobs, repoJobs);
+  log("Sync script not found, copying repo jobs.json into runtime state");
+  fs.mkdirSync(path.dirname(runtimeJobs), { recursive: true });
+  fs.copyFileSync(repoJobs, runtimeJobs);
 }
 
 function buildDetachedLaunchdRestartScript(uid: string, label: string, plistPath: string, helperLog: string): string {
@@ -137,7 +129,7 @@ function validatePostUpdate(runtimeJobs: string, repoJobs: string): void {
     throw new Error(`validation failed:\n- ${problems.join("\n- ")}`);
   }
 
-  log("Validation OK: jobs files exist, runtime jobs is regular, gateway status is reachable, detached helper includes verification.");
+  log("Validation OK: repo/runtime jobs files exist, runtime jobs is regular, gateway status is reachable, detached helper includes verification.");
 }
 
 async function main(): Promise<number> {

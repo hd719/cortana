@@ -45,7 +45,7 @@ Current shape after the 2026-03-10 cleanup:
 
 Authoritative exact schedules live in:
 - `config/cron/jobs.json`
-- runtime mirror: `~/.openclaw/cron/jobs.json`
+- deployed runtime state: `~/.openclaw/cron/jobs.json`
 
 ### 0.2 Cleanup outcomes from this pass
 
@@ -291,7 +291,7 @@ Every task dispatch must include these fields in plain language:
 | Claim type | Required verification |
 |---|---|
 | “CI is green” | `gh pr checks <pr>` and/or run status with no failed jobs |
-| “Cron routing fixed” | runtime `~/.openclaw/cron/jobs.json` + repo `config/cron/jobs.json` aligned and tested |
+| “Cron routing fixed” | repo `config/cron/jobs.json` deployed to runtime `~/.openclaw/cron/jobs.json` and verified |
 | “Gateway healthy” | `openclaw gateway status` returns running + responsive |
 | “Task done” | concrete artifact exists (PR URL, commit hash, output file, delivered message) |
 | “No failures” | relevant monitor check executed and no failed conditions in output |
@@ -325,7 +325,7 @@ After routing/protocol changes, verify:
 - [ ] `SOUL.md` reflects current command protocol.
 - [ ] `docs/operating-rules.md` and `docs/agent-routing.md` are consistent.
 - [ ] `AGENTS.md` pointers match canonical behavior.
-- [ ] `config/cron/jobs.json` synced with runtime `~/.openclaw/cron/jobs.json` if routing changes touched cron.
+- [ ] `config/cron/jobs.json` deployed to runtime `~/.openclaw/cron/jobs.json` if routing changes touched cron.
 - [ ] No newly introduced duplicate relay path.
 - [ ] No status claim made without evidence.
 
@@ -541,7 +541,7 @@ graph TD
 ├── MEMORY.md           # Curated long-term memory (MAIN session only)
 ├── HEARTBEAT.md        # Heartbeat rotation and proactive ops
 ├── README.md           # This file
-├── TOOLS.md            # Machine-specific runtime notes & symlinks
+├── TOOLS.md            # Machine-specific runtime notes & deploy paths
 ├── config/             # Cron + runtime config
 ├── docs/               # Operating rules, heartbeat/task-board docs, etc.
 ├── tools/              # Internal automation tools (bash/py/ts, etc.)
@@ -572,11 +572,12 @@ Key files:
 - `docs/heartbeat-sql-reference.md` – canonical SQL snippets for heartbeats
 - `docs/memory-compaction-policy.md` – guardrails and retention policy for memory compaction
 - `docs/subagent-reliability-runbook.md` – incident runbook for sub-agent abort/timeout recovery
+- `docs/runtime-deploy-model.md` – source repo vs runtime checkout deploy contract
 
 ### 3.2 `config/`
 
 - `config/cron/jobs.json` – **single source of truth** for OpenClaw cron jobs
-  - Symlinked to `~/.openclaw/cron/jobs.json` (see `TOOLS.md`)
+  - deployed into `~/.openclaw/cron/jobs.json` during runtime deploy (see `TOOLS.md`)
 
 ### 3.3 `tools/`
 
@@ -843,16 +844,17 @@ The current autonomy stabilization work gives Cortana:
 - `docs/autonomy-policy.md` – autonomy doctrine, boundaries, remediation model, rollout/drill entrypoints
 - `docs/autonomy-stabilization-overview.md` – plain-English map of the autonomy stack built across Steps 1–11
 - `docs/autonomy-stabilization-intake.md` – how any agent should log new autonomy issues into the standing stabilization epic
-- `TOOLS.md` – environment‑specific notes and symlinks
+- `TOOLS.md` – environment‑specific notes and deploy paths
 - `config/cron/jobs.json` – OpenClaw cron definitions
 - `config/autonomy-lanes.json` – posture + family-critical / never-miss lane configuration
 - `memory/YYYY-MM-DD.md` – daily memory logs
 
-### Symlinks (repo → runtime mappings)
+### Runtime Deploy Paths
 
-- `~/.openclaw/cron/jobs.json` ↔ `/Users/hd/openclaw/config/cron/jobs.json`
-
-Policy: any repo/runtime symlink must be listed in `TOOLS.md` and referenced here.
+- Source repo: `/Users/hd/Developer/cortana`
+- Runtime repo: `/Users/hd/openclaw`
+- Runtime state: `~/.openclaw/cron/jobs.json`
+- Deploy command: `/Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh`
 
 ---
 
@@ -872,6 +874,15 @@ Rules:
 - Keep docs in sync with shipped behavior
 - Commit/push every meaningful change
 - No long‑lived, drifting branches
+
+### 7.1 Runtime deploy contract
+
+- Source repo: `/Users/hd/Developer/cortana`
+- Controlled runtime/backup checkout: `/Users/hd/openclaw`
+- Deploy with: `/Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh`
+- Standard merged-and-deploy flow: `/Users/hd/Developer/cortana/tools/repo/post-merge-sync.sh`
+
+Full operator doc: [`docs/runtime-deploy-model.md`](/private/tmp/cortana-runtime-deploy/docs/runtime-deploy-model.md)
 
 ---
 
@@ -1043,8 +1054,8 @@ openclaw sessions --all-agents --active 120
 ### 13.1 Routing/config verification
 
 ```bash
-# Compare runtime and repo cron config
-shasum ~/.openclaw/cron/jobs.json /Users/hd/openclaw/config/cron/jobs.json
+# Verify runtime cron deploy state
+npx tsx /Users/hd/Developer/cortana/tools/cron/sync-cron-to-runtime.ts --check --repo-root /Users/hd/openclaw --runtime-home /Users/hd
 
 # Show delivery account routing snippets
 rg -n 'accountId|DELIVERY ROUTING' /Users/hd/openclaw/config/cron/jobs.json

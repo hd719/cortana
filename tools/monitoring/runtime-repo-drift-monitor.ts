@@ -1,358 +1,253 @@
 #!/usr/bin/env -S npx tsx
 import fs from "node:fs";
-import os from "node:os";
-import path from "node:path";
-import crypto from "node:crypto";
 import { execSync } from "node:child_process";
+
+type Args = {
+  dryRun: boolean;
+  json: boolean;
+  sourceRepo: string;
+  runtimeRepo: string;
+  sourceBranch: string;
+  runtimeBranch: string;
+};
 
 type Check = {
   label: string;
-  runtime: string;
   repo: string;
-};
-
-type Args = {
-  autoPr: boolean;
-  dryRun: boolean;
-  repoRoot: string;
-  base: string;
-  branchPrefix: string;
-  json: boolean;
 };
 
 type DriftAssessment = {
   check: Check;
-  runtimeHash: string | null;
-  repoHash: string | null;
-  rawMismatch: boolean;
   actionable: boolean;
   reason: string;
+  details?: Record<string, string>;
 };
 
-type CooldownEntry = {
-  label?: string;
-  untilMs?: number;
-  reason?: string;
+type RepoState = {
+  repo: string;
+  branch: string;
+  upstream: string;
+  head: string;
+  originHead: string;
+  remoteUrl: string;
+  clean: boolean;
 };
 
-type CooldownState = {
-  entries?: CooldownEntry[];
-};
-
-const VOLATILE_KEYS = new Set([
-  "state",
-  "updatedAtMs",
-  "lastRunAtMs",
-  "nextRunAtMs",
-  "lastStatus",
-  "lastRunStatus",
-  "lastDurationMs",
-  "lastDeliveryStatus",
-  "lastDelivered",
-  "consecutiveErrors",
-  "reconciledAt",
-  "reconciledReason",
-  "runningAtMs",
-  "lastError",
-]);
-
-const DEFAULT_COOLDOWN_PATH = path.join(os.homedir(), ".openclaw", "state", "runtime-repo-drift-cooldown.json");
+const DEFAULT_SOURCE_REPO = process.env.CORTANA_SOURCE_REPO || "/Users/hd/Developer/cortana";
+const DEFAULT_RUNTIME_REPO = process.env.CORTANA_RUNTIME_REPO || "/Users/hd/openclaw";
 
 function parseArgs(): Args {
   const argv = process.argv.slice(2);
-  const scriptRepoRoot = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..");
 
-  let autoPr = process.env.DRIFT_AUTO_PR === "1";
   let dryRun = false;
-  let repoRoot = process.env.DRIFT_REPO_ROOT || scriptRepoRoot;
-  let base = process.env.DRIFT_BASE || "main";
-  let branchPrefix = process.env.DRIFT_BRANCH_PREFIX || "chore/runtime-repo-drift-sync";
   let json = false;
+  let sourceRepo = DEFAULT_SOURCE_REPO;
+  let runtimeRepo = DEFAULT_RUNTIME_REPO;
+  let sourceBranch = "main";
+  let runtimeBranch = "main";
 
   for (let i = 0; i < argv.length; i += 1) {
     const arg = argv[i];
-    if (arg === "--auto-pr") autoPr = true;
-    else if (arg === "--dry-run") dryRun = true;
+    if (arg === "--dry-run") dryRun = true;
     else if (arg === "--json") json = true;
-    else if (arg === "--repo-root" && argv[i + 1]) repoRoot = argv[++i];
-    else if (arg === "--base" && argv[i + 1]) base = argv[++i];
-    else if (arg === "--branch-prefix" && argv[i + 1]) branchPrefix = argv[++i];
+    else if ((arg === "--source-repo" || arg === "--repo-root") && argv[i + 1]) sourceRepo = argv[++i];
+    else if (arg === "--runtime-repo" && argv[i + 1]) runtimeRepo = argv[++i];
+    else if (arg === "--source-branch" && argv[i + 1]) sourceBranch = argv[++i];
+    else if (arg === "--runtime-branch" && argv[i + 1]) runtimeBranch = argv[++i];
+    else if (arg === "--auto-pr" || arg === "--base" || arg === "--branch-prefix") {
+      if (argv[i + 1] && arg !== "--auto-pr" && !argv[i + 1].startsWith("--")) i += 1;
+    }
   }
 
-  return { autoPr, dryRun, json, repoRoot: path.resolve(repoRoot), base, branchPrefix };
-}
-
-function digestBytes(input: string): string {
-  return crypto.createHash("sha256").update(input).digest("hex");
-}
-
-function digest(file: string): string | null {
-  try {
-    const b = fs.readFileSync(file);
-    return crypto.createHash("sha256").update(b).digest("hex");
-  } catch {
-    return null;
-  }
+  return { dryRun, json, sourceRepo, runtimeRepo, sourceBranch, runtimeBranch };
 }
 
 function run(cmd: string, cwd: string): string {
-  return execSync(cmd, { cwd, stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" }).trim();
+  return execSync(cmd, {
+    cwd,
+    stdio: ["ignore", "pipe", "pipe"],
+    encoding: "utf8",
+  }).trim();
 }
 
-function stripVolatile(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(stripVolatile);
-  if (!value || typeof value !== "object") return value;
-
-  const out: Record<string, unknown> = {};
-  for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
-    if (VOLATILE_KEYS.has(key)) continue;
-    out[key] = stripVolatile(inner);
-  }
-  return out;
+function repoExists(repo: string): boolean {
+  return fs.existsSync(`${repo}/.git`);
 }
 
-function normalizedDigest(file: string): string | null {
-  try {
-    const raw = fs.readFileSync(file, "utf8");
-    const parsed = JSON.parse(raw);
-    return digestBytes(JSON.stringify(stripVolatile(parsed)));
-  } catch {
-    return null;
-  }
-}
-
-function readJson(file: string): unknown {
-  return JSON.parse(fs.readFileSync(file, "utf8"));
-}
-
-function readCooldownState(nowMs: number): Map<string, CooldownEntry> {
-  try {
-    const raw = readJson(process.env.DRIFT_COOLDOWN_PATH || DEFAULT_COOLDOWN_PATH) as CooldownState;
-    const entries = Array.isArray(raw?.entries) ? raw.entries : [];
-    return new Map(
-      entries
-        .filter((entry) => typeof entry?.label === "string" && typeof entry?.untilMs === "number" && entry.untilMs > nowMs)
-        .map((entry) => [String(entry.label), entry])
-    );
-  } catch {
-    return new Map();
-  }
-}
-
-function activeCooldownReason(label: string, nowMs: number): string | null {
-  const entry = readCooldownState(nowMs).get(label);
-  if (!entry || typeof entry.untilMs !== "number") return null;
-  const minutes = Math.max(1, Math.ceil((entry.untilMs - nowMs) / 60000));
-  const suffix = entry.reason ? ` (${entry.reason})` : "";
-  return `intentional runtime patch cooldown active ~${minutes}m${suffix}`;
-}
-
-function syncCronJobsSemantically(runtimeFile: string, repoFile: string): void {
-  const runtimeRaw = readJson(runtimeFile) as { jobs?: Array<Record<string, unknown>>; [key: string]: unknown };
-  const repoRaw = readJson(repoFile) as { jobs?: Array<Record<string, unknown>>; [key: string]: unknown };
-
-  const runtimeJobs = Array.isArray(runtimeRaw.jobs) ? runtimeRaw.jobs : [];
-  const repoJobs = Array.isArray(repoRaw.jobs) ? repoRaw.jobs : [];
-  const runtimeById = new Map(runtimeJobs.map((job) => [String(job.id ?? ""), job]));
-
-  const mergedJobs = repoJobs.map((repoJob) => {
-    const id = String(repoJob.id ?? "");
-    const runtimeJob = runtimeById.get(id);
-    if (!runtimeJob) return repoJob;
-
-    const repoSemantic = stripVolatile(repoJob);
-    const runtimeSemantic = stripVolatile(runtimeJob);
-    const repoDigest = digestBytes(JSON.stringify(repoSemantic));
-    const runtimeDigest = digestBytes(JSON.stringify(runtimeSemantic));
-
-    if (repoDigest === runtimeDigest) return repoJob;
-
-    const merged: Record<string, unknown> = { ...repoJob };
-
-    for (const [key, value] of Object.entries(runtimeJob)) {
-      if (VOLATILE_KEYS.has(key)) continue;
-      merged[key] = value;
-    }
-
-    return merged;
-  });
-
-  const merged = { ...repoRaw, jobs: mergedJobs };
-  fs.writeFileSync(repoFile, `${JSON.stringify(merged, null, 2)}\n`, "utf8");
-}
-
-function syncFileForRepo(check: Check): void {
-  if (check.label === "cron/jobs.json") {
-    syncCronJobsSemantically(check.runtime, check.repo);
-    return;
-  }
-  fs.copyFileSync(check.runtime, check.repo);
-}
-
-function assess(check: Check): DriftAssessment {
-  const runtimeHash = digest(check.runtime);
-  const repoHash = digest(check.repo);
-  if (!runtimeHash || !repoHash) {
-    return {
-      check,
-      runtimeHash,
-      repoHash,
-      rawMismatch: Boolean(runtimeHash !== repoHash),
-      actionable: false,
-      reason: "missing file(s)",
-    };
-  }
-
-  const rawMismatch = runtimeHash !== repoHash;
-  if (!rawMismatch) {
-    return { check, runtimeHash, repoHash, rawMismatch: false, actionable: false, reason: "no drift" };
-  }
-
-  const runtimeNormalized = normalizedDigest(check.runtime);
-  const repoNormalized = normalizedDigest(check.repo);
-  if (runtimeNormalized && repoNormalized && runtimeNormalized === repoNormalized) {
-    return {
-      check,
-      runtimeHash,
-      repoHash,
-      rawMismatch: true,
-      actionable: false,
-      reason: "runtime-only state drift suppressed",
-    };
-  }
-
-  const cooldown = activeCooldownReason(check.label, Date.now());
-  if (cooldown) {
-    return {
-      check,
-      runtimeHash,
-      repoHash,
-      rawMismatch: true,
-      actionable: false,
-      reason: cooldown,
-    };
-  }
-
+function collectRepoState(repo: string, branch: string): RepoState {
+  run(`git fetch origin ${branch} --prune --quiet`, repo);
   return {
-    check,
-    runtimeHash,
-    repoHash,
-    rawMismatch: true,
-    actionable: true,
-    reason: "actionable config drift",
+    repo,
+    branch: run("git rev-parse --abbrev-ref HEAD", repo),
+    upstream: run("git rev-parse --abbrev-ref --symbolic-full-name @{u}", repo),
+    head: run("git rev-parse HEAD", repo),
+    originHead: run(`git rev-parse origin/${branch}`, repo),
+    remoteUrl: run("git remote get-url origin", repo),
+    clean: run("git status --porcelain --untracked-files=all", repo) === "",
   };
 }
 
-function syncAndOpenPr(assessments: DriftAssessment[], args: Args): string {
-  const drifted = assessments.filter((a) => a.actionable);
-  if (!drifted.length) return "";
+function assessSource(state: RepoState, expectedBranch: string): DriftAssessment[] {
+  const check: Check = { label: "source-repo", repo: state.repo };
+  const findings: DriftAssessment[] = [];
 
-  const stamp = new Date().toISOString().replace(/[-:TZ.]/g, "").slice(0, 12);
-  const branch = `${args.branchPrefix}-${stamp}`;
-
-  if (!args.dryRun) {
-    run(`git checkout ${args.base}`, args.repoRoot);
-    run(`git pull --ff-only origin ${args.base}`, args.repoRoot);
-    run(`git checkout -b ${branch}`, args.repoRoot);
+  if (state.branch !== expectedBranch) {
+    findings.push({
+      check,
+      actionable: true,
+      reason: "source repo is not on the deploy branch",
+      details: { expected: expectedBranch, actual: state.branch },
+    });
   }
 
-  const copied: string[] = [];
-  for (const assessment of drifted) {
-    const rel = path.relative(args.repoRoot, assessment.check.repo);
-    copied.push(rel);
-    if (!args.dryRun) {
-      syncFileForRepo(assessment.check);
-      run(`git add ${JSON.stringify(rel)}`, args.repoRoot);
-    }
+  if (state.upstream !== `origin/${expectedBranch}`) {
+    findings.push({
+      check,
+      actionable: true,
+      reason: "source repo is not tracking origin/main",
+      details: { expected: `origin/${expectedBranch}`, actual: state.upstream },
+    });
   }
 
-  if (args.dryRun) {
-    return `DRY_RUN auto-pr: would create ${branch} with ${copied.join(", ")}`;
+  if (!state.clean) {
+    findings.push({
+      check,
+      actionable: true,
+      reason: "source repo has local changes",
+    });
   }
 
-  const hasChanges = run("git diff --cached --name-only", args.repoRoot);
-  if (!hasChanges) {
-    run("git checkout -", args.repoRoot);
-    run(`git branch -D ${branch}`, args.repoRoot);
-    return "auto-pr: no effective file changes after sync";
+  if (state.head !== state.originHead) {
+    findings.push({
+      check,
+      actionable: true,
+      reason: "source repo is not synced with origin/main",
+      details: { head: state.head, originHead: state.originHead },
+    });
   }
 
-  run(`git commit -m ${JSON.stringify("chore(config): sync actionable runtime drift to repo")}`, args.repoRoot);
-  run(`git push -u origin ${branch}`, args.repoRoot);
-
-  const title = "chore(config): sync actionable runtime drift to repo";
-  const body = [
-    "## Summary",
-    "Automated sync of actionable runtime config drift into repo backup files.",
-    "",
-    "## Files",
-    ...copied.map((f) => `- ${f}`),
-    "",
-    "Volatile runtime-only state fields were suppressed by runtime-repo-drift-monitor.ts.",
-    "cron/jobs.json is merged semantically so runtime state churn does not leak into the PR.",
-  ].join("\n");
-
-  const prUrl = run(
-    `gh pr create --base ${args.base} --head ${branch} --title ${JSON.stringify(title)} --body ${JSON.stringify(body)}`,
-    args.repoRoot,
-  );
-
-  return `auto-pr opened: ${prUrl}`;
+  return findings;
 }
 
-function main() {
+function assessRuntime(state: RepoState, source: RepoState, expectedBranch: string): DriftAssessment[] {
+  const check: Check = { label: "runtime-repo", repo: state.repo };
+  const findings: DriftAssessment[] = [];
+
+  if (state.remoteUrl !== source.remoteUrl) {
+    findings.push({
+      check,
+      actionable: true,
+      reason: "runtime repo remote does not match source repo remote",
+      details: { sourceRemote: source.remoteUrl, runtimeRemote: state.remoteUrl },
+    });
+  }
+
+  if (state.branch !== expectedBranch) {
+    findings.push({
+      check,
+      actionable: true,
+      reason: "runtime repo is not on main",
+      details: { expected: expectedBranch, actual: state.branch },
+    });
+  }
+
+  if (state.upstream !== `origin/${expectedBranch}`) {
+    findings.push({
+      check,
+      actionable: true,
+      reason: "runtime repo is not tracking origin/main",
+      details: { expected: `origin/${expectedBranch}`, actual: state.upstream },
+    });
+  }
+
+  if (!state.clean) {
+    findings.push({
+      check,
+      actionable: true,
+      reason: "runtime repo has local changes",
+    });
+  }
+
+  if (state.head !== source.head) {
+    let fastForwardable = false;
+    try {
+      run(`git merge-base --is-ancestor ${state.head} ${source.head}`, state.repo);
+      fastForwardable = true;
+    } catch {
+      fastForwardable = false;
+    }
+
+    findings.push({
+      check,
+      actionable: true,
+      reason: fastForwardable
+        ? "runtime repo is behind the source deploy commit"
+        : "runtime repo diverged from the source deploy commit",
+      details: { runtimeHead: state.head, sourceHead: source.head },
+    });
+  }
+
+  return findings;
+}
+
+function main(): void {
   const args = parseArgs();
+  void args.dryRun;
 
-  const checks: Check[] = [
-    {
-      label: "cron/jobs.json",
-      runtime: path.join(os.homedir(), ".openclaw", "cron", "jobs.json"),
-      repo: path.join(args.repoRoot, "config", "cron", "jobs.json"),
-    },
-    {
-      label: "agent-profiles.json",
-      runtime: path.join(os.homedir(), ".openclaw", "agent-profiles.json"),
-      repo: path.join(args.repoRoot, "config", "agent-profiles.json"),
-    },
-  ];
+  const missing: DriftAssessment[] = [];
+  if (!repoExists(args.sourceRepo)) {
+    missing.push({
+      check: { label: "source-repo", repo: args.sourceRepo },
+      actionable: false,
+      reason: "missing repo",
+    });
+  }
+  if (!repoExists(args.runtimeRepo)) {
+    missing.push({
+      check: { label: "runtime-repo", repo: args.runtimeRepo },
+      actionable: false,
+      reason: "missing repo",
+    });
+  }
 
-  const assessments = checks.map(assess);
-  const actionable = assessments.filter((a) => a.actionable);
-  const suppressed = assessments.filter((a) => a.rawMismatch && !a.actionable && a.reason !== "missing file(s)");
-  const missing = assessments.filter((a) => a.reason === "missing file(s)");
-
-  if (args.json) {
-    console.log(
-      JSON.stringify({
-        status: actionable.length || missing.length ? "needs_action" : "healthy",
-        actionable,
-        suppressed,
-        missing,
-      })
-    );
+  if (missing.length) {
+    const payload = { status: "needs_action", actionable: [], suppressed: [], missing };
+    if (args.json) {
+      console.log(JSON.stringify(payload));
+      return;
+    }
+    console.log(["🧭 Runtime Deploy Drift", ...missing.map((item) => `- ${item.check.label}: ${item.reason}`)].join("\n"));
     return;
   }
 
-  if (!actionable.length && !missing.length) {
+  const sourceState = collectRepoState(args.sourceRepo, args.sourceBranch);
+  const runtimeState = collectRepoState(args.runtimeRepo, args.runtimeBranch);
+  const actionable = [
+    ...assessSource(sourceState, args.sourceBranch),
+    ...assessRuntime(runtimeState, sourceState, args.runtimeBranch),
+  ];
+
+  const payload = {
+    status: actionable.length ? "needs_action" : "healthy",
+    actionable,
+    suppressed: [],
+    missing: [],
+  };
+
+  if (args.json) {
+    console.log(JSON.stringify(payload));
+    return;
+  }
+
+  if (!actionable.length) {
     console.log("NO_REPLY");
     return;
   }
 
-  const lines = ["🧭 Runtime/Repo Drift Detected"];
-  for (const item of actionable) lines.push(`- ${item.check.label}: ${item.reason}`);
-  for (const item of missing) lines.push(`- ${item.check.label}: ${item.reason}`);
-  if (suppressed.length) lines.push(`- suppressed drift: ${suppressed.map((s) => `${s.check.label} (${s.reason})`).join(", ")}`);
-
-  if (args.autoPr && actionable.length) {
-    try {
-      const result = syncAndOpenPr(assessments, args);
-      if (result) lines.push(`- ${result}`);
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      lines.push(`- auto-pr failed: ${msg}`);
-    }
+  const lines = ["🧭 Runtime Deploy Drift"];
+  for (const item of actionable) {
+    lines.push(`- ${item.check.label}: ${item.reason}`);
   }
-
   console.log(lines.join("\n"));
 }
 

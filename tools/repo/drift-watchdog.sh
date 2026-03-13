@@ -1,54 +1,22 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-REPO_ROOT="${REPO_ROOT:-/Users/hd/Developer}"
-REPOS=("$REPO_ROOT/cortana" "$REPO_ROOT/cortana-external")
+SOURCE_REPO="${SOURCE_REPO:-/Users/hd/Developer/cortana}"
+RUNTIME_REPO="${RUNTIME_REPO:-/Users/hd/openclaw}"
+MONITOR="${MONITOR:-/Users/hd/Developer/cortana/tools/monitoring/runtime-repo-drift-monitor.ts}"
 
-alerts=()
+if [[ ! -f "$MONITOR" ]]; then
+  echo "[repo-drift-watchdog] monitor missing: $MONITOR" >&2
+  exit 1
+fi
 
-for repo in "${REPOS[@]}"; do
-  name="$(basename "$repo")"
+output="$(npx --yes tsx "$MONITOR" --source-repo "$SOURCE_REPO" --runtime-repo "$RUNTIME_REPO")"
 
-  if [[ ! -d "$repo/.git" ]]; then
-    alerts+=("${name}:missing_repo")
-    continue
-  fi
-
-  pushd "$repo" >/dev/null
-
-  git fetch origin --prune --quiet || true
-
-  if ! git show-ref --verify --quiet refs/heads/main || ! git show-ref --verify --quiet refs/remotes/origin/main; then
-    alerts+=("${name}:missing_main_ref")
-    popd >/dev/null
-    continue
-  fi
-
-  read -r ahead behind < <(git rev-list --left-right --count main...origin/main)
-  tracked_dirty=$(git status --porcelain | awk 'substr($0,1,1)!="?" || substr($0,2,1)!="?"' | wc -l | tr -d ' ')
-  untracked=$(git status --porcelain | awk 'substr($0,1,1)=="?" && substr($0,2,1)=="?"' | wc -l | tr -d ' ')
-
-  if [[ "$ahead" -gt 0 || "$behind" -gt 0 || "$tracked_dirty" -gt 0 || "$untracked" -gt 0 ]]; then
-    alerts+=("${name}:ahead=${ahead},behind=${behind},dirty=${tracked_dirty},untracked=${untracked}")
-  fi
-
-  popd >/dev/null
-done
-
-if [[ "${#alerts[@]}" -eq 0 ]]; then
+if [[ "$output" == "NO_REPLY" ]]; then
   exit 0
 fi
 
 echo "[repo-drift-watchdog] drift detected:"
-for a in "${alerts[@]}"; do
-  echo " - $a"
-done
-
-# Optional automation: open a drift PR if enabled.
-if [[ "${DRIFT_AUTO_PR:-0}" == "1" ]]; then
-  if command -v npx >/dev/null 2>&1; then
-    npx --yes tsx /Users/hd/Developer/cortana/tools/monitoring/runtime-repo-drift-monitor.ts --auto-pr --repo-root /Users/hd/Developer/cortana || true
-  fi
-fi
+echo "$output"
 
 exit 1

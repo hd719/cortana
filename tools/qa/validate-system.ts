@@ -33,10 +33,29 @@ const REQUIRED_DB_TABLES = [
   "cortana_self_model",
 ];
 
+const VOLATILE_CRON_KEYS = new Set([
+  "state",
+  "updatedAtMs",
+  "lastRunAtMs",
+  "nextRunAtMs",
+  "lastStatus",
+  "lastRunStatus",
+  "lastDurationMs",
+  "lastDeliveryStatus",
+  "lastDelivered",
+  "consecutiveErrors",
+  "reconciledAt",
+  "reconciledReason",
+  "runningAtMs",
+  "lastError",
+]);
+
 const REQUIRED_TOOLS = [
   "tools/subagent-watchdog/check-subagents.sh",
   "tools/heartbeat/validate-heartbeat-state.sh",
   "tools/session-reconciler/reconcile-sessions.sh",
+  "tools/deploy/sync-runtime-from-cortana.sh",
+  "tools/cron/sync-cron-to-runtime.ts",
 ];
 
 const OPTIONAL_TOOLS = [
@@ -76,47 +95,78 @@ function isSymlink(filePath: string): boolean {
   }
 }
 
-function checkSymlink(fix: boolean): Check {
-  const check = makeCheck("symlink_integrity");
-  const expectedTarget = REPO_JOBS;
+function stripVolatile(value: any): any {
+  if (Array.isArray(value)) return value.map(stripVolatile);
+  if (!value || typeof value !== "object") return value;
+
+  const out: Record<string, any> = {};
+  for (const [key, inner] of Object.entries(value)) {
+    if (VOLATILE_CRON_KEYS.has(key)) continue;
+    out[key] = stripVolatile(inner);
+  }
+  return out;
+}
+
+function checkRuntimeCronState(fix: boolean): Check {
+  const check = makeCheck("runtime_cron_state");
   const exists = fs.existsSync(RUNTIME_JOBS) || isSymlink(RUNTIME_JOBS);
   const details: Json = {
     path: RUNTIME_JOBS,
-    expected_target: expectedTarget,
+    repo_path: REPO_JOBS,
     exists,
   };
 
+  if (!fs.existsSync(REPO_JOBS)) {
+    fail(check, "Repo cron jobs file is missing");
+    check.details = details;
+    return check;
+  }
+
+  if (!fs.existsSync(RUNTIME_JOBS)) {
+    fail(check, "Runtime cron jobs file is missing");
+    check.details = details;
+    return check;
+  }
+
   if (isSymlink(RUNTIME_JOBS)) {
-    const actualTarget = fs.readlinkSync(RUNTIME_JOBS);
-    const resolved = fs.existsSync(RUNTIME_JOBS) ? fs.realpathSync(RUNTIME_JOBS) : null;
-    details.actual_target = actualTarget;
-    details.resolved_target = resolved;
-    if (resolved !== expectedTarget) {
+    fail(check, "Runtime jobs.json must be a regular file, not a symlink");
+    check.details = details;
+    return check;
+  }
+
+  try {
+    const repoJobs = JSON.parse(fs.readFileSync(REPO_JOBS, "utf8"));
+    const runtimeJobs = JSON.parse(fs.readFileSync(RUNTIME_JOBS, "utf8"));
+    details.semantic_match = JSON.stringify(stripVolatile(repoJobs)) === JSON.stringify(stripVolatile(runtimeJobs));
+    if (!details.semantic_match) {
       if (fix) {
-        fs.mkdirSync(path.dirname(RUNTIME_JOBS), { recursive: true });
-        if (fs.existsSync(RUNTIME_JOBS) || isSymlink(RUNTIME_JOBS)) fs.unlinkSync(RUNTIME_JOBS);
-        fs.symlinkSync(REPO_JOBS, RUNTIME_JOBS);
-        details.fixed = true;
-        details.actual_target = REPO_JOBS;
-        details.resolved_target = REPO_JOBS;
+        const [rc, out, err] = run([
+          "npx",
+          "tsx",
+          path.join(REPO_ROOT, "tools", "cron", "sync-cron-to-runtime.ts"),
+          "--repo-root",
+          REPO_ROOT,
+          "--runtime-home",
+          os.homedir(),
+        ]);
+        details.fixed = rc === 0;
+        details.fix_stdout = out;
+        details.fix_stderr = err;
+        if (rc !== 0) {
+          fail(check, "Runtime cron sync fix failed");
+        } else {
+          const refreshed = JSON.parse(fs.readFileSync(RUNTIME_JOBS, "utf8"));
+          details.semantic_match = JSON.stringify(stripVolatile(repoJobs)) === JSON.stringify(stripVolatile(refreshed));
+          if (!details.semantic_match) {
+            fail(check, "Runtime cron sync fix completed but semantic drift remains");
+          }
+        }
       } else {
-        fail(check, "Symlink points to the wrong target");
+        fail(check, "Runtime cron config is not aligned with repo source config");
       }
-    } else if (!fs.existsSync(RUNTIME_JOBS)) {
-      fail(check, "Symlink exists but target is broken/missing");
     }
-  } else {
-    details.is_symlink = false;
-    if (fix) {
-      fs.mkdirSync(path.dirname(RUNTIME_JOBS), { recursive: true });
-      if (fs.existsSync(RUNTIME_JOBS)) fs.unlinkSync(RUNTIME_JOBS);
-      fs.symlinkSync(REPO_JOBS, RUNTIME_JOBS);
-      details.fixed = true;
-      details.actual_target = REPO_JOBS;
-      details.resolved_target = REPO_JOBS;
-    } else {
-      fail(check, "jobs.json is missing or not a symlink");
-    }
+  } catch (err) {
+    fail(check, `Invalid cron JSON: ${err instanceof Error ? err.message : String(err)}`);
   }
 
   check.details = details;
@@ -570,7 +620,7 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
 
   const checks: Check[] = [
-    checkSymlink(args.fix),
+    checkRuntimeCronState(args.fix),
     checkCronDefinitions(),
     checkDbConnectivity(),
     checkCriticalTools(),
