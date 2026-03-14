@@ -1,0 +1,43 @@
+# strategy: Trading market-session unified
+# run_id: 20260313-231956
+# started_at: 2026-03-13T23:19:56.483Z
+# completed_at: 2026-03-13T23:31:34.666Z
+# cwd: /Users/hd/Developer/cortana-external/backtester
+# command: node --import tsx ./tools/trading/trading-cron-alert.ts
+# resolved_commands:
+#   - /Users/hd/Developer/cortana-external/backtester/.venv/bin/python canslim_alert.py --limit 8 --min-score 6 --universe-size 20
+#   - /Users/hd/Developer/cortana-external/backtester/.venv/bin/python dipbuyer_alert.py --limit 8 --min-score 6 --universe-size 20
+# exit_code: 0
+# signal: null
+
+[stdout]
+📈 Trading Advisor - Unified Pipeline
+Run: 3/13/2026, 7:31:34 PM ET
+Market: correction — no new positions
+Market: correction — no new positions
+Regime/Gates: correction=NO | correction — no new positions | unavailable
+Diagnostics: symbols scanned 240 | candidates evaluated 0
+Blocker telemetry: guardrail blocks/downgrades 0
+Decision: NO_TRADE
+Confidence: 0.90 | Risk: LOW
+No-trade reason: No symbols passed scanner threshold.
+Summary: BUY 0 | WATCH 0 | NO_BUY 0
+CANSLIM: scanned 120 | evaluated 0 | threshold-passed 0 | emitted BUY 0 / WATCH 0 / NO_BUY 0
+Top blocker: No symbols passed scanner threshold.
+
+Dip Buyer: scanned 120 | evaluated 0 | threshold-passed 0 | emitted BUY 0 / WATCH 0 / NO_BUY 0
+Top blocker: No symbols passed scanner threshold.
+
+⚠️ Decision support only — strict risk gates unchanged.
+
+[stderr]
+
+
+[message]
+📈 Trading Advisor - Market Session Snapshot
+Decision: NO_TRADE | 0.90 | Risk: LOW
+Regime: correction=NO | correction — no new positions | unavailable
+Summary: BUY 0 | WATCH 0 | NO_BUY 0
+CANSLIM: BUY 0 | WATCH 0 | NO_BUY 0
+Dip Buyer: BUY 0 | WATCH 0 | NO_BUY 0
+Reason: No symbols passed scanner threshold.

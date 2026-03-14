@@ -626,6 +626,7 @@ Internal operator scripts, grouped by domain. Highlights:
 - **Finance/market**
   - `tools/market-intel/` – unified quote + X sentiment + portfolio overlay
   - `tools/trade-alerts/`, `tools/earnings-alert/` – trading/earnings pipelines
+  - `tools/trading/` – unified market-session scans, chunked full-universe backtest automation, notifier artifacts
 - **Fitness/behavioral**
   - `tools/fitness/` – Whoop/Tonal pipelines (via external fitness service)
   - `tools/behavioral-twin/` – pattern modeling for routines/sleep/etc.
@@ -682,6 +683,7 @@ Heartbeat rules live in `HEARTBEAT.md` and related docs/scripts:
   - Email (Gmail), calendar (CalDAV + Google), newsletters
   - Fitness: Whoop/Tonal sync and recovery/strain analysis
   - Market/news: stock market open/close, CANSLIM scans, earnings
+  - Trading automation supports a two-stage artifact flow (`tools/trading/run-backtest-compute.sh` -> `tools/trading/run-backtest-notify.sh`) for long-running or delayed-delivery scans without changing the current one-stage market-session alert by default
   - Memory consolidation, reflection, and learning
   - Cron health, tool health, budget, and proprioception
   - SAE Cross-Domain Reasoner re-enabled as a scheduled layer 15 minutes after World State Builder (7:15am, 1:15pm, 9:15pm ET) to connect sleep/work/markets into actionable insights
@@ -1135,4 +1137,3 @@ Monitor is the user-facing owner lane for inbox/email ops and operational mainte
 - Another specialist can execute the underlying work.
 - User-visible ownership, prompt language, and delivery routing stay Monitor-labeled.
 - If this contract changes, update `HEARTBEAT.md`, `docs/agent-routing.md`, `docs/operating-rules.md`, `README.md`, and `config/cron/jobs.json` together.
-

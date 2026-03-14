@@ -1,0 +1,13 @@
+# strategy: unnamed-strategy
+# run_id: 20260313-230229
+# started_at: 2026-03-13T23:02:29.914Z
+# completed_at: 2026-03-13T23:02:29.921Z
+# cwd: /Users/hd/Developer/cortana
+# command: /bin/sh -lc echo 'Set BACKTEST_COMPUTE_COMMAND to your real backtest command.'; exit 2
+# exit_code: 2
+
+[stdout]
+Set BACKTEST_COMPUTE_COMMAND to your real backtest command.
+
+
+[stderr]

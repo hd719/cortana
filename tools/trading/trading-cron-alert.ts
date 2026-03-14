@@ -4,8 +4,8 @@ import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
 import { runTradingPipeline, type RunCommandOptions } from "./trading-pipeline";
 
-const BACKTESTER_CWD = "/Users/hd/Developer/cortana-external/backtester";
-const PYTHON_BIN = resolve(BACKTESTER_CWD, ".venv/bin/python");
+export const BACKTESTER_CWD = "/Users/hd/Developer/cortana-external/backtester";
+export const PYTHON_BIN = resolve(BACKTESTER_CWD, ".venv/bin/python");
 const DEFAULT_SCAN_TIMEOUT_MS = 360_000;
 const DEFAULT_CRON_RELIABILITY_ENV = {
   TRADING_SCAN_CHUNK_SIZE_CANSLIM: "20",
@@ -18,6 +18,14 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.trunc(parsed);
+}
+
+export function resolveBacktesterCwd(env: NodeJS.ProcessEnv = process.env): string {
+  return env.BACKTEST_CWD || BACKTESTER_CWD;
+}
+
+export function resolvePythonBin(env: NodeJS.ProcessEnv = process.env): string {
+  return resolve(resolveBacktesterCwd(env), ".venv/bin/python");
 }
 
 export function applyTradingCronReliabilityDefaults(env: NodeJS.ProcessEnv = process.env): NodeJS.ProcessEnv {
@@ -40,15 +48,15 @@ function getScanTimeoutMs(scriptName: string): number {
   return base;
 }
 
-function boundedRunCommand(command: string, args: string[], options: RunCommandOptions = {}): string {
-  const resolvedCommand = command === "python3" ? PYTHON_BIN : command;
+export function boundedRunCommand(command: string, args: string[], options: RunCommandOptions = {}): string {
+  const resolvedCommand = command === "python3" ? resolvePythonBin() : command;
   const scriptName = args[0] ?? "";
   const timeoutMs = parsePositiveInt(String(options.timeoutMs ?? ""), getScanTimeoutMs(scriptName));
   const strategyName =
     scriptName === "dipbuyer_alert.py" ? "Dip Buyer" : scriptName === "canslim_alert.py" ? "CANSLIM" : scriptName || command;
 
   const result = spawnSync(resolvedCommand, args, {
-    cwd: BACKTESTER_CWD,
+    cwd: resolveBacktesterCwd(),
     encoding: "utf8",
     env: { ...process.env, ...(options.env ?? {}) },
     timeout: timeoutMs,

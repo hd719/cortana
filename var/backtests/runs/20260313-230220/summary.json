@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "runId": "20260313-230220",
+  "strategy": "unnamed-strategy",
+  "status": "failed",
+  "createdAt": "2026-03-13T23:02:20.547Z",
+  "startedAt": "2026-03-13T23:02:20.547Z",
+  "completedAt": "2026-03-13T23:02:20.554Z",
+  "notifiedAt": "2026-03-13T23:18:43.272Z",
+  "host": "Hs-Mac-mini.local",
+  "command": [
+    "/bin/sh",
+    "-lc",
+    "echo 'Set BACKTEST_COMPUTE_COMMAND to your real backtest command.'; exit 2"
+  ],
+  "cwd": "/Users/hd/Developer/cortana",
+  "metrics": {},
+  "notes": [
+    "summary.json is written atomically via summary.tmp.json + rename",
+    "notifier should only send completed runs with notifiedAt == null"
+  ],
+  "artifacts": {
+    "directory": "/Users/hd/Developer/cortana/var/backtests/runs/20260313-230220",
+    "summary": "/Users/hd/Developer/cortana/var/backtests/runs/20260313-230220/summary.json",
+    "log": "/Users/hd/Developer/cortana/var/backtests/runs/20260313-230220/run.log",
+    "stdout": "/Users/hd/Developer/cortana/var/backtests/runs/20260313-230220/stdout.txt",
+    "stderr": "/Users/hd/Developer/cortana/var/backtests/runs/20260313-230220/stderr.txt",
+    "metrics": "/Users/hd/Developer/cortana/var/backtests/runs/20260313-230220/metrics.json"
+  },
+  "error": {
+    "message": "Set BACKTEST_COMPUTE_COMMAND to your real backtest command.",
+    "exitCode": 2,
+    "signal": null
+  }
+}
