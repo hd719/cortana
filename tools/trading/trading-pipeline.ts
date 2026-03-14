@@ -669,8 +669,11 @@ function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): stri
   return lines.join("\n").trim();
 }
 
-export async function runTradingPipeline(deps?: Partial<PipelineDeps>): Promise<string> {
+export async function runTradingPipeline(
+  deps?: Partial<PipelineDeps> & { includeCouncil?: boolean },
+): Promise<string> {
   const runCommand = deps?.runCommand ?? defaultRunCommand;
+  const includeCouncil = deps?.includeCouncil !== false;
   const council = deps?.council ?? (async (alertText: string) => runTradingCouncil(alertText));
   const getUniverse = deps?.getUniverse ?? ((limit: number) => getDeterministicUniverse(limit, runCommand));
 
@@ -716,17 +719,23 @@ export async function runTradingPipeline(deps?: Partial<PipelineDeps>): Promise<
   const guardedOutputs = applyCorrectionGuards(failClosedOutputs);
 
   const councilVerdicts: CouncilVerdict[] = [];
-  for (const scan of guardedOutputs) {
-    if (!scan.signals.some((s) => s.action === "BUY")) continue;
-    const result = await council(scan.output);
-    councilVerdicts.push(...result.verdicts);
+  if (includeCouncil) {
+    for (const scan of guardedOutputs) {
+      if (!scan.signals.some((s) => s.action === "BUY")) continue;
+      const result = await council(scan.output);
+      councilVerdicts.push(...result.verdicts);
+    }
   }
 
   return buildFinalReport(guardedOutputs, councilVerdicts);
 }
 
-export async function runTradingStrategy(strategy: TradingStrategyName, deps?: Partial<PipelineDeps>): Promise<string> {
+export async function runTradingStrategy(
+  strategy: TradingStrategyName,
+  deps?: Partial<PipelineDeps> & { includeCouncil?: boolean },
+): Promise<string> {
   const runCommand = deps?.runCommand ?? defaultRunCommand;
+  const includeCouncil = deps?.includeCouncil !== false;
   const getUniverse = deps?.getUniverse ?? ((limit: number) => getDeterministicUniverse(limit, runCommand));
 
   loadBacktesterEnv();
@@ -739,7 +748,7 @@ export async function runTradingStrategy(strategy: TradingStrategyName, deps?: P
     strategy,
     strategy === "CANSLIM" ? "canslim_alert.py" : "dipbuyer_alert.py",
     8,
-    { runCommand, getUniverse },
+    { runCommand, getUniverse, includeCouncil },
   );
 }
 
