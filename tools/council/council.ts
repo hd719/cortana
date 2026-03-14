@@ -1,6 +1,7 @@
 #!/usr/bin/env npx tsx
 
 import { spawnSync } from "child_process";
+import { withPostgresPath } from "../lib/db.js";
 const DB_NAME = "cortana";
 
 function sqlQuote(s = ""): string {
@@ -54,15 +55,15 @@ function parseArgs(args: string[]): Record<string, string> {
 
 function cmdCreate(args: string[]): void {
   let m: Record<string, string>;
-  try { m = parseArgs(args); } catch (e) { die((e as Error).message.replace("Unknown arg:", "Unknown arg for create:")); }
+  try { m = parseArgs(args); } catch (e) { return die((e as Error).message.replace("Unknown arg:", "Unknown arg for create:")); }
   const type = m["--type"] || "";
   const title = m["--title"] || "";
   const initiator = m["--initiator"] || "";
   const participants = m["--participants"] || "";
   const expires = m["--expires"] || "";
   const context = m["--context"] || "{}";
-  if (!(type && title && initiator && participants && expires)) die("Missing required args for create");
-  if (!/^\d+$/.test(expires)) die("--expires must be an integer number of minutes");
+  if (!(type && title && initiator && participants && expires)) return die("Missing required args for create");
+  if (!/^\d+$/.test(expires)) return die("--expires must be an integer number of minutes");
 
   let out = "";
   try {
@@ -81,8 +82,9 @@ function cmdCreate(args: string[]): void {
     )
     SELECT json_build_object('ok', true, 'action', 'create', 'session', row_to_json(ins))::text FROM ins;
   `);
-  } catch {
-    die("Failed to create session");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return die(`Failed to create session: ${message}`);
   }
   const obj = JSON.parse(out);
   logEvent(obj.session.id, "session_created", JSON.stringify({ type, initiator }));
@@ -91,7 +93,7 @@ function cmdCreate(args: string[]): void {
 
 function cmdVote(args: string[]): void {
   let m: Record<string, string>;
-  try { m = parseArgs(args); } catch (e) { die((e as Error).message.replace("Unknown arg:", "Unknown arg for vote:")); }
+  try { m = parseArgs(args); } catch (e) { return die((e as Error).message.replace("Unknown arg:", "Unknown arg for vote:")); }
   const session = m["--session"] || "";
   const voter = m["--voter"] || "";
   const vote = m["--vote"] || "";
@@ -99,8 +101,8 @@ function cmdVote(args: string[]): void {
   const reasoning = m["--reasoning"];
   const model = m["--model"];
   const tokens = m["--tokens"];
-  if (!(session && voter && vote)) die("Missing required args for vote");
-  if (tokens && !/^\d+$/.test(tokens)) die("--tokens must be integer");
+  if (!(session && voter && vote)) return die("Missing required args for vote");
+  if (tokens && !/^\d+$/.test(tokens)) return die("--tokens must be integer");
 
   const confExpr = confidence ? `${sqlQuote(confidence)}::float` : "NULL";
   const reasonExpr = reasoning ? sqlQuote(reasoning) : "NULL";
@@ -127,8 +129,9 @@ function cmdVote(args: string[]): void {
       ELSE json_build_object('ok', true, 'action', 'vote', 'vote', (SELECT row_to_json(ins) FROM ins LIMIT 1))
     END::text;
   `);
-  } catch {
-    die("Failed to cast vote");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return die(`Failed to cast vote: ${message}`);
   }
   const parsed = JSON.parse(out);
   if (parsed.ok) logEvent(session, "vote_cast", JSON.stringify({ voter, vote }));
@@ -137,10 +140,10 @@ function cmdVote(args: string[]): void {
 
 function cmdDecide(args: string[]): void {
   let m: Record<string, string>;
-  try { m = parseArgs(args); } catch (e) { die((e as Error).message.replace("Unknown arg:", "Unknown arg for decide:")); }
+  try { m = parseArgs(args); } catch (e) { return die((e as Error).message.replace("Unknown arg:", "Unknown arg for decide:")); }
   const session = m["--session"] || "";
   const decision = m["--decision"] || "";
-  if (!(session && decision)) die("Missing required args for decide");
+  if (!(session && decision)) return die("Missing required args for decide");
   let out = "";
   try {
     out = runSql(`
@@ -155,8 +158,9 @@ function cmdDecide(args: string[]): void {
       ELSE json_build_object('ok', false, 'error', 'Session not found')
     END::text;
   `);
-  } catch {
-    die("Failed to update decision");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return die(`Failed to update decision: ${message}`);
   }
   if (JSON.parse(out).ok) logEvent(session, "session_decided", decision);
   console.log(out);
@@ -164,9 +168,9 @@ function cmdDecide(args: string[]): void {
 
 function cmdStatus(args: string[]): void {
   let m: Record<string, string>;
-  try { m = parseArgs(args); } catch (e) { die((e as Error).message.replace("Unknown arg:", "Unknown arg for status:")); }
+  try { m = parseArgs(args); } catch (e) { return die((e as Error).message.replace("Unknown arg:", "Unknown arg for status:")); }
   const session = m["--session"] || "";
-  if (!session) die("Missing --session");
+  if (!session) return die("Missing --session");
   try {
     const out = runSql(`
     WITH s AS (
@@ -184,14 +188,15 @@ function cmdStatus(args: string[]): void {
     END::text;
   `);
     console.log(out);
-  } catch {
-    die("Failed to fetch status");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return die(`Failed to fetch status: ${message}`);
   }
 }
 
 function cmdList(args: string[]): void {
   let m: Record<string, string> = {};
-  try { m = parseArgs(args); } catch (e) { die((e as Error).message.replace("Unknown arg:", "Unknown arg for list:")); }
+  try { m = parseArgs(args); } catch (e) { return die((e as Error).message.replace("Unknown arg:", "Unknown arg for list:")); }
   const status = m["--status"];
   const type = m["--type"];
   const statusCond = status ? `status = ${sqlQuote(status)}` : "TRUE";
@@ -211,8 +216,9 @@ function cmdList(args: string[]): void {
     ) s;
   `);
     console.log(out);
-  } catch {
-    die("Failed to list sessions");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return die(`Failed to list sessions: ${message}`);
   }
 }
 
@@ -237,16 +243,18 @@ function cmdExpire(): void {
     )::text;
   `);
     console.log(out);
-  } catch {
-    die("Failed to expire sessions");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    return die(`Failed to expire sessions: ${message}`);
   }
 }
 
 async function main(): Promise<void> {
   const [cmd, ...rest] = process.argv.slice(2);
   if (!cmd) {
-    usage();
-    process.exit(1);
+      usage();
+      process.exit(1);
+      return;
   }
   switch (cmd) {
     case "create": cmdCreate(rest); break;
@@ -258,7 +266,7 @@ async function main(): Promise<void> {
     case "-h":
     case "--help":
     case "help": usage(); break;
-    default: die(`Unknown command: ${cmd}`);
+    default: return die(`Unknown command: ${cmd}`);
   }
 }
 
