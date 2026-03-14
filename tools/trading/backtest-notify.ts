@@ -3,6 +3,7 @@
 import { existsSync, readFileSync, readdirSync, renameSync, writeFileSync } from "node:fs";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 
 type BacktestSummary = {
   schemaVersion: 1;
@@ -30,6 +31,7 @@ const DEFAULT_ROOT = path.join(process.cwd(), "var", "backtests");
 const RUNS_DIR = path.join(process.env.BACKTEST_ROOT_DIR || DEFAULT_ROOT, "runs");
 const NOTIFY_BIN = process.env.BACKTEST_NOTIFY_BIN || path.join(process.cwd(), "tools", "notifications", "telegram-delivery-guard.sh");
 const TARGET = process.env.BACKTEST_NOTIFY_TARGET || "8171372724";
+const INCLUDE_FAILURES = process.env.BACKTEST_NOTIFY_INCLUDE_FAILURES === "1";
 
 function listSummaries(): string[] {
   if (!existsSync(RUNS_DIR)) return [];
@@ -47,15 +49,28 @@ function loadSummary(file: string): BacktestSummary | null {
   }
 }
 
+export type SummaryCandidate = { file: string; summary: BacktestSummary };
+
+export function pickPendingFromCandidates(
+  candidates: SummaryCandidate[],
+  options: { includeFailures?: boolean } = {},
+): SummaryCandidate | null {
+  const includeFailures = options.includeFailures ?? false;
+  const eligible = candidates
+    .filter((item) => item.summary.notifiedAt == null)
+    .filter((item) => includeFailures || item.summary.status === "success")
+    .sort((a, b) => String(a.summary.completedAt).localeCompare(String(b.summary.completedAt)));
+
+  if (!eligible.length) return null;
+  return eligible[eligible.length - 1];
+}
+
 function pickPending(): { file: string; summary: BacktestSummary } | null {
   const candidates = listSummaries()
     .map((file) => ({ file, summary: loadSummary(file) }))
-    .filter((item): item is { file: string; summary: BacktestSummary } => Boolean(item.summary))
-    .filter((item) => item.summary.notifiedAt == null)
-    .sort((a, b) => String(a.summary.completedAt).localeCompare(String(b.summary.completedAt)));
+    .filter((item): item is { file: string; summary: BacktestSummary } => Boolean(item.summary));
 
-  if (!candidates.length) return null;
-  return candidates[candidates.length - 1];
+  return pickPendingFromCandidates(candidates, { includeFailures: INCLUDE_FAILURES });
 }
 
 function compactMetrics(metrics: Record<string, string | number | boolean | null> | undefined): string {
@@ -125,4 +140,6 @@ function main(): void {
   console.log(`NOTIFIED ${picked.summary.runId}`);
 }
 
-main();
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main();
+}
