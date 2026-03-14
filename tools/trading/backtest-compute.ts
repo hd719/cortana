@@ -19,11 +19,14 @@ type PresetName = "trading-unified" | "canslim-full-universe" | "dipbuyer-full-u
 
 type BacktestSummary = {
   schemaVersion: 1;
+  schema_version?: 1;
   runId: string;
+  run_id?: string;
   strategy: string;
   status: BacktestStatus;
   createdAt: string;
   startedAt: string;
+  finalizedAt: string;
   completedAt: string;
   notifiedAt: string | null;
   host: string;
@@ -313,7 +316,7 @@ function runShellCommand(config: Extract<CommandConfig, { mode: "shell" }>): Com
 async function runPreset(config: Extract<CommandConfig, { mode: "preset" }>): Promise<CommandResult> {
   try {
     if (config.preset === "trading-unified") {
-      const report = await runTradingPipeline({ runCommand: boundedRunCommand });
+      const report = await runTradingPipeline({ runCommand: boundedRunCommand, includeCouncil: false });
       return {
         strategy: config.strategy,
         command: config.command,
@@ -330,7 +333,7 @@ async function runPreset(config: Extract<CommandConfig, { mode: "preset" }>): Pr
     }
 
     const strategy: TradingStrategyName = config.preset === "canslim-full-universe" ? "CANSLIM" : "Dip Buyer";
-    const report = await runTradingStrategy(strategy, { runCommand: boundedRunCommand });
+    const report = await runTradingStrategy(strategy, { runCommand: boundedRunCommand, includeCouncil: false });
     return {
       strategy: config.strategy,
       command: config.command,
@@ -423,11 +426,14 @@ async function main(): Promise<void> {
   const success = result.exitCode === 0 && !result.signal;
   const summary: BacktestSummary = {
     schemaVersion: 1,
+    schema_version: 1,
     runId: id,
+    run_id: id,
     strategy: result.strategy,
     status: success ? "success" : "failed",
     createdAt: startedAt,
     startedAt,
+    finalizedAt: completedAt,
     completedAt,
     notifiedAt: null,
     host: os.hostname(),

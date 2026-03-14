@@ -6,6 +6,7 @@ Two-stage flow for long-running trading/backtest jobs, now wired to the real sca
 
 - **Cron A / compute** → `tools/trading/run-backtest-compute.sh`
 - **Cron B / notify** → `tools/trading/run-backtest-notify.sh`
+- **Optional Cron A.1 / enrichment** → `tools/trading/backtest-enrich.ts` (fail-open council/enrichment layer)
 
 Compute writes a per-run artifact folder under:
 
@@ -20,7 +21,7 @@ Each run gets:
 - `metrics.json`
 - `summary.json`
 
-`summary.json` is the atomic contract between compute and notify.
+`summary.json` is the atomic contract between compute and notify. Enrichment artifacts live under `enrichments/` per run and must never change base status.
 It is written as `summary.tmp.json` and renamed into place only when the run is complete.
 `notifiedAt` is stamped only by the notifier after delivery succeeds.
 

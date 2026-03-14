@@ -7,10 +7,13 @@ import { pathToFileURL } from "node:url";
 
 type BacktestSummary = {
   schemaVersion: 1;
+  schema_version?: 1;
   runId: string;
+  run_id?: string;
   strategy: string;
   status: "success" | "failed";
   completedAt: string;
+  finalizedAt?: string;
   notifiedAt: string | null;
   metrics?: Record<string, string | number | boolean | null>;
   artifacts: {
