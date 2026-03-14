@@ -56,13 +56,14 @@ export function pickPendingFromCandidates(
   options: { includeFailures?: boolean } = {},
 ): SummaryCandidate | null {
   const includeFailures = options.includeFailures ?? false;
-  const eligible = candidates
-    .filter((item) => item.summary.notifiedAt == null)
-    .filter((item) => includeFailures || item.summary.status === "success")
-    .sort((a, b) => String(a.summary.completedAt).localeCompare(String(b.summary.completedAt)));
+  const latest = [...candidates].sort((a, b) =>
+    String(a.summary.completedAt).localeCompare(String(b.summary.completedAt)),
+  ).pop();
 
-  if (!eligible.length) return null;
-  return eligible[eligible.length - 1];
+  if (!latest) return null;
+  if (latest.summary.notifiedAt != null) return null;
+  if (!includeFailures && latest.summary.status !== "success") return null;
+  return latest;
 }
 
 function pickPending(): { file: string; summary: BacktestSummary } | null {

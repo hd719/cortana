@@ -32,13 +32,13 @@ function candidate(
 }
 
 describe("backtest notify selection", () => {
-  it("prefers the newest pending successful run and ignores failed runs by default", () => {
+  it("returns nothing when the latest completed run failed and failures are excluded", () => {
     const picked = pickPendingFromCandidates([
       candidate("failed-new", { status: "failed", completedAt: "2026-03-14T17:23:20.539Z" }),
       candidate("success-old", { status: "success", completedAt: "2026-03-13T23:31:34.666Z" }),
     ]);
 
-    expect(picked?.summary.runId).toBe("success-old");
+    expect(picked).toBeNull();
   });
 
   it("returns no candidate when only failed runs are pending and failures are excluded", () => {
@@ -71,6 +71,28 @@ describe("backtest notify selection", () => {
       candidate("success-pending", { status: "success", completedAt: "2026-03-13T23:31:34.666Z" }),
     ]);
 
-    expect(picked?.summary.runId).toBe("success-pending");
+    expect(picked).toBeNull();
+  });
+
+  it("selects the latest completed run when it is pending and successful", () => {
+    const picked = pickPendingFromCandidates([
+      candidate("success-old", { status: "success", completedAt: "2026-03-13T23:31:34.666Z" }),
+      candidate("success-new", { status: "success", completedAt: "2026-03-14T17:23:20.539Z" }),
+    ]);
+
+    expect(picked?.summary.runId).toBe("success-new");
+  });
+
+  it("does not fall back to older pending successes when the latest run is already notified", () => {
+    const picked = pickPendingFromCandidates([
+      candidate("success-old", { status: "success", completedAt: "2026-03-13T23:31:34.666Z" }),
+      candidate("success-new", {
+        status: "success",
+        completedAt: "2026-03-14T17:23:20.539Z",
+        notifiedAt: "2026-03-14T17:25:53.290Z",
+      }),
+    ]);
+
+    expect(picked).toBeNull();
   });
 });
