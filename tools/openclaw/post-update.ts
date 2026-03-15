@@ -3,7 +3,9 @@ import fs from "fs";
 import path from "path";
 import os from "os";
 import { spawn, spawnSync } from "child_process";
-import { resolveHomePath, resolveRepoPath } from "../lib/paths.js";
+import { resolveHomePath, sourceRepoRoot } from "../lib/paths.js";
+
+const CANONICAL_REPO_ROOT = sourceRepoRoot();
 
 function log(message: string): void {
   process.stdout.write(`[post-update] ${message}\n`);
@@ -45,11 +47,11 @@ function ensureRegularRuntimeJobs(runtimeJobs: string): void {
 }
 
 function syncCronConfig(runtimeJobs: string, repoJobs: string): void {
-  const syncTsScript = resolveRepoPath("tools", "cron", "sync-cron-to-runtime.ts");
+  const syncTsScript = path.join(CANONICAL_REPO_ROOT, "tools", "cron", "sync-cron-to-runtime.ts");
 
   if (fs.existsSync(syncTsScript)) {
     log("Syncing cron config via tsx script: repo → runtime state");
-    const syncRes = spawnSync("npx", ["tsx", syncTsScript, "--repo-root", resolveRepoPath(), "--runtime-home", os.homedir()], {
+    const syncRes = spawnSync("npx", ["tsx", syncTsScript, "--repo-root", CANONICAL_REPO_ROOT, "--runtime-home", os.homedir()], {
       stdio: "inherit",
     });
     if (syncRes.status !== 0) {
@@ -64,20 +66,20 @@ function syncCronConfig(runtimeJobs: string, repoJobs: string): void {
 }
 
 function ensureCompatShim(): void {
-  const shimScript = resolveRepoPath("tools", "openclaw", "install-compat-shim.sh");
+  const shimScript = path.join(CANONICAL_REPO_ROOT, "tools", "openclaw", "install-compat-shim.sh");
   if (!fs.existsSync(shimScript)) {
     throw new Error(`compat shim installer missing: ${shimScript}`);
   }
 
-  log("Ensuring ~/openclaw compatibility shim points at the canonical source repo");
-  const res = spawnSync("bash", [shimScript, "--source-repo", resolveRepoPath()], { stdio: "inherit" });
+  log(`Ensuring ~/openclaw compatibility shim points at the canonical source repo (${CANONICAL_REPO_ROOT})`);
+  const res = spawnSync("bash", [shimScript, "--source-repo", CANONICAL_REPO_ROOT], { stdio: "inherit" });
   if (res.status !== 0) {
     throw new Error(`compat shim install failed with status ${res.status ?? 1}`);
   }
 }
 
 function buildDetachedLaunchdRestartScript(uid: string, label: string, plistPath: string, helperLog: string): string {
-  const notifyScript = resolveRepoPath("tools", "notifications", "telegram-delivery-guard.sh");
+  const notifyScript = path.join(CANONICAL_REPO_ROOT, "tools", "notifications", "telegram-delivery-guard.sh");
   const failureMsg = "🚨 System - OpenClaw post-update restart failed. Gateway did not verify as running after detached restart helper. Manual check needed.";
 
   return [
@@ -148,7 +150,7 @@ function validatePostUpdate(runtimeJobs: string, repoJobs: string): void {
 async function main(): Promise<number> {
   const args = parseArgs(process.argv.slice(2));
   const runtimeJobs = resolveHomePath(".openclaw", "cron", "jobs.json");
-  const repoJobs = resolveRepoPath("config", "cron", "jobs.json");
+  const repoJobs = path.join(CANONICAL_REPO_ROOT, "config", "cron", "jobs.json");
 
   log("Starting OpenClaw post-update...");
 
