@@ -150,6 +150,7 @@ export function run(argv: string[]): number {
 
   if (!args.message) {
     console.error("[telegram-delivery-guard] missing message argument");
+    console.log(JSON.stringify({ delivered: false, mode: "error", reason: "missing_message" }));
     return 1;
   }
 
@@ -170,27 +171,31 @@ export function run(argv: string[]): number {
   const decision = deliveryDecisionFor(envelope.severity);
 
   if (decision === "silent") {
-    console.log(`[telegram-delivery-guard] suppressed (${envelope.alertType}) severity=${envelope.severity} system=${envelope.system}`);
+    console.error(`[telegram-delivery-guard] suppressed (${envelope.alertType}) severity=${envelope.severity} system=${envelope.system}`);
+    console.log(JSON.stringify({ delivered: false, mode: "suppressed", alertType: envelope.alertType }));
     return 0;
   }
 
   if (decision === "digest") {
     const file = appendDigestEntry(envelope);
-    console.log(`[telegram-delivery-guard] queued (${envelope.alertType}) severity=${envelope.severity} owner=${envelope.owner} file=${file}`);
+    console.error(`[telegram-delivery-guard] queued (${envelope.alertType}) severity=${envelope.severity} owner=${envelope.owner} file=${file}`);
+    console.log(JSON.stringify({ delivered: false, mode: "digest", alertType: envelope.alertType, file }));
     return 0;
   }
 
   if (shouldDedupe(envelope.dedupeKey)) {
-    console.log(`[telegram-delivery-guard] deduped (${envelope.alertType}) key=${envelope.dedupeKey}`);
+    console.error(`[telegram-delivery-guard] deduped (${envelope.alertType}) key=${envelope.dedupeKey}`);
+    console.log(JSON.stringify({ delivered: false, mode: "deduped", alertType: envelope.alertType, dedupeKey: envelope.dedupeKey }));
     return 0;
   }
 
   const chunks = chunkMessage(finalMessage);
   sendWithRetries(envelope.target, chunks);
 
-  console.log(
+  console.error(
     `[telegram-delivery-guard] sent (${envelope.alertType}) severity=${envelope.severity} owner=${envelope.owner} system=${envelope.system} to ${envelope.target} chunks=${chunks.length}`
   );
+  console.log(JSON.stringify({ delivered: true, mode: "sent", chunks: chunks.length, alertType: envelope.alertType }));
   return 0;
 }
 

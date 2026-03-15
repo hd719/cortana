@@ -134,10 +134,27 @@ function main(): void {
     env: process.env,
   });
 
-  if (proc.status !== 0) {
-    const err = (proc.stderr || proc.stdout || "telegram delivery failed").trim();
+  const stdout = (proc.stdout || "").trim();
+  const stderr = (proc.stderr || "").trim();
+  const parsedLine = stdout.split(/\r?\n/).filter(Boolean).pop();
+  let parsed: any = null;
+  try {
+    parsed = parsedLine ? JSON.parse(parsedLine) : null;
+  } catch {
+    parsed = null;
+  }
+  const mode = parsed?.mode ?? null;
+  const delivered = parsed?.delivered === true && mode === "sent";
+
+  if ((proc.status ?? 1) !== 0) {
+    const err = (stderr || stdout || "telegram delivery failed").trim();
     console.error(err);
-    process.exit(proc.status ?? 1);
+    process.exit((proc.status ?? 1) || 1);
+  }
+
+  if (!delivered) {
+    console.error(`telegram delivery not confirmed (mode=${mode || "unknown"})`);
+    return;
   }
 
   markNotified(picked.file, picked.summary);
