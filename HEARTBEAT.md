@@ -24,6 +24,8 @@ Use `memory/heartbeat-state.json` to select the stalest 1–2 delegated checks p
 - Subagent watchdog (every heartbeat)
 - Feedback pipeline reconciliation (every heartbeat)
 - System health / drift detection (daily health validation; drift watch)
+- Repo sync checks
+- Task board hygiene
 - Strategic tech/news situational-awareness scan
 - Email triage / inbox-operational summaries
 - **Single owner lane for operational cron / maintenance alerts** (even when another agent executes the underlying check)
@@ -37,10 +39,8 @@ Use `memory/heartbeat-state.json` to select the stalest 1–2 delegated checks p
 - May assist with inbox/news analysis behind the scenes when asked, but **Monitor should remain the user-facing owner lane for email-triage / inbox-operational output**
 
 ### Huragok (`agent:huragok:main`)
-- Task board hygiene
 - Code maintenance tasks
-- Repo sync checks
-- Execution owner for repo/task-board maintenance checks when needed, but **Monitor should remain the user-facing owner lane for operational cron/maintenance alerts**
+- Execution owner for repo/task-board maintenance checks when explicitly requested, but **Monitor remains the owner lane for routine heartbeat maintenance checks and all user-visible operational cron/maintenance alerts**
 
 ### Cortana Keeps (local, lightweight)
 - Read/validate `memory/heartbeat-state.json`
@@ -59,13 +59,13 @@ Keep existing thresholds where already defined:
 - **X sentiment scan** (Oracle): same window/cadence as market pulse; skip if run within **6h**.
 - **Fitness** (Cortana local): **1× daily (morning)**; skip if already briefed today.
 - **Strategic tech/news situational-awareness scan** (Monitor): skip if run within **4h**.
-- **Task board hygiene** (Huragok): **every heartbeat**.
+- **Task board hygiene** (Monitor): **every heartbeat**.
 - **Feedback pipeline reconciliation** (Monitor): **every heartbeat**.
 - **Session size guard** (Monitor): **every heartbeat**.
 - **Cron delivery monitoring** (Monitor): **every heartbeat**.
 - **Subagent watchdog** (Monitor): **every heartbeat**.
 - **System health / drift detection** (Monitor): **1× daily** for full validation; drift checks can run per heartbeat if lightweight.
-- **Repo sync checks** (Huragok): **2× daily** (recommended every ~12h).
+- **Repo sync checks** (Monitor): **2× daily** (recommended every ~12h).
 
 ## Dispatch Contract (Mandatory)
 
