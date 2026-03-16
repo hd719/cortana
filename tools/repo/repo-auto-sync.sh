@@ -13,6 +13,9 @@ VOLATILE_STATE_FILES=(
   "memory/cron-health-48h.json"
   "memory/cron-health-48h-errors.json"
 )
+VOLATILE_STATUS_PREFIXES=(
+  "var/backtests/runs/"
+)
 
 DIRTY_MAIN_STALE_HOURS="${DIRTY_MAIN_STALE_HOURS:-6}"
 STALE_TEMP_WORKTREE_HOURS="${STALE_TEMP_WORKTREE_HOURS:-24}"
@@ -97,12 +100,27 @@ path_mtime_epoch() {
   return 1
 }
 
+status_line_is_volatile() {
+  local line="$1"
+  local path="${line:3}"
+  path="${path##* -> }"
+  local prefix
+
+  for prefix in "${VOLATILE_STATUS_PREFIXES[@]}"; do
+    if [[ "$path" == "$prefix"* ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
 status_tracked_lines() {
   local status="$1"
 
   while IFS= read -r line; do
     [[ -z "$line" ]] && continue
-    if [[ "${line:0:2}" != "??" ]]; then
+    if [[ "${line:0:2}" != "??" ]] && ! status_line_is_volatile "$line"; then
       printf '%s\n' "$line"
     fi
   done <<< "$status"
@@ -135,6 +153,7 @@ restore_volatile_runtime_state() {
   local repo="$1"
   local restored=()
   local rel
+  local prefix
 
   for rel in "${VOLATILE_STATE_FILES[@]}"; do
     if git -C "$repo" status --porcelain -- "$rel" | grep -q .; then
@@ -142,6 +161,20 @@ restore_volatile_runtime_state() {
         restored+=("$rel")
       fi
     fi
+  done
+
+  for prefix in "${VOLATILE_STATUS_PREFIXES[@]}"; do
+    while IFS= read -r line; do
+      [[ -z "$line" ]] && continue
+      if [[ "${line:0:2}" == "??" ]]; then
+        continue
+      fi
+      local path="${line:3}"
+      path="${path##* -> }"
+      if git -C "$repo" restore --worktree -- "$path" >/dev/null 2>&1; then
+        restored+=("$path")
+      fi
+    done < <(git -C "$repo" status --porcelain -- "$prefix")
   done
 
   if (( ${#restored[@]} > 0 )); then

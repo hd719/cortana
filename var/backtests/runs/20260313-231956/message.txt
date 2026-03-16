@@ -1,7 +1,0 @@
-📈 Trading Advisor - Market Session Snapshot
-Decision: NO_TRADE | 0.90 | Risk: LOW
-Regime: correction=NO | correction — no new positions | unavailable
-Summary: BUY 0 | WATCH 0 | NO_BUY 0
-CANSLIM: BUY 0 | WATCH 0 | NO_BUY 0
-Dip Buyer: BUY 0 | WATCH 0 | NO_BUY 0
-Reason: No symbols passed scanner threshold.

@@ -38,3 +38,6 @@ memory/fitness/
 # Identity runtime state (keep repo clean; do not ignore TOOLS.md)
 identities/*/.openclaw/
 identities/*/memory/
+
+# Generated trading backtest runtime artifacts
+var/backtests/runs/
