@@ -37,12 +37,13 @@ Dip Buyer: scanned 120 | evaluated 1 | threshold-passed 1 | emitted BUY 0 / WATC
 
     const alert = buildCronAlertFromPipelineReport(report);
 
-    expect(alert).toContain("📈 Trading Advisor - Market Session Snapshot");
-    expect(alert).toContain("Decision: WATCH | 0.80 | Risk: MEDIUM");
-    expect(alert).toContain("CANSLIM: BUY 0 | WATCH 1 | NO_BUY 0");
-    expect(alert).toContain("Dip Buyer: BUY 0 | WATCH 1 | NO_BUY 0");
-    expect(alert).toContain("Focus: CANSLIM AAPL WATCH | Dip TSLA WATCH");
-    expect(alert).toContain("Watchlist: Dip TSLA 8/12 | CANSLIM AAPL 7/12");
+    expect(alert).toContain("📈 Trading Advisor — Market Snapshot");
+    expect(alert).toContain("🎯 Decision: WATCH | Confidence: 0.80 | Risk: MEDIUM");
+    expect(alert).toContain("│ BUY 0 │ WATCH 2 │ NO_BUY 0 │");
+    expect(alert).toContain("│ CANSLIM: BUY 0 · WATCH 1 │");
+    expect(alert).toContain("│ Dip Buyer: BUY 0 · WATCH 1 │");
+    expect(alert).toContain("👀 Dip Buyer Watchlist (1):");
+    expect(alert).toContain(" TSLA 8/12");
   });
 
   it("surfaces the no-trade reason when both strategies are blocked", () => {
@@ -59,8 +60,8 @@ Dip Buyer: scanned 120 | evaluated 1 | threshold-passed 1 | emitted BUY 0 / WATC
 
     const alert = buildCronAlertFromPipelineReport(report);
 
-    expect(alert).toContain("Decision: NO_TRADE | 0.90 | Risk: LOW");
-    expect(alert).toContain("Reason: Fail-closed: missing market regime in scanner output");
+    expect(alert).toContain("🎯 Decision: NO_TRADE | Confidence: 0.90 | Risk: LOW");
+    expect(alert).toContain("│ BUY 0 │ WATCH 0 │ NO_BUY 2 │");
   });
 
   it("adds a ranked watchlist when correction mode has WATCH candidates but no BUYs", () => {
@@ -78,6 +79,9 @@ Dip Buyer: scanned 120 | evaluated 3 | threshold-passed 3 | emitted BUY 0 / WATC
 
     const alert = buildCronAlertFromPipelineReport(report);
 
-    expect(alert).toContain("Watchlist: Dip GOOGL 9/12 | Dip NFLX 9/12 | Dip MSFT 9/12 | CANSLIM AAPL 7/12");
+    expect(alert).toContain("👀 Dip Buyer Watchlist (3):");
+    expect(alert).toContain(" GOOGL 9/12 · NFLX 9/12 · MSFT 9/12");
+    expect(alert).toContain("👀 CANSLIM Watchlist (1):");
+    expect(alert).toContain(" AAPL 7/12");
   });
 });

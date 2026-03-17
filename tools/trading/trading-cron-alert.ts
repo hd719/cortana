@@ -84,50 +84,35 @@ function findLine(lines: string[], prefix: string): string | undefined {
   return lines.find((line) => line.startsWith(prefix));
 }
 
-function summarizeCounts(line: string | undefined, section: string): string {
-  if (!line) return `${section}: unavailable`;
-  const buy = Number(line.match(/BUY\s+(\d+)/i)?.[1] ?? 0);
-  const watch = Number(line.match(/WATCH\s+(\d+)/i)?.[1] ?? 0);
-  const noBuy = Number(line.match(/NO_BUY\s+(\d+)/i)?.[1] ?? 0);
-  return `${section}: BUY ${buy} | WATCH ${watch} | NO_BUY ${noBuy}`;
+function parseCounts(line: string | undefined): { buy: number; watch: number; noBuy: number } {
+  if (!line) return { buy: 0, watch: 0, noBuy: 0 };
+  return {
+    buy: Number(line.match(/BUY\s+(\d+)/i)?.[1] ?? 0),
+    watch: Number(line.match(/WATCH\s+(\d+)/i)?.[1] ?? 0),
+    noBuy: Number(line.match(/NO_BUY\s+(\d+)/i)?.[1] ?? 0),
+  };
 }
 
-function firstFocusSignal(lines: string[], section: string): string | null {
-  const startIndex = lines.findIndex((line) => line.startsWith(`${section}:`));
-  if (startIndex === -1) return null;
+type ParsedSignal = { ticker: string; score: number; action: "BUY" | "WATCH" | "NO_BUY"; section: string };
 
-  let fallback: string | null = null;
-  for (let i = startIndex + 1; i < lines.length; i += 1) {
-    const line = lines[i];
-    if (!line.trim()) break;
-    if (!line.startsWith("• ")) continue;
-    if (fallback == null) fallback = line;
-    if (!line.includes("→ NO_BUY")) return line;
-  }
-
-  return fallback;
-}
-
-function formatFocusLabel(line: string | null): string | null {
-  if (!line) return null;
-  const match = line.match(/^•\s+([A-Z.\-]+).*→\s+(BUY|WATCH|NO_BUY)/);
-  if (!match) return line.replace(/^•\s+/, "").trim();
-  return `${match[1]} ${match[2]}`;
-}
-
-function collectSignals(lines: string[], section: string, action: "BUY" | "WATCH" | "NO_BUY", limit = 3): string[] {
+function collectSignalsDetailed(lines: string[], section: string): ParsedSignal[] {
   const startIndex = lines.findIndex((line) => line.startsWith(`${section}:`));
   if (startIndex === -1) return [];
 
-  const out: string[] = [];
+  const out: ParsedSignal[] = [];
   for (let i = startIndex + 1; i < lines.length; i += 1) {
     const line = lines[i];
     if (!line.trim()) break;
+    if (/^[A-Za-z][A-Za-z\s]+:/.test(line) && !line.startsWith("• ")) break;
     if (!line.startsWith("• ")) continue;
     const match = line.match(/^•\s+([A-Z.\-]+)\s+\((\d+)\/\d+\)\s+→\s+(BUY|WATCH|NO_BUY)/);
-    if (!match || match[3] !== action) continue;
-    out.push(`${match[1]} ${match[2]}/12`);
-    if (out.length >= limit) break;
+    if (!match) continue;
+    out.push({
+      ticker: match[1],
+      score: Number(match[2]),
+      action: match[3] as "BUY" | "WATCH" | "NO_BUY",
+      section,
+    });
   }
 
   return out;
@@ -140,38 +125,71 @@ export function buildCronAlertFromPipelineReport(report: string): string {
     .filter(Boolean);
 
   const decision = trimLabel(findLine(lines, "Decision:") ?? "Decision: unavailable", "Decision:");
-  const confidence = trimLabel(findLine(lines, "Confidence:") ?? "Confidence: unavailable", "Confidence:");
-  const regime = trimLabel(findLine(lines, "Regime/Gates:") ?? "Regime/Gates: unavailable", "Regime/Gates:");
-  const summary = findLine(lines, "Summary:") ?? "Summary: unavailable";
-  const noTrade = findLine(lines, "No-trade reason:");
-  const blockerTelemetry = findLine(lines, "Blocker telemetry:");
-  const canslimFocus = formatFocusLabel(firstFocusSignal(lines, "CANSLIM"));
-  const dipFocus = formatFocusLabel(firstFocusSignal(lines, "Dip Buyer"));
-  const councilLine = findLine(lines, "🏛️ Council (BUY signals only):");
+  const confidenceRisk = trimLabel(findLine(lines, "Confidence:") ?? "Confidence: unavailable", "Confidence:");
+  const confidence = confidenceRisk.match(/^([0-9.]+)/)?.[1] ?? "unavailable";
+  const risk = confidenceRisk.match(/Risk:\s*([A-Z]+)/i)?.[1]?.toUpperCase() ?? "UNKNOWN";
+  const regimeRaw = trimLabel(findLine(lines, "Regime/Gates:") ?? "Regime/Gates: unavailable", "Regime/Gates:");
+  const inCorrection = /correction=YES/i.test(regimeRaw) || /\bcorrection\b/i.test(regimeRaw);
 
-  const compactLines = [
-    "📈 Trading Advisor - Market Session Snapshot",
-    `Decision: ${decision} | ${confidence}`,
-    `Regime: ${regime}`,
-    summary,
-    summarizeCounts(findLine(lines, "CANSLIM:"), "CANSLIM"),
-    summarizeCounts(findLine(lines, "Dip Buyer:"), "Dip Buyer"),
+  const summaryCounts = parseCounts(findLine(lines, "Summary:"));
+  const canslimCounts = parseCounts(findLine(lines, "CANSLIM:"));
+  const dipCounts = parseCounts(findLine(lines, "Dip Buyer:"));
+
+  const canslimSignals = collectSignalsDetailed(lines, "CANSLIM");
+  const dipSignals = collectSignalsDetailed(lines, "Dip Buyer");
+  const watchDip = dipSignals.filter((s) => s.action === "WATCH");
+  const watchCanslim = canslimSignals.filter((s) => s.action === "WATCH");
+
+  const buySignals = [...canslimSignals, ...dipSignals].filter((s) => s.action === "BUY");
+  const focusSignal = buySignals[0] ?? [...dipSignals, ...canslimSignals].find((s) => s.action !== "NO_BUY");
+  const focusSources = focusSignal
+    ? [
+      canslimSignals.some((s) => s.ticker === focusSignal.ticker) ? "CANSLIM" : "",
+      dipSignals.some((s) => s.ticker === focusSignal.ticker) ? "Dip Buyer" : "",
+    ].filter(Boolean)
+    : [];
+
+  const blockerTelemetry = findLine(lines, "Blocker telemetry:");
+  const guardrailCount = blockerTelemetry?.match(/(\d+)/)?.[1] ?? "0";
+  const diagnostics = findLine(lines, "Diagnostics:");
+  const relatedDetections = diagnostics?.match(/candidates evaluated\s+(\d+)/i)?.[1] ?? "0";
+
+  const formatWatch = (items: ParsedSignal[]): string => {
+    if (!items.length) return " —";
+    const shown = items.slice(0, 3).map((s) => `${s.ticker} ${s.score}/12`).join(" · ");
+    const missing = items.length - 3;
+    return missing > 0 ? ` ${shown}\n [+ ${missing} missing — bug]` : ` ${shown}`;
+  };
+
+  const messageLines = [
+    "📈 Trading Advisor — Market Snapshot",
+    "⚡ P1 High | Action Now",
+    "",
+    `🎯 Decision: ${decision} | Confidence: ${confidence} | Risk: ${risk}`,
+    inCorrection ? "🔴 Regime: CORRECTION — no new positions | unavailable" : `🟢 Regime: ${regimeRaw}`,
+    "",
+    "┌ Summary ─────────────────────┐",
+    `│ BUY ${summaryCounts.buy} │ WATCH ${summaryCounts.watch} │ NO_BUY ${summaryCounts.noBuy} │`,
+    "├──────────────────────────────┤",
+    `│ CANSLIM: BUY ${canslimCounts.buy} · WATCH ${canslimCounts.watch} │`,
+    `│ Dip Buyer: BUY ${dipCounts.buy} · WATCH ${dipCounts.watch} │`,
+    "└──────────────────────────────┘",
+    "",
+    focusSignal
+      ? `🔥 Focus: ${focusSignal.ticker} — ${focusSignal.action}${focusSources.length ? ` (${focusSources.join(" + ")})` : ""}`
+      : "🔥 Focus: unavailable",
+    "",
+    `👀 Dip Buyer Watchlist (${watchDip.length}):`,
+    formatWatch(watchDip),
+    "",
+    `👀 CANSLIM Watchlist (${watchCanslim.length}):`,
+    formatWatch(watchCanslim),
+    "",
+    `🛡️ Guardrail blocks/downgrades: ${guardrailCount}`,
+    `🔎 Related detections: ${relatedDetections}`,
   ];
 
-  const focusBits = [canslimFocus ? `CANSLIM ${canslimFocus}` : "", dipFocus ? `Dip ${dipFocus}` : ""].filter(Boolean);
-  if (focusBits.length) compactLines.push(`Focus: ${focusBits.join(" | ")}`);
-
-  const watchlist = [
-    ...collectSignals(lines, "Dip Buyer", "WATCH", 3).map((item) => `Dip ${item}`),
-    ...collectSignals(lines, "CANSLIM", "WATCH", 2).map((item) => `CANSLIM ${item}`),
-  ].slice(0, 5);
-  if (watchlist.length) compactLines.push(`Watchlist: ${watchlist.join(" | ")}`);
-
-  if (noTrade) compactLines.push(`Reason: ${trimLabel(noTrade, "No-trade reason:")}`);
-  else if (blockerTelemetry) compactLines.push(trimLabel(blockerTelemetry, "Blocker telemetry:"));
-  if (councilLine) compactLines.push("Council ran for active BUY signals.");
-
-  return compactLines.join("\n").trim();
+  return messageLines.join("\n").trim();
 }
 
 async function main(): Promise<void> {
