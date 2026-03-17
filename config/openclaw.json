@@ -1,7 +1,7 @@
 {
   "meta": {
-    "lastTouchedVersion": "2026.3.2",
-    "lastTouchedAt": "2026-03-03T12:28:23.310Z"
+    "lastTouchedVersion": "2026.3.13",
+    "lastTouchedAt": "2026-03-14T10:57:20.862Z"
   },
   "wizard": {
     "lastRunAt": "2026-03-03T10:23:24.474Z",
@@ -9,19 +9,58 @@
     "lastRunCommand": "doctor",
     "lastRunMode": "local"
   },
+  "browser": {
+    "enabled": true,
+    "defaultProfile": "chrome-relay",
+    "profiles": {
+      "user": {
+        "driver": "existing-session",
+        "attachOnly": true,
+        "color": "#00AA00"
+      },
+      "chrome-relay": {
+        "cdpUrl": "http://127.0.0.1:18792",
+        "driver": "extension",
+        "color": "#00AA00"
+      },
+      "openclaw": {
+        "cdpPort": 18800,
+        "color": "#FF4500"
+      }
+    }
+  },
   "auth": {
     "profiles": {
-      "anthropic:manual": {
-        "provider": "anthropic",
-        "mode": "token"
+      "openai-codex:default": {
+        "provider": "openai-codex",
+        "mode": "oauth"
       }
+    }
+  },
+  "acp": {
+    "enabled": true,
+    "dispatch": {
+      "enabled": true
+    },
+    "backend": "acpx",
+    "defaultAgent": "codex",
+    "allowedAgents": [
+      "codex"
+    ],
+    "runtime": {
+      "ttlMinutes": 30
     }
   },
   "models": {
     "providers": {
       "openai": {
         "baseUrl": "https://api.openai.com/v1",
-        "apiKey": "__OPENCLAW_REDACTED__",
+        "apiKey": "REDACTED_USE_LIVE_CONFIG",
+        "models": []
+      },
+      "anthropic": {
+        "baseUrl": "https://api.anthropic.com/v1",
+        "apiKey": "REDACTED_USE_LIVE_CONFIG",
         "models": []
       }
     }
@@ -36,18 +75,11 @@
         ]
       },
       "models": {
-        "anthropic/claude-sonnet-4-20250514": {
-          "alias": "sonnet"
-        },
-        "anthropic/claude-opus-4-6": {
-          "alias": "opus"
-        },
         "openai-codex/gpt-5.3": {},
-        "openai-codex/gpt-5.3-codex": {
-          "alias": "codex"
-        },
+        "openai-codex/gpt-5.3-codex": {},
         "openai-codex/gpt-5.1": {},
-        "openai-codex/gpt-5.2-codex": {}
+        "openai-codex/gpt-5.2-codex": {},
+        "openai-codex/gpt-5.4": {}
       },
       "workspace": "/Users/hd/Developer/cortana",
       "bootstrapMaxChars": 8000,
@@ -66,10 +98,13 @@
       },
       "contextPruning": {},
       "compaction": {
+        "mode": "safeguard",
         "memoryFlush": {
           "enabled": true
         }
       },
+      "thinkingDefault": "low",
+      "verboseDefault": "off",
       "heartbeat": {
         "activeHours": {
           "start": "06:00",
@@ -81,56 +116,72 @@
         "maxConcurrent": 8,
         "archiveAfterMinutes": 5,
         "model": "openai-codex/gpt-5.3-codex"
+      },
+      "sandbox": {
+        "mode": "off"
       }
     },
     "list": [
       {
         "id": "main",
         "workspace": "/Users/hd/Developer/cortana",
-        "identityNamespace": "main",
         "model": {
           "primary": "anthropic/claude-opus-4-6",
           "fallbacks": [
-            "openai-codex/gpt-5.3-codex"
+            "openai-codex/gpt-5.3-codex",
+            "openai-codex/gpt-5.2-codex"
           ]
         }
       },
       {
         "id": "cron-health",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-health",
-        "model": "openai-codex/gpt-5.1"
+        "model": "openai-codex/gpt-5.3-codex-spark"
       },
       {
         "id": "cron-fitness",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-fitness",
-        "model": "openai-codex/gpt-5.3-codex"
+        "model": "openai-codex/gpt-5.3-codex-spark"
       },
       {
         "id": "cron-market",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-market",
-        "model": "openai-codex/gpt-5.3-codex"
+        "model": "openai-codex/gpt-5.3-codex-spark"
       },
       {
         "id": "cron-comms",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-comms",
-        "model": "openai-codex/gpt-5.3-codex"
+        "model": "openai-codex/gpt-5.3-codex-spark"
       },
       {
         "id": "cron-maintenance",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-maintenance",
-        "model": "openai-codex/gpt-5.1"
+        "model": "openai-codex/gpt-5.3-codex-spark"
       },
       {
         "id": "huragok",
         "workspace": "/Users/hd/Developer/cortana",
-        "identityNamespace": "huragok",
         "model": "openai-codex/gpt-5.3-codex"
       },
       {
         "id": "researcher",
         "workspace": "/Users/hd/Developer/cortana",
-        "identityNamespace": "researcher",
         "model": "openai-codex/gpt-5.3-codex"
+      },
+      {
+        "id": "oracle",
+        "workspace": "/Users/hd/Developer/cortana",
+        "model": "openai-codex/gpt-5.3-codex"
+      },
+      {
+        "id": "monitor",
+        "workspace": "/Users/hd/Developer/cortana",
+        "model": "anthropic/claude-sonnet-4-6"
+      },
+      {
+        "id": "arbiter",
+        "workspace": "/Users/hd/Developer/cortana/identities/arbiter",
+        "model": "openai-codex/gpt-5.4"
       }
     ]
   },
@@ -139,10 +190,13 @@
     "web": {
       "search": {
         "provider": "brave",
-        "apiKey": "__OPENCLAW_REDACTED__",
+        "apiKey": "REDACTED_USE_LIVE_CONFIG",
         "maxResults": 5,
         "timeoutSeconds": 30
       }
+    },
+    "sessions": {
+      "visibility": "all"
     },
     "agentToAgent": {
       "enabled": true,
@@ -150,11 +204,19 @@
         "main",
         "huragok",
         "cron-*",
-        "researcher"
+        "researcher",
+        "oracle",
+        "monitor",
+        "arbiter"
       ]
     },
-    "sessions": {
-      "visibility": "all"
+    "exec": {
+      "host": "gateway",
+      "security": "full",
+      "ask": "off"
+    },
+    "fs": {
+      "workspaceOnly": true
     }
   },
   "bindings": [
@@ -207,6 +269,24 @@
         "channel": "telegram",
         "accountId": "monitor"
       }
+    },
+    {
+      "agentId": "oracle",
+      "match": {
+        "channel": "telegram",
+        "accountId": "default",
+        "peer": {
+          "kind": "group",
+          "id": "-5229462108"
+        }
+      }
+    },
+    {
+      "agentId": "arbiter",
+      "match": {
+        "channel": "telegram",
+        "accountId": "arbiter"
+      }
     }
   ],
   "messages": {
@@ -222,7 +302,7 @@
     "maintenance": {
       "mode": "enforce",
       "pruneAfter": "2d",
-      "maxEntries": 60,
+      "maxEntries": 20,
       "rotateBytes": "10mb",
       "resetArchiveRetention": "7d"
     }
@@ -230,11 +310,6 @@
   "hooks": {
     "internal": {
       "enabled": true,
-      "load": {
-        "extraDirs": [
-          "/Users/hd/Developer/cortana/hooks"
-        ]
-      },
       "entries": {
         "boot-md": {
           "enabled": true
@@ -249,6 +324,11 @@
           "enabled": true,
           "configPath": "config/identity-namespaces.json"
         }
+      },
+      "load": {
+        "extraDirs": [
+          "/Users/hd/Developer/cortana/hooks"
+        ]
       }
     }
   },
@@ -256,24 +336,69 @@
     "telegram": {
       "enabled": true,
       "dmPolicy": "pairing",
-      "botToken": "__OPENCLAW_REDACTED__",
       "groups": {
         "*": {
           "requireMention": true
         },
         "-5229462108": {
-          "requireMention": false,
-          "groupPolicy": "open"
+          "requireMention": true,
+          "groupPolicy": "allowlist"
+        },
+        "-5006548746": {
+          "requireMention": true,
+          "groupPolicy": "allowlist"
         }
       },
       "allowFrom": [
-        "8171372724"
+        8171372724
       ],
       "groupAllowFrom": [
-        "-5229462108"
+        8171372724
       ],
       "groupPolicy": "allowlist",
-      "streaming": "partial"
+      "streaming": "partial",
+      "threadBindings": {
+        "enabled": true,
+        "spawnAcpSessions": true
+      },
+      "accounts": {
+        "researcher": {
+          "dmPolicy": "pairing",
+          "botToken": "REDACTED_USE_LIVE_CONFIG",
+          "groupPolicy": "allowlist",
+          "streaming": "partial"
+        },
+        "default": {
+          "dmPolicy": "pairing",
+          "botToken": "REDACTED_USE_LIVE_CONFIG",
+          "groupPolicy": "allowlist",
+          "streaming": "partial"
+        },
+        "huragok": {
+          "dmPolicy": "pairing",
+          "botToken": "REDACTED_USE_LIVE_CONFIG",
+          "groupPolicy": "allowlist",
+          "streaming": "partial"
+        },
+        "oracle": {
+          "dmPolicy": "pairing",
+          "botToken": "REDACTED_USE_LIVE_CONFIG",
+          "groupPolicy": "allowlist",
+          "streaming": "partial"
+        },
+        "monitor": {
+          "dmPolicy": "pairing",
+          "botToken": "REDACTED_USE_LIVE_CONFIG",
+          "groupPolicy": "allowlist",
+          "streaming": "partial"
+        },
+        "arbiter": {
+          "dmPolicy": "pairing",
+          "botToken": "REDACTED_USE_LIVE_CONFIG",
+          "groupPolicy": "allowlist",
+          "streaming": "partial"
+        }
+      }
     }
   },
   "gateway": {
@@ -283,19 +408,33 @@
     "controlUi": {
       "allowedOrigins": [
         "https://hs-mac-mini.taild96d14.ts.net",
-        "https://hs-mac-mini.taild96d14.ts.net:8443"
+        "https://hs-mac-mini.taild96d14.ts.net:8443",
+        "http://127.0.0.1:18789",
+        "http://localhost:18789"
       ]
     },
     "auth": {
       "mode": "token",
-      "token": "__OPENCLAW_REDACTED__"
+      "token": "REDACTED_USE_LIVE_CONFIG"
     },
+    "trustedProxies": [
+      "127.0.0.1/32",
+      "::1/128"
+    ],
     "tailscale": {
       "mode": "serve",
       "resetOnExit": false
     }
   },
   "plugins": {
+    "allow": [
+      "telegram",
+      "memory-core",
+      "acpx"
+    ],
+    "load": {
+      "paths": []
+    },
     "slots": {
       "memory": "memory-core"
     },
@@ -305,6 +444,16 @@
       },
       "memory-core": {
         "enabled": true
+      },
+      "acpx": {
+        "enabled": true,
+        "config": {
+          "permissionMode": "approve-all",
+          "nonInteractivePermissions": "fail",
+          "timeoutSeconds": 1800,
+          "queueOwnerTtlSeconds": 15,
+          "cwd": "/Users/hd/Developer/cortana"
+        }
       }
     }
   }

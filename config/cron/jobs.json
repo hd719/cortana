@@ -74,7 +74,7 @@
       "name": "📅 Calendar reminders → Telegram (ALL calendars)",
       "enabled": true,
       "createdAtMs": 1769585938649,
-      "updatedAtMs": 1773756429262,
+      "updatedAtMs": 1773760033563,
       "schedule": {
         "kind": "cron",
         "expr": "7 6-23 * * *",
@@ -89,10 +89,10 @@
         "timeoutSeconds": 90
       },
       "state": {
-        "nextRunAtMs": 1773760020000,
-        "lastRunAtMs": 1773756420027,
+        "nextRunAtMs": 1773763620000,
+        "lastRunAtMs": 1773760020020,
         "lastStatus": "ok",
-        "lastDurationMs": 9235,
+        "lastDurationMs": 13543,
         "consecutiveErrors": 0,
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
@@ -686,18 +686,18 @@
         "mode": "none"
       },
       "state": {
-        "nextRunAtMs": 1773759635207,
-        "lastRunAtMs": 1773759035207,
+        "nextRunAtMs": 1773761443255,
+        "lastRunAtMs": 1773760843255,
         "lastRunStatus": "ok",
         "lastStatus": "ok",
-        "lastDurationMs": 7668,
+        "lastDurationMs": 12126,
         "lastDeliveryStatus": "not-delivered",
         "consecutiveErrors": 0,
         "lastDelivered": false
       },
       "wakeMode": "now",
       "sessionTarget": "isolated",
-      "updatedAtMs": 1773759042875
+      "updatedAtMs": 1773760855381
     },
     {
       "id": "repo-drift-watchdog-daily",
@@ -756,16 +756,16 @@
         "accountId": "monitor"
       },
       "state": {
-        "nextRunAtMs": 1773759600000,
-        "lastRunAtMs": 1773758700028,
+        "nextRunAtMs": 1773761400000,
+        "lastRunAtMs": 1773760500025,
         "lastRunStatus": "ok",
         "lastStatus": "ok",
-        "lastDurationMs": 16031,
+        "lastDurationMs": 12047,
         "lastDeliveryStatus": "not-delivered",
         "consecutiveErrors": 0,
         "lastDelivered": false
       },
-      "updatedAtMs": 1773758716059
+      "updatedAtMs": 1773760512072
     },
     {
       "id": "session-lifecycle-policy-daily",
@@ -841,7 +841,7 @@
       "name": "🔄 Repo Auto Sync + Local Branch Cleanup",
       "enabled": true,
       "createdAtMs": 1772642795141,
-      "updatedAtMs": 1773757829704,
+      "updatedAtMs": 1773759636727,
       "schedule": {
         "kind": "cron",
         "expr": "*/30 * * * 1-5",
@@ -863,11 +863,11 @@
         "accountId": "monitor"
       },
       "state": {
-        "nextRunAtMs": 1773759600000,
-        "lastRunAtMs": 1773757817555,
+        "nextRunAtMs": 1773761400000,
+        "lastRunAtMs": 1773759614631,
         "lastRunStatus": "ok",
         "lastStatus": "ok",
-        "lastDurationMs": 12149,
+        "lastDurationMs": 22096,
         "lastDeliveryStatus": "not-delivered",
         "consecutiveErrors": 0,
         "lastDelivered": false
@@ -947,7 +947,7 @@
       "name": "📣 Trading Backtest Notify (market sessions)",
       "enabled": true,
       "createdAtMs": 1773443868479,
-      "updatedAtMs": 1773759343084,
+      "updatedAtMs": 1773761104844,
       "schedule": {
         "kind": "cron",
         "expr": "*/5 9-16 * * 1-5",
@@ -966,11 +966,11 @@
         "accountId": "monitor"
       },
       "state": {
-        "nextRunAtMs": 1773759600000,
-        "lastRunAtMs": 1773759300016,
+        "nextRunAtMs": 1773761400000,
+        "lastRunAtMs": 1773761100029,
         "lastRunStatus": "ok",
         "lastStatus": "ok",
-        "lastDurationMs": 43068,
+        "lastDurationMs": 4815,
         "lastDelivered": false,
         "lastDeliveryStatus": "not-delivered",
         "consecutiveErrors": 0
