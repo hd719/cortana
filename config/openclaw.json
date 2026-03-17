@@ -364,37 +364,37 @@
       "accounts": {
         "researcher": {
           "dmPolicy": "pairing",
-          "botToken": "8712272379:AAFpgZkG8xF-QelDfi1k_lRSUF6iN2vc1Aw",
+          "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
           "streaming": "partial"
         },
         "default": {
           "dmPolicy": "pairing",
-          "botToken": "8550920618:AAHb6duQ5XNAO7uiiMGdl0D0Ys4V6uDd7zE",
+          "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
           "streaming": "partial"
         },
         "huragok": {
           "dmPolicy": "pairing",
-          "botToken": "8755899222:AAEkFyLyJUK6CKxHitnCXG9zo3CmyJApmb4",
+          "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
           "streaming": "partial"
         },
         "oracle": {
           "dmPolicy": "pairing",
-          "botToken": "8720850960:AAEyNMTRv_KgEl_36S3h4TzTRBIij8HzDCI",
+          "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
           "streaming": "partial"
         },
         "monitor": {
           "dmPolicy": "pairing",
-          "botToken": "8691136047:AAEEnF1WZ7GOtS_5YEFNqMBWRouETerLmiQ",
+          "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
           "streaming": "partial"
         },
         "arbiter": {
           "dmPolicy": "pairing",
-          "botToken": "8685989834:AAEPDy-DpKc6cfD9eKl6RnMM-G4sSuUBHOo",
+          "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
           "streaming": "partial"
         }
@@ -415,7 +415,7 @@
     },
     "auth": {
       "mode": "token",
-      "token": "HEwnOA0TFqQA9NcCVWRCIKPY35T6KsvE16mNt-dpP3I"
+      "token": "REDACTED_USE_LIVE_CONFIG"
     },
     "trustedProxies": [
       "127.0.0.1/32",

@@ -49,8 +49,10 @@ for i in "${!SYNC_SRC[@]}"; do
       cp "$src" "$dst"
       # Auto-redact secrets from openclaw.json
       if [[ "$dst_rel" == "config/openclaw.json" ]]; then
-        sed -i '' -E 's/"apiKey": "[^"]+"/"apiKey": "REDACTED_USE_ENV_OR_LIVE_CONFIG"/g' "$dst"
-        sed -i '' -E 's/"credentials": "[^"]+"/"credentials": "REDACTED_USE_ENV_OR_LIVE_CONFIG"/g' "$dst"
+        sed -i '' -E 's/"apiKey": "[^"]+"/"apiKey": "REDACTED_USE_LIVE_CONFIG"/g' "$dst"
+        sed -i '' -E 's/"credentials": "[^"]+"/"credentials": "REDACTED_USE_LIVE_CONFIG"/g' "$dst"
+        sed -i '' -E 's/"botToken": "[^"]+"/"botToken": "REDACTED_USE_LIVE_CONFIG"/g' "$dst"
+        sed -i '' -E 's/"token": "[^"]+"/"token": "REDACTED_USE_LIVE_CONFIG"/g' "$dst"
         echo "       copied (secrets redacted)"
       else
         echo "       copied"
@@ -63,8 +65,10 @@ for i in "${!SYNC_SRC[@]}"; do
   if [[ "$dst_rel" == "config/openclaw.json" ]]; then
     tmpfile=$(mktemp)
     cp "$src" "$tmpfile"
-    sed -i '' -E 's/"apiKey": "[^"]+"/"apiKey": "REDACTED_USE_ENV_OR_LIVE_CONFIG"/g' "$tmpfile"
-    sed -i '' -E 's/"credentials": "[^"]+"/"credentials": "REDACTED_USE_ENV_OR_LIVE_CONFIG"/g' "$tmpfile"
+    sed -i '' -E 's/"apiKey": "[^"]+"/"apiKey": "REDACTED_USE_LIVE_CONFIG"/g' "$tmpfile"
+    sed -i '' -E 's/"credentials": "[^"]+"/"credentials": "REDACTED_USE_LIVE_CONFIG"/g' "$tmpfile"
+    sed -i '' -E 's/"botToken": "[^"]+"/"botToken": "REDACTED_USE_LIVE_CONFIG"/g' "$tmpfile"
+    sed -i '' -E 's/"token": "[^"]+"/"token": "REDACTED_USE_LIVE_CONFIG"/g' "$tmpfile"
     if diff -q "$tmpfile" "$dst" >/dev/null 2>&1; then
       echo "OK    $src_rel (in sync)"
       ((unchanged++)) || true
