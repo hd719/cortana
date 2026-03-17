@@ -26,7 +26,7 @@ function psql(sql: string, at = false): string {
   const args = [DB, "-v", "ON_ERROR_STOP=1"];
   if (at) args.push("-A", "-t", "-q", "-X");
   args.push("-c", sql);
-  const env = withPostgresPath(process.env);
+  const env = { ...process.env, PATH: `${POSTGRES_PATH}:${process.env.PATH ?? ""}` };
   const proc = spawnSync(PSQL_BIN, args, { encoding: "utf8", env });
   if (proc.status !== 0) {
     const msg = (proc.stderr || proc.stdout || "psql failed").trim();
@@ -184,49 +184,56 @@ async function main(): Promise<void> {
     }
   }
 
+  // Only consider crons/tools with recent activity (48h) to avoid ghost entries
+  // from deleted/renamed cron jobs polluting the health score.
+  const RECENCY_FILTER_CRON =
+    "WHERE cron_name IN (SELECT DISTINCT cron_name FROM cortana_cron_health WHERE timestamp > NOW() - INTERVAL '48 hours')";
+  const RECENCY_FILTER_TOOL =
+    "WHERE tool_name IN (SELECT DISTINCT tool_name FROM cortana_tool_health WHERE timestamp > NOW() - INTERVAL '48 hours')";
+
   const cronsTotal = Number(
     psql(
-      "SELECT COUNT(*) FROM (SELECT DISTINCT ON (cron_name) cron_name FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t;",
+      `SELECT COUNT(*) FROM (SELECT DISTINCT ON (cron_name) cron_name FROM cortana_cron_health ${RECENCY_FILTER_CRON} ORDER BY cron_name, timestamp DESC) t;`,
       true
     ) || "0"
   );
   const cronsHealthy = Number(
     psql(
-      "SELECT COUNT(*) FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t WHERE status='ok';",
+      `SELECT COUNT(*) FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ${RECENCY_FILTER_CRON} ORDER BY cron_name, timestamp DESC) t WHERE status='ok';`,
       true
     ) || "0"
   );
 
   const cronsFailing =
     psql(
-      "SELECT COALESCE(array_agg(cron_name), '{}') FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t WHERE status='failed';",
+      `SELECT COALESCE(array_agg(cron_name), '{}') FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ${RECENCY_FILTER_CRON} ORDER BY cron_name, timestamp DESC) t WHERE status='failed';`,
       true
     ) || "{}";
   const cronsMissed =
     psql(
-      "SELECT COALESCE(array_agg(cron_name), '{}') FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t WHERE status='missed';",
+      `SELECT COALESCE(array_agg(cron_name), '{}') FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ${RECENCY_FILTER_CRON} ORDER BY cron_name, timestamp DESC) t WHERE status='missed';`,
       true
     ) || "{}";
   const toolsUp =
     psql(
-      "SELECT COALESCE(array_agg(tool_name), '{}') FROM (SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ORDER BY tool_name, timestamp DESC) t WHERE status='up';",
+      `SELECT COALESCE(array_agg(tool_name), '{}') FROM (SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ${RECENCY_FILTER_TOOL} ORDER BY tool_name, timestamp DESC) t WHERE status='up';`,
       true
     ) || "{}";
   const toolsDown =
     psql(
-      "SELECT COALESCE(array_agg(tool_name), '{}') FROM (SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ORDER BY tool_name, timestamp DESC) t WHERE status<>'up';",
+      `SELECT COALESCE(array_agg(tool_name), '{}') FROM (SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ${RECENCY_FILTER_TOOL} ORDER BY tool_name, timestamp DESC) t WHERE status<>'up';`,
       true
     ) || "{}";
 
   const toolsDownCount = Number(
     psql(
-      "SELECT COUNT(*) FROM (SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ORDER BY tool_name, timestamp DESC) t WHERE status<>'up';",
+      `SELECT COUNT(*) FROM (SELECT DISTINCT ON (tool_name) tool_name, status FROM cortana_tool_health ${RECENCY_FILTER_TOOL} ORDER BY tool_name, timestamp DESC) t WHERE status<>'up';`,
       true
     ) || "0"
   );
   const cronsFailCount = Number(
     psql(
-      "SELECT COUNT(*) FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ORDER BY cron_name, timestamp DESC) t WHERE status IN ('failed','missed');",
+      `SELECT COUNT(*) FROM (SELECT DISTINCT ON (cron_name) cron_name, status FROM cortana_cron_health ${RECENCY_FILTER_CRON} ORDER BY cron_name, timestamp DESC) t WHERE status IN ('failed','missed');`,
       true
     ) || "0"
   );
