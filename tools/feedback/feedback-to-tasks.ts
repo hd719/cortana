@@ -18,7 +18,7 @@ const SQL = `WITH candidates AS (
       WHERE t.metadata->>'feedback_id' = f.id::text
     ) AS already_tasked
   FROM mc_feedback_items f
-  WHERE f.status IN ('new', 'verified')
+  WHERE f.status IN ('new', 'verified', 'triaged')
     AND f.remediation_status = 'open'
 ),
 normalized AS (
