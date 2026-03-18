@@ -54,6 +54,8 @@ describe("fitness cron contract", () => {
     expect(eveningMessage).toContain("today_training_output");
     expect(eveningMessage).toContain("today_nutrition");
     expect(eveningMessage).toContain("tonight_sleep_target");
+    expect(eveningMessage).toContain("start with `Load:`");
+    expect(eveningMessage).toContain("Do not call evening load signal \"readiness\"");
     expect(eveningMessage).toContain("Do not rehash morning readiness");
 
     expect(weeklyMessage).toContain("tools/fitness/weekly-insights-data.ts");
