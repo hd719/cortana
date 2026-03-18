@@ -61,7 +61,32 @@ describe("fitness evening recap tonal payload handling", () => {
 
     const summary = buildWhoopSummary(whoop, "2026-03-10");
     expect(summary.total_strain_today).toBe(13);
+    expect(summary.cycle_strain_today).toBeNull();
+    expect(summary.workouts_strain_sum_today).toBe(13);
+    expect(summary.strain_source).toBe("workouts_sum");
     expect(summary.whoop_workouts_today).toBe(2);
     expect(summary.top_sports_today.sort()).toEqual(["lift", "run"]);
+  });
+
+  it("prefers cycle strain as canonical daily strain when available", () => {
+    const whoop = {
+      cycles: [
+        {
+          start: "2026-03-10T05:00:00Z",
+          updated_at: "2026-03-10T13:00:00Z",
+          score: { strain: 13.9 },
+        },
+      ],
+      workouts: [
+        { start: "2026-03-10T12:00:00Z", sport_name: "run", score: { strain: 7.2 } },
+        { start: "2026-03-10T14:00:00Z", sport_name: "lift", score: { strain: 5.8 } },
+      ],
+    };
+
+    const summary = buildWhoopSummary(whoop, "2026-03-10");
+    expect(summary.total_strain_today).toBe(13.9);
+    expect(summary.cycle_strain_today).toBe(13.9);
+    expect(summary.workouts_strain_sum_today).toBe(13);
+    expect(summary.strain_source).toBe("cycle");
   });
 });

@@ -26,6 +26,9 @@ export type TonalWorkoutSummary = {
 
 export type WhoopSummary = {
   total_strain_today: number;
+  cycle_strain_today: number | null;
+  workouts_strain_sum_today: number;
+  strain_source: "cycle" | "workouts_sum";
   whoop_workouts_today: number;
   top_sports_today: string[];
 };
@@ -136,6 +139,25 @@ export function tonalTodayWorkouts(payload: unknown, today = localYmd(), timeZon
 
 export function buildWhoopSummary(payload: unknown, today = localYmd()): WhoopSummary {
   const workouts = extractWhoopWorkouts(payload).filter((entry) => entry.date === today);
+  const workoutsStrainSum = Number(workouts.reduce((sum, entry) => sum + (entry.strain ?? 0), 0).toFixed(2));
+
+  const root = toObj(payload);
+  const cycles = Array.isArray(root.cycles) ? root.cycles : [];
+  const cycleStrainToday = cycles
+    .map((entry) => {
+      const row = toObj(entry);
+      const score = toObj(row.score);
+      const ts = typeof row.created_at === "string" ? row.created_at : (typeof row.start === "string" ? row.start : "");
+      return {
+        date: ts ? ymdInZone(ts) : "",
+        ts: typeof row.updated_at === "string" ? row.updated_at : (typeof row.created_at === "string" ? row.created_at : ts),
+        strain: numberOrNull(score.strain),
+      };
+    })
+    .filter((entry) => entry.date === today)
+    .sort((a, b) => b.ts.localeCompare(a.ts))[0]?.strain ?? null;
+
+  const totalStrainToday = cycleStrainToday ?? workoutsStrainSum;
   const bySport = new Map<string, number>();
   for (const workout of workouts) {
     const key = workout.sport.toLowerCase();
@@ -146,7 +168,10 @@ export function buildWhoopSummary(payload: unknown, today = localYmd()): WhoopSu
     .slice(0, 3)
     .map(([sport]) => sport);
   return {
-    total_strain_today: Number(workouts.reduce((sum, entry) => sum + (entry.strain ?? 0), 0).toFixed(2)),
+    total_strain_today: totalStrainToday,
+    cycle_strain_today: cycleStrainToday,
+    workouts_strain_sum_today: workoutsStrainSum,
+    strain_source: cycleStrainToday != null ? "cycle" : "workouts_sum",
     whoop_workouts_today: workouts.length,
     top_sports_today: topSports,
   };

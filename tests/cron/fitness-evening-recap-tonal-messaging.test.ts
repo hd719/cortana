@@ -16,6 +16,7 @@ describe("Fitness Evening Recap Tonal tomorrow messaging", () => {
     const message = String(job?.payload?.message ?? "");
     expect(message).toContain("/Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts");
     expect(message).toContain("today_training_output");
+    expect(message).toContain("cycle-first");
     expect(message).toContain("start with `Load:`");
     expect(message).toContain("today_nutrition");
     expect(message).toContain("tonight_sleep_target");
