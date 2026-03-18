@@ -182,6 +182,11 @@
         "id": "arbiter",
         "workspace": "/Users/hd/Developer/cortana/identities/arbiter",
         "model": "openai-codex/gpt-5.4"
+      },
+      {
+        "id": "spartan",
+        "workspace": "/Users/hd/Developer/cortana/identities/spartan",
+        "model": "openai-codex/gpt-5.3-codex"
       }
     ]
   },
@@ -207,7 +212,8 @@
         "researcher",
         "oracle",
         "monitor",
-        "arbiter"
+        "arbiter",
+        "spartan"
       ]
     },
     "exec": {
@@ -286,6 +292,13 @@
       "match": {
         "channel": "telegram",
         "accountId": "arbiter"
+      }
+    },
+    {
+      "agentId": "spartan",
+      "match": {
+        "channel": "telegram",
+        "accountId": "spartan"
       }
     }
   ],
@@ -395,6 +408,12 @@
         "arbiter": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
+          "groupPolicy": "allowlist",
+          "streaming": "partial"
+        },
+        "spartan": {
+          "dmPolicy": "pairing",
+          "botToken": "__SPARTAN_BOT_TOKEN__",
           "groupPolicy": "allowlist",
           "streaming": "partial"
         }
