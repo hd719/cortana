@@ -68,7 +68,7 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "anthropic/claude-opus-4-6",
+        "primary": "openai-codex/gpt-5.4-codex",
         "fallbacks": [
           "openai-codex/gpt-5.3-codex",
           "openai-codex/gpt-5.2-codex"
@@ -96,7 +96,23 @@
         "provider": "openai",
         "model": "text-embedding-3-small"
       },
-      "contextPruning": {},
+      "contextPruning": {
+        "mode": "cache-ttl",
+        "ttl": "1h",
+        "keepLastAssistants": 3,
+        "softTrimRatio": 0.3,
+        "hardClearRatio": 0.5,
+        "minPrunableToolChars": 50000,
+        "softTrim": {
+          "maxChars": 4000,
+          "headChars": 1500,
+          "tailChars": 1500
+        },
+        "hardClear": {
+          "enabled": true,
+          "placeholder": "[Old tool result content cleared]"
+        }
+      },
       "compaction": {
         "mode": "safeguard",
         "memoryFlush": {
@@ -109,7 +125,11 @@
         "activeHours": {
           "start": "06:00",
           "end": "23:00"
-        }
+        },
+        "every": "30m",
+        "lightContext": true,
+        "model": "openai-codex/gpt-5.1",
+        "includeReasoning": false
       },
       "maxConcurrent": 4,
       "subagents": {
@@ -176,7 +196,7 @@
       {
         "id": "monitor",
         "workspace": "/Users/hd/Developer/cortana",
-        "model": "anthropic/claude-sonnet-4-6"
+        "model": "openai-codex/gpt-5.1"
       },
       {
         "id": "arbiter",
