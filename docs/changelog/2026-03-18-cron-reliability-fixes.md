@@ -22,8 +22,15 @@
 - Added `timeout 840` shell wrapper around the compute script so it gets killed cleanly before the cron timeout fires
 - Added guidance about stuck ticker data fetches
 
-## 3. Weekly Fitness Insights: Path Already Fixed
+## 3. Weekly Fitness Insights: Deterministic Write Path
 
 **Problem:** Write failure using `~/` tilde path instead of absolute `/Users/hd/` path in sandboxed workspace.
 
-**Status:** The file `2026-W11.md` already exists on disk (written by retry/manual). The cron prompt already instructs "use exact absolute path above, not ~/". This was an agent compliance issue, not a prompt bug. No code change needed — monitoring for recurrence.
+**Fix:** Tightened the cron prompt to:
+- compute `YEAR_WEEK` explicitly via shell
+- build `OUT_FILE` as a fully expanded absolute `/Users/hd/...` path
+- `mkdir -p` the weekly directory before writing
+- forbid `~/...`, relative paths, and the literal `YYYY-WXX` placeholder
+- verify the exact file with `test -f` and `ls -l` after writing
+
+**Expected impact:** The weekly insights job should stop failing on path resolution and produce a deterministic markdown artifact every Sunday run.
