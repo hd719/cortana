@@ -41,6 +41,13 @@ type MetricDelta = {
   delta_pct: number | null;
 };
 
+export type WeeklyProteinAssumption = {
+  status: "observed_from_logs" | "assume_likely_below_target_unverified" | "assume_inconsistent_unverified";
+  confidence: "high" | "medium" | "low";
+  rationale: string;
+  coaching_note: string;
+};
+
 function curlJson(url: string, timeoutSec: number): unknown {
   const r = spawnSync("curl", ["-s", "--max-time", String(timeoutSec), url], {
     encoding: "utf8",
@@ -195,6 +202,35 @@ function hardTruthRiskBand(trends: {
   return "green";
 }
 
+export function buildWeeklyProteinAssumption(opts: {
+  currentDaysLogged: number;
+  previousDaysLogged: number;
+  currentAvgProtein: number | null;
+}): WeeklyProteinAssumption {
+  if (opts.currentDaysLogged >= 5 && opts.currentAvgProtein != null) {
+    return {
+      status: "observed_from_logs",
+      confidence: "high",
+      rationale: "Protein trend is backed by sufficient meal-log coverage this week.",
+      coaching_note: "Use logged trend directly for adherence coaching.",
+    };
+  }
+  if (opts.currentDaysLogged === 0 && opts.previousDaysLogged === 0) {
+    return {
+      status: "assume_likely_below_target_unverified",
+      confidence: "low",
+      rationale: "No protein logs for two consecutive weeks; default to under-fueling risk.",
+      coaching_note: "Assume adherence is below target until logs prove otherwise.",
+    };
+  }
+  return {
+    status: "assume_inconsistent_unverified",
+    confidence: "low",
+    rationale: "Sparse protein logs limit direct adherence confidence.",
+    coaching_note: "Assume inconsistent adherence and prioritize consistent logging.",
+  };
+}
+
 function main(): void {
   const errors: string[] = [];
   const today = localYmd();
@@ -244,6 +280,11 @@ function main(): void {
     sleepHours: trendSignals.sleep_hours,
     strainLoad: trendSignals.strain_load,
   });
+  const proteinAssumption = buildWeeklyProteinAssumption({
+    currentDaysLogged: currentMetrics.protein_days_logged,
+    previousDaysLogged: previousMetrics.protein_days_logged,
+    currentAvgProtein: currentMetrics.protein_avg_daily,
+  });
 
   const pendingInsights = fetchPendingHealthInsights(8);
   const surfacedInsightIds = chooseSurfacedInsightIds(pendingInsights, riskBand, 2);
@@ -265,6 +306,7 @@ function main(): void {
       previous: previousMetrics,
     },
     trend_signals: trendSignals,
+    protein_adherence_assumption: proteinAssumption,
     hard_truth_inputs: {
       risk_band: riskBand,
       biggest_regression:

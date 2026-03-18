@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildWhoopSummary, tonalTodayWorkouts, tonalWorkoutsFromPayload } from "../../tools/fitness/evening-recap-data.ts";
+import { buildNutritionAssumption, buildWhoopSummary, tonalTodayWorkouts, tonalWorkoutsFromPayload } from "../../tools/fitness/evening-recap-data.ts";
 
 describe("fitness evening recap tonal payload handling", () => {
   it("extracts workouts when tonal.workouts is an object keyed by workout id", () => {
@@ -88,5 +88,17 @@ describe("fitness evening recap tonal payload handling", () => {
     expect(summary.cycle_strain_today).toBe(13.9);
     expect(summary.workouts_strain_sum_today).toBe(13);
     expect(summary.strain_source).toBe("cycle");
+  });
+
+  it("infers conservative nutrition assumption when meals are unlogged on load day", () => {
+    const assumption = buildNutritionAssumption({
+      mealsLogged: 0,
+      proteinStatus: "unknown",
+      totalStrainToday: 13.9,
+      tonalSessions: 2,
+    });
+
+    expect(assumption.status).toBe("assume_likely_below_target_unverified");
+    expect(assumption.confidence).toBe("low");
   });
 });

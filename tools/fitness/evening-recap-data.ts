@@ -33,6 +33,13 @@ export type WhoopSummary = {
   top_sports_today: string[];
 };
 
+export type NutritionAssumption = {
+  status: "observed_from_logs" | "assume_likely_below_target_unverified" | "assume_inconsistent_unverified";
+  confidence: "high" | "medium" | "low";
+  rationale: string;
+  coaching_note: string;
+};
+
 function curlJson(url: string, timeoutSec: number): unknown {
   const r = spawnSync("curl", ["-s", "--max-time", String(timeoutSec), url], {
     encoding: "utf8",
@@ -202,6 +209,41 @@ function buildTonightSleepTarget(opts: {
   };
 }
 
+export function buildNutritionAssumption(opts: {
+  mealsLogged: number;
+  proteinStatus: "below" | "on_target" | "above" | "unknown";
+  totalStrainToday: number;
+  tonalSessions: number;
+}): NutritionAssumption {
+  if (opts.mealsLogged > 0) {
+    return {
+      status: "observed_from_logs",
+      confidence: opts.mealsLogged >= 2 ? "high" : "medium",
+      rationale: "Meal logs exist, so protein status is based on observed intake.",
+      coaching_note:
+        opts.proteinStatus === "below"
+          ? "Protein is below target; close the gap tonight."
+          : "Protein signal is observed; stay consistent with target intake.",
+    };
+  }
+
+  if (opts.totalStrainToday >= 10 || opts.tonalSessions > 0) {
+    return {
+      status: "assume_likely_below_target_unverified",
+      confidence: "low",
+      rationale: "No meals logged on a meaningful training-load day; default to under-fueling risk.",
+      coaching_note: "Treat protein as likely below target until intake is logged.",
+    };
+  }
+
+  return {
+    status: "assume_inconsistent_unverified",
+    confidence: "low",
+    rationale: "No meals logged; adherence cannot be verified.",
+    coaching_note: "Assume inconsistent fueling and re-establish logging tomorrow.",
+  };
+}
+
 function main(): void {
   const errors: string[] = [];
   const today = localYmd();
@@ -229,6 +271,12 @@ function main(): void {
 
   const mealEntries = collectRecentMealEntries({ days: 7, agentId: "spartan" });
   const mealRollup = summarizeMealRollup(mealEntries, today);
+  const nutritionAssumption = buildNutritionAssumption({
+    mealsLogged: mealRollup.today.mealsLogged,
+    proteinStatus: mealRollup.today.proteinStatus,
+    totalStrainToday: whoopSummary.total_strain_today,
+    tonalSessions: todayWorkouts.length,
+  });
   const sleepTarget = buildTonightSleepTarget({
     totalStrainToday: whoopSummary.total_strain_today,
     tonalSessions: todayWorkouts.length,
@@ -281,6 +329,7 @@ function main(): void {
       carbs_g: mealRollup.today.carbsG,
       fat_g: mealRollup.today.fatG,
     },
+    nutrition_assumption: nutritionAssumption,
     tonight_sleep_target: sleepTarget,
     data_freshness: {
       is_stale: (recoveryFreshnessHours ?? 99) > 18 || (sleepFreshnessHours ?? 99) > 18,
