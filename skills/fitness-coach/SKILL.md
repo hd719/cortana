@@ -34,16 +34,12 @@ curl -s http://localhost:3033/whoop/data
 curl -s http://localhost:3033/tonal/data
 ```
 
-**If Tonal unhealthy:** Auto-heal first, then retry:
+**If Tonal unhealthy:** The TypeScript service self-heals 401/403 once. Only use the manual reset flow if it stays unhealthy:
 ```bash
-# TS service self-heals on 401/403. Manual nudge if still unhealthy:
+# Manual Tonal auth reset
 rm -f ~/Developer/cortana-external/tonal_tokens.json
 launchctl kickstart -k gui/$(id -u)/com.cortana.fitness-service
 sleep 5
-
-# Log the self-heal
-export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
-psql cortana -c "INSERT INTO cortana_events (event_type, source, severity, message) VALUES ('auto_heal', 'tonal_auth', 'info', 'Deleted tonal_tokens.json to force re-auth');" 2>/dev/null
 
 # Retry health check
 curl -s http://localhost:3033/tonal/health | jq -r '.status'
@@ -168,8 +164,9 @@ These are already set up:
 
 ## Service Details
 
-**Service package:** `@cortana/external-service`
-**Location:** `~/Developer/cortana-external/apps/external-service/`
+**Repo:** `~/Developer/cortana-external/`
+**App:** `~/Developer/cortana-external/apps/external-service/`
+**Package:** `@cortana/external-service`
 
 **Endpoints:**
 - `http://localhost:3033/whoop/data` — All Whoop data (30 days cached)
@@ -201,8 +198,7 @@ curl -H "Authorization: Bearer $TONAL_TOKEN" \
 ## Troubleshooting
 
 **Tonal auth fails:**
-⚠️ **Self-healing is automatic** — see "If Tonal unhealthy" section above. 
-The agent should auto-delete tokens and retry before skipping Tonal data.
+⚠️ **Self-healing is automatic in the TypeScript service.** On 401/403 it deletes the token file, re-authenticates, and retries once before the agent needs to step in.
 
 Manual fix (if auto-heal fails):
 ```bash
@@ -220,14 +216,11 @@ Tokens auto-refresh. If issues, check `~/Developer/cortana-external/whoop_tokens
 curl -s http://localhost:3033/tonal/health >/dev/null || launchctl kickstart -k gui/$(id -u)/com.cortana.fitness-service
 ```
 
-**Check logs:**
+**TypeScript service debugging:**
 ```bash
 tail -50 /tmp/fitness-service.log
 tail -50 /tmp/fitness-service-error.log
-```
 
-**TypeScript service debugging:**
-```bash
 cd ~/Developer/cortana-external
 pnpm --filter @cortana/external-service dev
 pnpm --filter @cortana/external-service test
