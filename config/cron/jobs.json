@@ -178,7 +178,7 @@
       "name": "🏋️ Fitness Morning Brief (Hamel)",
       "enabled": true,
       "createdAtMs": 1769794739989,
-      "updatedAtMs": 1773749564504,
+      "updatedAtMs": 1773870846864,
       "schedule": {
         "kind": "cron",
         "expr": "12 8 * * *",
@@ -188,9 +188,9 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: default\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Keep it tight: 2-5 short lines, under 120 words. One message only.\n\nFitness Morning Brief for Hamel.\nPrefix: 🏋️ Fitness - Morning Brief. Delivery: send via message tool to telegram target 8171372724 using accountId default.\nFormatting: 12-hour AM/PM only.\n\nGoal: do NOT just restate raw Whoop numbers he already sees in the app. Use the data to tell him what it means for training, recovery, and the day.\n\n1) Pull sitrep health data:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\nRECOVERY=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_recovery';\")\nSLEEP=$(psql cortana -t -A -c \"SELECT value FROM cortana_sitrep_latest WHERE domain = 'health' AND key = 'whoop_sleep';\")\nHEALTH_AGE=$(psql cortana -t -A -c \"SELECT EXTRACT(EPOCH FROM (NOW() - MAX(timestamp)))/3600 FROM cortana_sitrep WHERE domain = 'health';\")\n\n2) If stale/missing (>2h), fetch direct Whoop snapshot:\ncurl -s http://localhost:3033/whoop/data | jq '{recovery: .recovery[0].score, sleep: .sleep[0].score, hrv: .recovery[0].score.hrv_rmssd_milli, rhr: .recovery[0].score.resting_heart_rate, workouts: [.workouts[] | {sport: .sport_name, strain: .score.strain, hr: .score.average_heart_rate, start: .start}]}'\n\n3) ALWAYS fetch Tonal directly and filter to TODAY only:\ncurl -s http://localhost:3033/tonal/data | jq '{workouts: [.workouts[] | {name: (.title // .name // \"Tonal workout\"), beginTime, duration: (.duration // null)}]}'\n\n4) Mandatory TODAY-only filtering:\nTODAY=$(date +%Y-%m-%d)\nWhoop today: .start[:10] == TODAY\nTonal today: .beginTime[:10] == TODAY\nNever report old workouts as today.\nOnly say \"Tonal unavailable right now\" if the direct Tonal fetch actually fails or returns invalid data.\nIf Tonal data exists for today, include it.\n\n5) Pull health insights:\nINSIGHTS=$(psql cortana -t -A -c \"SELECT json_agg(t) FROM (SELECT id, title, description, action_suggested FROM cortana_insights WHERE acted_on = FALSE AND 'health' = ANY(domains) ORDER BY priority ASC) t;\")\n\n6) Generate the brief with ANALYSIS FIRST, not data dump:\n- Line 1: one-sentence readiness call (what kind of training/recovery day this is)\n- Line 2: why (interpret recovery/sleep/HRV/RHR briefly, not every raw metric)\n- Line 3: today's workout context (Whoop/Tonal) only if relevant\n- Line 4: one concrete action for today\n- Optional Line 5: one health insight only if genuinely useful\n\nRules:\n- Do NOT open with \"Sitrep health data is stale\" unless data is actually unavailable.\n- Do NOT lead with raw sleep duration/efficiency unless it changes the recommendation.\n- Prefer interpretation like: \"moderate recovery, decent but not peak, keep intensity controlled\" over raw stat recital.\n- If the user already trained this morning, tell him what that implies for the rest of the day.\n- If no workouts today, say so briefly.\n\n7) Mark insights delivered:\npsql cortana -c \"UPDATE cortana_insights SET acted_on = TRUE, acted_at = NOW() WHERE acted_on = FALSE AND 'health' = ANY(domains);\"\nIf Whoop + sitrep unavailable, say so briefly.",
+        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Keep it concise: 2-5 short lines, under 130 words.\n\nFitness Morning Brief for Hamel.\nPrefix: 🏋️ Fitness - Morning Brief.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts`\nTreat stdout JSON as the source of truth. Do not re-fetch raw provider data unless JSON is invalid.\n\nRequired brief contract:\n- Line 1: readiness call + hard truth (risk call is mandatory)\n- Line 2: why (recovery/HRV/RHR/sleep trend + freshness)\n- Line 3: training context (today whoop/tonal + protein adherence if present)\n- Line 4: one concrete action for today\n- Optional line 5: one high-priority health insight\n\nRules:\n- No praise/fluff.\n- Must include one risk call and one concrete action.\n- If data_freshness.is_stale is true or errors is non-empty, say uncertainty explicitly and keep recommendation conservative.\n\nInsight handling:\n- Use only `pending_health_insights` from the artifact.\n- Only surface IDs present in `surfaced_insight_ids`.\n- After sending, if `insight_mark_sql` is a non-empty string, execute exactly once via:\n  `export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"; psql cortana -c \"<insight_mark_sql>\"`\n- Never run domain-wide acted_on updates.",
         "model": "openai-codex/gpt-5.3-codex",
-        "timeoutSeconds": 240
+        "timeoutSeconds": 180
       },
       "state": {
         "lastRunAtMs": 1773749520021,
@@ -204,7 +204,7 @@
       },
       "delivery": {
         "mode": "none",
-        "accountId": "default"
+        "accountId": "spartan"
       }
     },
     {
@@ -213,7 +213,7 @@
       "name": "🌙 Fitness Evening Recap (Hamel)",
       "enabled": true,
       "createdAtMs": 1769794739997,
-      "updatedAtMs": 1773707516171,
+      "updatedAtMs": 1773870846864,
       "schedule": {
         "kind": "cron",
         "expr": "30 20 * * *",
@@ -225,7 +225,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 180,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nFitness Evening Recap summarizer for Hamel (8:30 PM ET).\nPrefix: 🏋️ Fitness - Evening Recap. Delivery: send via message tool to telegram target 8171372724 using accountId monitor.\nFormatting: 12-hour AM/PM only.\n\nPrimary source:\n- /tmp/cron-fitness-evening-recap.json\nIf missing/stale, collect inline quickly and continue.\n\nOutput sections:\nA) Today strain summary\nB) Tonal\nC) Weekly progress\nD) Tomorrow Tonal workout\nE) Tomorrow outlook\nF) Sleep recommendation\nG) Health insights\n\nRules:\n- If no workouts today, explicitly say: \"Rest day — no workout logged today.\" (NOT N/A spam).\n- Use whoop_recovery_latest and whoop_sleep_latest when available.\n- Use whoop_weekly + tonal_weekly for weekly metrics when available.\n- If a metric is missing, show \"Unavailable\" with brief reason from errors array.\n- Keep concise and useful; avoid repeating \"N/A\" across sections. Hard cap: 150 words.\n\nAfter sending summary, mark delivered health insights acted_on=TRUE as before."
+        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message must be 150 words or less.\n\nFitness Evening Recap for Hamel (8:30 PM ET).\nPrefix: 🏋️ Fitness - Evening Recap.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts`\nUse artifact JSON as primary source.\n\nRequired recap contract:\n- Start with today readiness + hard truth (mandatory)\n- Include: today strain summary, tonal context, weekly trend pulse, tomorrow outlook, sleep focus, meal/protein adherence\n- End with one concrete action for tonight/tomorrow\n\nRules:\n- No fluff/praise.\n- Must include one risk call and one action.\n- If artifact reports stale data/errors, state uncertainty explicitly.\n\nInsight handling:\n- Use only `pending_health_insights` from artifact.\n- Only surface IDs from `surfaced_insight_ids`.\n- After sending, execute `insight_mark_sql` exactly once when present.\n- Never run broad acted_on updates by domain."
       },
       "state": {
         "nextRunAtMs": 1773793800000,
@@ -239,7 +239,7 @@
       },
       "delivery": {
         "mode": "none",
-        "accountId": "monitor"
+        "accountId": "spartan"
       }
     },
     {
@@ -248,7 +248,7 @@
       "name": "📊 Weekly Fitness Insights (Sunday)",
       "enabled": true,
       "createdAtMs": 1769794740003,
-      "updatedAtMs": 1773619253735,
+      "updatedAtMs": 1773870846864,
       "schedule": {
         "kind": "cron",
         "expr": "0 20 * * 0",
@@ -258,8 +258,8 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nWeekly Fitness Insights for Hamel (Sunday 8 PM ET).\nPrefix: 🏋️ Fitness - Weekly Insights. Delivery: send via message tool to telegram target 8171372724 using accountId monitor.\nGoal: coach-style analysis (no raw data tables), max 150 words.\n\n0) Check Tonal health:\ncurl -s http://localhost:3033/tonal/health\nIf unhealthy: note Tonal auth issue and provide Whoop-only analysis.\n\n1) Fetch minimal data only:\nWhoop:\ncurl -s http://localhost:3033/whoop/data | jq '{recovery: [.recovery[0:7][] | {date: .created_at[0:10], score: .score.recovery_score, hrv: .score.hrv_rmssd_milli}], workouts: [.workouts[0:10][] | {date: .start[0:10], type: .sport_name, strain: .score.strain}]}'\nTonal (if healthy):\ncurl -s http://localhost:3033/tonal/data | jq '{profile: .profile, recent: [.workouts | to_entries | sort_by(.value.beginTime) | reverse | .[0:7][] | {date: .value.beginTime[0:10], volume: .value.totalVolume}]}'\n\n2) Output sections:\n- What happened this week (3-4 sentences)\n- Wins (2-3 bullets)\n- Watch-outs (2-3 bullets)\n- Next-week focus (2-3 actionable items)\n\n3) Persist the weekly markdown deterministically:\n- First run exactly:\n  OUT_DIR=/Users/hd/Developer/cortana/memory/fitness/weekly\n  YEAR_WEEK=$(TZ=America/New_York date +%G-W%V)\n  OUT_FILE=\"$OUT_DIR/$YEAR_WEEK.md\"\n  mkdir -p \"$OUT_DIR\"\n- Then write the markdown to the exact expanded absolute path in OUT_FILE.\n- Never use ~/..., never use a relative path, and never leave YYYY-WXX as a literal placeholder.\n- After writing, run: test -f \"$OUT_FILE\" && ls -l \"$OUT_FILE\"\n- If the write fails, retry once using the same OUT_FILE path and report the exact failure.",
-        "model": "openai-codex/gpt-5.2-codex",
+        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: 150 words or less.\n\nWeekly Fitness Insights for Hamel (Sunday 8 PM ET).\nPrefix: 📊 Fitness - Weekly Insights.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/weekly-insights-data.ts`\nUse artifact JSON as source of truth.\n\nRequired weekly contract:\n- What changed this week (performance + recovery)\n- Hard truth (biggest risk / blind spot)\n- Next-week focus (2 actionable items)\n- Protein adherence summary vs target 112-140g/day\n\nRules:\n- No fluff/praise.\n- Include one explicit risk call and concrete actions.\n- If data quality is degraded, state uncertainty directly.\n\nPersistence:\n- Write markdown summary to `weekly_file_path` from artifact (absolute path only).\n\nInsight handling:\n- Use only artifact `pending_health_insights`.\n- Only surface IDs in `surfaced_insight_ids`.\n- Execute `insight_mark_sql` exactly once when present.\n- Never run bulk acted_on-by-domain updates.",
+        "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 180
       },
       "state": {
@@ -276,7 +276,7 @@
       },
       "delivery": {
         "mode": "none",
-        "accountId": "monitor"
+        "accountId": "spartan"
       }
     },
     {
@@ -974,6 +974,81 @@
         "lastDelivered": false,
         "lastDeliveryStatus": "not-delivered",
         "consecutiveErrors": 0
+      }
+    },
+    {
+      "id": "whoop-data-freshness-guard-20260318",
+      "agentId": "cron-fitness",
+      "name": "🫀 Whoop Data Freshness Guard",
+      "enabled": true,
+      "createdAtMs": 1773870846864,
+      "updatedAtMs": 1773870846864,
+      "schedule": {
+        "kind": "cron",
+        "expr": "20 6,12,18 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "model": "openai-codex/gpt-5.3-codex",
+        "timeoutSeconds": 90,
+        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts`\n\nIf artifact `data_freshness.is_stale` is false and `errors` does not include whoop stale/missing flags: return exactly NO_REPLY.\n\nIf stale/missing, send one concise alert with:\n- prefix: 🫀 Whoop Freshness Alert\n- stale hours and missing signal\n- one corrective action\nThen return exactly NO_REPLY."
+      },
+      "delivery": {
+        "mode": "none",
+        "accountId": "spartan"
+      }
+    },
+    {
+      "id": "whoop-recovery-risk-alert-20260318",
+      "agentId": "cron-fitness",
+      "name": "🫀 Whoop Recovery Risk Alert",
+      "enabled": true,
+      "createdAtMs": 1773870846864,
+      "updatedAtMs": 1773870846864,
+      "schedule": {
+        "kind": "cron",
+        "expr": "5 9 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "model": "openai-codex/gpt-5.3-codex",
+        "timeoutSeconds": 90,
+        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts`\n\nAlert policy (balanced):\n- Alert when `readiness.band` is `red`\n- Alert when `riskFlags` contains `low_recovery`, `hrv_down_vs_baseline`, or `rhr_up_vs_baseline`\n- Otherwise return exactly NO_REPLY\n\nAlert output (single message):\n- prefix: 🫀 Recovery Risk\n- hard truth from artifact\n- one action from artifact\nReturn exactly NO_REPLY after send."
+      },
+      "delivery": {
+        "mode": "none",
+        "accountId": "spartan"
+      }
+    },
+    {
+      "id": "whoop-overreach-guard-20260318",
+      "agentId": "cron-fitness",
+      "name": "🫀 Whoop Overreach Guard",
+      "enabled": true,
+      "createdAtMs": 1773870846864,
+      "updatedAtMs": 1773870846864,
+      "schedule": {
+        "kind": "cron",
+        "expr": "15 19 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "model": "openai-codex/gpt-5.3-codex",
+        "timeoutSeconds": 90,
+        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts`\n\nIf `strain.overreach_flags` is empty and readiness is not red: return exactly NO_REPLY.\n\nIf overreach risk exists, send one concise alert:\n- prefix: 🫀 Overreach Guard\n- include total_today strain, readiness band, and hard truth\n- include one recovery action for tonight\nReturn exactly NO_REPLY after send."
+      },
+      "delivery": {
+        "mode": "none",
+        "accountId": "spartan"
       }
     }
   ]

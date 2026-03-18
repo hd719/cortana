@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { tonalTodayWorkouts, tonalWorkoutsFromPayload } from "../../tools/fitness/evening-recap-data.ts";
+import { buildWhoopSummary, tonalTodayWorkouts, tonalWorkoutsFromPayload } from "../../tools/fitness/evening-recap-data.ts";
 
 describe("fitness evening recap tonal payload handling", () => {
   it("extracts workouts when tonal.workouts is an object keyed by workout id", () => {
@@ -47,5 +47,23 @@ describe("fitness evening recap tonal payload handling", () => {
     expect(todays[0].id).toBe("abc");
     expect(todays[0].volume).toBe(5000);
     expect(todays[0].duration_minutes).toBe(15);
+  });
+
+  it("summarizes whoop recovery, sleep, and strain for today", () => {
+    const whoop = {
+      recovery: [{ created_at: "2026-03-10T09:00:00Z", score: { recovery_score: 63 } }],
+      sleep: [{ created_at: "2026-03-10T09:00:00Z", score: { sleep_performance_percentage: 78 } }],
+      workouts: [
+        { start: "2026-03-10T12:00:00Z", sport_name: "run", score: { strain: 7.2 } },
+        { start: "2026-03-10T14:00:00Z", sport_name: "lift", score: { strain: 5.8 } },
+      ],
+    };
+
+    const summary = buildWhoopSummary(whoop, "2026-03-10");
+    expect(summary).toEqual({
+      recovery: 63,
+      sleep_performance: 78,
+      total_strain_today: 13,
+    });
   });
 });
