@@ -22,6 +22,7 @@ Run: 3/13/2026, 3:30:00 PM ET
 Market: correction | Position Sizing: 0%
 Regime/Gates: correction=YES | correction | 7 distribution days. Reduce exposure. | Macro Gate: OPEN | VIX 23 | PCR 1.07 | HY 450 bps (fred)
 Diagnostics: symbols scanned 240 | candidates evaluated 2
+Calibration: fresh | settled 18
 Blocker telemetry: guardrail blocks/downgrades 1
 Decision: WATCH
 Confidence: 0.80 | Risk: MEDIUM
@@ -39,6 +40,7 @@ Dip Buyer: scanned 120 | evaluated 1 | threshold-passed 1 | emitted BUY 0 / WATC
 
     expect(alert).toContain("📈 Trading Advisor — Market Snapshot");
     expect(alert).toContain("🎯 Decision: WATCH | Confidence: 0.80 | Risk: MEDIUM");
+    expect(alert).toContain("🧪 Calibration: FRESH | settled 18");
     expect(alert).toContain("│ BUY 0 │ WATCH 2 │ NO_BUY 0 │");
     expect(alert).toContain("│ CANSLIM: BUY 0 · WATCH 1 │");
     expect(alert).toContain("│ Dip Buyer: BUY 0 · WATCH 1 │");

@@ -1,7 +1,7 @@
 #!/usr/bin/env npx tsx
 
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
@@ -12,6 +12,10 @@ const DEFAULT_SCAN_LIMIT = 120;
 export const BACKTESTER_CWD = "/Users/hd/Developer/cortana-external/backtester";
 const BACKTESTER_ENV_PATH = resolve(BACKTESTER_CWD, ".env");
 const SHARED_EXTERNAL_ENV_PATH = "/Users/hd/Developer/cortana-external/.env";
+const DEFAULT_BUY_DECISION_CALIBRATION_PATH = resolve(
+  BACKTESTER_CWD,
+  ".cache/experimental_alpha/calibration/buy-decision-calibration-latest.json",
+);
 export type TradingStrategyName = "CANSLIM" | "Dip Buyer";
 
 interface ScanResult {
@@ -53,6 +57,13 @@ interface CorrectionProfile {
   dipMaxBuys: number;
   dipMinBuyScore: number;
 }
+
+type BuyDecisionCalibrationSummary = {
+  status: "fresh" | "stale";
+  reason?: string;
+  settledCandidates: number;
+  generatedAt?: string;
+};
 
 function loadBacktesterEnv(): void {
   for (const envPath of [BACKTESTER_ENV_PATH, SHARED_EXTERNAL_ENV_PATH]) {
@@ -602,6 +613,27 @@ function formatStrategySection(scan: ScanResult): string[] {
   return lines;
 }
 
+function loadBuyDecisionCalibrationSummary(env: NodeJS.ProcessEnv = process.env): BuyDecisionCalibrationSummary | null {
+  const file = env.TRADING_BUY_DECISION_CALIBRATION_PATH || DEFAULT_BUY_DECISION_CALIBRATION_PATH;
+  if (!existsSync(file)) return null;
+  try {
+    const payload = JSON.parse(readFileSync(file, "utf8")) as {
+      generated_at?: string;
+      freshness?: { is_stale?: boolean; reason?: string };
+      summary?: { settled_candidates?: number };
+    };
+    const stale = payload?.freshness?.is_stale === true;
+    return {
+      status: stale ? "stale" : "fresh",
+      reason: typeof payload?.freshness?.reason === "string" ? payload.freshness.reason : undefined,
+      settledCandidates: Number(payload?.summary?.settled_candidates ?? 0),
+      generatedAt: typeof payload?.generated_at === "string" ? payload.generated_at : undefined,
+    };
+  } catch {
+    return null;
+  }
+}
+
 function buildRegimeGateLine(scans: ScanResult[]): string {
   const primary = scans.find((s) => s.marketLine)?.marketLine;
   const correctionMode = scans.some((s) => s.marketRegime === "correction");
@@ -631,6 +663,7 @@ function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): stri
   const symbolsScanned = scans.reduce((sum, s) => sum + (s.scanned || s.scanLimit), 0);
   const candidatesEvaluated = scans.reduce((sum, s) => sum + s.candidatesEvaluated, 0);
   const blockedByGuards = scans.reduce((sum, s) => sum + (s.blockedByGuards ?? 0), 0);
+  const calibration = loadBuyDecisionCalibrationSummary();
   const failClosedScans = scans.filter((s) => s.failClosed);
   const decisionState = decisionStateFromCounts(buy, watch);
   const metrics = confidenceAndRiskFor(decisionState, correctionMode, failClosedScans.length > 0);
@@ -647,6 +680,9 @@ function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): stri
     ...marketLines,
     buildRegimeGateLine(scans),
     `Diagnostics: symbols scanned ${symbolsScanned} | candidates evaluated ${candidatesEvaluated}`,
+    calibration
+      ? `Calibration: ${calibration.status} | settled ${calibration.settledCandidates}${calibration.reason && calibration.status === "stale" ? ` | ${calibration.reason}` : ""}`
+      : undefined,
     `Blocker telemetry: guardrail blocks/downgrades ${blockedByGuards}`,
     `Decision: ${decisionState}`,
     `Confidence: ${metrics.confidence.toFixed(2)} | Risk: ${metrics.risk}`,

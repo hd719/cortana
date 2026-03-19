@@ -201,6 +201,7 @@ export function buildCronAlertFromPipelineReport(report: string): string {
   const guardrailCount = blockerTelemetry?.match(/(\d+)/)?.[1] ?? "0";
   const diagnostics = findLine(lines, "Diagnostics:");
   const relatedDetections = diagnostics?.match(/candidates evaluated\s+(\d+)/i)?.[1] ?? "0";
+  const calibration = trimLabel(findLine(lines, "Calibration:") ?? "", "Calibration:");
 
   const formatWatchEntry = (signal: ParsedSignal): string => `${signal.ticker} ${signal.score}/12`;
   const renderWatchlist = (
@@ -251,6 +252,7 @@ export function buildCronAlertFromPipelineReport(report: string): string {
     focusSignal
       ? `🔥 Focus: ${focusSignal.ticker} — ${focusSignal.action}${focusSources.length ? ` (${focusSources.join(" + ")})` : ""}`
       : "🔥 Focus: unavailable",
+    calibration ? `🧪 Calibration: ${calibration.replace(/^fresh\b/i, "FRESH").replace(/^stale\b/i, "STALE")}` : undefined,
     "",
     dipWatchlist.title,
     dipWatchlist.body,
@@ -262,7 +264,7 @@ export function buildCronAlertFromPipelineReport(report: string): string {
     `🔎 Related detections: ${relatedDetections}`,
   ];
 
-  return messageLines.join("\n").trim();
+  return messageLines.filter(Boolean).join("\n").trim();
 }
 
 async function main(): Promise<void> {

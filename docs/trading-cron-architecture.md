@@ -2,7 +2,34 @@
 
 ## Overview
 
-The trading alert pipeline uses a **two-cron split architecture** to separate long-running compute from lightweight notification delivery. This avoids holding a single cron session open for the entire backtest duration and makes each phase independently retriable.
+The trading alert pipeline now uses a **precompute + compute + notify + re-check** routine:
+
+1. Pre-market precompute refreshes feature-snapshot and calibration artifacts.
+2. Market-session compute runs the unified CANSLIM + Dip Buyer scan and writes the official base artifact.
+3. Notify delivers only finalized base runs.
+4. Midday re-checks revisit the current `BUY/WATCH` basket without rerunning the full scan.
+
+This keeps research and calibration inputs fresh while preserving the production rule that only the base compute run decides trading-run success or failure.
+
+## Cron 0 — Precompute (`🧪 Trading Precompute Refresh`)
+
+- **Job ID:** `trading-precompute-20260319`
+- **Agent:** `cron-market`
+- **Schedule:** `10 8 * * 1-5` ET (8:10 AM on weekdays)
+- **Timeout:** 600s
+- **What it does:**
+  1. Runs `tools/trading/run-trading-precompute.sh`
+  2. Refreshes the nightly discovery feature snapshot via `nightly_discovery.py --limit 20 --json`
+  3. Settles experimental-alpha outcomes via `experimental_alpha.py --settle --json`
+  4. Refreshes the buy-decision calibration artifact via `buy_decision_calibration.py --json`
+- **Does NOT** send Telegram messages or alter live trading-run status
+- **Healthy state:** returns `trading-precompute complete`
+
+### Why this lane exists
+
+- Live market-session scans stay deterministic and do not have to rebuild research artifacts inline.
+- The unified report can surface calibration freshness from the latest artifact without changing decision authority.
+- Experimental-alpha settlement and buy-decision calibration become part of the routine instead of manual operator steps.
 
 ## Cron A — Compute (`📈 CANSLIM Alert Scan`)
 
@@ -14,6 +41,7 @@ The trading alert pipeline uses a **two-cron split architecture** to separate lo
 - **What it does:**
   1. Runs the unified CANSLIM + Dip Buyer pipeline via `tools/trading/run-backtest-compute.sh`
   2. Scans 240 symbols total (120 CANSLIM + 120 Dip Buyer, ranked by universe selection)
+  3. Reads the latest buy-decision calibration artifact when present and annotates freshness in the report
   3. Writes artifacts atomically to `var/backtests/runs/<runId>/`:
      - `summary.json` — structured run result with metrics, status, timestamps
      - `message.txt` — pre-formatted Telegram alert payload
@@ -75,8 +103,9 @@ If exclusions remove all candidates, Cron C returns `NO_REPLY` and sends no aler
 
 ## Artifact Boundary
 
-The key design principle: **Cron A writes files, Cron B reads files.** They share no runtime state — only the filesystem under `var/backtests/runs/`. This means:
+The key design principle: **Precompute prepares side artifacts, Cron A writes the official base run, Cron B reads only finalized base-run files.** They share no in-memory runtime state — only filesystem artifacts. This means:
 
+- Precompute can fail without turning a market-session run into a false failure
 - Cron A can be retried or run manually without triggering duplicate notifications
 - Cron B can be retried without re-running expensive compute
 - A failed Cron A still leaves partial artifacts for debugging
@@ -102,6 +131,17 @@ The compute step uses a **chunked full-universe scan** (per Hamel's preference t
 - **Owner lane:** Monitor (via `accountId: "monitor"`)
 - **SLO check:** `cron-slo-monitor` flags runs that exceed 80% of timeout budget or have consecutive errors ≥2
 - **Healthy state:** cron-slo-monitor returns `NO_REPLY`
+
+## Run Order
+
+Weekday routine:
+
+1. `8:10 AM ET` — Cron 0 refreshes discovery, settlement, and calibration artifacts
+2. `9:30 AM / 12:30 PM / 3:30 PM ET` — Cron A writes official market-session base runs
+3. `Every 5 min during market hours` — Cron B notifies exactly one finalized base run at a time
+4. `11:00 AM / 3:00 PM ET` — Cron C re-checks only the latest live `BUY/WATCH` basket
+
+If Cron 0 fails, live trading still runs. The consequence is stale or missing calibration annotation, not a blocked market-session alert.
 
 ## Change Log
 

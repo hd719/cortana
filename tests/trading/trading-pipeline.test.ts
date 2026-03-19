@@ -1,3 +1,6 @@
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { runTradingPipeline } from "../../tools/trading/trading-pipeline";
 
@@ -64,6 +67,7 @@ afterEach(() => {
   delete process.env.TRADING_SCAN_CHUNK_PARALLELISM_DIP;
   delete process.env.TRADING_DIP_CORRECTION_MAX_BUYS;
   delete process.env.TRADING_DIP_CORRECTION_MIN_BUY_SCORE;
+  delete process.env.TRADING_BUY_DECISION_CALIBRATION_PATH;
 });
 
 describe("trading pipeline orchestration", () => {
@@ -223,6 +227,32 @@ Summary: 4 candidates | BUY 0 | WATCH 4 | NO_BUY 0
     expect(report).toContain("HY Note: FRED HY spread unavailable after retries");
     expect(report).toContain("Dip Profile: correction | buy>=7 | watch>=6 | max_pos=5%");
     expect(report).toContain("Blockers: Credit veto active (1)");
+  });
+
+  it("annotates calibration freshness when a calibration artifact is available", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "trading-calibration-"));
+    const calibrationPath = join(dir, "buy-decision-calibration.json");
+    await writeFile(
+      calibrationPath,
+      JSON.stringify({
+        generated_at: "2026-03-19T12:05:00+00:00",
+        freshness: { is_stale: false, reason: "fresh" },
+        summary: { settled_candidates: 24 },
+      }),
+      "utf8",
+    );
+    process.env.TRADING_BUY_DECISION_CALIBRATION_PATH = calibrationPath;
+
+    try {
+      const report = await runTradingPipeline({
+        runCommand: (_cmd, args) => (args[0] === "canslim_alert.py" ? CANSLIM_NO_BUY : DIP_NO_BUY),
+        council: async () => ({ verdicts: [] }),
+      });
+
+      expect(report).toContain("Calibration: fresh | settled 24");
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
   });
 
   it("reports top blocker when a scanner emits zero BUY/WATCH signals", async () => {
