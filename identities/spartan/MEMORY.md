@@ -13,12 +13,22 @@
 - Health support tables in `cortana` DB:
   - `cortana_sitrep_latest`
   - `cortana_insights`
+- Spartan coaching tables in `cortana` DB:
+  - `coach_conversation_log` (inbound/outbound coaching history)
+  - `coach_decision_log` (readiness/longevity decisions + compliance)
+  - `coach_nutrition_log` (daily protein/hydration status)
+  - `coach_weekly_score` (weekly age-100 alignment score)
 
 ## Operating Context
 - Weekly fitness markdown location:
   - /Users/hd/Developer/cortana/memory/fitness/weekly/
 - Longer-form analysis location:
   - /Users/hd/Developer/cortana/memory/fitness/analysis/
+- Active fitness automation cadence:
+  - Morning brief: 8:12 AM ET (`cron-fitness`)
+  - Midday check-in: 3:00 PM ET (Spartan)
+  - Evening recap: 8:30 PM ET (`cron-fitness`)
+  - Weekly insights + Age-100 score: Sunday 8:00 PM ET
 
 ## Coaching Preferences To Preserve
 - Keep recommendations short and direct by default.
