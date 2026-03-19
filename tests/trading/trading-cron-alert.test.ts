@@ -84,4 +84,51 @@ Dip Buyer: scanned 120 | evaluated 3 | threshold-passed 3 | emitted BUY 0 / WATC
     expect(alert).toContain("👀 CANSLIM Watchlist (1):");
     expect(alert).toContain(" AAPL 7/12");
   });
+
+  it("shows the full compact watchlist when the watch count is seven or fewer", () => {
+    const report = `📈 Trading Advisor - Unified Pipeline
+Decision: WATCH
+Confidence: 0.61 | Risk: HIGH
+Regime/Gates: correction=YES | correction
+Summary: BUY 1 | WATCH 7 | NO_BUY 0
+CANSLIM: scanned 120 | evaluated 0 | threshold-passed 0 | emitted BUY 0 / WATCH 0 / NO_BUY 0
+Dip Buyer: scanned 120 | evaluated 8 | threshold-passed 8 | emitted BUY 1 / WATCH 7 / NO_BUY 0
+• ARES (10/12) → BUY
+• ALGN (7/12) → WATCH
+• AEP (8/12) → WATCH
+• ADSK (9/12) → WATCH
+• ANET (7/12) → WATCH
+• AMAT (7/12) → WATCH
+• APP (8/12) → WATCH
+• ARM (9/12) → WATCH`;
+
+    const alert = buildCronAlertFromPipelineReport(report);
+
+    expect(alert).toContain("👀 Dip Buyer Watchlist (7):");
+    expect(alert).toContain(" ALGN 7/12 · AEP 8/12 · ADSK 9/12 · ANET 7/12 · AMAT 7/12 · APP 8/12 · ARM 9/12");
+    expect(alert).not.toContain("[+");
+  });
+
+  it("collapses only genuinely large watchlists", () => {
+    const report = `📈 Trading Advisor - Unified Pipeline
+Decision: WATCH
+Confidence: 0.61 | Risk: HIGH
+Regime/Gates: correction=YES | correction
+Summary: BUY 0 | WATCH 8 | NO_BUY 0
+CANSLIM: scanned 120 | evaluated 0 | threshold-passed 0 | emitted BUY 0 / WATCH 0 / NO_BUY 0
+Dip Buyer: scanned 120 | evaluated 8 | threshold-passed 8 | emitted BUY 0 / WATCH 8 / NO_BUY 0
+• ALGN (7/12) → WATCH
+• AEP (8/12) → WATCH
+• ADSK (9/12) → WATCH
+• ANET (7/12) → WATCH
+• AMAT (7/12) → WATCH
+• APP (8/12) → WATCH
+• ARM (9/12) → WATCH
+• AVGO (7/12) → WATCH`;
+
+    const alert = buildCronAlertFromPipelineReport(report);
+
+    expect(alert).toContain("👀 Dip Buyer Watchlist (8):");
+    expect(alert).toContain(" ALGN 7/12 · AEP 8/12 · ADSK 9/12 · ANET 7/12 · AMAT 7/12 [+3 more]");
+  });
 });

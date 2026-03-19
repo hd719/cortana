@@ -7,6 +7,8 @@ import { runTradingPipeline, type RunCommandOptions } from "./trading-pipeline";
 export const BACKTESTER_CWD = "/Users/hd/Developer/cortana-external/backtester";
 export const PYTHON_BIN = resolve(BACKTESTER_CWD, ".venv/bin/python");
 const DEFAULT_SCAN_TIMEOUT_MS = 360_000;
+const COMPACT_WATCHLIST_FULL_LIMIT = 7;
+const COMPACT_WATCHLIST_TRUNCATED_LIMIT = 5;
 const DEFAULT_CRON_RELIABILITY_ENV = {
   TRADING_SCAN_CHUNK_SIZE_CANSLIM: "20",
   TRADING_SCAN_CHUNK_PARALLELISM_CANSLIM: "2",
@@ -93,7 +95,7 @@ function parseCounts(line: string | undefined): { buy: number; watch: number; no
   };
 }
 
-type ParsedSignal = { ticker: string; score: number; action: "BUY" | "WATCH" | "NO_BUY"; section: string };
+export type ParsedSignal = { ticker: string; score: number; action: "BUY" | "WATCH" | "NO_BUY"; section: string };
 
 function parseSignalFragments(text: string, section: string): ParsedSignal[] {
   const signalRe = /•\s+([A-Z.\-]+)\s+\((\d+)\/\d+\)\s+→\s+(BUY|WATCH|NO_BUY)/g;
@@ -110,7 +112,7 @@ function parseSignalFragments(text: string, section: string): ParsedSignal[] {
   return out;
 }
 
-function collectSignalsDetailed(lines: string[], section: string): ParsedSignal[] {
+export function collectSignalsDetailed(lines: string[], section: string): ParsedSignal[] {
   const startIndex = lines.findIndex((line) => line.startsWith(`${section}:`));
   if (startIndex === -1) return [];
 
@@ -138,6 +140,27 @@ function collectSignalsDetailed(lines: string[], section: string): ParsedSignal[
   });
 }
 
+export function extractSignalsFromPipelineReport(report: string): {
+  canslim: ParsedSignal[];
+  dipBuyer: ParsedSignal[];
+  all: ParsedSignal[];
+} {
+  const lines = report
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const canslim = collectSignalsDetailed(lines, "CANSLIM");
+  const dipBuyer = collectSignalsDetailed(lines, "Dip Buyer");
+  const seen = new Set<string>();
+  const all = [...canslim, ...dipBuyer].filter((signal) => {
+    const key = `${signal.section}:${signal.ticker}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return { canslim, dipBuyer, all };
+}
+
 export function buildCronAlertFromPipelineReport(report: string): string {
   const lines = report
     .split(/\r?\n/)
@@ -155,8 +178,7 @@ export function buildCronAlertFromPipelineReport(report: string): string {
   const canslimCounts = parseCounts(findLine(lines, "CANSLIM:"));
   const dipCounts = parseCounts(findLine(lines, "Dip Buyer:"));
 
-  const canslimSignals = collectSignalsDetailed(lines, "CANSLIM");
-  const dipSignals = collectSignalsDetailed(lines, "Dip Buyer");
+  const { canslim: canslimSignals, dipBuyer: dipSignals } = extractSignalsFromPipelineReport(report);
   const watchDip = dipSignals.filter((s) => s.action === "WATCH");
   const watchCanslim = canslimSignals.filter((s) => s.action === "WATCH");
 
@@ -176,8 +198,10 @@ export function buildCronAlertFromPipelineReport(report: string): string {
 
   const formatWatch = (items: ParsedSignal[]): string => {
     if (!items.length) return " —";
-    const shown = items.slice(0, 3).map((s) => `${s.ticker} ${s.score}/12`).join(" · ");
-    const remaining = items.length - 3;
+    const displayLimit =
+      items.length <= COMPACT_WATCHLIST_FULL_LIMIT ? items.length : COMPACT_WATCHLIST_TRUNCATED_LIMIT;
+    const shown = items.slice(0, displayLimit).map((s) => `${s.ticker} ${s.score}/12`).join(" · ");
+    const remaining = items.length - displayLimit;
     return remaining > 0 ? ` ${shown} [+${remaining} more]` : ` ${shown}`;
   };
 

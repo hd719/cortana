@@ -46,6 +46,33 @@ Previous timeout of 360s caused consistent false-positive timeout errors. The 66
   4. Stamps `notifiedAt` in `summary.json` so the run is not re-sent
 - **Typical runtime:** <5s
 
+## Cron C — Re-check (`🔁 Trading Quick Re-check`)
+
+- **Job ID:** `trading-quick-recheck-20260319`
+- **Agent:** `cron-market`
+- **Schedule:** `0 11,15 * * 1-5` ET (11:00 AM and 3:00 PM on weekdays)
+- **Timeout:** 180s
+- **What it does:**
+  1. Reads the latest successful market-session base run only
+  2. Extracts the current `BUY` and `WATCH` names from the persisted `stdout.txt` pipeline report
+  3. Applies optional operator exclusions before quick-checking the basket
+  4. Runs bounded `quick-check` analysis on that basket only
+  5. Compares current verdicts to persisted local state under `var/backtests/rechecks/state.json`
+  6. Alerts only on material verdict changes, with cooldown / dedupe to avoid spam
+- **Does NOT** rerun the full 120-name CANSLIM + Dip Buyer scan
+- **Healthy state:** returns `NO_REPLY`
+
+### Re-check Exclusion Controls
+
+Use these controls to remove symbols from the re-check lane even if they appear in the latest base run's `BUY/WATCH` output:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `TRADING_RECHECK_EXCLUDE_SYMBOLS` | empty | Comma/whitespace-separated symbol list to exclude from the re-check basket |
+| `TRADING_RECHECK_EXCLUDE_FILE` | unset | Path to a newline/comma-separated symbol file (`#` comments allowed) to exclude from the re-check basket |
+
+If exclusions remove all candidates, Cron C returns `NO_REPLY` and sends no alert.
+
 ## Artifact Boundary
 
 The key design principle: **Cron A writes files, Cron B reads files.** They share no runtime state — only the filesystem under `var/backtests/runs/`. This means:
@@ -54,6 +81,7 @@ The key design principle: **Cron A writes files, Cron B reads files.** They shar
 - Cron B can be retried without re-running expensive compute
 - A failed Cron A still leaves partial artifacts for debugging
 - Cron B only sends runs that completed successfully (`status: "success"`) and haven't been notified
+- Cron C only re-checks fresh successful base artifacts and stays quiet on stale/missing inputs
 
 ## Pipeline Details
 
