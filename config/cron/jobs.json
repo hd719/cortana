@@ -1050,31 +1050,6 @@
       }
     },
     {
-      "id": "polymarket-market-intel-20260319",
-      "agentId": "cron-market",
-      "name": "🧠 Polymarket Market Intel Refresh",
-      "enabled": true,
-      "createdAtMs": 1773960000000,
-      "updatedAtMs": 1773960000000,
-      "schedule": {
-        "kind": "cron",
-        "expr": "30 8 * * 1-5",
-        "tz": "America/New_York"
-      },
-      "sessionTarget": "isolated",
-      "wakeMode": "now",
-      "payload": {
-        "kind": "agentTurn",
-        "model": "openai-codex/gpt-5.1",
-        "timeoutSeconds": 300,
-        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nThis is the production Polymarket market-intel refresh lane.\nIt prepares fresh external market-intel artifacts for the Python trading alerts and must run before market-session scans.\nIt does not send Telegram messages directly.\n\nRun exactly:\ncd /Users/hd/Developer/cortana-external && ./tools/market-intel/run_market_intel.sh\n\nRules:\n- Refresh the Python SPY regime snapshot first via the wrapper.\n- Rebuild Polymarket artifacts under /Users/hd/Developer/cortana-external/var/market-intel/polymarket.\n- Verify the Python bridge can consume the fresh artifacts.\n- Do not use the message tool.\n- If the wrapper exits 0, return exactly: market-intel refresh complete\n- If the wrapper exits non-zero, return the wrapper stderr only."
-      },
-      "delivery": {
-        "mode": "none",
-        "accountId": "monitor"
-      }
-    },
-    {
       "id": "35e3be71-260a-4b2f-9e9e-892e20aa70cb",
       "agentId": "main",
       "name": "📣 Trading Backtest Notify (market sessions)",
