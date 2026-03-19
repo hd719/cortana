@@ -93,7 +93,7 @@ function parseCounts(line: string | undefined): { buy: number; watch: number; no
   };
 }
 
-type ParsedSignal = { ticker: string; score: number; action: "BUY" | "WATCH" | "NO_BUY"; section: string };
+export type ParsedSignal = { ticker: string; score: number; action: "BUY" | "WATCH" | "NO_BUY"; section: string };
 
 function parseSignalFragments(text: string, section: string): ParsedSignal[] {
   const signalRe = /•\s+([A-Z.\-]+)\s+\((\d+)\/\d+\)\s+→\s+(BUY|WATCH|NO_BUY)/g;
@@ -110,7 +110,7 @@ function parseSignalFragments(text: string, section: string): ParsedSignal[] {
   return out;
 }
 
-function collectSignalsDetailed(lines: string[], section: string): ParsedSignal[] {
+export function collectSignalsDetailed(lines: string[], section: string): ParsedSignal[] {
   const startIndex = lines.findIndex((line) => line.startsWith(`${section}:`));
   if (startIndex === -1) return [];
 
@@ -138,6 +138,27 @@ function collectSignalsDetailed(lines: string[], section: string): ParsedSignal[
   });
 }
 
+export function extractSignalsFromPipelineReport(report: string): {
+  canslim: ParsedSignal[];
+  dipBuyer: ParsedSignal[];
+  all: ParsedSignal[];
+} {
+  const lines = report
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const canslim = collectSignalsDetailed(lines, "CANSLIM");
+  const dipBuyer = collectSignalsDetailed(lines, "Dip Buyer");
+  const seen = new Set<string>();
+  const all = [...canslim, ...dipBuyer].filter((signal) => {
+    const key = `${signal.section}:${signal.ticker}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return { canslim, dipBuyer, all };
+}
+
 export function buildCronAlertFromPipelineReport(report: string): string {
   const lines = report
     .split(/\r?\n/)
@@ -155,8 +176,7 @@ export function buildCronAlertFromPipelineReport(report: string): string {
   const canslimCounts = parseCounts(findLine(lines, "CANSLIM:"));
   const dipCounts = parseCounts(findLine(lines, "Dip Buyer:"));
 
-  const canslimSignals = collectSignalsDetailed(lines, "CANSLIM");
-  const dipSignals = collectSignalsDetailed(lines, "Dip Buyer");
+  const { canslim: canslimSignals, dipBuyer: dipSignals } = extractSignalsFromPipelineReport(report);
   const watchDip = dipSignals.filter((s) => s.action === "WATCH");
   const watchCanslim = canslimSignals.filter((s) => s.action === "WATCH");
 
