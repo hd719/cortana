@@ -187,7 +187,8 @@ export function formatUserLabel(envelope: NotificationEnvelope): string {
 
 export function formatUserMessage(envelope: NotificationEnvelope, aggregate?: { hits: number; combined: boolean }): string {
   const header = formatUserLabel(envelope);
-  const suffix = aggregate && aggregate.hits > 1 ? `\n\nRelated detections: ${aggregate.hits}` : "";
+  const hasRelatedDetectionsLine = /(?:^|\n)(?:🔎\s*)?Related detections:\s*\d+/i.test(envelope.message);
+  const suffix = aggregate && aggregate.hits > 1 && !hasRelatedDetectionsLine ? `\n\nRelated detections: ${aggregate.hits}` : "";
   return `${header}\n${envelope.message}${suffix}`;
 }
 

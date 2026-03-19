@@ -131,13 +131,19 @@ export function collectSignalsDetailed(lines: string[], section: string): Parsed
     out.push(...parseSignalFragments(line, section));
   }
 
-  // Deduplicate by ticker, keeping the first (highest priority) occurrence
+  const latest = new Map<string, ParsedSignal>();
+  for (const signal of out) latest.set(signal.ticker, signal);
+
+  const ordered: ParsedSignal[] = [];
   const seen = new Set<string>();
-  return out.filter((s) => {
-    if (seen.has(s.ticker)) return false;
-    seen.add(s.ticker);
-    return true;
-  });
+  for (let i = out.length - 1; i >= 0; i -= 1) {
+    const signal = out[i];
+    if (seen.has(signal.ticker)) continue;
+    seen.add(signal.ticker);
+    const finalSignal = latest.get(signal.ticker);
+    if (finalSignal) ordered.push(finalSignal);
+  }
+  return ordered.reverse();
 }
 
 export function extractSignalsFromPipelineReport(report: string): {

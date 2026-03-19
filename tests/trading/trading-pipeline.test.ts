@@ -354,6 +354,47 @@ Summary: 3 candidates | BUY 3 | WATCH 0 | NO_BUY 0
     expect(report).toContain("Summary: BUY 1 | WATCH 3 | NO_BUY 0");
   });
 
+  it("emits the full post-guard Dip Buyer watchlist instead of truncating at four names", async () => {
+    process.env.TRADING_DIP_CORRECTION_MAX_BUYS = "1";
+    process.env.TRADING_DIP_CORRECTION_MIN_BUY_SCORE = "8";
+
+    const dipCorrectionManyBuys = `📉 Trading Advisor - Dip Buyer Scan
+Market: correction | Position Sizing: 25%
+Status: choppy.
+Macro Gate: OPEN | VIX 24 | PCR 1.08 | HY 455 bps (fred) | Fear 48
+Summary: 8 candidates | BUY 8 | WATCH 0 | NO_BUY 0
+• ARES (10/12) → BUY
+  Setup A
+• ALGN (7/12) → BUY
+  Setup B
+• ACN (7/12) → BUY
+  Setup C
+• AEP (8/12) → BUY
+  Setup D
+• ADSK (9/12) → BUY
+  Setup E
+• ANET (7/12) → BUY
+  Setup F
+• AMAT (7/12) → BUY
+  Setup G
+• APP (8/12) → BUY
+  Setup H`;
+
+    const report = await runTradingPipeline({
+      runCommand: (_cmd, args) => (args[0] === "canslim_alert.py" ? CANSLIM_NO_BUY : dipCorrectionManyBuys),
+      council: async () => ({ verdicts: [] }),
+    });
+
+    expect(report).toContain("Dip Buyer: scanned 120 | evaluated 8 | threshold-passed 8 | emitted BUY 1 / WATCH 7 / NO_BUY 0");
+    expect(report).toContain("• ALGN (7/12) → WATCH | Correction cap: BUY requires score >= 8/12");
+    expect(report).toContain("• ACN (7/12) → WATCH | Correction cap: BUY requires score >= 8/12");
+    expect(report).toContain("• AEP (8/12) → WATCH | Correction cap: max 1 BUY signal(s)");
+    expect(report).toContain("• ADSK (9/12) → WATCH | Correction cap: max 1 BUY signal(s)");
+    expect(report).toContain("• ANET (7/12) → WATCH | Correction cap: BUY requires score >= 8/12");
+    expect(report).toContain("• AMAT (7/12) → WATCH | Correction cap: BUY requires score >= 8/12");
+    expect(report).toContain("• APP (8/12) → WATCH | Correction cap: max 1 BUY signal(s)");
+  });
+
   it("emits deterministic decision/confidence/risk fields", async () => {
     const report = await runTradingPipeline({
       runCommand: (_cmd, args) => (args[0] === "canslim_alert.py" ? CANSLIM_BUY : DIP_NO_BUY),

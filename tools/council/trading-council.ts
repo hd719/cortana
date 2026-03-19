@@ -60,6 +60,23 @@ function parseNumber(value?: string): number | undefined {
   return Number.isFinite(parsed) ? parsed : undefined;
 }
 
+function canonicalizeSignals(signals: TradingSignal[]): TradingSignal[] {
+  const latest = new Map<string, TradingSignal>();
+  for (const signal of signals) latest.set(signal.ticker, signal);
+
+  const ordered: TradingSignal[] = [];
+  const seen = new Set<string>();
+  for (let i = signals.length - 1; i >= 0; i -= 1) {
+    const signal = signals[i];
+    if (seen.has(signal.ticker)) continue;
+    seen.add(signal.ticker);
+    const finalSignal = latest.get(signal.ticker);
+    if (finalSignal) ordered.push(finalSignal);
+  }
+
+  return ordered.reverse();
+}
+
 export function parseSignals(alertText: string): TradingSignal[] {
   const source = detectSource(alertText);
   const lines = alertText.split(/\r?\n/);
@@ -87,17 +104,14 @@ export function parseSignals(alertText: string): TradingSignal[] {
     });
   }
 
-  if (out.length > 0) return out;
+  if (out.length > 0) return canonicalizeSignals(out);
 
-  const seen = new Set<string>();
   for (const line of lines) {
     if (!/^(Top leaders|Leaders):/i.test(line)) continue;
     const regex = /([A-Z][A-Z0-9.-]*)\s+(BUY|WATCH|NO_BUY)\s+\((\d+)\/\d+\)/g;
     let match: RegExpExecArray | null;
     while ((match = regex.exec(line)) !== null) {
       const ticker = match[1]!;
-      if (seen.has(ticker)) continue;
-      seen.add(ticker);
       out.push({
         ticker,
         action: match[2] as SignalAction,
@@ -108,7 +122,7 @@ export function parseSignals(alertText: string): TradingSignal[] {
     }
   }
 
-  return out;
+  return canonicalizeSignals(out);
 }
 
 function runCodexPrompt(model: string, prompt: string): string {

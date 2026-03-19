@@ -187,7 +187,7 @@ function chunkArray<T>(items: T[], chunkSize: number): T[][] {
 
 function buildMergedStrategyOutput(name: TradingStrategyName, outputs: string[], universe: string[], scanLimit: number): string {
   const summaries = outputs.map(parseSummaryCounts);
-  const allSignals = outputs.flatMap((output) => parseSignals(output));
+  const allSignals = canonicalizeStrategySignals(outputs.flatMap((output) => parseSignals(output)));
   const marketLine = outputs.map((output) => parseMarketLine(output).marketLine).find(Boolean);
   const statusLine = outputs.map((output) => parseMarketLine(output).statusLine).find(Boolean);
   const common = outputs.map(parseCommonDiagnostics);
@@ -233,7 +233,7 @@ function buildMergedStrategyOutput(name: TradingStrategyName, outputs: string[],
   } else {
     if (blockerCandidates[0]) lines.push(blockerCandidates[0]!);
     if (blockerSamples[0]) lines.push(blockerSamples[0]!);
-    for (const signal of allSignals.slice(0, 8)) lines.push(formatSignalLine(signal));
+    for (const signal of allSignals) lines.push(formatSignalLine(signal));
   }
 
   if (noBuyCount > 0 && !blockerCandidates[0]) {
@@ -335,6 +335,23 @@ function summarizeSignals(signals: TradingSignal[]) {
     watch: signals.filter((s) => s.action === "WATCH"),
     noBuy: signals.filter((s) => s.action === "NO_BUY"),
   };
+}
+
+function canonicalizeStrategySignals(signals: TradingSignal[]): TradingSignal[] {
+  const latest = new Map<string, TradingSignal>();
+  for (const signal of signals) latest.set(signal.ticker, signal);
+
+  const ordered: TradingSignal[] = [];
+  const seen = new Set<string>();
+  for (let i = signals.length - 1; i >= 0; i -= 1) {
+    const signal = signals[i];
+    if (seen.has(signal.ticker)) continue;
+    seen.add(signal.ticker);
+    const finalSignal = latest.get(signal.ticker);
+    if (finalSignal) ordered.push(finalSignal);
+  }
+
+  return ordered.reverse();
 }
 
 function parseMarketLine(text: string): { marketRegime?: string; marketLine?: string; statusLine?: string } {
@@ -572,10 +589,14 @@ function formatStrategySection(scan: ScanResult): string[] {
     lines.push(`Guardrails: ${note}`);
   }
 
-  for (const group of [split.buy, split.watch, split.noBuy]) {
-    for (const signal of group.slice(0, 4)) {
-      lines.push(formatSignalLine(signal));
-    }
+  for (const signal of split.buy) {
+    lines.push(formatSignalLine(signal));
+  }
+  for (const signal of split.watch) {
+    lines.push(formatSignalLine(signal));
+  }
+  for (const signal of split.noBuy.slice(0, 4)) {
+    lines.push(formatSignalLine(signal));
   }
 
   return lines;
@@ -697,7 +718,7 @@ export async function runTradingPipeline(
     {
       name: "CANSLIM",
       output: canslimOutput,
-      signals: parseSignals(canslimOutput),
+      signals: canonicalizeStrategySignals(parseSignals(canslimOutput)),
       scanLimit: canslimLimit,
       ...canslimSummary,
       ...parseMarketLine(canslimOutput),
@@ -706,7 +727,7 @@ export async function runTradingPipeline(
     {
       name: "Dip Buyer",
       output: dipOutput,
-      signals: parseSignals(dipOutput),
+      signals: canonicalizeStrategySignals(parseSignals(dipOutput)),
       scanLimit: dipLimit,
       ...dipSummary,
       ...dipDiagnostics,

@@ -149,4 +149,26 @@ Dip Buyer: scanned 120 | evaluated 7 | threshold-passed 7 | emitted BUY 0 / WATC
     expect(alert).toContain("👀 Dip Buyer Watchlist (showing 3 of 7):");
     expect(alert).toContain(" ALGN 7/12 · AEP 8/12 · ADSK 9/12 [partial: 4 unavailable]");
   });
+
+  it("prefers the final ticker state when the pipeline emits conflicting duplicates", () => {
+    const report = `📈 Trading Advisor - Unified Pipeline
+Decision: BUY
+Confidence: 0.61 | Risk: HIGH
+Regime/Gates: correction=YES | correction
+Summary: BUY 1 | WATCH 4 | NO_BUY 0
+CANSLIM: scanned 120 | evaluated 0 | threshold-passed 0 | emitted BUY 0 / WATCH 0 / NO_BUY 0
+Dip Buyer: scanned 120 | evaluated 30 | threshold-passed 8 | emitted BUY 1 / WATCH 4 / NO_BUY 0
+• ARES (9/12) → BUY | Parsed from compact leader summary
+• ALGN (7/12) → WATCH | Correction cap: BUY requires score >= 8/12
+• AXON (9/12) → BUY | Parsed from compact leader summary
+• ACN (7/12) → WATCH | Correction cap: BUY requires score >= 8/12
+• AEP (8/12) → WATCH | Correction cap: BUY requires score >= 8/12
+• AXON (9/12) → WATCH | Correction cap: max 1 BUY signal(s)`;
+
+    const alert = buildCronAlertFromPipelineReport(report);
+
+    expect(alert).toContain("👀 Dip Buyer Watchlist (4):");
+    expect(alert).toContain(" ALGN 7/12 · ACN 7/12 · AEP 8/12 · AXON 9/12");
+    expect(alert).not.toContain("[partial:");
+  });
 });
