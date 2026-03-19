@@ -196,14 +196,37 @@ export function buildCronAlertFromPipelineReport(report: string): string {
   const diagnostics = findLine(lines, "Diagnostics:");
   const relatedDetections = diagnostics?.match(/candidates evaluated\s+(\d+)/i)?.[1] ?? "0";
 
-  const formatWatch = (items: ParsedSignal[]): string => {
-    if (!items.length) return " —";
-    const displayLimit =
-      items.length <= COMPACT_WATCHLIST_FULL_LIMIT ? items.length : COMPACT_WATCHLIST_TRUNCATED_LIMIT;
-    const shown = items.slice(0, displayLimit).map((s) => `${s.ticker} ${s.score}/12`).join(" · ");
-    const remaining = items.length - displayLimit;
-    return remaining > 0 ? ` ${shown} [+${remaining} more]` : ` ${shown}`;
+  const formatWatchEntry = (signal: ParsedSignal): string => `${signal.ticker} ${signal.score}/12`;
+  const renderWatchlist = (
+    section: "Dip Buyer" | "CANSLIM",
+    items: ParsedSignal[],
+    declaredWatchCount: number,
+  ): { title: string; body: string } => {
+    const availableCount = items.length;
+    const totalCount = declaredWatchCount > 0 ? declaredWatchCount : availableCount;
+    const hasFullList = declaredWatchCount <= 0 || availableCount >= declaredWatchCount;
+    const title = hasFullList
+      ? `👀 ${section} Watchlist (${totalCount}):`
+      : `👀 ${section} Watchlist (showing ${availableCount} of ${totalCount}):`;
+
+    if (!availableCount) return { title, body: " —" };
+
+    if (hasFullList && totalCount <= COMPACT_WATCHLIST_FULL_LIMIT) {
+      return { title, body: ` ${items.map(formatWatchEntry).join(" · ")}` };
+    }
+
+    if (hasFullList) {
+      const shown = items.slice(0, COMPACT_WATCHLIST_TRUNCATED_LIMIT).map(formatWatchEntry).join(" · ");
+      const remaining = totalCount - Math.min(totalCount, COMPACT_WATCHLIST_TRUNCATED_LIMIT);
+      return { title, body: remaining > 0 ? ` ${shown} [+${remaining} more]` : ` ${shown}` };
+    }
+
+    const listed = items.map(formatWatchEntry).join(" · ");
+    const missing = Math.max(totalCount - availableCount, 0);
+    return { title, body: missing > 0 ? ` ${listed} [partial: ${missing} unavailable]` : ` ${listed}` };
   };
+  const dipWatchlist = renderWatchlist("Dip Buyer", watchDip, dipCounts.watch);
+  const canslimWatchlist = renderWatchlist("CANSLIM", watchCanslim, canslimCounts.watch);
 
   const messageLines = [
     "📈 Trading Advisor — Market Snapshot",
@@ -223,11 +246,11 @@ export function buildCronAlertFromPipelineReport(report: string): string {
       ? `🔥 Focus: ${focusSignal.ticker} — ${focusSignal.action}${focusSources.length ? ` (${focusSources.join(" + ")})` : ""}`
       : "🔥 Focus: unavailable",
     "",
-    `👀 Dip Buyer Watchlist (${watchDip.length}):`,
-    formatWatch(watchDip),
+    dipWatchlist.title,
+    dipWatchlist.body,
     "",
-    `👀 CANSLIM Watchlist (${watchCanslim.length}):`,
-    formatWatch(watchCanslim),
+    canslimWatchlist.title,
+    canslimWatchlist.body,
     "",
     `🛡️ Guardrail blocks/downgrades: ${guardrailCount}`,
     `🔎 Related detections: ${relatedDetections}`,

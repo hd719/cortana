@@ -31,7 +31,7 @@ CANSLIM: scanned 120 | evaluated 1 | threshold-passed 1 | emitted BUY 0 / WATCH 
 • AAPL (7/12) → WATCH
 
 Dip Buyer: scanned 120 | evaluated 1 | threshold-passed 1 | emitted BUY 0 / WATCH 1 / NO_BUY 0
-• TSLA (8/12) → WATCH
+• ROKU (8/12) → WATCH
 
 ⚠️ Decision support only — strict risk gates unchanged.`;
 
@@ -43,7 +43,7 @@ Dip Buyer: scanned 120 | evaluated 1 | threshold-passed 1 | emitted BUY 0 / WATC
     expect(alert).toContain("│ CANSLIM: BUY 0 · WATCH 1 │");
     expect(alert).toContain("│ Dip Buyer: BUY 0 · WATCH 1 │");
     expect(alert).toContain("👀 Dip Buyer Watchlist (1):");
-    expect(alert).toContain(" TSLA 8/12");
+    expect(alert).toContain(" ROKU 8/12");
   });
 
   it("surfaces the no-trade reason when both strategies are blocked", () => {
@@ -54,9 +54,9 @@ Regime/Gates: correction=YES | correction
 Summary: BUY 0 | WATCH 0 | NO_BUY 2
 No-trade reason: Fail-closed: missing market regime in scanner output
 CANSLIM: scanned 120 | evaluated 1 | threshold-passed 1 | emitted BUY 0 / WATCH 0 / NO_BUY 1
-• NVDA (9/12) → NO_BUY
+• AAPL (9/12) → NO_BUY
 Dip Buyer: scanned 120 | evaluated 1 | threshold-passed 1 | emitted BUY 0 / WATCH 0 / NO_BUY 1
-• TSLA (8/12) → NO_BUY`;
+• MSFT (8/12) → NO_BUY`;
 
     const alert = buildCronAlertFromPipelineReport(report);
 
@@ -130,5 +130,23 @@ Dip Buyer: scanned 120 | evaluated 8 | threshold-passed 8 | emitted BUY 0 / WATC
 
     expect(alert).toContain("👀 Dip Buyer Watchlist (8):");
     expect(alert).toContain(" ALGN 7/12 · AEP 8/12 · ADSK 9/12 · ANET 7/12 · AMAT 7/12 [+3 more]");
+  });
+
+  it("marks partial watchlists when source lines omit declared names", () => {
+    const report = `📈 Trading Advisor - Unified Pipeline
+Decision: WATCH
+Confidence: 0.61 | Risk: HIGH
+Regime/Gates: correction=YES | correction
+Summary: BUY 0 | WATCH 7 | NO_BUY 0
+CANSLIM: scanned 120 | evaluated 0 | threshold-passed 0 | emitted BUY 0 / WATCH 0 / NO_BUY 0
+Dip Buyer: scanned 120 | evaluated 7 | threshold-passed 7 | emitted BUY 0 / WATCH 7 / NO_BUY 0
+• ALGN (7/12) → WATCH
+• AEP (8/12) → WATCH
+• ADSK (9/12) → WATCH`;
+
+    const alert = buildCronAlertFromPipelineReport(report);
+
+    expect(alert).toContain("👀 Dip Buyer Watchlist (showing 3 of 7):");
+    expect(alert).toContain(" ALGN 7/12 · AEP 8/12 · ADSK 9/12 [partial: 4 unavailable]");
   });
 });
