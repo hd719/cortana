@@ -57,6 +57,7 @@ const CRITICAL_JOB_NAMES = [
   "📈 Stock Market Brief (daily)",
   "🏋️ Fitness Morning Brief (Hamel)",
   "📅 Calendar reminders → Telegram (ALL calendars)",
+  "⏰ Apple Reminders alerts → Telegram (Monitor)",
   "🌙 Weekend Pre-Bedtime (9:30pm Fri/Sat)",
 ];
 const STANDARD_MODEL = "openai-codex/gpt-5.3-codex";

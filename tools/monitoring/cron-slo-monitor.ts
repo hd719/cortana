@@ -30,6 +30,7 @@ const KNOWN_NOISY_JOB_NAMES = new Set([
 const CRITICAL_JOB_NAMES = new Set([
   "☀️ Morning brief (Hamel)",
   "📅 Calendar reminders → Telegram (ALL calendars)",
+  "⏰ Apple Reminders alerts → Telegram (Monitor)",
   "🔧 Fitness service healthcheck",
   "📏 Cron SLO Monitor (daily)",
 ]);

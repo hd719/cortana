@@ -12,6 +12,7 @@ const DEFAULT_CRITICAL_JOB_NAMES = new Set([
   "📈 Stock Market Brief (daily)",
   "🏋️ Fitness Morning Brief (Hamel)",
   "📅 Calendar reminders → Telegram (ALL calendars)",
+  "⏰ Apple Reminders alerts → Telegram (Monitor)",
   "🌙 Weekend Pre-Bedtime (9:30pm Fri/Sat)",
 ]);
 const TRANSIENT_ERROR_PATTERNS = [
