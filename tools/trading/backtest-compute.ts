@@ -9,6 +9,8 @@ import {
   applyTradingCronReliabilityDefaults,
   boundedRunCommand,
   buildCronAlertFromPipelineReport,
+  extractSignalsFromPipelineReport,
+  type ParsedSignal,
   resolvePythonBin,
 } from "./trading-cron-alert";
 import { runTradingPipeline, runTradingStrategy, type TradingStrategyName } from "./trading-pipeline";
@@ -43,11 +45,52 @@ type BacktestSummary = {
     stderr?: string;
     metrics?: string;
     message?: string;
+    watchlistFullJson?: string;
+    watchlistFullTxt?: string;
   };
   error?: {
     message: string;
     exitCode: number | null;
     signal: string | null;
+  };
+};
+
+type FullWatchlistEntry = {
+  ticker: string;
+  score: number;
+  action: "BUY" | "WATCH" | "NO_BUY";
+  strategy: "CANSLIM" | "Dip Buyer";
+};
+
+export type FullWatchlistArtifact = {
+  schemaVersion: 1;
+  schema_version?: 1;
+  runId: string;
+  run_id?: string;
+  generatedAt: string;
+  decision: string;
+  correctionMode: boolean;
+  summary: {
+    buy: number;
+    watch: number;
+    noBuy: number;
+  };
+  focus: {
+    ticker: string;
+    action: "BUY" | "WATCH" | "NO_BUY";
+    strategy: "CANSLIM" | "Dip Buyer";
+  } | null;
+  strategies: {
+    canslim: {
+      buy: FullWatchlistEntry[];
+      watch: FullWatchlistEntry[];
+      noBuy: FullWatchlistEntry[];
+    };
+    dipBuyer: {
+      buy: FullWatchlistEntry[];
+      watch: FullWatchlistEntry[];
+      noBuy: FullWatchlistEntry[];
+    };
   };
 };
 
@@ -276,6 +319,117 @@ function extractStrategyMetrics(report: string): Record<string, BacktestMetricVa
   return metrics;
 }
 
+function textFromLine(report: string, prefix: string): string | null {
+  const line = report.split(/\r?\n/).find((entry) => entry.startsWith(prefix));
+  if (!line) return null;
+  return line.slice(prefix.length).trim();
+}
+
+function countFromSummaryLine(line: string | null, token: "BUY" | "WATCH" | "NO_BUY"): number {
+  if (!line) return 0;
+  const match = line.match(new RegExp(`${token}\\s+(\\d+)`, "i"));
+  const value = Number(match?.[1] ?? 0);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function strategyFromSection(section: string): "CANSLIM" | "Dip Buyer" {
+  return section === "CANSLIM" ? "CANSLIM" : "Dip Buyer";
+}
+
+function toEntry(signal: ParsedSignal): FullWatchlistEntry {
+  return {
+    ticker: signal.ticker,
+    score: signal.score,
+    action: signal.action,
+    strategy: strategyFromSection(signal.section),
+  };
+}
+
+export function buildFullWatchlistArtifact(
+  runIdValue: string,
+  report: string,
+  generatedAtValue = nowIso(),
+): FullWatchlistArtifact | null {
+  if (!/(^|\n)Summary:/m.test(report)) return null;
+  if (!/(^|\n)CANSLIM:/m.test(report) && !/(^|\n)Dip Buyer:/m.test(report)) return null;
+
+  const decision = textFromLine(report, "Decision:") || "unavailable";
+  const regime = textFromLine(report, "Regime/Gates:") || "";
+  const correctionMode = /correction=YES/i.test(regime) || /\bcorrection\b/i.test(regime);
+  const summaryLine = textFromLine(report, "Summary:");
+  const signals = extractSignalsFromPipelineReport(report);
+  const allSignals = [...signals.canslim, ...signals.dipBuyer];
+  const buySignals = allSignals.filter((signal) => signal.action === "BUY");
+  const focusSignal =
+    buySignals[0] ??
+    [...signals.dipBuyer, ...signals.canslim].find((signal) => signal.action !== "NO_BUY") ??
+    null;
+
+  const byAction = (items: ParsedSignal[], action: "BUY" | "WATCH" | "NO_BUY"): FullWatchlistEntry[] =>
+    items.filter((signal) => signal.action === action).map(toEntry);
+
+  return {
+    schemaVersion: 1,
+    schema_version: 1,
+    runId: runIdValue,
+    run_id: runIdValue,
+    generatedAt: generatedAtValue,
+    decision,
+    correctionMode,
+    summary: {
+      buy: countFromSummaryLine(summaryLine, "BUY"),
+      watch: countFromSummaryLine(summaryLine, "WATCH"),
+      noBuy: countFromSummaryLine(summaryLine, "NO_BUY"),
+    },
+    focus: focusSignal ? toEntry(focusSignal) : null,
+    strategies: {
+      canslim: {
+        buy: byAction(signals.canslim, "BUY"),
+        watch: byAction(signals.canslim, "WATCH"),
+        noBuy: byAction(signals.canslim, "NO_BUY"),
+      },
+      dipBuyer: {
+        buy: byAction(signals.dipBuyer, "BUY"),
+        watch: byAction(signals.dipBuyer, "WATCH"),
+        noBuy: byAction(signals.dipBuyer, "NO_BUY"),
+      },
+    },
+  };
+}
+
+function formatEntries(entries: FullWatchlistEntry[]): string {
+  if (!entries.length) return "none";
+  return entries.map((entry) => `${entry.ticker} ${entry.score}/12`).join(" · ");
+}
+
+function writeAtomically(targetPath: string, content: string): void {
+  const tmpPath = `${targetPath}.tmp`;
+  writeFileSync(tmpPath, content);
+  renameSync(tmpPath, targetPath);
+}
+
+export function formatFullWatchlistArtifactText(artifact: FullWatchlistArtifact): string {
+  return [
+    "Trading Watchlist - Full",
+    `Run: ${artifact.runId}`,
+    `Generated: ${artifact.generatedAt}`,
+    `Decision: ${artifact.decision}`,
+    `Regime: correction=${artifact.correctionMode ? "YES" : "NO"}`,
+    `Summary: BUY ${artifact.summary.buy} | WATCH ${artifact.summary.watch} | NO_BUY ${artifact.summary.noBuy}`,
+    artifact.focus
+      ? `Focus: ${artifact.focus.ticker} ${artifact.focus.score}/12 → ${artifact.focus.action} (${artifact.focus.strategy})`
+      : "Focus: unavailable",
+    "",
+    `Dip Buyer BUY (${artifact.strategies.dipBuyer.buy.length}): ${formatEntries(artifact.strategies.dipBuyer.buy)}`,
+    `Dip Buyer WATCH (${artifact.strategies.dipBuyer.watch.length}): ${formatEntries(artifact.strategies.dipBuyer.watch)}`,
+    `Dip Buyer NO_BUY (${artifact.strategies.dipBuyer.noBuy.length}): ${formatEntries(artifact.strategies.dipBuyer.noBuy)}`,
+    "",
+    `CANSLIM BUY (${artifact.strategies.canslim.buy.length}): ${formatEntries(artifact.strategies.canslim.buy)}`,
+    `CANSLIM WATCH (${artifact.strategies.canslim.watch.length}): ${formatEntries(artifact.strategies.canslim.watch)}`,
+    `CANSLIM NO_BUY (${artifact.strategies.canslim.noBuy.length}): ${formatEntries(artifact.strategies.canslim.noBuy)}`,
+  ].join("\n");
+}
+
 function buildFailureMessage(strategy: string, message: string): string {
   return [
     `⚠️ Backtest - ${strategy}`,
@@ -378,6 +532,8 @@ async function main(): Promise<void> {
   const stderrPath = path.join(outDir, "stderr.txt");
   const metricsPath = path.join(outDir, "metrics.json");
   const messagePath = path.join(outDir, "message.txt");
+  const watchlistFullJsonPath = path.join(outDir, "watchlist-full.json");
+  const watchlistFullTxtPath = path.join(outDir, "watchlist-full.txt");
   const summaryTmpPath = path.join(outDir, "summary.tmp.json");
   const summaryPath = path.join(outDir, "summary.json");
 
@@ -394,6 +550,22 @@ async function main(): Promise<void> {
   writeFileSync(metricsPath, JSON.stringify(metrics, null, 2) + "\n");
 
   const completedAt = nowIso();
+  const success = result.exitCode === 0 && !result.signal;
+  let watchlistArtifactWritten = false;
+  let watchlistArtifactError: string | null = null;
+  if (success) {
+    try {
+      const watchlistArtifact = buildFullWatchlistArtifact(id, result.stdout, completedAt);
+      if (watchlistArtifact) {
+        writeAtomically(watchlistFullJsonPath, JSON.stringify(watchlistArtifact, null, 2) + "\n");
+        writeAtomically(watchlistFullTxtPath, formatFullWatchlistArtifactText(watchlistArtifact) + "\n");
+        watchlistArtifactWritten = true;
+      }
+    } catch (error) {
+      watchlistArtifactError = error instanceof Error ? error.message : String(error);
+    }
+  }
+
   writeFileSync(
     logPath,
     [
@@ -420,10 +592,16 @@ async function main(): Promise<void> {
       "",
       "[message]",
       result.message,
+      "",
+      "[watchlist_artifact]",
+      watchlistArtifactWritten
+        ? `wrote ${watchlistFullJsonPath} and ${watchlistFullTxtPath}`
+        : watchlistArtifactError
+          ? `failed: ${watchlistArtifactError}`
+          : "skipped",
     ].join("\n"),
   );
 
-  const success = result.exitCode === 0 && !result.signal;
   const summary: BacktestSummary = {
     schemaVersion: 1,
     schema_version: 1,
@@ -445,6 +623,11 @@ async function main(): Promise<void> {
       "summary.json is written atomically via summary.tmp.json + rename",
       "notifier should only send completed runs with notifiedAt == null",
       "message.txt is the durable notification payload when present",
+      watchlistArtifactWritten
+        ? "watchlist-full.json and watchlist-full.txt capture the full post-guard BUY/WATCH/NO_BUY sets for this run"
+        : watchlistArtifactError
+          ? `watchlist artifact write failed (non-blocking): ${watchlistArtifactError}`
+          : "watchlist artifact generation skipped because the run did not emit a parseable unified watchlist report",
       ...result.notes,
     ],
     artifacts: {
@@ -455,6 +638,12 @@ async function main(): Promise<void> {
       stderr: stderrPath,
       metrics: metricsPath,
       message: messagePath,
+      ...(watchlistArtifactWritten
+        ? {
+            watchlistFullJson: watchlistFullJsonPath,
+            watchlistFullTxt: watchlistFullTxtPath,
+          }
+        : {}),
     },
     error: success
       ? undefined
@@ -472,7 +661,9 @@ async function main(): Promise<void> {
   process.exit(success ? 0 : result.exitCode ?? 1);
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+if (import.meta.url === `file://${process.argv[1]}`) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}

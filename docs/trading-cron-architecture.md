@@ -45,6 +45,8 @@ This keeps research and calibration inputs fresh while preserving the production
   3. Writes artifacts atomically to `var/backtests/runs/<runId>/`:
      - `summary.json` — structured run result with metrics, status, timestamps
      - `message.txt` — pre-formatted Telegram alert payload
+     - `watchlist-full.json` — full post-guard BUY/WATCH/NO_BUY sets for the run
+     - `watchlist-full.txt` — operator-readable full watchlist companion
      - `stdout.txt`, `stderr.txt`, `run.log`, `metrics.json`
   4. Sets `notifiedAt: null` in `summary.json` so Cron B can pick it up
 - **Does NOT** send Telegram messages directly
