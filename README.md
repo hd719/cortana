@@ -46,6 +46,7 @@ To avoid README rot, this file tracks the **schedule shape and operator intent**
 
 Current shape after the 2026-03-10 cleanup:
 - **Calendar reminders**: hourly daytime checks; message only inside reminder windows.
+- **Apple Reminders alerts**: 15-minute daytime checks; alert only for overdue or next-60-minute items; silent when nothing is due.
 - **Newsletter alert (real-time)**: daytime `:07` cadence; silent when no new matching mail exists.
 - **Market alerts**: fixed weekday market-session checks.
 - **Morning delivery lane**: morning brief, fitness morning brief, stock market brief.

@@ -7,6 +7,7 @@ REPOS=()
 PROTECTED_BRANCHES=("main" "master" "dev" "develop")
 VOLATILE_STATE_FILES=(
   "memory/calendar-reminders-sent.json"
+  "memory/apple-reminders-sent.json"
   "memory/newsletter-alerted.json"
   "memory/x-trending-seen.json"
   "memory/circuit-breaker-state.json"

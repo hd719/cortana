@@ -18,6 +18,7 @@ const CONFIG_PATH = path.join(ROOT, "config", "autonomy-lanes.json");
 
 const DEFAULT_FAMILY_CRITICAL_CRON_NAMES = [
   "📅 Calendar reminders → Telegram (ALL calendars)",
+  "⏰ Apple Reminders alerts → Telegram (Monitor)",
   "🗓️ Tomorrow calendar prep",
   "✈️ Travel & logistics reminders",
   "🤰 Pregnancy reminders / checklist",

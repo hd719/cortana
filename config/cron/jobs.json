@@ -104,6 +104,38 @@
       }
     },
     {
+      "id": "1ee84e93-cae4-4469-8da4-313312bf06e2",
+      "agentId": "cron-comms",
+      "name": "⏰ Apple Reminders alerts → Telegram (Monitor)",
+      "enabled": true,
+      "createdAtMs": 1773922732000,
+      "updatedAtMs": 1773922732000,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/15 6-23 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRouting owner:\n- Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.\n- Healthy/no-reminder path must stay silent as NO_REPLY.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/reminders/apple-reminders-monitor.ts`\n\nPolicy:\n- Watch all Apple Reminders lists.\n- Alert on overdue reminders and reminders due in the next 60 minutes only.\n- No morning digest in this lane.\n- Deduplicate using memory/apple-reminders-sent.json.\n- If script outputs exactly NO_REPLY: return exactly NO_REPLY and do not send a message.\n- If script outputs alert text: send it exactly once via message tool to telegram target 8171372724 with accountId monitor.\n- Keep healthy/empty paths silent.",
+        "model": "openai-codex/gpt-5.1",
+        "timeoutSeconds": 90
+      },
+      "state": {
+        "lastStatus": "ok",
+        "consecutiveErrors": 0,
+        "lastRunStatus": "ok",
+        "lastDeliveryStatus": "not-delivered",
+        "lastDelivered": false
+      },
+      "delivery": {
+        "mode": "none",
+        "accountId": "monitor"
+      }
+    },
+    {
       "id": "c5e30b34-c081-4e95-8a02-7c930ac4cae6",
       "agentId": "cron-health",
       "name": "🐦 X session healthcheck (bird)",

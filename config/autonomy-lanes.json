@@ -2,6 +2,7 @@
   "posture": "balanced",
   "familyCriticalCronNames": [
     "📅 Calendar reminders → Telegram (ALL calendars)",
+    "⏰ Apple Reminders alerts → Telegram (Monitor)",
     "🗓️ Tomorrow calendar prep",
     "✈️ Travel & logistics reminders",
     "🤰 Pregnancy reminders / checklist"
