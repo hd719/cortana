@@ -50,7 +50,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: Always prefix your output with: 🔄 System - Daily Auto-Update\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output.\n\nRun daily auto-updates on H's Mac mini and report a concise summary.\n\nSteps:\n1) Record current versions and active binary path:\n   - `which -a openclaw`\n   - `openclaw --version`\n   - `clawdhub --cli-version`\n   - `brew --version | head -n 2`\n2) Update Homebrew:\n   - `brew update && brew upgrade` (best-effort)\n3) Update OpenClaw (pnpm-managed install):\n   - Prefer: `pnpm add -g openclaw@latest`\n   - Fallback: `pnpm update -g openclaw@latest`\n   - Run: `hash -r || true`\n   - Verify exactly which binary is active: `which -a openclaw`\n   - Run: `openclaw --version`\n   - Run: `openclaw doctor`\n   - Run post-update script: `bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh`\n4) Update skills:\n   - `clawdhub update --all --no-input --force` (if fails, retry once without --force)\n\nRules:\n- Treat OpenClaw as pnpm-managed on this machine; do NOT use `openclaw update` as the primary update path.\n- If multiple `openclaw` binaries appear on PATH, call that out in the summary as a warning.\n- Report the final active OpenClaw version after `hash -r` and doctor, not just the package manager output.\n\nThen send via message tool:\n- What updated (versions before/after)\n- What was already up-to-date\n- Any errors/warnings (1-3 bullets max)\n\nKeep it short. Hard cap: 150 words. Package name is OpenClaw, NOT Clawdbot.",
+        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: Always prefix your output with: 🔄 System - Daily Auto-Update\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output.\n\nRun daily auto-updates on H's Mac mini and report a concise summary.\n\nSteps:\n1) Record current versions and active binary path:\n   - `which -a openclaw`\n   - `openclaw --version`\n   - `clawdhub --cli-version`\n   - `brew --version | head -n 2`\n2) Update Homebrew:\n   - `brew update && brew upgrade` (best-effort)\n3) Update OpenClaw (pnpm-managed install):\n   - Prefer: `pnpm add -g openclaw@latest`\n   - Fallback: `pnpm update -g openclaw@latest`\n   - Run: `hash -r || true`\n   - Verify exactly which binary is active: `which -a openclaw`\n   - Run: `openclaw --version`\n   - Run: `openclaw doctor`\n   - Run post-update script without immediate restart: `bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh --skip-restart`\n4) Update skills:\n   - `clawdhub update --all --no-input --force` (if fails, retry once without --force)\n\nRules:\n- Treat OpenClaw as pnpm-managed on this machine; do NOT use `openclaw update` as the primary update path.\n- If multiple `openclaw` binaries appear on PATH, call that out in the summary as a warning.\n- Report the final active OpenClaw version after `hash -r` and doctor, not just the package manager output.\n- Restart is deferred to the 8:00 AM ET maintenance window.\n\nThen send via message tool:\n- What updated (versions before/after)\n- What was already up-to-date\n- Any errors/warnings (1-3 bullets max)\n\nKeep it short. Hard cap: 150 words. Package name is OpenClaw, NOT Clawdbot.",
         "model": "openai-codex/gpt-5.3-codex"
       },
       "state": {
@@ -1074,6 +1074,29 @@
       "delivery": {
         "mode": "none",
         "accountId": "spartan"
+      }
+    },
+    {
+      "id": "a9c37f59-8f34-4c59-bb53-8a2b6d3fb3f8",
+      "agentId": "cron-maintenance",
+      "name": "🔁 OpenClaw Deferred Gateway Restart",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "0 6 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "model": "openai-codex/gpt-5.4",
+        "timeoutSeconds": 120,
+        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun exactly:\n- `bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh --restart-if-pending`\n\nRules:\n- If the script indicates there was no pending restart, return exactly NO_REPLY.\n- If it performed the deferred restart path, send one short monitor-owned message confirming the restart window ran.\n- If it fails, send one short monitor-owned failure alert under 150 words."
+      },
+      "delivery": {
+        "mode": "none",
+        "accountId": "monitor"
       }
     }
   ]

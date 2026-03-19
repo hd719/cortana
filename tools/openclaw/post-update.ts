@@ -7,6 +7,30 @@ import { resolveHomePath, sourceRepoRoot } from "../lib/paths.js";
 
 const CANONICAL_REPO_ROOT = sourceRepoRoot();
 
+const PENDING_RESTART_FLAG = resolveHomePath(".openclaw", "state", "pending-post-update-restart.json");
+
+function markPendingRestart(reason: string): void {
+  fs.mkdirSync(path.dirname(PENDING_RESTART_FLAG), { recursive: true });
+  fs.writeFileSync(
+    PENDING_RESTART_FLAG,
+    JSON.stringify({
+      pending: true,
+      reason,
+      requestedAt: new Date().toISOString(),
+      repoRoot: CANONICAL_REPO_ROOT,
+    }, null, 2) + "\n",
+  );
+}
+
+function clearPendingRestartFlag(): void {
+  fs.rmSync(PENDING_RESTART_FLAG, { force: true });
+}
+
+function hasPendingRestartFlag(): boolean {
+  return fs.existsSync(PENDING_RESTART_FLAG);
+}
+
+
 function log(message: string): void {
   process.stdout.write(`[post-update] ${message}\n`);
 }
@@ -20,10 +44,11 @@ function isExecutable(filePath: string): boolean {
   }
 }
 
-function parseArgs(argv: string[]): { validateOnly: boolean; skipRestart: boolean } {
+function parseArgs(argv: string[]): { validateOnly: boolean; skipRestart: boolean; restartIfPending: boolean } {
   return {
     validateOnly: argv.includes("--validate-only"),
     skipRestart: argv.includes("--skip-restart"),
+    restartIfPending: argv.includes("--restart-if-pending"),
   };
 }
 
@@ -154,6 +179,20 @@ async function main(): Promise<number> {
 
   log("Starting OpenClaw post-update...");
 
+  if (args.restartIfPending) {
+    if (!hasPendingRestartFlag()) {
+      log("No pending post-update restart flag found. Exiting without restart.");
+      return 0;
+    }
+
+    validatePostUpdate(runtimeJobs, repoJobs);
+    log("Pending post-update restart flag found. Scheduling detached launchd restart helper.");
+    scheduleDetachedLaunchdRestart();
+    clearPendingRestartFlag();
+    log("Post-update complete. Gateway restart has been handed off to detached helper with verification.");
+    return 0;
+  }
+
   ensureCompatShim();
   ensureRegularRuntimeJobs(runtimeJobs);
   syncCronConfig(runtimeJobs, repoJobs);
@@ -173,12 +212,14 @@ async function main(): Promise<number> {
   if (install.status !== 0) return install.status ?? 1;
 
   if (args.skipRestart) {
-    log("Skip-restart mode complete after doctor + install.");
+    markPendingRestart("post-update skip-restart requested after successful doctor + gateway install");
+    log(`Skip-restart mode complete after doctor + install. Pending restart recorded at ${PENDING_RESTART_FLAG}.`);
     return 0;
   }
 
   log("Scheduling detached launchd restart helper (safer than inline restart from a live gateway-owned process)");
   scheduleDetachedLaunchdRestart();
+  clearPendingRestartFlag();
 
   log("Post-update complete. Gateway restart has been handed off to detached helper with verification.");
   return 0;
