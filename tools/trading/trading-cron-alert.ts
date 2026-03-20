@@ -118,7 +118,15 @@ export function collectSignalsDetailed(lines: string[], section: string): Parsed
 
   const out: ParsedSignal[] = [];
   // Known non-signal prefixes that appear between the section header and signal lines
-  const skipPrefixes = ["Guardrails:", "Top blocker:", "👁️"];
+  const skipPrefixes = [
+    "Guardrails:",
+    "Top blocker:",
+    "Blockers:",
+    "Watch names",
+    "Correction gate:",
+    "Leaders:",
+    "👁️",
+  ];
   for (let i = startIndex + 1; i < lines.length; i += 1) {
     const line = lines[i];
     if (!line.trim()) continue; // skip blank lines within the section
