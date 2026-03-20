@@ -91,8 +91,9 @@ After `npm update -g openclaw`:
 
 Post-update script handles:
 - Syncing `/Users/hd/Developer/cortana/config/cron/jobs.json` -> `~/.openclaw/cron/jobs.json` while preserving runtime-only state fields
-- `openclaw gateway install --force`
-- `openclaw gateway restart`
+- OpenClaw doctor checks
+- Gateway install/restart only when explicitly enabled (`--install-gateway`, `--restart-gateway`)
+- Deferred restart flow (`--skip-restart` + `--restart-gateway`, later `--restart-if-pending`)
 - Ensuring `/Users/hd/openclaw` points at the canonical source repo as a compatibility shim
 
 The canonical source copy lives in this repo. `/Users/hd/openclaw/tools/openclaw/post-update.sh` only works via the compatibility shim path.
