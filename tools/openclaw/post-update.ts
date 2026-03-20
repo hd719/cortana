@@ -44,11 +44,19 @@ function isExecutable(filePath: string): boolean {
   }
 }
 
-function parseArgs(argv: string[]): { validateOnly: boolean; skipRestart: boolean; restartIfPending: boolean } {
+function parseArgs(argv: string[]): {
+  validateOnly: boolean;
+  skipRestart: boolean;
+  restartIfPending: boolean;
+  installGateway: boolean;
+  restartGateway: boolean;
+} {
   return {
     validateOnly: argv.includes("--validate-only"),
     skipRestart: argv.includes("--skip-restart"),
     restartIfPending: argv.includes("--restart-if-pending"),
+    installGateway: argv.includes("--install-gateway"),
+    restartGateway: argv.includes("--restart-gateway"),
   };
 }
 
@@ -207,13 +215,23 @@ async function main(): Promise<number> {
   const doctor = spawnSync("openclaw", ["doctor"], { stdio: "inherit" });
   if (doctor.status !== 0) return doctor.status ?? 1;
 
-  log("Running: openclaw gateway install --force");
-  const install = spawnSync("openclaw", ["gateway", "install", "--force"], { stdio: "inherit" });
-  if (install.status !== 0) return install.status ?? 1;
+  if (args.installGateway) {
+    log("Running: openclaw gateway install --force");
+    const install = spawnSync("openclaw", ["gateway", "install", "--force"], { stdio: "inherit" });
+    if (install.status !== 0) return install.status ?? 1;
+  } else {
+    log("Skipping gateway install (pass --install-gateway to enable).");
+  }
+
+  if (!args.restartGateway) {
+    clearPendingRestartFlag();
+    log("Post-update complete without gateway restart side effects (pass --restart-gateway to enable).");
+    return 0;
+  }
 
   if (args.skipRestart) {
-    markPendingRestart("post-update skip-restart requested after successful doctor + gateway install");
-    log(`Skip-restart mode complete after doctor + install. Pending restart recorded at ${PENDING_RESTART_FLAG}.`);
+    markPendingRestart("post-update skip-restart requested with --restart-gateway");
+    log(`Skip-restart mode complete. Pending restart recorded at ${PENDING_RESTART_FLAG}.`);
     return 0;
   }
 
