@@ -13,14 +13,9 @@
     "enabled": true,
     "defaultProfile": "chrome-relay",
     "profiles": {
-      "user": {
-        "driver": "existing-session",
-        "attachOnly": true,
-        "color": "#00AA00"
-      },
       "chrome-relay": {
         "cdpUrl": "http://127.0.0.1:18792",
-        "driver": "openclaw",
+        "driver": "clawd",
         "color": "#00AA00"
       },
       "openclaw": {
@@ -127,7 +122,6 @@
           "end": "23:00"
         },
         "every": "30m",
-        "lightContext": true,
         "model": "openai-codex/gpt-5.1",
         "includeReasoning": false
       },
