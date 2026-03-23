@@ -20,7 +20,7 @@
       },
       "chrome-relay": {
         "cdpUrl": "http://127.0.0.1:18792",
-        "driver": "extension",
+        "driver": "openclaw",
         "color": "#00AA00"
       },
       "openclaw": {
@@ -472,7 +472,9 @@
       "acpx"
     ],
     "load": {
-      "paths": []
+      "paths": [
+        "/opt/homebrew/lib/node_modules/openclaw/extensions/acpx"
+      ]
     },
     "slots": {
       "memory": "memory-core"
@@ -485,14 +487,7 @@
         "enabled": true
       },
       "acpx": {
-        "enabled": true,
-        "config": {
-          "permissionMode": "approve-all",
-          "nonInteractivePermissions": "fail",
-          "timeoutSeconds": 1800,
-          "queueOwnerTtlSeconds": 15,
-          "cwd": "/Users/hd/Developer/cortana"
-        }
+        "enabled": true
       }
     }
   }
