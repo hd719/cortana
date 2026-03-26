@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "updatedAt": "2026-03-20T19:01:43.221Z",
+  "updatedAt": "2026-03-25T19:01:43.737Z",
   "symbols": {
     "ACN": {
       "verdict": "avoid for now",
@@ -169,6 +169,136 @@
       "score": 1,
       "confidence": 0,
       "lastSeenAt": "2026-03-20T19:01:43.221Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "A": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 0,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "ACHV": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 0,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "AFRM": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 0,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "ALLE": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 0,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "ALM": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 2,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "AMCR": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 0,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "AOS": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 0,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "ARMP": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 2,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "AVY": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 0,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "AXP": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 0,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "BALL": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 1,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "CAG": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 0,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
+      "lastAlertedAt": null,
+      "lastAlertSignature": null
+    },
+    "CELH": {
+      "verdict": "avoid for now",
+      "reason": "Market in correction. No new positions.",
+      "baseAction": "NO_BUY",
+      "score": 0,
+      "confidence": 0,
+      "lastSeenAt": "2026-03-25T19:01:43.737Z",
       "lastAlertedAt": null,
       "lastAlertSignature": null
     }
