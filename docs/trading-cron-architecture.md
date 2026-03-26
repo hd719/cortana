@@ -107,6 +107,17 @@ Previous timeout of 360s caused consistent false-positive timeout errors. The 66
 - **Does NOT** rerun the full 120-name CANSLIM + Dip Buyer scan
 - **Healthy state:** returns `NO_REPLY`
 
+### Re-check State File (keep this)
+
+`var/backtests/rechecks/state.json` is intentional durable operational memory for Cron C.
+
+It stores per-symbol re-check memory (`verdict`, `lastSeenAt`, `lastAlertedAt`, `lastAlertSignature`) so the lane can:
+- detect true verdict transitions,
+- apply cooldown/dedupe,
+- avoid repeat alert spam for unchanged conditions.
+
+This file is generated/updated by `tools/trading/trading-recheck.ts` and should be retained across runs.
+
 ### Re-check Exclusion Controls
 
 Use these controls to remove symbols from the re-check lane even if they appear in the latest base run's `BUY/WATCH` output:
