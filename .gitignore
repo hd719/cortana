@@ -45,5 +45,3 @@ var/backtests/runs/
 # Archived memory (already consolidated into MEMORY.md)
 memory/archive/
 
-# Local runtime state
-var/backtests/rechecks/state.json
