@@ -18,7 +18,7 @@
       "payload": {
         "kind": "agentTurn",
         "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nOUTPUT CONTRACT (Telegram safety):\n- Keep each sent message under 3500 characters.\n- If longer, split into parts with headers like 'Part 1/N', 'Part 2/N'.\n- Never send oversized single messages.\n\nYou are Cortana. Create Hamel's daily morning brief for Telegram. Calm, concise, actionable.\nOutput format:\n☀️ Brief - Morning Brief\n- Today at a glance (3 bullets)\n- Warren, NJ weather (today high/low + rain chance)\n- Key news (max 3 bullets, US/world + one tech/cyber item)\n- Markets snapshot (major index tone + market open/closed from /Users/hd/Developer/cortana/skills/markets/check_market_status.sh)\n- Top 3 priorities for today (time/health/career aligned)\n- One concrete career-advancing task\n\nRules: keep under 150 words, use 12-hour AM/PM time, avoid fluff.\nDelivery is MANUAL: send final text with message tool (channel=telegram, target=8171372724) exactly once.\nAfter sending, return a one-line confirmation only.",
-        "model": "openai-codex/gpt-5.3-codex"
+        "model": "openai-codex/gpt-5.1"
       },
       "state": {
         "nextRunAtMs": 1773833400000,
@@ -738,7 +738,8 @@
       },
       "payload": {
         "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/alerting/cron-restart-recovery.ts\nPolicy:\n- This is a silent safety job. Return NO_REPLY on normal operation.\n- It should only force-run jobs that recently failed with GatewayDrainingError, once per failed run.\n- Log recovery attempts to cortana_events.",
-        "kind": "agentTurn"
+        "kind": "agentTurn",
+        "model": "openai-codex/gpt-5.1"
       },
       "delivery": {
         "mode": "none"
