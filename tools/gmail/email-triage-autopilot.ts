@@ -1,13 +1,14 @@
 #!/usr/bin/env npx tsx
 
 import { spawnSync } from "node:child_process";
+import path from "node:path";
 import db from "../lib/db.ts";
-import { resolveRepoPath } from "../lib/paths.js";
 
 const { withPostgresPath } = db as { withPostgresPath: (env: NodeJS.ProcessEnv) => NodeJS.ProcessEnv };
 const DEFAULT_PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql";
-const DEFAULT_TELEGRAM_GUARD = resolveRepoPath("tools", "notifications", "telegram-delivery-guard.sh");
-const INBOX_EXECUTION_SCRIPT = resolveRepoPath("tools", "email", "inbox_to_execution.py");
+const REPO_ROOT = process.env.CORTANA_SOURCE_REPO ?? path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..");
+const DEFAULT_TELEGRAM_GUARD = path.join(REPO_ROOT, "tools", "notifications", "telegram-delivery-guard.sh");
+const INBOX_EXECUTION_SCRIPT = path.join(REPO_ROOT, "tools", "email", "inbox_to_execution.ts");
 
 type EmailRow = {
   id: string;
@@ -141,7 +142,7 @@ VALUES (
   if (runInboxExecution === "1") {
     const exists = run("test", ["-f", INBOX_EXECUTION_SCRIPT]);
     if (exists.status === 0) {
-      const inbox = run("python3", [INBOX_EXECUTION_SCRIPT, "--output-json"], triageEnv);
+      const inbox = run("npx", ["tsx", INBOX_EXECUTION_SCRIPT, "--output-json"], triageEnv);
       if (inbox.out.trim()) {
         try {
           const data = JSON.parse(inbox.out);

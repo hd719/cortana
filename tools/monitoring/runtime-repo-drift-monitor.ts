@@ -31,10 +31,15 @@ type RepoState = {
   originHead: string;
   remoteUrl: string;
   clean: boolean;
+  changedPaths: string[];
 };
 
 const DEFAULT_SOURCE_REPO = process.env.CORTANA_SOURCE_REPO || "/Users/hd/Developer/cortana";
 const DEFAULT_RUNTIME_REPO = process.env.CORTANA_RUNTIME_REPO || DEFAULT_SOURCE_REPO;
+const IGNORED_RUNTIME_STATE_PATHS = new Set([
+  "memory/apple-reminders-sent.json",
+  "var/backtests/rechecks/state.json",
+]);
 
 function parseArgs(): Args {
   const argv = process.argv.slice(2);
@@ -82,6 +87,28 @@ function realpath(repo: string): string {
   return fs.realpathSync.native?.(repo) ?? fs.realpathSync(repo);
 }
 
+function normalizeStatusPath(rawPath: string): string {
+  const trimmed = rawPath.trim();
+  if (!trimmed) return "";
+  const renameMarker = " -> ";
+  if (trimmed.includes(renameMarker)) {
+    return trimmed.split(renameMarker).at(-1)?.trim() ?? trimmed;
+  }
+  return trimmed;
+}
+
+function collectChangedPaths(repo: string): string[] {
+  const raw = run("git status --porcelain --untracked-files=all", repo);
+  return raw
+    .split("\n")
+    .map((line) => normalizeStatusPath(line.slice(3)))
+    .filter(Boolean);
+}
+
+function isMeaningfulDriftPath(repoPath: string): boolean {
+  return !IGNORED_RUNTIME_STATE_PATHS.has(repoPath);
+}
+
 function isShimmedRuntime(sourceRepo: string, runtimeRepo: string): boolean {
   if (!pathExists(sourceRepo) || !pathExists(runtimeRepo)) return false;
   try {
@@ -93,6 +120,7 @@ function isShimmedRuntime(sourceRepo: string, runtimeRepo: string): boolean {
 
 function collectRepoState(repo: string, branch: string): RepoState {
   run(`git fetch origin ${branch} --prune --quiet`, repo);
+  const changedPaths = collectChangedPaths(repo);
   return {
     repo,
     branch: run("git rev-parse --abbrev-ref HEAD", repo),
@@ -100,7 +128,8 @@ function collectRepoState(repo: string, branch: string): RepoState {
     head: run("git rev-parse HEAD", repo),
     originHead: run(`git rev-parse origin/${branch}`, repo),
     remoteUrl: run("git remote get-url origin", repo),
-    clean: run("git status --porcelain --untracked-files=all", repo) === "",
+    clean: changedPaths.every((repoPath) => !isMeaningfulDriftPath(repoPath)),
+    changedPaths,
   };
 }
 
