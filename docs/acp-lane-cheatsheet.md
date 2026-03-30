@@ -4,7 +4,7 @@
 Use ACP as a specialist coding lane only when explicitly requested.
 
 ## Routing Rule
-- If user explicitly asks for **Codex**, **Claude Code**, **Gemini**, or **ACP** runtime → route to `agentId: "cortana-acp"`.
+- If user explicitly asks for **Codex**, **Claude Code**, **Gemini**, or **ACP** runtime → route to ACP harness target `agentId: "codex"`.
 - Otherwise use normal sub-agent routing by role.
 - Huragok stays native by default for diagnose / patch / review / coordinate.
 - Codex ACP is for build / implement / refactor / scaffold / ship.
@@ -13,17 +13,24 @@ Use ACP as a specialist coding lane only when explicitly requested.
 ## Minimal Spawn Template
 ```json
 {
-  "agentId": "cortana-acp",
-  "label": "cortana-acp-<task-slug>",
+  "agentId": "codex",
+  "label": "codex-acp-<task-slug>",
   "prompt": "<scoped coding task>"
 }
 ```
 
 ## Verification Checklist
-- [ ] `config/agent-profiles.json` contains `cortana-acp`.
+- [ ] `config/openclaw.json` has `acp.defaultAgent = "codex"`.
+- [ ] `config/openclaw.json` has `acp.allowedAgents = ["codex"]`.
 - [ ] `docs/agent-routing.md` contains explicit ACP routing policy.
 - [ ] Non-explicit requests still route through normal Covenant role mapping.
 - [ ] ACP lane is used only for coding-runtime-specific requests.
+
+## Telegram Surface Note
+- Telegram DM is the front door (Cortana/main receives the request first).
+- Cortana dispatches ACP work to the Codex harness target (`agentId: "codex"`).
+- Do not rely on Telegram persistent/thread-bound ACP spawn on this surface.
+- Use one-shot/no-thread ACP (`--mode oneshot --thread off`) or run ACP directly from terminal when needed.
 
 ## Smoke Test Flow (manual)
 1. **Spawn** ACP run with a tiny scoped task.

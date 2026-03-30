@@ -140,7 +140,7 @@
         "id": "main",
         "workspace": "/Users/hd/Developer/cortana",
         "model": {
-          "primary": "openai-codex/gpt-5.4-codex",
+          "primary": "openai-codex/gpt-5.4",
           "fallbacks": [
             "openai-codex/gpt-5.3-codex",
             "openai-codex/gpt-5.2-codex"
@@ -179,6 +179,11 @@
       },
       {
         "id": "researcher",
+        "workspace": "/Users/hd/Developer/cortana",
+        "model": "openai-codex/gpt-5.3-codex"
+      },
+      {
+        "id": "cortana-acp",
         "workspace": "/Users/hd/Developer/cortana",
         "model": "openai-codex/gpt-5.3-codex"
       },
@@ -227,7 +232,11 @@
         "oracle",
         "monitor",
         "arbiter",
-        "spartan"
+        "spartan",
+        "codex",
+        "agent:codex:*",
+        "cortana-acp",
+        "agent:cortana-acp:*"
       ]
     },
     "exec": {

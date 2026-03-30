@@ -106,8 +106,8 @@ Follow `docs/autonomy-policy.md` for decision authority on break/fix, reliabilit
 4. **Building/installing/wiring systems → Huragok**. Code, infra, tools, services.
 5. **Analysis/prediction/strategy → Oracle**. Forecasting, risk, "should we do X?"
 6. **Monitoring/alerting/pattern detection → Monitor**. Health checks, anomaly scanning.
-7. **ACP exception (on-demand only):** if the user explicitly asks for Codex/Claude/Gemini (or says ACP), route via `agentId: "cortana-acp"`.
-8. **Huragok native first, ACP by escalation:** send code/infra work to Huragok first unless the user explicitly asked for ACP. Huragok handles triage, surgical fixes, config/prompt tweaks, review judgment, and coordination natively; if the work becomes new-feature / multi-file / implementation-heavy, Cortana escalates it to `cortana-acp`.
+7. **ACP exception (on-demand only):** if the user explicitly asks for Codex/Claude/Gemini (or says ACP), route via ACP harness target `agentId: "codex"`.
+8. **Huragok native first, ACP by escalation:** send code/infra work to Huragok first unless the user explicitly asked for ACP. Huragok handles triage, surgical fixes, config/prompt tweaks, review judgment, and coordination natively; if the work becomes new-feature / multi-file / implementation-heavy, Cortana escalates it to Codex ACP (`agentId: "codex"`).
 9. **Cortana/main is the only ACP dispatcher.** Huragok can recommend ACP escalation but should not be treated as the lane that spawns ACP directly.
 10. **If a task spans two roles**, pick the primary and note the overlap in the task prompt.
 11. **Label your spawns consistently**: `<agent>-<task-slug>` (e.g., `researcher-mortgage-rates`, `librarian-readme-update`, `huragok-event-bus`).
