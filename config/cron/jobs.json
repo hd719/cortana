@@ -3,7 +3,7 @@
   "jobs": [
     {
       "id": "489b1e20-1bb0-48e6-a388-c3cc1743a324",
-      "agentId": "main",
+      "agentId": "cron-comms",
       "name": "☀️ Morning brief (Hamel)",
       "enabled": true,
       "createdAtMs": 1769550483487,
@@ -756,7 +756,8 @@
       },
       "wakeMode": "now",
       "sessionTarget": "isolated",
-      "updatedAtMs": 1773760855381
+      "updatedAtMs": 1773760855381,
+      "agentId": "cron-maintenance"
     },
     {
       "id": "repo-drift-watchdog-daily",
@@ -1042,7 +1043,7 @@
       "payload": {
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.1",
-        "timeoutSeconds": 600,
+        "timeoutSeconds": 900,
         "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nThis is the trading precompute refresh lane. It prepares non-blocking buy-decision artifacts for the live trading stack.\nMonitor is the user-facing owner lane for trading alert scans, but this job does not send Telegram messages.\n\nRun exactly:\nbash /Users/hd/Developer/cortana/tools/trading/run-trading-precompute.sh\n\nRules:\n- Refresh the nightly discovery feature snapshot first.\n- Then settle experimental alpha outcomes.\n- Then refresh the buy-decision calibration artifact.\n- Do not use the message tool.\n- This job is precompute only and must not change live run status.\n- If the wrapper exits 0, return exactly: trading-precompute complete\n- If the wrapper exits non-zero, return the wrapper stderr only."
       },
       "delivery": {
