@@ -175,7 +175,7 @@ function checkRuntimeCronState(fix: boolean): Check {
 
 function checkCronDefinitions(): Check {
   const check = makeCheck("cron_definitions");
-  const details: Json = { path: REPO_JOBS, required_fields: ["name", "schedule", "enabled", "command"] };
+  const details: Json = { path: REPO_JOBS, required_fields: ["id", "agentId", "name", "schedule", "enabled", "payload"] };
 
   if (!fs.existsSync(REPO_JOBS)) {
     fail(check, "config/cron/jobs.json is missing");
@@ -200,7 +200,9 @@ function checkCronDefinitions(): Check {
   }
 
   const missingRequired: Json[] = [];
-  const missingModel: Json[] = [];
+  const invalidSchedule: Json[] = [];
+  const invalidPayload: Json[] = [];
+  const missingRouting: Json[] = [];
 
   jobs.forEach((job: any, idx: number) => {
     if (!job || typeof job !== "object") {
@@ -208,20 +210,44 @@ function checkCronDefinitions(): Check {
       return;
     }
     const jobName = job.name ?? `index:${idx}`;
-    const missing = ["name", "schedule", "enabled", "command"].filter((k) => !(k in job));
+    const missing = ["id", "agentId", "name", "schedule", "enabled", "payload"].filter((k) => !(k in job));
     if (missing.length) missingRequired.push({ index: idx, name: jobName, missing });
+
+    const schedule = job.schedule;
+    const scheduleObj = schedule && typeof schedule === "object" ? (schedule as Record<string, unknown>) : null;
+    const scheduleKind = typeof scheduleObj?.kind === "string" ? scheduleObj.kind : null;
+    const validCron = scheduleKind === "cron" && typeof scheduleObj?.expr === "string" && !!scheduleObj.expr.trim();
+    const validEvery = scheduleKind === "every" && typeof scheduleObj?.everyMs === "number" && scheduleObj.everyMs > 0;
+    if (!validCron && !validEvery) {
+      invalidSchedule.push({ index: idx, name: jobName, kind: scheduleKind });
+    }
+
+    const payload = job.payload;
+    if (!payload || typeof payload !== "object" || !("kind" in payload)) {
+      invalidPayload.push({ index: idx, name: jobName, reason: "missing payload.kind" });
+    } else if ((payload as Record<string, unknown>).kind === "agentTurn") {
+      const message = (payload as Record<string, unknown>).message;
+      if (typeof message !== "string" || !message.trim()) {
+        invalidPayload.push({ index: idx, name: jobName, reason: "agentTurn missing payload.message" });
+      }
+    }
 
     const hasModel = "model" in job;
     const payloadModel = typeof job.payload === "object" && job.payload && "model" in job.payload;
-    if (!hasModel && !payloadModel) missingModel.push({ index: idx, name: jobName });
+    const hasAgentId = typeof job.agentId === "string" && job.agentId.trim().length > 0;
+    if (!hasModel && !payloadModel && !hasAgentId) missingRouting.push({ index: idx, name: jobName });
   });
 
   details.job_count = jobs.length;
   details.missing_required = missingRequired;
-  details.missing_model = missingModel;
+  details.invalid_schedule = invalidSchedule;
+  details.invalid_payload = invalidPayload;
+  details.missing_routing = missingRouting;
 
   if (missingRequired.length) fail(check, "One or more cron jobs are missing required fields");
-  else if (missingModel.length) warn(check, "One or more cron jobs are missing a model field");
+  else if (invalidSchedule.length) fail(check, "One or more cron jobs have invalid schedule definitions");
+  else if (invalidPayload.length) fail(check, "One or more cron jobs have invalid payload definitions");
+  else if (missingRouting.length) warn(check, "One or more cron jobs are missing model or agent routing");
 
   check.details = details;
   return check;
