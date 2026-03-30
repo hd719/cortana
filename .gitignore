@@ -45,3 +45,4 @@ var/backtests/runs/
 # Archived memory (already consolidated into MEMORY.md)
 memory/archive/
 
+memory/*-sent.json
