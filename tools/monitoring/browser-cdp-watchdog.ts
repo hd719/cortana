@@ -7,6 +7,7 @@ import { spawnSync } from "node:child_process";
 type BrowserProfile = {
   cdpUrl?: string;
   cdpPort?: number;
+  driver?: string;
 };
 
 type OpenClawConfig = {
@@ -25,6 +26,12 @@ const CONFIG_PATH = path.join(os.homedir(), ".openclaw", "openclaw.json");
 const STATE_PATH = path.join(os.homedir(), ".openclaw", "state", "browser-cdp-watchdog.json");
 const WINDOW_MS = 30 * 60 * 1000;
 const MAX_RESTARTS_PER_WINDOW = 1;
+const CHROME_CANDIDATES = [
+  "/Applications/Google Chrome.app",
+  "/Applications/Chromium.app",
+  "/Applications/Brave Browser.app",
+  "/Applications/Microsoft Edge.app",
+] as const;
 
 function readJson<T>(filePath: string): T | null {
   try {
@@ -49,14 +56,18 @@ function compact(text: string, max = 180): string {
   return normalized.length <= max ? normalized : `${normalized.slice(0, max - 1)}…`;
 }
 
-function resolveCdpUrl(config: OpenClawConfig): string | null {
+function resolveProfile(config: OpenClawConfig): { name: string; profile: BrowserProfile; cdpUrl: string } | null {
   if (config.browser?.enabled === false) return null;
   const profiles = config.browser?.profiles ?? {};
   const profileName = config.browser?.defaultProfile ?? "chrome-relay";
   const profile = profiles[profileName];
   if (!profile) return null;
-  if (typeof profile.cdpUrl === "string" && profile.cdpUrl.trim()) return profile.cdpUrl.trim();
-  if (Number.isFinite(profile.cdpPort)) return `http://127.0.0.1:${Number(profile.cdpPort)}`;
+  if (typeof profile.cdpUrl === "string" && profile.cdpUrl.trim()) {
+    return { name: profileName, profile, cdpUrl: profile.cdpUrl.trim() };
+  }
+  if (Number.isFinite(profile.cdpPort)) {
+    return { name: profileName, profile, cdpUrl: `http://127.0.0.1:${Number(profile.cdpPort)}` };
+  }
   return null;
 }
 
@@ -67,10 +78,53 @@ function checkCdp(url: string): { ok: boolean; detail: string } {
   return { ok: probe.status === 0, detail: detail || target };
 }
 
-function restartBrowserHost(): { ok: boolean; detail: string } {
-  const restart = spawnSync("openclaw", ["node", "restart"], { encoding: "utf8" });
-  const detail = compact(`${restart.stdout ?? ""}\n${restart.stderr ?? ""}`);
-  return { ok: restart.status === 0, detail };
+function parseLocalPort(cdpUrl: string): number | null {
+  try {
+    const parsed = new URL(cdpUrl);
+    if (!["127.0.0.1", "localhost"].includes(parsed.hostname)) return null;
+    const port = Number(parsed.port || (parsed.protocol === "https:" ? 443 : 80));
+    return Number.isFinite(port) ? port : null;
+  } catch {
+    return null;
+  }
+}
+
+function findChromeApp(): string | null {
+  for (const candidate of CHROME_CANDIDATES) {
+    if (fs.existsSync(candidate)) return candidate;
+  }
+  return null;
+}
+
+function launchChromeRelay(profileName: string, cdpUrl: string): { ok: boolean; detail: string } {
+  const app = findChromeApp();
+  if (!app) {
+    return { ok: false, detail: "no supported Chrome-family app found" };
+  }
+  const port = parseLocalPort(cdpUrl);
+  if (!port) {
+    return { ok: false, detail: `unsupported cdp url for local relay launch: ${cdpUrl}` };
+  }
+  const userDataDir = path.join(os.homedir(), ".openclaw", "browser", profileName);
+  fs.mkdirSync(userDataDir, { recursive: true });
+  const launch = spawnSync(
+    "open",
+    ["-na", app, "--args", `--remote-debugging-port=${port}`, `--user-data-dir=${userDataDir}`],
+    { encoding: "utf8" }
+  );
+  const detail = compact(`${launch.stdout ?? ""}\n${launch.stderr ?? ""}`);
+  return { ok: launch.status === 0, detail: detail || `${app} on ${port}` };
+}
+
+function verifyCdp(url: string, attempts = 8, sleepMs = 1000): { ok: boolean; detail: string } {
+  let last = checkCdp(url);
+  if (last.ok) return last;
+  for (let i = 1; i < attempts; i += 1) {
+    spawnSync("sleep", [String(Math.max(1, Math.ceil(sleepMs / 1000)))], { encoding: "utf8" });
+    last = checkCdp(url);
+    if (last.ok) return last;
+  }
+  return last;
 }
 
 function main(): void {
@@ -80,11 +134,12 @@ function main(): void {
     return;
   }
 
-  const cdpUrl = resolveCdpUrl(config);
-  if (!cdpUrl) {
+  const resolved = resolveProfile(config);
+  if (!resolved) {
     console.log("NO_REPLY");
     return;
   }
+  const { name: profileName, cdpUrl } = resolved;
 
   const initial = checkCdp(cdpUrl);
   if (initial.ok) {
@@ -107,12 +162,12 @@ function main(): void {
     return;
   }
 
-  const restart = restartBrowserHost();
+  const restart = launchChromeRelay(profileName, cdpUrl);
   recent.push(now);
   state.restartTimestamps = recent;
   writeState(state);
 
-  const verified = checkCdp(cdpUrl);
+  const verified = verifyCdp(cdpUrl);
   if (restart.ok && verified.ok) {
     console.log("NO_REPLY");
     return;

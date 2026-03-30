@@ -125,6 +125,67 @@ function browserCdpHealthy(): { healthy: boolean; detail: string } {
   }
 }
 
+function browserRelayLaunchTarget(): { profileName: string; cdpUrl: string } | null {
+  const cfgPath = path.join(os.homedir(), ".openclaw", "openclaw.json");
+  try {
+    const raw = fs.readFileSync(cfgPath, "utf8");
+    const parsed = JSON.parse(raw) as {
+      browser?: { enabled?: boolean; defaultProfile?: string; profiles?: Record<string, { cdpUrl?: string; cdpPort?: number }> };
+    };
+    if (parsed.browser?.enabled === false) return null;
+    const profileName = parsed.browser?.defaultProfile ?? "chrome-relay";
+    const profile = parsed.browser?.profiles?.[profileName];
+    const cdpUrl =
+      typeof profile?.cdpUrl === "string" && profile.cdpUrl.trim().length > 0
+        ? profile.cdpUrl.trim()
+        : Number.isFinite(profile?.cdpPort)
+          ? `http://127.0.0.1:${Number(profile?.cdpPort)}`
+          : "";
+    return cdpUrl ? { profileName, cdpUrl } : null;
+  } catch {
+    return null;
+  }
+}
+
+function localCdpPort(cdpUrl: string): number | null {
+  try {
+    const parsed = new URL(cdpUrl);
+    if (!["127.0.0.1", "localhost"].includes(parsed.hostname)) return null;
+    const port = Number(parsed.port || (parsed.protocol === "https:" ? 443 : 80));
+    return Number.isFinite(port) ? port : null;
+  } catch {
+    return null;
+  }
+}
+
+function launchBrowserRelay(profileName: string, cdpUrl: string): { ok: boolean; detail: string } {
+  const port = localCdpPort(cdpUrl);
+  if (!port) return { ok: false, detail: `unsupported cdp url for local relay launch: ${cdpUrl}` };
+  const appCandidates = [
+    "/Applications/Google Chrome.app",
+    "/Applications/Chromium.app",
+    "/Applications/Brave Browser.app",
+    "/Applications/Microsoft Edge.app",
+  ];
+  const app = appCandidates.find((candidate) => fs.existsSync(candidate));
+  if (!app) return { ok: false, detail: "no supported Chrome-family app found" };
+  const userDataDir = path.join(os.homedir(), ".openclaw", "browser", profileName);
+  fs.mkdirSync(userDataDir, { recursive: true });
+  const launch = run("open", ["-na", app, "--args", `--remote-debugging-port=${port}`, `--user-data-dir=${userDataDir}`]);
+  return { ok: launch.ok, detail: launch.stderr || launch.stdout || `${app} on ${port}` };
+}
+
+function verifyBrowserCdp(attempts = 8): { healthy: boolean; detail: string } {
+  let current = browserCdpHealthy();
+  if (current.healthy) return current;
+  for (let i = 1; i < attempts; i += 1) {
+    run("sleep", ["1"]);
+    current = browserCdpHealthy();
+    if (current.healthy) return current;
+  }
+  return current;
+}
+
 function remediateBrowser(state: StateShape): RemediationItem {
   const initial = browserCdpHealthy();
   if (initial.detail === "runtime browser config unavailable" || initial.detail === "cdp profile/url missing") {
@@ -163,29 +224,30 @@ function remediateBrowser(state: StateShape): RemediationItem {
     };
   }
 
-  const restart = run("openclaw", ["node", "restart"]);
+  const target = browserRelayLaunchTarget();
+  const restart = target ? launchBrowserRelay(target.profileName, target.cdpUrl) : { ok: false, detail: "browser relay launch target unavailable" };
   recentRestarts.push(now);
   state.browserRestarts = recentRestarts;
-  const verified = browserCdpHealthy();
+  const verified = verifyBrowserCdp();
   if (!restart.ok || !verified.healthy) {
     return {
       system: "browser",
       status: "escalate",
-      detail: "browser host restart did not restore cdp health",
+      detail: "browser relay launch did not restore cdp health",
       verification: verified.detail,
-      action: "openclaw node restart",
+      action: "open -na <Chrome> --args --remote-debugging-port=<port> --user-data-dir=~/.openclaw/browser/<profile>",
       verificationStatus: "uncertain",
       escalationPath: "page Hamel with browser/cdp failure and next action",
-      policyLesson: "browser/cdp gets one restart then escalates",
+      policyLesson: "browser/cdp gets one bounded relay launch then escalates",
     };
   }
 
   return {
     system: "browser",
     status: "remediated",
-    detail: "browser host restarted once and cdp health verified",
+    detail: "browser relay launched once and cdp health verified",
     verification: verified.detail,
-    action: "openclaw node restart",
+    action: "open -na <Chrome> --args --remote-debugging-port=<port> --user-data-dir=~/.openclaw/browser/<profile>",
     verificationStatus: "verified",
     policyLesson: "browser/cdp recovery only counts after endpoint verification",
   };
