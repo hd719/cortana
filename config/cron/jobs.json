@@ -1053,7 +1053,7 @@
     },
     {
       "id": "35e3be71-260a-4b2f-9e9e-892e20aa70cb",
-      "agentId": "main",
+      "agentId": "cron-market",
       "name": "📣 Trading Backtest Notify (market sessions)",
       "enabled": true,
       "createdAtMs": 1773443868479,
