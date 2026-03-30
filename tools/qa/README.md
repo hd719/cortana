@@ -21,17 +21,17 @@
 ## Usage
 
 ```bash
-# human-readable summary
-./tools/qa/validate-system.sh
+# green baseline sweep for OpenClaw + repo/runtime health
+./tools/qa/green-baseline.sh
+
+# human-readable validator summary
+npx tsx tools/qa/validate-system.ts
 
 # structured JSON output
-./tools/qa/validate-system.sh --json
-
-# detailed output
-./tools/qa/validate-system.sh --verbose
+npx tsx tools/qa/validate-system.ts --json
 
 # auto-fix recoverable issues (currently: runtime cron sync)
-./tools/qa/validate-system.sh --fix
+npx tsx tools/qa/validate-system.ts --fix
 ```
 
 ## Exit codes
