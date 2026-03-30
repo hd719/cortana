@@ -36,7 +36,7 @@ describe("autonomy-remediation", () => {
     });
 
     spawnSync.mockImplementation((cmd: string, args: string[]) => {
-      if (cmd === "openclaw" && args.join(" ") === "gateway status") {
+      if (cmd === "openclaw" && args.join(" ") === "gateway status --no-probe") {
         return { status: 0, stdout: "running", stderr: "" } as any;
       }
       if (cmd === "npx" && String(args[2]).includes("check-cron-delivery.ts")) {
@@ -88,7 +88,7 @@ describe("autonomy-remediation", () => {
     });
 
     spawnSync.mockImplementation((cmd: string, args: string[]) => {
-      if (cmd === "openclaw" && args.join(" ") === "gateway status") {
+      if (cmd === "openclaw" && args.join(" ") === "gateway status --no-probe") {
         return { status: 1, stdout: "", stderr: "down" } as any;
       }
       if (cmd === "npx" && String(args[2]).includes("check-cron-delivery.ts")) {

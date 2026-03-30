@@ -88,6 +88,12 @@ function isTelegramSpecificAuthIssue(text: string): boolean {
   return /telegram[^\n]*(unauthori[sz]ed|invalid token|token expired|revoked|forbidden|auth failed)/i.test(text);
 }
 
+function gatewayServiceHealthy(): { healthy: boolean; detail: string } {
+  const r = run("openclaw", ["gateway", "status", "--no-probe"]);
+  const detail = compact(`${r.stdout}\n${r.stderr}`);
+  return { healthy: r.status === 0, detail };
+}
+
 function probeGog(): ProbeResult {
   const r = run("gog", ["--account", GOG_ACCOUNT, "cal", "list", GOG_CALENDAR, "--from", "today", "--plain", "--no-input"]);
   const merged = `${r.stdout}\n${r.stderr}`;
@@ -123,9 +129,16 @@ function probeTelegramDelivery(): ProbeResult {
   const jsonStatus = run("openclaw", ["status", "--json"]);
   const textStatus = run("openclaw", ["status"]);
   const merged = `${jsonStatus.stdout}\n${jsonStatus.stderr}\n${textStatus.stdout}\n${textStatus.stderr}`;
+  const gatewayService = gatewayServiceHealthy();
 
   if (jsonStatus.status !== 0 && textStatus.status !== 0) {
-    return { probe: "telegram_delivery", ok: false, category: "control_plane", actionable: true, detail: compact(merged) };
+    return {
+      probe: "telegram_delivery",
+      ok: false,
+      category: gatewayService.healthy ? "repo_runtime_drift" : "control_plane",
+      actionable: true,
+      detail: compact(merged || gatewayService.detail),
+    };
   }
 
   if (isTelegramOkStatus(textStatus.stdout)) {
@@ -148,13 +161,13 @@ function probeTelegramDelivery(): ProbeResult {
     gatewayReachable = null;
   }
 
-  if (gatewayReachable === false) {
+  if (gatewayReachable === false && !gatewayService.healthy) {
     return {
       probe: "telegram_delivery",
       ok: false,
       category: "control_plane",
       actionable: true,
-      detail: compact(gatewayError || merged),
+      detail: compact(gatewayError || gatewayService.detail || merged),
     };
   }
 
@@ -170,6 +183,10 @@ function probeTelegramDelivery(): ProbeResult {
 
   if (isPermissionIssue(merged)) {
     return { probe: "telegram_delivery", ok: false, category: "human_permission", actionable: true, detail: compact(merged) };
+  }
+
+  if (telegramConfigured && gatewayService.healthy) {
+    return { probe: "telegram_delivery", ok: true };
   }
 
   return {

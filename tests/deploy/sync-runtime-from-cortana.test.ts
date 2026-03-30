@@ -61,7 +61,7 @@ function makeFixture() {
   const openclaw = path.join(bin, "openclaw");
   fs.writeFileSync(
     openclaw,
-    "#!/usr/bin/env bash\nif [[ \"$1 $2\" == \"gateway status\" ]]; then\n  echo \"state = running\"\n  exit 0\nfi\nexit 0\n",
+    "#!/usr/bin/env bash\nif [[ \"$1 $2 $3\" == \"gateway status --no-probe\" ]] || [[ \"$1 $2\" == \"gateway status\" ]]; then\n  echo \"state = running\"\n  exit 0\nfi\nexit 0\n",
     "utf8",
   );
   fs.chmodSync(openclaw, 0o755);
@@ -88,7 +88,7 @@ describe("sync-runtime-from-cortana.sh", () => {
       "bash",
       [script, "--source-repo", fixture.source, "--runtime-repo", fixture.runtime, "--runtime-home", fixture.home],
       process.cwd(),
-      { PATH: `${fixture.bin}:${process.env.PATH}` },
+      { HOME: fixture.home, PATH: `${fixture.bin}:${process.env.PATH}` },
     );
 
     const sourceHead = git(fixture.source, "rev-parse", "HEAD");
@@ -119,7 +119,7 @@ describe("sync-runtime-from-cortana.sh", () => {
       [script, "--source-repo", fixture.source, "--runtime-repo", fixture.runtime, "--runtime-home", fixture.home],
       {
         cwd: process.cwd(),
-        env: { ...process.env, PATH: `${fixture.bin}:${process.env.PATH}` },
+        env: { ...process.env, HOME: fixture.home, PATH: `${fixture.bin}:${process.env.PATH}` },
         encoding: "utf8",
       },
     );

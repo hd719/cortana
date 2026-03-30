@@ -43,7 +43,7 @@ describe("autonomy family-critical failover", () => {
 
     spawnSync.mockImplementation((cmd: string, args: string[]) => {
       const joined = Array.isArray(args) ? args.join(" ") : "";
-      if (cmd === "openclaw" && joined === "gateway status") return { status: 0, stdout: "running", stderr: "" } as any;
+      if (cmd === "openclaw" && joined === "gateway status --no-probe") return { status: 0, stdout: "running", stderr: "" } as any;
       if (cmd === "npx" && String(args[2]).includes("check-cron-delivery.ts")) return { status: 0, stdout: "", stderr: "" } as any;
       if (cmd === "npx" && String(args[2]).includes("openai-cron-auth-guard.ts")) return { status: 0, stdout: JSON.stringify({ ok: true, affected: 0 }), stderr: "" } as any;
       if (cmd === "npx" && String(args[2]).includes("cron-auto-retry.ts")) return { status: 0, stdout: JSON.stringify({ retried: 1, skipped: 0, failedAgain: 1 }), stderr: "" } as any;

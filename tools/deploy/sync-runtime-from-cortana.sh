@@ -162,10 +162,10 @@ fi
 
 if [[ "$SKIP_OPENCLAW_CHECK" == false ]]; then
   command -v openclaw >/dev/null 2>&1 || die "openclaw CLI not found for runtime verification"
-  if ! openclaw gateway status >/tmp/runtime-deploy-gateway-status.out 2>/tmp/runtime-deploy-gateway-status.err; then
+  if ! openclaw gateway status --no-probe >/tmp/runtime-deploy-gateway-status.out 2>/tmp/runtime-deploy-gateway-status.err; then
     cat /tmp/runtime-deploy-gateway-status.out >&2 2>/dev/null || true
     cat /tmp/runtime-deploy-gateway-status.err >&2 2>/dev/null || true
-    die "openclaw gateway status failed after deploy"
+    die "openclaw gateway service check failed after deploy"
   fi
 fi
 

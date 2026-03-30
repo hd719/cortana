@@ -88,7 +88,7 @@ function psql(sql: string): string {
 }
 
 function gatewayHealthy(): { healthy: boolean; detail: string } {
-  const status = run("openclaw", ["gateway", "status"]);
+  const status = run("openclaw", ["gateway", "status", "--no-probe"]);
   const detail = status.stderr || status.stdout || `exit=${status.status ?? "null"}`;
   return { healthy: status.ok, detail };
 }

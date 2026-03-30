@@ -163,9 +163,9 @@ function validatePostUpdate(runtimeJobs: string, repoJobs: string): void {
   }
   if (!fs.existsSync(plistPath)) problems.push(`launch agent missing: ${plistPath}`);
 
-  const installCheck = spawnSync("openclaw", ["gateway", "status"], { encoding: "utf8" });
+  const installCheck = spawnSync("openclaw", ["gateway", "status", "--no-probe"], { encoding: "utf8" });
   if (installCheck.status !== 0) {
-    problems.push(`gateway status failed: ${installCheck.stderr || installCheck.stdout || `exit ${installCheck.status ?? 1}`}`);
+    problems.push(`gateway service check failed: ${installCheck.stderr || installCheck.stdout || `exit ${installCheck.status ?? 1}`}`);
   }
 
   const helperScript = buildDetachedLaunchdRestartScript(uid, label, plistPath, helperLog);
@@ -177,7 +177,7 @@ function validatePostUpdate(runtimeJobs: string, repoJobs: string): void {
     throw new Error(`validation failed:\n- ${problems.join("\n- ")}`);
   }
 
-  log("Validation OK: repo/runtime jobs files exist, runtime jobs is regular, gateway status is reachable, detached helper includes verification.");
+  log("Validation OK: repo/runtime jobs files exist, runtime jobs is regular, gateway service is healthy, detached helper includes verification.");
 }
 
 async function main(): Promise<number> {
