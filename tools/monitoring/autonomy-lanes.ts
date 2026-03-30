@@ -5,10 +5,18 @@ import { fileURLToPath } from "node:url";
 export type AutonomyPosture = "conservative" | "balanced" | "aggressive";
 export type ReliabilityLane = "routine" | "family_critical";
 
+export type VacationModeConfig = {
+  enabled: boolean;
+  quarantineAfterConsecutiveErrors: number;
+  fragileCronMatchers: string[];
+  tightenAlerting: boolean;
+};
+
 type ConfigShape = {
   posture?: AutonomyPosture;
   familyCriticalCronNames?: string[];
   familyCriticalLaneLabels?: string[];
+  vacationMode?: Partial<VacationModeConfig>;
   notes?: string[];
 };
 
@@ -34,6 +42,16 @@ export function getDefaultAutonomyConfig(): Required<ConfigShape> {
       "pregnancy reminders/checklists",
       "family-critical reminders",
     ],
+    vacationMode: {
+      enabled: false,
+      quarantineAfterConsecutiveErrors: 1,
+      fragileCronMatchers: [
+        "🐦 Health - X Session Check",
+        "📈 Stock Market Brief (daily)",
+        "🧠 Polymarket Market Intel Refresh",
+      ],
+      tightenAlerting: true,
+    },
     notes: [
       "family-critical lanes are never-miss operations: appointments, reminders, family logistics, pregnancy-sensitive reminders/checklists, and other time-sensitive personal ops",
       "balanced is the default posture: one bounded remediation attempt, then verify and escalate",
@@ -56,10 +74,25 @@ export function loadAutonomyConfig(): Required<ConfigShape> {
     const notes = Array.isArray(parsed.notes)
       ? parsed.notes.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
       : fallback.notes;
+    const vacationModeRaw = parsed.vacationMode ?? {};
+    const vacationMode: VacationModeConfig = {
+      enabled: typeof vacationModeRaw.enabled === "boolean" ? vacationModeRaw.enabled : fallback.vacationMode.enabled,
+      quarantineAfterConsecutiveErrors:
+        Number.isFinite(Number(vacationModeRaw.quarantineAfterConsecutiveErrors)) &&
+        Number(vacationModeRaw.quarantineAfterConsecutiveErrors) >= 1
+          ? Math.floor(Number(vacationModeRaw.quarantineAfterConsecutiveErrors))
+          : fallback.vacationMode.quarantineAfterConsecutiveErrors,
+      fragileCronMatchers: Array.isArray(vacationModeRaw.fragileCronMatchers)
+        ? vacationModeRaw.fragileCronMatchers.filter((item): item is string => typeof item === "string" && item.trim().length > 0)
+        : fallback.vacationMode.fragileCronMatchers,
+      tightenAlerting:
+        typeof vacationModeRaw.tightenAlerting === "boolean" ? vacationModeRaw.tightenAlerting : fallback.vacationMode.tightenAlerting,
+    };
     return {
       posture,
       familyCriticalCronNames: familyCriticalCronNames.length ? familyCriticalCronNames : fallback.familyCriticalCronNames,
       familyCriticalLaneLabels: familyCriticalLaneLabels.length ? familyCriticalLaneLabels : fallback.familyCriticalLaneLabels,
+      vacationMode,
       notes: notes.length ? notes : fallback.notes,
     };
   } catch {

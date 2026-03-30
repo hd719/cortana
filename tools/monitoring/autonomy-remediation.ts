@@ -14,7 +14,7 @@ const PSQL = "/opt/homebrew/opt/postgresql@17/bin/psql";
 
 type JsonMap = Record<string, unknown>;
 type RemediationItem = {
-  system: "gateway" | "channel" | "cron" | "session";
+  system: "gateway" | "channel" | "cron" | "session" | "browser" | "vacation";
   status: "healthy" | "remediated" | "escalate" | "skipped";
   detail: string;
   verification?: string;
@@ -30,6 +30,7 @@ type RemediationItem = {
 
 type StateShape = {
   gatewayRestarts?: number[];
+  browserRestarts?: number[];
   channelRemediations?: Record<string, number>;
 };
 
@@ -90,6 +91,193 @@ function gatewayHealthy(): { healthy: boolean; detail: string } {
   const status = run("openclaw", ["gateway", "status"]);
   const detail = status.stderr || status.stdout || `exit=${status.status ?? "null"}`;
   return { healthy: status.ok, detail };
+}
+
+function browserCdpHealthy(): { healthy: boolean; detail: string } {
+  const cfgPath = path.join(os.homedir(), ".openclaw", "openclaw.json");
+  try {
+    const raw = fs.readFileSync(cfgPath, "utf8");
+    const parsed = JSON.parse(raw) as {
+      browser?: { enabled?: boolean; defaultProfile?: string; profiles?: Record<string, { cdpUrl?: string; cdpPort?: number }> };
+    };
+    if (parsed.browser?.enabled === false) {
+      return { healthy: true, detail: "browser disabled" };
+    }
+    const profileName = parsed.browser?.defaultProfile ?? "chrome-relay";
+    const profile = parsed.browser?.profiles?.[profileName];
+    const cdpUrl =
+      typeof profile?.cdpUrl === "string" && profile.cdpUrl.trim().length > 0
+        ? profile.cdpUrl.trim()
+        : Number.isFinite(profile?.cdpPort)
+          ? `http://127.0.0.1:${Number(profile?.cdpPort)}`
+          : "";
+    if (!cdpUrl) {
+      return { healthy: false, detail: "cdp profile/url missing" };
+    }
+    const target = cdpUrl.endsWith("/") ? `${cdpUrl}json/version` : `${cdpUrl}/json/version`;
+    const probe = run("curl", ["-sSf", "--max-time", "6", target]);
+    return {
+      healthy: probe.ok,
+      detail: probe.ok ? target : (probe.stderr || probe.stdout || target),
+    };
+  } catch {
+    return { healthy: false, detail: "runtime browser config unavailable" };
+  }
+}
+
+function remediateBrowser(state: StateShape): RemediationItem {
+  const initial = browserCdpHealthy();
+  if (initial.detail === "runtime browser config unavailable" || initial.detail === "cdp profile/url missing") {
+    return {
+      system: "browser",
+      status: "skipped",
+      detail: "browser watchdog skipped (runtime cdp config unavailable)",
+      verification: initial.detail,
+      verificationStatus: "uncertain",
+      policyLesson: "browser watchdog requires runtime cdp profile configuration",
+    };
+  }
+  if (initial.healthy) {
+    return {
+      system: "browser",
+      status: "healthy",
+      detail: "browser cdp healthy",
+      verification: initial.detail,
+      verificationStatus: "verified",
+    };
+  }
+
+  const now = Date.now();
+  const recentRestarts = trimTimes(state.browserRestarts ?? [], now);
+  if (recentRestarts.length >= MAX_GATEWAY_ACTIONS_PER_WINDOW) {
+    state.browserRestarts = recentRestarts;
+    return {
+      system: "browser",
+      status: "escalate",
+      detail: "browser cdp unhealthy and restart budget already spent",
+      verification: initial.detail,
+      action: "none",
+      verificationStatus: "uncertain",
+      escalationPath: "page Hamel with browser/cdp failure and next action",
+      policyLesson: "browser/cdp host restart budget is bounded; do not loop",
+    };
+  }
+
+  const restart = run("openclaw", ["node", "restart"]);
+  recentRestarts.push(now);
+  state.browserRestarts = recentRestarts;
+  const verified = browserCdpHealthy();
+  if (!restart.ok || !verified.healthy) {
+    return {
+      system: "browser",
+      status: "escalate",
+      detail: "browser host restart did not restore cdp health",
+      verification: verified.detail,
+      action: "openclaw node restart",
+      verificationStatus: "uncertain",
+      escalationPath: "page Hamel with browser/cdp failure and next action",
+      policyLesson: "browser/cdp gets one restart then escalates",
+    };
+  }
+
+  return {
+    system: "browser",
+    status: "remediated",
+    detail: "browser host restarted once and cdp health verified",
+    verification: verified.detail,
+    action: "openclaw node restart",
+    verificationStatus: "verified",
+    policyLesson: "browser/cdp recovery only counts after endpoint verification",
+  };
+}
+
+function remediateVacationMode(): RemediationItem {
+  const config = loadAutonomyConfig();
+  const vacation = config.vacationMode;
+  if (!vacation.enabled) {
+    return {
+      system: "vacation",
+      status: "healthy",
+      detail: "vacation mode disabled",
+      verificationStatus: "verified",
+    };
+  }
+
+  const jobsPath = path.join(os.homedir(), ".openclaw", "cron", "jobs.json");
+  const quarantineDir = path.join(os.homedir(), ".openclaw", "cron", "quarantine");
+  let jobsDoc: { jobs?: Array<{ name?: string; id?: string; enabled?: boolean; state?: { consecutiveErrors?: number }; updatedAtMs?: number }> } | null = null;
+  try {
+    jobsDoc = JSON.parse(fs.readFileSync(jobsPath, "utf8")) as typeof jobsDoc;
+  } catch {
+    jobsDoc = null;
+  }
+
+  if (!jobsDoc || !Array.isArray(jobsDoc.jobs)) {
+    return {
+      system: "vacation",
+      status: "escalate",
+      detail: "vacation mode enabled but runtime cron jobs unavailable",
+      verificationStatus: "uncertain",
+      escalationPath: "page Hamel with runtime cron state failure",
+      policyLesson: "vacation mode cannot quarantine fragile jobs without runtime cron state",
+    };
+  }
+
+  const threshold = Math.max(1, Number(vacation.quarantineAfterConsecutiveErrors || 1));
+  const matchers = vacation.fragileCronMatchers.map((m) => m.toLowerCase());
+  const quarantined: string[] = [];
+  const now = Date.now();
+
+  for (const job of jobsDoc.jobs) {
+    if (job.enabled === false) continue;
+    const name = String(job.name ?? "");
+    if (!name) continue;
+    const lower = name.toLowerCase();
+    if (!matchers.some((matcher) => lower.includes(matcher))) continue;
+    const consecutiveErrors = Number(job.state?.consecutiveErrors ?? 0);
+    if (consecutiveErrors < threshold) continue;
+    job.enabled = false;
+    job.updatedAtMs = now;
+    quarantined.push(name);
+    try {
+      fs.mkdirSync(quarantineDir, { recursive: true });
+      const safeName = name.replace(/[\\/]/g, "_");
+      fs.writeFileSync(path.join(quarantineDir, `${safeName}.quarantined`), `${new Date().toISOString()} vacation-mode fragile quarantine\n`, "utf8");
+    } catch {
+      // continue; write failures are handled by follow-up escalation if persistence fails below
+    }
+  }
+
+  if (!quarantined.length) {
+    return {
+      system: "vacation",
+      status: "healthy",
+      detail: "vacation mode active; no fragile cron quarantines needed",
+      verificationStatus: "verified",
+    };
+  }
+
+  try {
+    fs.writeFileSync(jobsPath, `${JSON.stringify(jobsDoc, null, 2)}\n`);
+  } catch {
+    return {
+      system: "vacation",
+      status: "escalate",
+      detail: "vacation mode quarantine attempted but runtime cron state write failed",
+      verificationStatus: "uncertain",
+      escalationPath: "page Hamel with runtime write failure",
+      policyLesson: "vacation mode quarantine must persist in runtime job state",
+    };
+  }
+
+  return {
+    system: "vacation",
+    status: "remediated",
+    detail: `vacation mode quarantined fragile cron jobs (${quarantined.slice(0, 3).join(", ")})`,
+    verificationStatus: "verified",
+    action: "runtime fragile cron quarantine",
+    policyLesson: "vacation mode quarantines fragile jobs sooner to prevent noisy failure loops",
+  };
 }
 
 function remediateGateway(state: StateShape): RemediationItem {
@@ -409,7 +597,14 @@ VALUES (
 function main() {
   const state = readState();
   const config = loadAutonomyConfig();
-  const items = [remediateGateway(state), remediateChannel(state), remediateCriticalCron(), remediateSessionLifecycle()].map(logActionResult);
+  const items = [
+    remediateGateway(state),
+    remediateBrowser(state),
+    remediateChannel(state),
+    remediateCriticalCron(),
+    remediateSessionLifecycle(),
+    remediateVacationMode(),
+  ].map(logActionResult);
   writeState(state);
 
   const summary = {

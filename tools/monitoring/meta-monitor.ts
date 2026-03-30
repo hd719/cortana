@@ -184,6 +184,18 @@ async function main(): Promise<number> {
       slaSeconds: 23400,
       slaHuman: "6h",
     },
+    {
+      name: "browser_cdp_watchdog",
+      where: "event_type='autonomy_action_result' AND source='autonomy-remediation' AND metadata->>'system'='browser'",
+      slaSeconds: 7200,
+      slaHuman: "2h",
+    },
+    {
+      name: "vacation_mode_guard",
+      where: "event_type='autonomy_action_result' AND source='autonomy-remediation' AND metadata->>'system'='vacation'",
+      slaSeconds: 7200,
+      slaHuman: "2h",
+    },
   ];
 
   const stateMap = new Map<string, number>();

@@ -122,6 +122,19 @@ VALUES ('auto_heal', 'session_cleanup', 'info', 'Deleted bloated session file', 
 - New cron job creation
 - Config changes
 
+### Vacation Mode (Narrow Profile)
+
+For unattended periods (travel/weekends), vacation mode can be enabled in `config/autonomy-lanes.json`:
+- `vacationMode.enabled=true`
+- `vacationMode.quarantineAfterConsecutiveErrors=1`
+- `vacationMode.tightenAlerting=true`
+- `vacationMode.fragileCronMatchers=[...]`
+
+When enabled:
+- fragile cron jobs are quarantined after the first consecutive error
+- browser/CDP watchdog alerts tighten (bounded restart first, then escalate)
+- healthy paths remain quiet (`NO_REPLY`) to limit noise
+
 ### Watchlist Workflow
 ```sql
 -- Check watchlist items

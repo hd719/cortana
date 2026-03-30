@@ -1231,6 +1231,52 @@
         "mode": "none",
         "accountId": "monitor"
       }
+    },
+    {
+      "id": "browser-cdp-watchdog-20260330",
+      "agentId": "cron-maintenance",
+      "name": "🌐 Browser CDP Watchdog (15m)",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/15 * * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "model": "openai-codex/gpt-5.1",
+        "timeoutSeconds": 90,
+        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/browser-cdp-watchdog.ts\nPolicy:\n- If script outputs NO_REPLY, return exactly NO_REPLY.\n- If script outputs actionable failure text, send it once via message tool to monitor Telegram and then return NO_REPLY.\n- This watchdog allows one bounded browser host restart path before escalation."
+      },
+      "delivery": {
+        "mode": "none",
+        "accountId": "monitor"
+      }
+    },
+    {
+      "id": "vacation-mode-fragile-guard-20260330",
+      "agentId": "cron-maintenance",
+      "name": "🏖️ Vacation Mode Fragile Guard (15m)",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/15 * * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "model": "openai-codex/gpt-5.1",
+        "timeoutSeconds": 90,
+        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/vacation-mode-guard.ts\nPolicy:\n- If script outputs NO_REPLY, return exactly NO_REPLY.\n- If script outputs actionable failure text, send it once via message tool to monitor Telegram and then return NO_REPLY.\n- Vacation mode is controlled by config/autonomy-lanes.json (vacationMode.enabled)."
+      },
+      "delivery": {
+        "mode": "none",
+        "accountId": "monitor"
+      }
     }
   ]
 }
