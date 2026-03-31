@@ -339,35 +339,96 @@ function checkCriticalTools(): Check {
 
 function checkHeartbeatState(): Check {
   const check = makeCheck("heartbeat_state");
+  const nowMs = Date.now();
   const runtimePath = path.join(os.homedir(), ".openclaw", "memory", "heartbeat-state.json");
   const repoPath = path.join(REPO_ROOT, "memory", "heartbeat-state.json");
-  const filePath = fs.existsSync(runtimePath) ? runtimePath : repoPath;
-  const details: Json = { path: filePath, runtime_path: runtimePath, repo_path: repoPath };
+  const details: Json = {
+    runtime_path: runtimePath,
+    repo_path: repoPath,
+    runtime_exists: fs.existsSync(runtimePath),
+    repo_exists: fs.existsSync(repoPath),
+  };
 
-  if (!fs.existsSync(filePath)) {
+  if (!details.runtime_exists && !details.repo_exists) {
     fail(check, "heartbeat-state.json is missing (runtime + repo)");
     check.details = details;
     return check;
   }
 
-  let data: any;
-  try {
-    data = JSON.parse(fs.readFileSync(filePath, "utf8"));
-  } catch (err) {
-    fail(check, `Invalid heartbeat-state JSON: ${err instanceof Error ? err.message : String(err)}`);
+  const candidates = [runtimePath, repoPath]
+    .filter((filePath, index, arr) => fs.existsSync(filePath) && arr.indexOf(filePath) === index)
+    .map((filePath) => {
+      try {
+        const data = JSON.parse(fs.readFileSync(filePath, "utf8"));
+        const validated = validateHeartbeatState(data, nowMs, HEARTBEAT_MAX_AGE_MS);
+        const latestHeartbeatMs = Math.max(
+          validated.lastHeartbeat,
+          ...Object.values(validated.lastChecks).map((value) => value.lastChecked),
+        );
+
+        return {
+          path: filePath,
+          ok: true,
+          validated,
+          latestHeartbeatMs,
+          ageMs: Math.max(0, nowMs - latestHeartbeatMs),
+        };
+      } catch (err) {
+        return {
+          path: filePath,
+          ok: false,
+          error: err instanceof Error ? err.message : String(err),
+        };
+      }
+    });
+
+  details.candidates = candidates.map((candidate) =>
+    candidate.ok
+      ? {
+          path: candidate.path,
+          ok: true,
+          age_ms: candidate.ageMs,
+          latest_heartbeat_at: new Date(candidate.latestHeartbeatMs).toISOString(),
+        }
+      : {
+          path: candidate.path,
+          ok: false,
+          error: candidate.error,
+        },
+  );
+
+  const validCandidates = candidates.filter((candidate) => candidate.ok);
+  if (!validCandidates.length) {
+    fail(check, "Invalid heartbeat-state JSON/semantics in runtime + repo locations");
     check.details = details;
     return check;
   }
 
-  try {
-    const validated = validateHeartbeatState(data, Date.now(), HEARTBEAT_MAX_AGE_MS);
-    details.version = validated.version;
-    details.required_keys = Object.keys(validated.lastChecks);
-    details.oldest_check_age_ms = Math.max(
-      ...Object.values(validated.lastChecks).map((v) => Math.max(0, Date.now() - v.lastChecked))
-    );
-  } catch (err) {
-    fail(check, `Invalid heartbeat-state semantics: ${err instanceof Error ? err.message : String(err)}`);
+  validCandidates.sort((a, b) => b.latestHeartbeatMs - a.latestHeartbeatMs);
+  const selected = validCandidates[0];
+  details.path = selected.path;
+  details.selected_path = selected.path;
+  details.version = selected.validated.version;
+  details.required_keys = Object.keys(selected.validated.lastChecks);
+  details.oldest_check_age_ms = Math.max(
+    ...Object.values(selected.validated.lastChecks).map((v) => Math.max(0, nowMs - v.lastChecked)),
+  );
+  details.latest_heartbeat_at = new Date(selected.latestHeartbeatMs).toISOString();
+  details.latest_heartbeat_age_ms = selected.ageMs;
+
+  if (validCandidates.length >= 2) {
+    const newest = validCandidates[0];
+    const next = validCandidates[1];
+    const divergenceMs = Math.abs(newest.latestHeartbeatMs - next.latestHeartbeatMs);
+    details.split_brain = divergenceMs > 5 * 60 * 1000;
+    details.divergence_ms = divergenceMs;
+
+    if (details.split_brain) {
+      warn(
+        check,
+        "Runtime and repo heartbeat-state files diverge; stale path may trigger false watchdog alerts",
+      );
+    }
   }
 
   check.details = details;

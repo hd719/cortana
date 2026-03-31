@@ -139,6 +139,9 @@
 - **Alpaca targeting rule**: local portfolio/trading checks must verify `ALPACA_TARGET_ENVIRONMENT` and credential source (live env keys vs paper file keys). Treat account-context mismatch as a blocker, not a soft warning.
 - **Repo auto-sync hygiene**: keep volatile runtime/generated state out of tracked git paths (prefer ignored runtime-state locations) so sync automation stays reliable.
 
+- **LiveSessionModelSwitchError should be treated as a runtime-config issue** until verified by a successful run; do not trust legacy "green by manual retry" assumptions. When a cron fails with model-switch errors, run a forced refresh and capture fresh state before escalating.
+- **Cron recovery workflow**: for jobs with historical `lastStatus=error`, clear via one forced run and only then re-arm alerting; stale historical failures should be considered triaged only after two fresh non-error executions.
+
 ## Critical Tools (wired into heartbeat)
 
 - **Sub-agent watchdog**: `tools/subagent-watchdog/check-subagents.sh` — detects failed/timed-out sub-agents, emits terminal events to `runs.json`, logs to `cortana_events`, sends alerts.
@@ -198,6 +201,12 @@
     - `agents.defaults.subagents.archiveAfterMinutes`: `5` → `15`
   - Rationale: concurrency ceiling at 4 was triggering intermittent "Request was aborted" failures when parallel sub-agent demand spiked.
   - Expected result: improved reliability for concurrent runs, clearer timeout control, and better short-term run trace availability.
+
+## Nightly Consolidation Notes (2026-03-30)
+
+- Consolidated new evidence from 2026-03-30 daily memory: reminders cron showed transient gateway-timeout behavior despite healthy local script execution; a forced cron rerun returned green (5.4s, consecutiveErrors=0).
+- Morning Brief and Cron Gateway Drain Recovery still expose `LiveSessionModelSwitchError` in last-error fields; this class should remain a higher-priority reliability signal than duration-only checks.
+- User-facing session resets indicate startup prompts were still being tested; ensure startup requirements are re-validated after long idle periods and summarize the result in daily notes.
 
 ## Nightly Consolidation Notes (2026-03-11)
 
