@@ -61,6 +61,32 @@ describe("check-subagents-with-retry", () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
+  it("does not fail fast when upstream branch is not configured", async () => {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => code as never) as never);
+    const stdout = captureStdout();
+    setArgv(["--no-emit-terminal"]);
+
+    spawnSync.mockImplementation((cmd: string, args: string[]) => {
+      if (cmd === "/usr/bin/env") return { status: 0, stdout: "npx\n" } as SpawnResult;
+      if (cmd === "git" && args.includes("--show-toplevel")) return { status: 0, stdout: "/repo\n" } as SpawnResult;
+      if (cmd === "git" && args.includes("@{u}")) return { status: 1, stdout: "", stderr: "no upstream" } as SpawnResult;
+      if (cmd === "npx") {
+        return {
+          status: 0,
+          stdout: JSON.stringify({ ok: true, summary: { failedOrTimedOut: 0 }, failedAgents: [] }),
+        } as SpawnResult;
+      }
+      return { status: 0, stdout: "" } as SpawnResult;
+    });
+
+    await importFresh("../../tools/subagent-watchdog/check-subagents-with-retry.ts");
+
+    const npxCalls = spawnSync.mock.calls.filter((c) => c[0] === "npx");
+    expect(npxCalls).toHaveLength(1);
+    expect(stdout.writes.join("\n")).toContain("\"ok\":true");
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
   it("retries once for timeout-only failures and applies timeout profile", async () => {
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => code as never) as never);
     const consoleCapture = captureConsole();

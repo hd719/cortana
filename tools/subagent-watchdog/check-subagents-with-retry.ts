@@ -108,12 +108,6 @@ function preflightFailures(): string[] {
   const gitTop = spawnSync("git", ["rev-parse", "--show-toplevel"], { cwd: ROOT, encoding: "utf8" });
   if (gitTop.status !== 0) failures.push("repo preflight failed: not inside a git repository");
 
-  const upstream = spawnSync("git", ["rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}"], {
-    cwd: ROOT,
-    encoding: "utf8",
-  });
-  if (upstream.status !== 0) failures.push("repo preflight failed: upstream branch not configured");
-
   return failures;
 }
 

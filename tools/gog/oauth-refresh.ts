@@ -17,6 +17,14 @@ function isLikelyKeyringFailure(text: string): boolean {
   return /keyring|list keyring keys|not valid \(-50\)|security:/i.test(text);
 }
 
+function isAuthFailure(text: string): boolean {
+  return /auth|oauth|token|invalid_grant|unauthori[sz]ed|credential|login|consent|expired|reauth/i.test(text);
+}
+
+function runCalendarProbe(account: string, calName: string) {
+  return run("gog", ["--account", account, "cal", "list", calName, "--from", "today", "--plain", "--no-input"]);
+}
+
 async function main(): Promise<void> {
   const db = process.env.CORTANA_DB || "cortana";
   const calName = process.env.GOG_OAUTH_CHECK_CALENDAR || "Clawdbot-Calendar";
@@ -35,8 +43,16 @@ async function main(): Promise<void> {
     run(PSQL_BIN, [db, "-c", sql], env);
   };
 
-  const probe = run("gog", ["--account", account, "cal", "list", calName, "--from", "today", "--plain", "--no-input"]);
-  const probeText = `${probe.out}${probe.err}`;
+  let probe = runCalendarProbe(account, calName);
+  let probeText = `${probe.out}${probe.err}`;
+
+  if (probe.rc !== 0 && !isAuthFailure(probeText)) {
+    for (let attempt = 0; attempt < 2 && probe.rc !== 0; attempt += 1) {
+      probe = runCalendarProbe(account, calName);
+      probeText = `${probe.out}${probe.err}`;
+      if (probe.rc === 0 || isAuthFailure(probeText)) break;
+    }
+  }
 
   if (probe.rc === 0) {
     logEvent("info", "gog OAuth check passed", `{"account":"${account}","calendar":"${calName}","probe_rc":${probe.rc}}`);
@@ -44,7 +60,7 @@ async function main(): Promise<void> {
     process.exit(0);
   }
 
-  if (!/auth|oauth|token|invalid_grant|unauthori[sz]ed|credential|login|consent|expired|reauth/i.test(probeText)) {
+  if (!isAuthFailure(probeText)) {
     logEvent("error", "gog calendar probe failed (non-auth)", `{"account":"${account}","calendar":"${calName}","probe_rc":${probe.rc},"error":"${sqlEscape(probeText)}"}`);
     console.error(`gog oauth probe failed (non-auth): ${probeText}`);
     process.exit(1);
