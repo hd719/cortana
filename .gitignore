@@ -41,6 +41,7 @@ identities/*/memory/
 
 # Generated trading backtest runtime artifacts
 var/backtests/runs/
+var/backtests/rechecks/state.json
 
 # Archived memory (already consolidated into MEMORY.md)
 memory/archive/
