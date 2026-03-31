@@ -4,7 +4,7 @@
     {
       "id": "489b1e20-1bb0-48e6-a388-c3cc1743a324",
       "agentId": "cron-comms",
-      "name": "☀️ Morning brief (Hamel)",
+      "name": "\u2600\ufe0f Morning brief (Hamel)",
       "enabled": true,
       "createdAtMs": 1769550483487,
       "updatedAtMs": 1773747046172,
@@ -17,7 +17,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nOUTPUT CONTRACT (Telegram safety):\n- Keep each sent message under 3500 characters.\n- If longer, split into parts with headers like 'Part 1/N', 'Part 2/N'.\n- Never send oversized single messages.\n\nYou are Cortana. Create Hamel's daily morning brief for Telegram. Calm, concise, actionable.\nOutput format:\n☀️ Brief - Morning Brief\n- Today at a glance (3 bullets)\n- Warren, NJ weather (today high/low + rain chance)\n- Key news (max 3 bullets, US/world + one tech/cyber item)\n- Markets snapshot (major index tone + market open/closed from /Users/hd/Developer/cortana/skills/markets/check_market_status.sh)\n- Top 3 priorities for today (time/health/career aligned)\n- One concrete career-advancing task\n\nRules: keep under 150 words, use 12-hour AM/PM time, avoid fluff.\nDelivery is MANUAL: send final text with message tool (channel=telegram, target=8171372724) exactly once.\nAfter sending, return a one-line confirmation only.",
+        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nOUTPUT CONTRACT (Telegram safety):\n- Keep each sent message under 3500 characters.\n- If longer, split into parts with headers like 'Part 1/N', 'Part 2/N'.\n- Never send oversized single messages.\n\nYou are Cortana. Create Hamel's daily morning brief for Telegram. Calm, concise, actionable.\nOutput format:\n\u2600\ufe0f Brief - Morning Brief\n- Today at a glance (3 bullets)\n- Warren, NJ weather (today high/low + rain chance)\n- Key news (max 3 bullets, US/world + one tech/cyber item)\n- Markets snapshot (major index tone + market open/closed from /Users/hd/Developer/cortana/skills/markets/check_market_status.sh)\n- Top 3 priorities for today (time/health/career aligned)\n- One concrete career-advancing task\n\nRules: keep under 150 words, use 12-hour AM/PM time, avoid fluff.\nDelivery is MANUAL: send final text with message tool (channel=telegram, target=8171372724) exactly once.\nAfter sending, return a one-line confirmation only.",
         "model": "openai-codex/gpt-5.1"
       },
       "state": {
@@ -37,7 +37,7 @@
     {
       "id": "af9e1570-3ba2-4d10-a807-91cdfc2df18b",
       "agentId": "cron-maintenance",
-      "name": "🔄 Daily Auto-Update (notify Hamel)",
+      "name": "\ud83d\udd04 Daily Auto-Update (notify Hamel)",
       "enabled": true,
       "createdAtMs": 1769556023422,
       "updatedAtMs": 1773562976889,
@@ -50,7 +50,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: Always prefix your output with: 🔄 System - Daily Auto-Update\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output.\n\nRun daily auto-updates on H's Mac mini and report a concise summary.\n\nSteps:\n1) Record current versions and active binary path:\n   - `which -a openclaw`\n   - `openclaw --version`\n   - `clawdhub --cli-version`\n   - `brew --version | head -n 2`\n2) Update Homebrew:\n   - `brew update && brew upgrade` (best-effort)\n3) Update OpenClaw (pnpm-managed install):\n   - Prefer: `pnpm add -g openclaw@latest`\n   - Fallback: `pnpm update -g openclaw@latest`\n   - Run: `hash -r || true`\n   - Verify exactly which binary is active: `which -a openclaw`\n   - Run: `openclaw --version`\n   - Run: `openclaw doctor`\n   - Run post-update script without immediate restart: `bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh --skip-restart`\n4) Update skills:\n   - `clawdhub update --all --no-input --force` (if fails, retry once without --force)\n\nRules:\n- Treat OpenClaw as pnpm-managed on this machine; do NOT use `openclaw update` as the primary update path.\n- If multiple `openclaw` binaries appear on PATH, call that out in the summary as a warning.\n- Report the final active OpenClaw version after `hash -r` and doctor, not just the package manager output.\n- Restart is deferred to the 8:00 AM ET maintenance window.\n\nThen send via message tool:\n- What updated (versions before/after)\n- What was already up-to-date\n- Any errors/warnings (1-3 bullets max)\n\nKeep it short. Hard cap: 150 words. Package name is OpenClaw, NOT Clawdbot.",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: Always prefix your output with: \ud83d\udd04 System - Daily Auto-Update\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output.\n\nRun daily auto-updates on H's Mac mini and report a concise summary.\n\nSteps:\n1) Record current versions and active binary path:\n   - `which -a openclaw`\n   - `openclaw --version`\n   - `clawdhub --cli-version`\n   - `brew --version | head -n 2`\n2) Update Homebrew:\n   - `brew update && brew upgrade` (best-effort)\n3) Update OpenClaw (pnpm-managed install):\n   - Prefer: `pnpm add -g openclaw@latest`\n   - Fallback: `pnpm update -g openclaw@latest`\n   - Run: `hash -r || true`\n   - Verify exactly which binary is active: `which -a openclaw`\n   - Run: `openclaw --version`\n   - Run: `openclaw doctor`\n   - Run post-update script without immediate restart: `bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh --skip-restart`\n4) Update skills:\n   - `clawdhub update --all --no-input --force` (if fails, retry once without --force)\n\nRules:\n- Treat OpenClaw as pnpm-managed on this machine; do NOT use `openclaw update` as the primary update path.\n- If multiple `openclaw` binaries appear on PATH, call that out in the summary as a warning.\n- Report the final active OpenClaw version after `hash -r` and doctor, not just the package manager output.\n- Restart is deferred to the 8:00 AM ET maintenance window.\n\nThen send via message tool:\n- What updated (versions before/after)\n- What was already up-to-date\n- Any errors/warnings (1-3 bullets max)\n\nKeep it short. Hard cap: 150 words. Package name is OpenClaw, NOT Clawdbot.",
         "model": "openai-codex/gpt-5.3-codex"
       },
       "state": {
@@ -71,7 +71,7 @@
     {
       "id": "9401d91c-5fa0-43a6-a18e-01030f9e5ba5",
       "agentId": "cron-comms",
-      "name": "📅 Calendar reminders → Telegram (ALL calendars)",
+      "name": "\ud83d\udcc5 Calendar reminders \u2192 Telegram (ALL calendars)",
       "enabled": true,
       "createdAtMs": 1769585938649,
       "updatedAtMs": 1773760033563,
@@ -84,7 +84,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRouting owner:\n- Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.\n- Healthy/no-reminder path must stay silent as NO_REPLY.\n\nPREFIX: ⏰ Calendar - Event Reminder\nDELIVERY: send via message tool (action=send, channel=telegram, target=8171372724).\nTimezone: America/New_York.\n\nRun:\ngog --account hameldesai3@gmail.com calendar events \"60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com\" --from today --to tomorrow --json\n\nRules:\n- Use only events that start TODAY (ET). Skip tomorrow/later and all-day events.\n- Compute minutes-until-start from now.\n- Send only when in reminder windows: 55-65 (60-min) or 25-35 (30-min).\n- Deduplicate using memory/calendar-reminders-sent.json.\n- If that file does not exist yet, treat it as an empty list and create it on first successful reminder write.\n- Format: ⏰ [Event Title] in [X] minutes\\nWhen: HH:MM AM/PM ET\n- If no reminders are due: return exactly NO_REPLY and do not send a message.\n- If the calendar read fails: return exactly NO_REPLY unless there is an actionable Monitor-owned maintenance alert.\n\nAfter generating output, send it with message tool. If nothing to report, return NO_REPLY and do not send.",
+        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRouting owner:\n- Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.\n- Healthy/no-reminder path must stay silent as NO_REPLY.\n\nPREFIX: \u23f0 Calendar - Event Reminder\nDELIVERY: send via message tool (action=send, channel=telegram, target=8171372724).\nTimezone: America/New_York.\n\nRun:\ngog --account hameldesai3@gmail.com calendar events \"60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com\" --from today --to tomorrow --json\n\nRules:\n- Use only events that start TODAY (ET). Skip tomorrow/later and all-day events.\n- Compute minutes-until-start from now.\n- Send only when in reminder windows: 55-65 (60-min) or 25-35 (30-min).\n- Deduplicate using memory/calendar-reminders-sent.json.\n- If that file does not exist yet, treat it as an empty list and create it on first successful reminder write.\n- Format: \u23f0 [Event Title] in [X] minutes\\nWhen: HH:MM AM/PM ET\n- If no reminders are due: return exactly NO_REPLY and do not send a message.\n- If the calendar read fails: return exactly NO_REPLY unless there is an actionable Monitor-owned maintenance alert.\n\nAfter generating output, send it with message tool. If nothing to report, return NO_REPLY and do not send.",
         "model": "openai-codex/gpt-5.1",
         "timeoutSeconds": 90
       },
@@ -106,7 +106,7 @@
     {
       "id": "1ee84e93-cae4-4469-8da4-313312bf06e2",
       "agentId": "cron-comms",
-      "name": "⏰ Apple Reminders alerts → Telegram (Monitor)",
+      "name": "\u23f0 Apple Reminders alerts \u2192 Telegram (Monitor)",
       "enabled": true,
       "createdAtMs": 1773922732000,
       "updatedAtMs": 1773930204158,
@@ -138,7 +138,7 @@
     {
       "id": "c5e30b34-c081-4e95-8a02-7c930ac4cae6",
       "agentId": "cron-health",
-      "name": "🐦 X session healthcheck (bird)",
+      "name": "\ud83d\udc26 X session healthcheck (bird)",
       "enabled": true,
       "createdAtMs": 1769615191317,
       "updatedAtMs": 1773734411691,
@@ -151,7 +151,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: Always prefix your output with: 🐦 Health - X Session Check. Example: 🐦 Health - X Session Check\n[rest of message]\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nCheck whether X/Twitter (bird) session is still valid.\n\nSteps:\n1) Run: /Users/hd/bin/birdx whoami (fallback: bird whoami)\n2) If it succeeds: DO NOT MESSAGE.\n3) If it fails due to auth/login/cookies/session: send Hamel a short Telegram alert:\n   - \"X session expired; please re-login\"\n   - include the failing command's one-line error\n   - suggest: run `bird check` and re-auth (open X in browser, log in, then rerun `bird whoami`).\n4) If it fails for non-auth reasons (network, rate limit): stay silent.\n\nAfter generating your response, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery.",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: Always prefix your output with: \ud83d\udc26 Health - X Session Check. Example: \ud83d\udc26 Health - X Session Check\n[rest of message]\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken (openclaw/openclaw#16925).\n\nCheck whether X/Twitter (bird) session is still valid.\n\nSteps:\n1) Run: /Users/hd/bin/birdx whoami (fallback: bird whoami)\n2) If it succeeds: DO NOT MESSAGE.\n3) If it fails due to auth/login/cookies/session: send Hamel a short Telegram alert:\n   - \"X session expired; please re-login\"\n   - include the failing command's one-line error\n   - suggest: run `bird check` and re-auth (open X in browser, log in, then rerun `bird whoami`).\n4) If it fails for non-auth reasons (network, rate limit): stay silent.\n\nAfter generating your response, use the message tool to send it to Telegram (channel: telegram, target: 8171372724). Do NOT rely on automatic delivery.",
         "model": "openai-codex/gpt-5.1",
         "timeoutSeconds": 90
       },
@@ -173,7 +173,7 @@
     {
       "id": "stock-market-brief-collect-20260331",
       "agentId": "cron-market",
-      "name": "📈 Stock Market Brief (collect)",
+      "name": "\ud83d\udcc8 Stock Market Brief (collect)",
       "enabled": true,
       "createdAtMs": 1774972800000,
       "updatedAtMs": 1774972800000,
@@ -204,7 +204,7 @@
     {
       "id": "a86ca3f9-38af-4672-ba3f-1911352f0319",
       "agentId": "cron-market",
-      "name": "📈 Stock Market Brief (daily)",
+      "name": "\ud83d\udcc8 Stock Market Brief (daily)",
       "enabled": true,
       "createdAtMs": 1769683871728,
       "updatedAtMs": 1773748722353,
@@ -218,7 +218,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: default\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nStock Market Brief summarizer for Hamel.\nPrefix: 💹 Markets - Stock Market Brief. Delivery: send via message tool to telegram target 8171372724 using accountId default.\n\nArtifact is source of truth:\n- Preferred artifact: /tmp/cron-stock-market-brief.json\n- If artifact exists and is fresh (<3h), use it as primary source.\n- If artifact is missing/stale/invalid, do NOT rebuild the full dataset inline.\n- Fallback only to `/Users/hd/Developer/cortana/skills/markets/check_market_status.sh` and explicitly say the market snapshot is unavailable.\n\nKeep this to market insight only. No portfolio section. No database padding. No filler sections.\n\nWrite a short plain-text brief with this exact shape:\n1) Line 1: `SESSION | REGIME | Size X%`\n2) Line 2: `Posture: ACTION. REASON`\n3) Line 3: `Tape: ...`\n4) Line 4: `Macro: ...`\n5) Line 5: `Focus: ...` (0-3 names max; if none, say `Focus: none yet.`)\n\nField mapping from the artifact:\n- Session: `session.phase`\n- Regime: `snapshot.regime.display`\n- Size: `snapshot.regime.position_sizing_pct`\n- Posture: `snapshot.posture.action` + `snapshot.posture.reason`\n- Tape: `snapshot.tape.summary_line`\n- Macro: `snapshot.macro.summary_line`\n- Focus: `snapshot.focus.symbols`\n\nFallback if artifact is unavailable:\n- Send a 2-3 line partial brief using MARKET_STATUS only.\n- Say the richer Schwab-backed market snapshot is unavailable right now.\n- Do not invent tape, holdings, or macro detail.\n\nWeekday only. Keep it concise and operator-facing.",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: default\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nStock Market Brief summarizer for Hamel.\nPrefix: \ud83d\udcb9 Markets - Stock Market Brief. Delivery: send via message tool to telegram target 8171372724 using accountId default.\n\nArtifact is source of truth:\n- Preferred artifact: /tmp/cron-stock-market-brief.json\n- If artifact exists and is fresh (<3h), use it as primary source.\n- If artifact is missing/stale/invalid, do NOT rebuild the full dataset inline.\n- Fallback only to `/Users/hd/Developer/cortana/skills/markets/check_market_status.sh` and explicitly say the market snapshot is unavailable.\n\nKeep this to market insight only. No portfolio section. No database padding. No filler sections.\n\nWrite a short plain-text brief with this exact shape:\n1) Line 1: `SESSION | REGIME | Size X%`\n2) Line 2: `Posture: ACTION. REASON`\n3) Line 3: `Tape: ...`\n4) Line 4: `Macro: ...`\n5) Line 5: `Focus: ...` (0-3 names max; if none, say `Focus: none yet.`)\n\nField mapping from the artifact:\n- Session: `session.phase`\n- Regime: `snapshot.regime.display`\n- Size: `snapshot.regime.position_sizing_pct`\n- Posture: `snapshot.posture.action` + `snapshot.posture.reason`\n- Tape: `snapshot.tape.summary_line`\n- Macro: `snapshot.macro.summary_line`\n- Focus: `snapshot.focus.symbols`\n\nFallback if artifact is unavailable:\n- Send a 2-3 line partial brief using MARKET_STATUS only.\n- Say the richer Schwab-backed market snapshot is unavailable right now.\n- Do not invent tape, holdings, or macro detail.\n\nWeekday only. Keep it concise and operator-facing.",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 120
       },
@@ -240,7 +240,7 @@
     {
       "id": "a519512a-5fb8-459f-8780-31e53793c1d4",
       "agentId": "cron-fitness",
-      "name": "🏋️ Fitness Morning Brief (Hamel)",
+      "name": "\ud83c\udfcb\ufe0f Fitness Morning Brief (Hamel)",
       "enabled": true,
       "createdAtMs": 1769794739989,
       "updatedAtMs": 1773870846864,
@@ -253,7 +253,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Keep it concise: 2-4 short lines, under 120 words.\n\nFitness Morning Brief for Hamel.\nPrefix: 🏋️ Fitness - Morning Brief.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts`\nTreat stdout JSON as source of truth. Do not re-fetch raw providers unless JSON is invalid.\n\nRequired brief contract (no overlap):\n- Line 1: readiness score + band + emoji from `morning_readiness` (use `color_emoji` directly)\n- Line 2: last-night sleep quality from `last_night_sleep` plus HRV/RHR support from `readiness_support_signals`\n- Line 3: `Longevity impact:` (positive/neutral/negative) + top risk to age-100 objective\n- Line 4: one concrete training recommendation from `today_training_recommendation`\n- Must include same-day training context from `today_training_context`: Whoop strain plus Tonal `tonal_sessions_today` and `tonal_total_volume_today` (when sessions > 0)\n- Optional final line: one high-priority health insight\n\nRules:\n- No fluff, no weekly trends, no evening-style nutrition recap.\n- Anchor recommendations to the age-100 objective, not short-term vanity metrics.\n- If `data_freshness.is_stale` is true or errors is non-empty, state uncertainty explicitly and keep recommendation conservative.\n\nInsight handling:\n- Use only `pending_health_insights` from artifact.\n- Only surface IDs present in `surfaced_insight_ids`.\n- After sending, if `insight_mark_sql` is non-empty, execute exactly once via:\n  `export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"; psql cortana -c \"<insight_mark_sql>\"`\n- Never run domain-wide acted_on updates.",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Keep it concise: 2-4 short lines, under 120 words.\n\nFitness Morning Brief for Hamel.\nPrefix: \ud83c\udfcb\ufe0f Fitness - Morning Brief.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts`\nTreat stdout JSON as source of truth. Do not re-fetch raw providers unless JSON is invalid.\n\nRequired brief contract (no overlap):\n- Line 1: readiness score + band + emoji from `morning_readiness` (use `color_emoji` directly)\n- Line 2: last-night sleep quality from `last_night_sleep` plus HRV/RHR support from `readiness_support_signals`\n- Line 3: `Longevity impact:` (positive/neutral/negative) + top risk to age-100 objective\n- Line 4: one concrete training recommendation from `today_training_recommendation`\n- Must include same-day training context from `today_training_context`: Whoop strain plus Tonal `tonal_sessions_today` and `tonal_total_volume_today` (when sessions > 0)\n- Optional final line: one high-priority health insight\n\nRules:\n- No fluff, no weekly trends, no evening-style nutrition recap.\n- Anchor recommendations to the age-100 objective, not short-term vanity metrics.\n- If `data_freshness.is_stale` is true or errors is non-empty, state uncertainty explicitly and keep recommendation conservative.\n\nInsight handling:\n- Use only `pending_health_insights` from artifact.\n- Only surface IDs present in `surfaced_insight_ids`.\n- After sending, if `insight_mark_sql` is non-empty, execute exactly once via:\n  `export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"; psql cortana -c \"<insight_mark_sql>\"`\n- Never run domain-wide acted_on updates.",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 180
       },
@@ -275,7 +275,7 @@
     {
       "id": "e4db8a8d-945c-4af2-a8d5-e54f2fb4e792",
       "agentId": "cron-fitness",
-      "name": "🌙 Fitness Evening Recap (Hamel)",
+      "name": "\ud83c\udf19 Fitness Evening Recap (Hamel)",
       "enabled": true,
       "createdAtMs": 1769794739997,
       "updatedAtMs": 1773870846864,
@@ -290,7 +290,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 180,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message must be 140 words or less.\n\nFitness Evening Recap for Hamel (8:30 PM ET).\nPrefix: 🏋️ Fitness - Evening Recap.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts`\nUse artifact JSON as primary source.\n\nRequired recap contract (no overlap):\n- Line 1: start with `Load:` (not `Readiness:`) and use `today_training_output` only (Whoop daily strain, cycle-first via `total_strain_today` + Tonal sessions/volume + load emoji from `color_emoji`)\n- Line 2: today meal/protein adherence from `today_nutrition` + assumption from `nutrition_assumption`\n- Line 3: `Longevity impact:` (positive/neutral/negative) + top risk to age-100 objective\n- Line 4: tonight sleep target from `tonight_sleep_target` + one concrete action for tonight\n- Optional line 5: one high-priority health insight\n\nRules:\n- No fluff.\n- Do not call evening load signal \"readiness\".\n- Do not rehash morning readiness details or weekly trends.\n- Anchor the recommendation to the age-100 objective.\n- If meals are unlogged, do not stop at \"unknown\"; apply conservative assumption from `nutrition_assumption` and state confidence.\n- If artifact reports stale data/errors, state uncertainty explicitly.\n\nInsight handling:\n- Use only `pending_health_insights` from artifact.\n- Only surface IDs from `surfaced_insight_ids`.\n- After sending, execute `insight_mark_sql` exactly once when present.\n- Never run broad acted_on updates by domain."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message must be 140 words or less.\n\nFitness Evening Recap for Hamel (8:30 PM ET).\nPrefix: \ud83c\udfcb\ufe0f Fitness - Evening Recap.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts`\nUse artifact JSON as primary source.\n\nRequired recap contract (no overlap):\n- Line 1: start with `Load:` (not `Readiness:`) and use `today_training_output` only (Whoop daily strain, cycle-first via `total_strain_today` + Tonal sessions/volume + load emoji from `color_emoji`)\n- Line 2: today meal/protein adherence from `today_nutrition` + assumption from `nutrition_assumption`\n- Line 3: `Longevity impact:` (positive/neutral/negative) + top risk to age-100 objective\n- Line 4: tonight sleep target from `tonight_sleep_target` + one concrete action for tonight\n- Optional line 5: one high-priority health insight\n\nRules:\n- No fluff.\n- Do not call evening load signal \"readiness\".\n- Do not rehash morning readiness details or weekly trends.\n- Anchor the recommendation to the age-100 objective.\n- If meals are unlogged, do not stop at \"unknown\"; apply conservative assumption from `nutrition_assumption` and state confidence.\n- If artifact reports stale data/errors, state uncertainty explicitly.\n\nInsight handling:\n- Use only `pending_health_insights` from artifact.\n- Only surface IDs from `surfaced_insight_ids`.\n- After sending, execute `insight_mark_sql` exactly once when present.\n- Never run broad acted_on updates by domain."
       },
       "state": {
         "nextRunAtMs": 1773793800000,
@@ -310,7 +310,7 @@
     {
       "id": "5aa1f47e-27e6-49cd-a20d-3dac0f1b8428",
       "agentId": "cron-fitness",
-      "name": "📊 Weekly Fitness Insights (Sunday)",
+      "name": "\ud83d\udcca Weekly Fitness Insights (Sunday)",
       "enabled": true,
       "createdAtMs": 1769794740003,
       "updatedAtMs": 1773870846864,
@@ -323,7 +323,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: 150 words or less.\n\nWeekly Fitness Insights for Hamel (Sunday 8 PM ET).\nPrefix: 📊 Fitness - Weekly Insights.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/weekly-insights-data.ts`\nUse artifact JSON as source of truth.\n\nRequired weekly contract (trends only):\n- Lead with trajectory toward the age-100 objective (improving / stable / regressing) using `trend_signals`\n- Include hard-truth risk call from `hard_truth_inputs` (map risk band to emoji: green=🟢, yellow=🟡, red=🔴)\n- Include this week's Tonal strength output from `strength_context.tonal`: `current_sessions` and `current_total_volume` (include delta vs prior week when available)\n- Include protein adherence trend vs target 112-140g/day using both logs and `protein_adherence_assumption`\n- End with 2 concrete next-week actions (one must be actionable in the next 24h)\n\nRules:\n- No fluff.\n- No day-level recap (no morning readiness/sleep call, no tonight target).\n- Anchor weekly recommendations to longevity, not short-term vanity outcomes.\n- If protein logging is sparse, do not output only \"unknown\"; apply conservative assumption from `protein_adherence_assumption` and state confidence.\n- If Tonal metrics are missing, state uncertainty rather than claiming zero strength output.\n- If data quality is degraded, state uncertainty directly.\n\nPersistence:\n- Write markdown summary to `weekly_file_path` (sandbox-safe path from artifact).\n- Then attempt repo mirror copy to `weekly_repo_file_path` via exec:\n  `mkdir -p \"$(dirname <weekly_repo_file_path>)\" && cp \"<weekly_file_path>\" \"<weekly_repo_file_path>\"`\n- If mirror copy fails, do not fail the cron; still send Telegram summary and mention mirror failure briefly.\n\nInsight handling:\n- Use only artifact `pending_health_insights`.\n- Only surface IDs in `surfaced_insight_ids`.\n- Execute `insight_mark_sql` exactly once when present.\n- Never run bulk acted_on-by-domain updates.",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: 150 words or less.\n\nWeekly Fitness Insights for Hamel (Sunday 8 PM ET).\nPrefix: \ud83d\udcca Fitness - Weekly Insights.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/weekly-insights-data.ts`\nUse artifact JSON as source of truth.\n\nRequired weekly contract (trends only):\n- Lead with trajectory toward the age-100 objective (improving / stable / regressing) using `trend_signals`\n- Include hard-truth risk call from `hard_truth_inputs` (map risk band to emoji: green=\ud83d\udfe2, yellow=\ud83d\udfe1, red=\ud83d\udd34)\n- Include this week's Tonal strength output from `strength_context.tonal`: `current_sessions` and `current_total_volume` (include delta vs prior week when available)\n- Include protein adherence trend vs target 112-140g/day using both logs and `protein_adherence_assumption`\n- End with 2 concrete next-week actions (one must be actionable in the next 24h)\n\nRules:\n- No fluff.\n- No day-level recap (no morning readiness/sleep call, no tonight target).\n- Anchor weekly recommendations to longevity, not short-term vanity outcomes.\n- If protein logging is sparse, do not output only \"unknown\"; apply conservative assumption from `protein_adherence_assumption` and state confidence.\n- If Tonal metrics are missing, state uncertainty rather than claiming zero strength output.\n- If data quality is degraded, state uncertainty directly.\n\nPersistence:\n- Write markdown summary to `weekly_file_path` (sandbox-safe path from artifact).\n- Then attempt repo mirror copy to `weekly_repo_file_path` via exec:\n  `mkdir -p \"$(dirname <weekly_repo_file_path>)\" && cp \"<weekly_file_path>\" \"<weekly_repo_file_path>\"`\n- If mirror copy fails, do not fail the cron; still send Telegram summary and mention mirror failure briefly.\n\nInsight handling:\n- Use only artifact `pending_health_insights`.\n- Only surface IDs in `surfaced_insight_ids`.\n- Execute `insight_mark_sql` exactly once when present.\n- Never run bulk acted_on-by-domain updates.",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 180
       },
@@ -336,8 +336,8 @@
         "lastRunStatus": "error",
         "lastDelivered": false,
         "lastDeliveryStatus": "not-delivered",
-        "lastError": "⚠️ ✍️ Write: `to ~/Developer/cortana/memory/fitness/weekly/2026-W11.md (1112 chars)` failed",
-        "lastDeliveryError": "⚠️ ✍️ Write: `to ~/Developer/cortana/memory/fitness/weekly/2026-W11.md (1112 chars)` failed"
+        "lastError": "\u26a0\ufe0f \u270d\ufe0f Write: `to ~/Developer/cortana/memory/fitness/weekly/2026-W11.md (1112 chars)` failed",
+        "lastDeliveryError": "\u26a0\ufe0f \u270d\ufe0f Write: `to ~/Developer/cortana/memory/fitness/weekly/2026-W11.md (1112 chars)` failed"
       },
       "delivery": {
         "mode": "none",
@@ -347,7 +347,7 @@
     {
       "id": "monthly-fitness-overview-20260318",
       "agentId": "cron-fitness",
-      "name": "🗓️ Monthly Fitness Overview (1st of month)",
+      "name": "\ud83d\uddd3\ufe0f Monthly Fitness Overview (1st of month)",
       "enabled": true,
       "createdAtMs": 1773870846864,
       "updatedAtMs": 1773870846864,
@@ -362,7 +362,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 180,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: 150 words or less.\n\nMonthly Fitness Overview for Hamel.\nPrefix: 🗓️ Fitness - Monthly Overview.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/monthly-overview-data.ts`\nUse artifact JSON as source of truth.\n\nRequired monthly contract:\n- Lead with trajectory toward age-100 objective from `trajectory`\n- Include activity output from `current.total_steps`, `current.avg_daily_steps`, and `current.total_tonal_sessions`\n- Include resilience context from `current.avg_readiness`, `current.avg_sleep_hours`, and `current.avg_whoop_strain`\n- Include one concrete next-month action\n\nRules:\n- No fluff.\n- If `data_quality.has_minimum_coverage` is false, explicitly state confidence is limited.\n- If `data_quality.step_coverage_days` is 0, state steps are unavailable from provider data.\n- Anchor recommendations to longevity.\n"
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: 150 words or less.\n\nMonthly Fitness Overview for Hamel.\nPrefix: \ud83d\uddd3\ufe0f Fitness - Monthly Overview.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/monthly-overview-data.ts`\nUse artifact JSON as source of truth.\n\nRequired monthly contract:\n- Lead with trajectory toward age-100 objective from `trajectory`\n- Include activity output from `current.total_steps`, `current.avg_daily_steps`, and `current.total_tonal_sessions`\n- Include resilience context from `current.avg_readiness`, `current.avg_sleep_hours`, and `current.avg_whoop_strain`\n- Include one concrete next-month action\n\nRules:\n- No fluff.\n- If `data_quality.has_minimum_coverage` is false, explicitly state confidence is limited.\n- If `data_quality.step_coverage_days` is 0, state steps are unavailable from provider data.\n- Anchor recommendations to longevity.\n"
       },
       "delivery": {
         "mode": "none",
@@ -372,7 +372,7 @@
     {
       "id": "661b21f1-741e-41a1-b41e-f413abeb2cdd",
       "agentId": "cron-health",
-      "name": "🔧 Fitness service healthcheck",
+      "name": "\ud83d\udd27 Fitness service healthcheck",
       "enabled": true,
       "createdAtMs": 1769794825944,
       "updatedAtMs": 1773734772461,
@@ -385,7 +385,7 @@
       "wakeMode": "next-heartbeat",
       "payload": {
         "kind": "agentTurn",
-        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nFitness service healthcheck. Keep this extremely fast and deterministic.\n\nRules:\n- Use the `exec` tool only.\n- Use hard shell timeouts on every command.\n- On any healthy outcome, return exactly: NO_REPLY\n- On unhealthy outcome after bounded restart attempt, send exactly one Telegram message via `message` tool to target 8171372724 using accountId monitor.\n- Do not add commentary, explanations, diagnostics, or summaries unless there is an actionable failure.\n- Do not rely on announce delivery.\n- Do not do extra reasoning after the health decision is known.\n\nSteps:\n1) Run: `curl --silent --show-error --fail --max-time 10 http://127.0.0.1:3033/tonal/health`\n2) If step 1 succeeds and JSON contains `\"status\":\"healthy\"`, return exactly: NO_REPLY\n3) If step 1 fails or unhealthy, run exactly:\n   `launchctl kickstart -k gui/$(id -u)/com.cortana.fitness-service`\n4) Sleep briefly, then re-run:\n   `curl --silent --show-error --fail --max-time 10 http://127.0.0.1:3033/tonal/health`\n5) If healthy after restart, return exactly: NO_REPLY\n6) If still unhealthy or restart failed, send ONE short Telegram message with:\n   - prefix: 🔧 Fitness service healthcheck\n   - whether healthcheck failed, restart failed, or still unhealthy after restart\n   - one-line curl/launchctl error only\n\nMessage tool parameters if failure:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor",
+        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nFitness service healthcheck. Keep this extremely fast and deterministic.\n\nRules:\n- Use the `exec` tool only.\n- Use hard shell timeouts on every command.\n- On any healthy outcome, return exactly: NO_REPLY\n- On unhealthy outcome after bounded restart attempt, send exactly one Telegram message via `message` tool to target 8171372724 using accountId monitor.\n- Do not add commentary, explanations, diagnostics, or summaries unless there is an actionable failure.\n- Do not rely on announce delivery.\n- Do not do extra reasoning after the health decision is known.\n\nSteps:\n1) Run: `curl --silent --show-error --fail --max-time 10 http://127.0.0.1:3033/tonal/health`\n2) If step 1 succeeds and JSON contains `\"status\":\"healthy\"`, return exactly: NO_REPLY\n3) If step 1 fails or unhealthy, run exactly:\n   `launchctl kickstart -k gui/$(id -u)/com.cortana.fitness-service`\n4) Sleep briefly, then re-run:\n   `curl --silent --show-error --fail --max-time 10 http://127.0.0.1:3033/tonal/health`\n5) If healthy after restart, return exactly: NO_REPLY\n6) If still unhealthy or restart failed, send ONE short Telegram message with:\n   - prefix: \ud83d\udd27 Fitness service healthcheck\n   - whether healthcheck failed, restart failed, or still unhealthy after restart\n   - one-line curl/launchctl error only\n\nMessage tool parameters if failure:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor",
         "model": "openai-codex/gpt-5.1",
         "timeoutSeconds": 90
       },
@@ -407,7 +407,7 @@
     {
       "id": "e2d5451c-4fc3-455a-b7e0-4cbc6da7b745",
       "agentId": "cron-maintenance",
-      "name": "🔍 Daily System Health Summary",
+      "name": "\ud83d\udd0d Daily System Health Summary",
       "enabled": true,
       "createdAtMs": 1770940327751,
       "updatedAtMs": 1773709933006,
@@ -420,7 +420,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nDaily System Health + Cron Digest (9 PM ET).\nPrefix: 📋 Health Summary - Daily Cron Digest. Delivery: send via message tool to telegram target 8171372724.\n\nHealth checks:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\npsql cortana << 'SQL'\nSELECT severity, COUNT(*) FROM cortana_events WHERE timestamp > CURRENT_DATE GROUP BY severity;\nSELECT source, message FROM cortana_events WHERE timestamp > CURRENT_DATE AND severity = 'error';\nSELECT source, COUNT(*) as failures FROM cortana_events WHERE timestamp > CURRENT_DATE AND event_type = 'cron_fail' GROUP BY source;\nSQL\nClassify: 0 errors clean; 1-2 noise; 3+ or repeated source = alert.\n\nCron digest:\n- cron tool action=list for all jobs\n- compute midnight ET ms\n- ran today if state.lastRunAtMs >= midnight ET\n- for ran jobs: name + status (ok/failed) + duration seconds\n- for jobs not run today: check schedule and flag expected-but-missing\n\nOutput format:\n📋 Daily System Health + Cron Digest\n[health summary]\n📊 Cron Runs Today (X/Y)\n✅ Job — ok (X.Xs)\n❌ Job — failed\n⏭️ Job — not scheduled today\n[patterns/concerns]",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nDaily System Health + Cron Digest (9 PM ET).\nPrefix: \ud83d\udccb Health Summary - Daily Cron Digest. Delivery: send via message tool to telegram target 8171372724.\n\nHealth checks:\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\npsql cortana << 'SQL'\nSELECT severity, COUNT(*) FROM cortana_events WHERE timestamp > CURRENT_DATE GROUP BY severity;\nSELECT source, message FROM cortana_events WHERE timestamp > CURRENT_DATE AND severity = 'error';\nSELECT source, COUNT(*) as failures FROM cortana_events WHERE timestamp > CURRENT_DATE AND event_type = 'cron_fail' GROUP BY source;\nSQL\nClassify: 0 errors clean; 1-2 noise; 3+ or repeated source = alert.\n\nCron digest:\n- cron tool action=list for all jobs\n- compute midnight ET ms\n- ran today if state.lastRunAtMs >= midnight ET\n- for ran jobs: name + status (ok/failed) + duration seconds\n- for jobs not run today: check schedule and flag expected-but-missing\n\nOutput format:\n\ud83d\udccb Daily System Health + Cron Digest\n[health summary]\n\ud83d\udcca Cron Runs Today (X/Y)\n\u2705 Job \u2014 ok (X.Xs)\n\u274c Job \u2014 failed\n\u23ed\ufe0f Job \u2014 not scheduled today\n[patterns/concerns]",
         "timeoutSeconds": 180,
         "model": "openai-codex/gpt-5.1"
       },
@@ -442,7 +442,7 @@
     {
       "id": "fb9ba4df-0008-48a1-b56e-45ce35bc0fee",
       "agentId": "cron-maintenance",
-      "name": "🧹 Cron Session Cleanup",
+      "name": "\ud83e\uddf9 Cron Session Cleanup",
       "enabled": true,
       "createdAtMs": 1770984376271,
       "updatedAtMs": 1773727213856,
@@ -455,7 +455,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: 🧹 System - Session Cleanup\nDELIVERY: send via message tool (action=send, channel=telegram, target=8171372724).\nThreshold: 400KB session jsonl files.\n\nSteps:\n1) List sizes:\nfind ~/.openclaw/agents/main/sessions -name '*.jsonl' -exec du -k {} \\; | sort -rn\n2) Identify files over 400KB (du -k > 400).\n3) For each oversized session: map cron job (sessions_list if needed), delete file, track cleaned items.\n4) If cleaned any: send Telegram alert '🧹 Cleaned X cron sessions (over 400KB threshold): [list job names]' and log:\nINSERT INTO cortana_events (event_type, source, severity, message) VALUES ('session_cleanup', 'cron_cleanup', 'info', '<summary>')\n5) If none over threshold: stay silent (HEARTBEAT_OK).\n\nAfter generating output, send with message tool. If nothing to report, return NO_REPLY and do not send.",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: \ud83e\uddf9 System - Session Cleanup\nDELIVERY: send via message tool (action=send, channel=telegram, target=8171372724).\nThreshold: 400KB session jsonl files.\n\nSteps:\n1) List sizes:\nfind ~/.openclaw/agents/main/sessions -name '*.jsonl' -exec du -k {} \\; | sort -rn\n2) Identify files over 400KB (du -k > 400).\n3) For each oversized session: map cron job (sessions_list if needed), delete file, track cleaned items.\n4) If cleaned any: send Telegram alert '\ud83e\uddf9 Cleaned X cron sessions (over 400KB threshold): [list job names]' and log:\nINSERT INTO cortana_events (event_type, source, severity, message) VALUES ('session_cleanup', 'cron_cleanup', 'info', '<summary>')\n5) If none over threshold: stay silent (HEARTBEAT_OK).\n\nAfter generating output, send with message tool. If nothing to report, return NO_REPLY and do not send.",
         "model": "openai-codex/gpt-5.1",
         "timeoutSeconds": 120
       },
@@ -477,13 +477,13 @@
     {
       "id": "9d2f7f92-b9e9-48bc-87b0-a5859bb83927",
       "agentId": "cron-market",
-      "name": "📈 CANSLIM Alert Scan (market sessions)",
+      "name": "\ud83d\udcc8 CANSLIM Alert Scan (market sessions)",
       "enabled": true,
       "createdAtMs": 1771202685902,
       "updatedAtMs": 1773758876095,
       "schedule": {
         "kind": "cron",
-        "expr": "30 9,12,15 * * 1-5",
+        "expr": "32 9,12,15 * * 1-5",
         "tz": "America/New_York",
         "staggerMs": 240000
       },
@@ -513,7 +513,7 @@
     },
     {
       "id": "f7414f95-7795-4e5f-81c6-034e9609cac6",
-      "name": "🧠 Memory Consolidation",
+      "name": "\ud83e\udde0 Memory Consolidation",
       "enabled": true,
       "createdAtMs": 1771322310876,
       "updatedAtMs": 1773731590452,
@@ -550,7 +550,7 @@
     },
     {
       "id": "e53514fe-737b-43a2-8422-f9e749551761",
-      "name": "🔍 Proprioception: Cron & Tool Health",
+      "name": "\ud83d\udd0d Proprioception: Cron & Tool Health",
       "enabled": true,
       "createdAtMs": 1771323577113,
       "updatedAtMs": 1773758313074,
@@ -585,7 +585,7 @@
     },
     {
       "id": "d583b511-b145-4bfd-8f63-ad7bc34ff1a3",
-      "name": "📊 Proprioception: Budget & Self-Model",
+      "name": "\ud83d\udcca Proprioception: Budget & Self-Model",
       "enabled": true,
       "createdAtMs": 1771323590473,
       "updatedAtMs": 1773756962776,
@@ -620,7 +620,7 @@
     },
     {
       "id": "becbf6fc-066d-48c8-b8f2-05b2489ef91e",
-      "name": "🛡️ Immune Scan",
+      "name": "\ud83d\udee1\ufe0f Immune Scan",
       "description": "Immune System: threat detection and auto-healing scan",
       "enabled": true,
       "createdAtMs": 1771324082626,
@@ -659,7 +659,7 @@
     },
     {
       "id": "fd0ee16f-2259-4759-963f-85d5119447eb",
-      "name": "📊 Earnings Alert (daily)",
+      "name": "\ud83d\udcca Earnings Alert (daily)",
       "enabled": true,
       "createdAtMs": 1772108242543,
       "updatedAtMs": 1773745207458,
@@ -672,7 +672,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken.\n\nRun the earnings checker for portfolio holdings:\n/Users/hd/Developer/cortana/tools/earnings/check-earnings.sh\n\nRules:\n- If holdings have earnings within 48h, send each one with symbol, date, and days until.\n- If no earnings upcoming, send: \"📊 Earnings Alert — No holdings reporting in the next 48h.\"\n- Always send via message tool, even for empty results.",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\n\u26a0\ufe0f DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken.\n\nRun the earnings checker for portfolio holdings:\n/Users/hd/Developer/cortana/tools/earnings/check-earnings.sh\n\nRules:\n- If holdings have earnings within 48h, send each one with symbol, date, and days until.\n- If no earnings upcoming, send: \"\ud83d\udcca Earnings Alert \u2014 No holdings reporting in the next 48h.\"\n- Always send via message tool, even for empty results.",
         "model": "openai-codex/gpt-5.2-codex"
       },
       "delivery": {
@@ -694,7 +694,7 @@
     {
       "id": "cron-slo-daily-monitor-20260303",
       "agentId": "cron-health",
-      "name": "📏 Cron SLO Monitor (daily)",
+      "name": "\ud83d\udccf Cron SLO Monitor (daily)",
       "enabled": true,
       "schedule": {
         "kind": "cron",
@@ -707,7 +707,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 120,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/cron-slo-monitor.ts\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- If script outputs alert text, send it via message tool to telegram target 8171372724 exactly once.\n- Keep concise."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/cron-slo-monitor.ts\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- If script outputs alert text, send it via message tool to telegram target 8171372724 exactly once.\n- Keep concise."
       },
       "delivery": {
         "mode": "none",
@@ -728,7 +728,7 @@
     {
       "id": "cron-runtime-repo-drift-monitor-20260303",
       "agentId": "cron-health",
-      "name": "🧭 Runtime vs Repo Drift Monitor (daily)",
+      "name": "\ud83e\udded Runtime vs Repo Drift Monitor (daily)",
       "enabled": true,
       "schedule": {
         "kind": "cron",
@@ -741,7 +741,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 120,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/runtime-repo-drift-monitor.ts --source-repo /Users/hd/Developer/cortana\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- If drift exists, send output via message tool to telegram target 8171372724 exactly once. Keep the alert under 150 words.\n- Runtime repo defaults to the canonical source repo unless CORTANA_RUNTIME_REPO overrides it.\n- This monitor is read-only. Runtime deploys happen explicitly through /Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/runtime-repo-drift-monitor.ts --source-repo /Users/hd/Developer/cortana\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- If drift exists, send output via message tool to telegram target 8171372724 exactly once. Keep the alert under 150 words.\n- Runtime repo defaults to the canonical source repo unless CORTANA_RUNTIME_REPO overrides it.\n- This monitor is read-only. Runtime deploys happen explicitly through /Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh."
       },
       "delivery": {
         "mode": "none",
@@ -761,7 +761,7 @@
     },
     {
       "id": "d2d2c973-c6ea-4e42-a821-3d0ebf5f4c11",
-      "name": "🧯 Cron Gateway Drain Recovery",
+      "name": "\ud83e\uddef Cron Gateway Drain Recovery",
       "enabled": true,
       "schedule": {
         "kind": "every",
@@ -794,7 +794,7 @@
     {
       "id": "repo-drift-watchdog-daily",
       "agentId": "cron-health",
-      "name": "🧭 Repo Drift Watchdog (daily)",
+      "name": "\ud83e\udded Repo Drift Watchdog (daily)",
       "enabled": true,
       "createdAtMs": 1772561763282,
       "updatedAtMs": 1773749718835,
@@ -807,7 +807,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: 🧭 Repo - Drift Watchdog\nDELIVERY: send via message tool (channel=telegram, target=8171372724) only on drift.\n\nRun: /Users/hd/Developer/cortana/tools/repo/drift-watchdog.sh\n- If exit code is 0: return NO_REPLY and do not send a message.\n- If exit code is non-zero: send the script output as a concise alert to Telegram, then return one-line confirmation.",
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: \ud83e\udded Repo - Drift Watchdog\nDELIVERY: send via message tool (channel=telegram, target=8171372724) only on drift.\n\nRun: /Users/hd/Developer/cortana/tools/repo/drift-watchdog.sh\n- If exit code is 0: return NO_REPLY and do not send a message.\n- If exit code is non-zero: send the script output as a concise alert to Telegram, then return one-line confirmation.",
         "model": "openai-codex/gpt-5.2-codex",
         "timeoutSeconds": 90
       },
@@ -829,7 +829,7 @@
     {
       "id": "subagent-reliability-reaper-15m",
       "agentId": "cron-maintenance",
-      "name": "🧯 Subagent Reliability Reaper (15m)",
+      "name": "\ud83e\uddef Subagent Reliability Reaper (15m)",
       "enabled": true,
       "schedule": {
         "kind": "cron",
@@ -841,7 +841,7 @@
       "payload": {
         "kind": "agentTurn",
         "timeoutSeconds": 90,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun this exact command via the `exec` tool, non-interactively:\n- command: /Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal\n- workdir: /Users/hd/.openclaw/workspaces/cron-maintenance\n- host: gateway\n- security: full\n- ask: off\n- timeout: 120\n- yieldMs: 20000\n\nRules:\n- Do not ask for approval.\n- Do not substitute a different command.\n- Do not use a sandboxed workdir.\n- If recovered after retry, keep it quiet unless the script explicitly needs escalation.\n- If fallback_manual_required appears, send one concise Monitor-owned alert with run context under 150 words.\n- Otherwise return exactly NO_REPLY.\n- Monitor is the user-facing owner lane for operational maintenance alerts.\n- Quiet maintenance watchers should return exactly NO_REPLY on healthy/recovered paths."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun this exact command via the `exec` tool, non-interactively:\n- command: /Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal\n- workdir: /Users/hd/.openclaw/workspaces/cron-maintenance\n- host: gateway\n- security: full\n- ask: off\n- timeout: 120\n- yieldMs: 20000\n\nRules:\n- Do not ask for approval.\n- Do not substitute a different command.\n- Do not use a sandboxed workdir.\n- If recovered after retry, keep it quiet unless the script explicitly needs escalation.\n- If fallback_manual_required appears, send one concise Monitor-owned alert with run context under 150 words.\n- Otherwise return exactly NO_REPLY.\n- Monitor is the user-facing owner lane for operational maintenance alerts.\n- Quiet maintenance watchers should return exactly NO_REPLY on healthy/recovered paths."
       },
       "delivery": {
         "mode": "none",
@@ -862,7 +862,7 @@
     {
       "id": "session-lifecycle-policy-daily",
       "agentId": "cron-maintenance",
-      "name": "🗂️ Session Lifecycle Policy Check (daily)",
+      "name": "\ud83d\uddc2\ufe0f Session Lifecycle Policy Check (daily)",
       "enabled": true,
       "schedule": {
         "kind": "cron",
@@ -874,7 +874,7 @@
       "payload": {
         "kind": "agentTurn",
         "timeoutSeconds": 60,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx --yes tsx /Users/hd/Developer/cortana/tools/session/session-lifecycle-policy.ts\nPolicy:\n- If output is NO_REPLY, return exactly NO_REPLY.\n- Otherwise send one concise Monitor-owned alert with counts + breaches under 150 words, then return exactly NO_REPLY."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx --yes tsx /Users/hd/Developer/cortana/tools/session/session-lifecycle-policy.ts\nPolicy:\n- If output is NO_REPLY, return exactly NO_REPLY.\n- Otherwise send one concise Monitor-owned alert with counts + breaches under 150 words, then return exactly NO_REPLY."
       },
       "delivery": {
         "mode": "none",
@@ -895,7 +895,7 @@
     {
       "id": "ops-routing-drift-check-daily-20260312",
       "agentId": "cron-health",
-      "name": "🧭 Ops Routing Drift Check (daily)",
+      "name": "\ud83e\udded Ops Routing Drift Check (daily)",
       "enabled": true,
       "schedule": {
         "kind": "cron",
@@ -908,7 +908,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.1",
         "timeoutSeconds": 90,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/ops-routing-drift-check.ts --repo-root /Users/hd/Developer/cortana\nPolicy:\n- If the script outputs NO_REPLY, return exactly NO_REPLY.\n- If drift exists, send the output exactly once as a Monitor-owned ops alert.\n- Stable routing/preferences updates belong in MEMORY.md, HEARTBEAT.md, docs/agent-routing.md, docs/operating-rules.md, README.md, and config/cron/jobs.json together."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/ops-routing-drift-check.ts --repo-root /Users/hd/Developer/cortana\nPolicy:\n- If the script outputs NO_REPLY, return exactly NO_REPLY.\n- If drift exists, send the output exactly once as a Monitor-owned ops alert.\n- Stable routing/preferences updates belong in MEMORY.md, HEARTBEAT.md, docs/agent-routing.md, docs/operating-rules.md, README.md, and config/cron/jobs.json together."
       },
       "delivery": {
         "mode": "none",
@@ -930,7 +930,7 @@
       "id": "49b29596-dd12-493d-820a-b3c234753783",
       "agentId": "cron-maintenance",
       "sessionKey": "agent:main:main",
-      "name": "🔄 Repo Auto Sync + Local Branch Cleanup",
+      "name": "\ud83d\udd04 Repo Auto Sync + Local Branch Cleanup",
       "enabled": true,
       "createdAtMs": 1772642795141,
       "updatedAtMs": 1773759636727,
@@ -945,7 +945,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.4",
         "timeoutSeconds": 180,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: /Users/hd/Developer/cortana/tools/repo/repo-auto-sync.sh\nPolicy:\n- If the script outputs NO_REPLY, return exactly NO_REPLY.\n- The script may auto-clean only safe/reversible cases: merged local branches, obvious /tmp worktrees, and volatile runtime-state false alarms.\n- If it outputs alert text, send it exactly once as a Monitor-owned maintenance alert under 150 words.\n- Healthy and auto-healed paths stay quiet."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: /Users/hd/Developer/cortana/tools/repo/repo-auto-sync.sh\nPolicy:\n- If the script outputs NO_REPLY, return exactly NO_REPLY.\n- The script may auto-clean only safe/reversible cases: merged local branches, obvious /tmp worktrees, and volatile runtime-state false alarms.\n- If it outputs alert text, send it exactly once as a Monitor-owned maintenance alert under 150 words.\n- Healthy and auto-healed paths stay quiet."
       },
       "delivery": {
         "mode": "none",
@@ -968,7 +968,7 @@
     {
       "id": "0f2b73e9-2f7d-4e8e-88eb-a6fd33d4d7a1",
       "agentId": "cron-maintenance",
-      "name": "🛡️ OpenAI Auth Preflight (critical cron window)",
+      "name": "\ud83d\udee1\ufe0f OpenAI Auth Preflight (critical cron window)",
       "enabled": true,
       "createdAtMs": 1773105614288,
       "updatedAtMs": 1773746410381,
@@ -1002,7 +1002,7 @@
     {
       "id": "4a84dbcc-88ff-4a46-9933-f62b5fd15778",
       "agentId": "cron-maintenance",
-      "name": "🛡️ OpenAI Auth Sweep (critical cron failures)",
+      "name": "\ud83d\udee1\ufe0f OpenAI Auth Sweep (critical cron failures)",
       "enabled": true,
       "createdAtMs": 1773105614288,
       "updatedAtMs": 1773754806725,
@@ -1036,7 +1036,7 @@
     {
       "id": "polymarket-market-intel-20260319",
       "agentId": "cron-market",
-      "name": "🧠 Polymarket Market Intel Refresh",
+      "name": "\ud83e\udde0 Polymarket Market Intel Refresh",
       "enabled": true,
       "createdAtMs": 1773960000000,
       "updatedAtMs": 1773960000000,
@@ -1061,7 +1061,7 @@
     {
       "id": "trading-precompute-20260319",
       "agentId": "cron-market",
-      "name": "🧪 Trading Precompute Refresh",
+      "name": "\ud83e\uddea Trading Precompute Refresh",
       "enabled": true,
       "createdAtMs": 1773927600000,
       "updatedAtMs": 1773927600000,
@@ -1086,7 +1086,7 @@
     {
       "id": "35e3be71-260a-4b2f-9e9e-892e20aa70cb",
       "agentId": "cron-market",
-      "name": "📣 Trading Backtest Notify (market sessions)",
+      "name": "\ud83d\udce3 Trading Backtest Notify (market sessions)",
       "enabled": true,
       "createdAtMs": 1773443868479,
       "updatedAtMs": 1773761104844,
@@ -1121,7 +1121,7 @@
     {
       "id": "trading-quick-recheck-20260319",
       "agentId": "cron-market",
-      "name": "🔁 Trading Quick Re-check (BUY/WATCH)",
+      "name": "\ud83d\udd01 Trading Quick Re-check (BUY/WATCH)",
       "enabled": true,
       "createdAtMs": 1773924000000,
       "updatedAtMs": 1773924000000,
@@ -1146,7 +1146,7 @@
     {
       "id": "whoop-data-freshness-guard-20260318",
       "agentId": "cron-fitness",
-      "name": "🫀 Whoop Data Freshness Guard",
+      "name": "\ud83e\udec0 Whoop Data Freshness Guard",
       "enabled": true,
       "createdAtMs": 1773870846864,
       "updatedAtMs": 1773870846864,
@@ -1161,7 +1161,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 90,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts`\n\nIf artifact `data_freshness.is_stale` is false and `errors` does not include whoop stale/missing flags: return exactly NO_REPLY.\n\nIf stale/missing, send one concise alert with:\n- prefix: 🫀 Whoop Freshness Alert\n- stale hours and missing signal\n- one corrective action\nThen return exactly NO_REPLY."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts`\n\nIf artifact `data_freshness.is_stale` is false and `errors` does not include whoop stale/missing flags: return exactly NO_REPLY.\n\nIf stale/missing, send one concise alert with:\n- prefix: \ud83e\udec0 Whoop Freshness Alert\n- stale hours and missing signal\n- one corrective action\nThen return exactly NO_REPLY."
       },
       "delivery": {
         "mode": "none",
@@ -1171,7 +1171,7 @@
     {
       "id": "whoop-recovery-risk-alert-20260318",
       "agentId": "cron-fitness",
-      "name": "🫀 Whoop Recovery Risk Alert",
+      "name": "\ud83e\udec0 Whoop Recovery Risk Alert",
       "enabled": true,
       "createdAtMs": 1773870846864,
       "updatedAtMs": 1773870846864,
@@ -1186,7 +1186,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 90,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts`\n\nAlert policy (balanced):\n- Alert when `readiness.band` is `red`\n- Alert when `riskFlags` contains `low_recovery`, `hrv_down_vs_baseline`, or `rhr_up_vs_baseline`\n- Otherwise return exactly NO_REPLY\n\nAlert output (single message):\n- prefix: 🫀 Recovery Risk\n- hard truth from artifact\n- one action from artifact\nReturn exactly NO_REPLY after send."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts`\n\nAlert policy (balanced):\n- Alert when `readiness.band` is `red`\n- Alert when `riskFlags` contains `low_recovery`, `hrv_down_vs_baseline`, or `rhr_up_vs_baseline`\n- Otherwise return exactly NO_REPLY\n\nAlert output (single message):\n- prefix: \ud83e\udec0 Recovery Risk\n- hard truth from artifact\n- one action from artifact\nReturn exactly NO_REPLY after send."
       },
       "delivery": {
         "mode": "none",
@@ -1196,7 +1196,7 @@
     {
       "id": "whoop-overreach-guard-20260318",
       "agentId": "cron-fitness",
-      "name": "🫀 Whoop Overreach Guard",
+      "name": "\ud83e\udec0 Whoop Overreach Guard",
       "enabled": true,
       "createdAtMs": 1773870846864,
       "updatedAtMs": 1773870846864,
@@ -1211,7 +1211,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 90,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts`\n\nIf `strain.overreach_flags` is empty and readiness is not red: return exactly NO_REPLY.\n\nIf overreach risk exists, send one concise alert:\n- prefix: 🫀 Overreach Guard\n- include total_today strain, readiness band, and hard truth\n- include one recovery action for tonight\nReturn exactly NO_REPLY after send."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts`\n\nIf `strain.overreach_flags` is empty and readiness is not red: return exactly NO_REPLY.\n\nIf overreach risk exists, send one concise alert:\n- prefix: \ud83e\udec0 Overreach Guard\n- include total_today strain, readiness band, and hard truth\n- include one recovery action for tonight\nReturn exactly NO_REPLY after send."
       },
       "delivery": {
         "mode": "none",
@@ -1221,7 +1221,7 @@
     {
       "id": "a9c37f59-8f34-4c59-bb53-8a2b6d3fb3f8",
       "agentId": "cron-maintenance",
-      "name": "🔁 OpenClaw Deferred Gateway Restart",
+      "name": "\ud83d\udd01 OpenClaw Deferred Gateway Restart",
       "enabled": true,
       "schedule": {
         "kind": "cron",
@@ -1234,7 +1234,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.4",
         "timeoutSeconds": 120,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun exactly:\n- `bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh --restart-if-pending`\n\nRules:\n- If the script indicates there was no pending restart, return exactly NO_REPLY.\n- If it performed the deferred restart path, send one short monitor-owned message confirming the restart window ran.\n- If it fails, send one short monitor-owned failure alert under 150 words."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun exactly:\n- `bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh --restart-if-pending`\n\nRules:\n- If the script indicates there was no pending restart, return exactly NO_REPLY.\n- If it performed the deferred restart path, send one short monitor-owned message confirming the restart window ran.\n- If it fails, send one short monitor-owned failure alert under 150 words."
       },
       "delivery": {
         "mode": "none",
@@ -1244,7 +1244,7 @@
     {
       "id": "critical-synthetic-probes-daily-20260330",
       "agentId": "cron-health",
-      "name": "🛰️ Critical Synthetic Probes (daily)",
+      "name": "\ud83d\udef0\ufe0f Critical Synthetic Probes (daily)",
       "enabled": true,
       "schedule": {
         "kind": "cron",
@@ -1257,7 +1257,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 120,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/critical-synthetic-probe.ts\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- Only actionable failures should trigger a message.\n- Preserve the script's classification labels (self_healable/human_auth/human_permission/control_plane/repo_runtime_drift).\n- Send alert text via message tool to telegram target 8171372724 exactly once."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/critical-synthetic-probe.ts\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- Only actionable failures should trigger a message.\n- Preserve the script's classification labels (self_healable/human_auth/human_permission/control_plane/repo_runtime_drift).\n- Send alert text via message tool to telegram target 8171372724 exactly once."
       },
       "delivery": {
         "mode": "none",
@@ -1267,7 +1267,7 @@
     {
       "id": "browser-cdp-watchdog-20260330",
       "agentId": "cron-maintenance",
-      "name": "🌐 Browser CDP Watchdog (15m)",
+      "name": "\ud83c\udf10 Browser CDP Watchdog (15m)",
       "enabled": true,
       "schedule": {
         "kind": "cron",
@@ -1280,7 +1280,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.1",
         "timeoutSeconds": 90,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/browser-cdp-watchdog.ts\nPolicy:\n- If script outputs NO_REPLY, return exactly NO_REPLY.\n- If script outputs actionable failure text, send it once via message tool to monitor Telegram and then return NO_REPLY.\n- This watchdog allows one bounded browser host restart path before escalation."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/browser-cdp-watchdog.ts\nPolicy:\n- If script outputs NO_REPLY, return exactly NO_REPLY.\n- If script outputs actionable failure text, send it once via message tool to monitor Telegram and then return NO_REPLY.\n- This watchdog allows one bounded browser host restart path before escalation."
       },
       "delivery": {
         "mode": "none",
@@ -1290,7 +1290,7 @@
     {
       "id": "vacation-mode-fragile-guard-20260330",
       "agentId": "cron-maintenance",
-      "name": "🏖️ Vacation Mode Fragile Guard (15m)",
+      "name": "\ud83c\udfd6\ufe0f Vacation Mode Fragile Guard (15m)",
       "enabled": true,
       "schedule": {
         "kind": "cron",
@@ -1303,7 +1303,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.1",
         "timeoutSeconds": 90,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/vacation-mode-guard.ts\nPolicy:\n- If script outputs NO_REPLY, return exactly NO_REPLY.\n- If script outputs actionable failure text, send it once via message tool to monitor Telegram and then return NO_REPLY.\n- Vacation mode is controlled by config/autonomy-lanes.json (vacationMode.enabled)."
+        "message": "\u26a0\ufe0f DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/vacation-mode-guard.ts\nPolicy:\n- If script outputs NO_REPLY, return exactly NO_REPLY.\n- If script outputs actionable failure text, send it once via message tool to monitor Telegram and then return NO_REPLY.\n- Vacation mode is controlled by config/autonomy-lanes.json (vacationMode.enabled)."
       },
       "delivery": {
         "mode": "none",
