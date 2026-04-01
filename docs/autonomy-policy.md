@@ -81,6 +81,9 @@ Triggers:
 - Session lifecycle auto-remediation is active through `tools/session/session-lifecycle-policy.ts`.
 - Runtime deploy drift detection / actionable-only reporting is active through `tools/monitoring/runtime-repo-drift-monitor.ts`.
 - Bounded service recovery is active through `tools/monitoring/autonomy-remediation.ts` (gateway restart once with verification, channel recovery via existing delivery hooks, critical cron single-retry recovery, and session lifecycle cleanup verification).
+- Canonical autonomy incident state now lives in `cortana_autonomy_incidents` and is written by `tools/monitoring/critical-synthetic-probe.ts` and `tools/monitoring/autonomy-remediation.ts`.
+  - Goal: one DB-backed incident lifecycle (`open` -> `resolved`) instead of scattered script-local state.
+  - Repeated unchanged failures should not keep paging; state-change and verified recovery are the meaningful operator signals.
 - Browser/CDP bounded recovery is active through `tools/monitoring/browser-cdp-watchdog.ts` and `tools/monitoring/autonomy-remediation.ts` (one `openclaw node restart`, then verify endpoint health, then escalate).
 - Vacation-mode fragile-job quarantine is active through `tools/monitoring/vacation-mode-guard.ts` and `tools/monitoring/autonomy-remediation.ts` when `config/autonomy-lanes.json -> vacationMode.enabled=true`.
   - Vacation mode intentionally tightens alerting and quarantines fragile cron jobs sooner (first consecutive error by default).

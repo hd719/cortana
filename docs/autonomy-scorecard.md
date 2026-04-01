@@ -29,6 +29,9 @@ Window default: rolling **7 days** (configurable).
    - Sources:
      - New: `cortana_autonomy_incidents`
      - Backfill/legacy: `cortana_events` (`auto_heal`, `heartbeat_auto_remediation`, escalation-like event types)
+   - Current write path:
+     - `tools/monitoring/critical-synthetic-probe.ts` opens/resolves normalized probe incidents
+     - `tools/monitoring/autonomy-remediation.ts` opens/resolves remediation incidents
 
 2. **Proactive hit rate**
    - Definition: `% of proactive suggestions that were useful or acted on`

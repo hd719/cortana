@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { sourceRepoRoot } from "../lib/paths.js";
+import { resolveIncident, upsertOpenIncident } from "./autonomy-incidents.ts";
 
 type FailureClass =
   | "self_healable"
@@ -19,6 +20,8 @@ type ProbeResult = {
   actionable?: boolean;
   detail?: string;
 };
+
+type IncidentChange = ProbeResult & { incidentChange?: "created" | "updated" | "unchanged" };
 
 type RuntimeJob = {
   name?: string;
@@ -301,16 +304,63 @@ function formatActionable(results: ProbeResult[]): string {
   return lines.join("\n");
 }
 
-function main(): void {
-  const results = [probeGog(), probeAppleReminders(), probeTelegramDelivery(), probeCriticalCronLane()];
-  const actionable = results.filter((r) => !r.ok && r.actionable);
+function incidentSystemForProbe(probe: ProbeResult["probe"]): string {
+  if (probe === "telegram_delivery") return "channel";
+  if (probe === "critical_cron_lane") return "cron";
+  return probe;
+}
 
-  if (actionable.length === 0) {
+function incidentSeverityForCategory(category: FailureClass | undefined): "warning" | "error" | "info" {
+  if (category === "human_auth" || category === "human_permission" || category === "control_plane") return "error";
+  if (category === "repo_runtime_drift") return "warning";
+  return "info";
+}
+
+function syncIncidentState(results: ProbeResult[]): IncidentChange[] {
+  return results.map((result) => {
+    const incidentKey = `probe:${result.probe}`;
+    if (result.ok) {
+      resolveIncident(incidentKey, {
+        source: "critical-synthetic-probe",
+        summary: `${result.probe} healthy`,
+        detail: "probe healthy",
+        remediationStatus: "verified",
+        autoResolved: true,
+        metadata: { probe: result.probe },
+      });
+      return result;
+    }
+
+    const change = upsertOpenIncident({
+      incidentKey,
+      incidentType: result.probe,
+      system: incidentSystemForProbe(result.probe),
+      source: "critical-synthetic-probe",
+      severity: incidentSeverityForCategory(result.category),
+      summary: `${result.probe} failed`,
+      detail: result.detail ?? "probe failed",
+      remediationStatus: "detected",
+      metadata: {
+        probe: result.probe,
+        category: result.category ?? "unknown",
+        actionable: Boolean(result.actionable),
+      },
+    });
+    return { ...result, incidentChange: change };
+  });
+}
+
+function main(): void {
+  const results = syncIncidentState([probeGog(), probeAppleReminders(), probeTelegramDelivery(), probeCriticalCronLane()]);
+  const actionable = results.filter((r) => !r.ok && r.actionable);
+  const stateChanged = actionable.filter((r) => r.incidentChange === "created" || r.incidentChange === "updated");
+
+  if (actionable.length === 0 || stateChanged.length === 0) {
     console.log("NO_REPLY");
     return;
   }
 
-  console.log(formatActionable(actionable));
+  console.log(formatActionable(stateChanged));
 }
 
 main();

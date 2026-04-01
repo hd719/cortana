@@ -6,15 +6,23 @@ const fsMock = vi.hoisted(() => ({
   writeFileSync: vi.fn(),
 }));
 const spawnSync = vi.hoisted(() => vi.fn());
+const upsertOpenIncident = vi.hoisted(() => vi.fn());
+const resolveIncident = vi.hoisted(() => vi.fn());
 
 vi.mock("node:fs", () => ({ default: fsMock, ...fsMock }));
 vi.mock("node:child_process", () => ({ spawnSync }));
+vi.mock("../../tools/monitoring/autonomy-incidents.ts", () => ({
+  upsertOpenIncident,
+  resolveIncident,
+}));
 
 describe("autonomy family-critical failover", () => {
   beforeEach(() => {
     fsMock.readFileSync.mockReset();
     fsMock.writeFileSync.mockReset();
     spawnSync.mockReset();
+    upsertOpenIncident.mockReset();
+    resolveIncident.mockReset();
     resetProcess();
   });
 
