@@ -7,6 +7,8 @@ const fsMock = vi.hoisted(() => ({
   existsSync: vi.fn(),
 }));
 const spawnSync = vi.hoisted(() => vi.fn());
+const upsertOpenIncident = vi.hoisted(() => vi.fn());
+const resolveIncident = vi.hoisted(() => vi.fn());
 
 vi.mock("node:fs", () => ({
   default: fsMock,
@@ -15,6 +17,10 @@ vi.mock("node:fs", () => ({
 vi.mock("node:child_process", () => ({
   spawnSync,
 }));
+vi.mock("../../tools/monitoring/autonomy-incidents.ts", () => ({
+  upsertOpenIncident,
+  resolveIncident,
+}));
 
 describe("autonomy-remediation", () => {
   beforeEach(() => {
@@ -22,6 +28,8 @@ describe("autonomy-remediation", () => {
     fsMock.writeFileSync.mockReset();
     fsMock.existsSync.mockReset();
     spawnSync.mockReset();
+    upsertOpenIncident.mockReset();
+    resolveIncident.mockReset();
     fsMock.existsSync.mockReturnValue(true);
   });
 
