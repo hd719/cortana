@@ -77,8 +77,8 @@
         "openai-codex/gpt-5.4": {}
       },
       "workspace": "/Users/hd/Developer/cortana",
-      "bootstrapMaxChars": 8000,
-      "bootstrapTotalMaxChars": 13200,
+      "bootstrapMaxChars": 12000,
+      "bootstrapTotalMaxChars": 22000,
       "memorySearch": {
         "enabled": true,
         "sources": [
