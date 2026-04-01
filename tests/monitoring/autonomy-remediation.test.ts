@@ -4,6 +4,7 @@ import { captureConsole, flushModuleSideEffects, importFresh, mockExit, resetPro
 const fsMock = vi.hoisted(() => ({
   readFileSync: vi.fn(),
   writeFileSync: vi.fn(),
+  existsSync: vi.fn(),
 }));
 const spawnSync = vi.hoisted(() => vi.fn());
 
@@ -19,7 +20,9 @@ describe("autonomy-remediation", () => {
   beforeEach(() => {
     fsMock.readFileSync.mockReset();
     fsMock.writeFileSync.mockReset();
+    fsMock.existsSync.mockReset();
     spawnSync.mockReset();
+    fsMock.existsSync.mockReturnValue(true);
   });
 
   afterEach(() => {

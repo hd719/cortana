@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadAutonomyConfig } from "./autonomy-lanes.ts";
 import { collectAutonomyScorecard } from "./autonomy-scorecard.ts";
+import { collectOpenIncidentSummary } from "./autonomy-incidents.ts";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..");
@@ -33,6 +34,11 @@ type AutonomyStatusSummary = {
   familyCritical: {
     recovered: number;
     escalated: number;
+  };
+  openIncidents: {
+    total: number;
+    recurring: number;
+    labels: string[];
   };
   actionableDriftLabels: string[];
   suppressedDriftLabels: string[];
@@ -66,6 +72,7 @@ export function collectAutonomyStatus(): AutonomyStatusSummary {
   const drift = runJson(path.join(ROOT, "tools", "monitoring", "runtime-repo-drift-monitor.ts"), ["--dry-run"]);
   const remediation = runJson(path.join(ROOT, "tools", "monitoring", "autonomy-remediation.ts"));
   const scorecard = collectAutonomyScorecard();
+  const openIncidents = collectOpenIncidentSummary();
 
   const remediationItems = Array.isArray(remediation.items) ? remediation.items : [];
   const autoFixedItems = remediationItems.filter((item: any) => item?.status === "remediated").map((item: any) => String(item.system));
@@ -121,6 +128,11 @@ export function collectAutonomyStatus(): AutonomyStatusSummary {
       recovered: Number((cronSummary.familyCritical as JsonMap | undefined)?.recovered ?? 0),
       escalated: Number((cronSummary.familyCritical as JsonMap | undefined)?.escalations ?? 0),
     },
+    openIncidents: {
+      total: openIncidents.open,
+      recurring: openIncidents.recurring,
+      labels: openIncidents.labels,
+    },
     actionableDriftLabels: Array.isArray(drift.actionable) ? drift.actionable.map((x: any) => x.check?.label).filter(Boolean) : [],
     suppressedDriftLabels: Array.isArray(drift.suppressed) ? drift.suppressed.map((x: any) => x.check?.label).filter(Boolean) : [],
     scorecard,
@@ -139,6 +151,7 @@ export function renderAutonomyStatus(summary: AutonomyStatusSummary): string {
     `- failed then recovered: ${summary.failedRecoveredItems.length ? summary.failedRecoveredItems.join(", ") : "none"}`,
     `- waiting on Hamel: ${summary.waitingOnHuman.length ? summary.waitingOnHuman.join(", ") : "none"}`,
     `- deferred/exceeded authority: ${summary.deferredItems.length ? summary.deferredItems.join(", ") : "none"}`,
+    `- open incidents: ${summary.openIncidents.total} recurring=${summary.openIncidents.recurring}`,
     `- family-critical lane: recovered=${summary.familyCritical.recovered} escalated=${summary.familyCritical.escalated}`,
     `- session lifecycle: ${summary.sessionStatus}`,
     `- runtime drift: ${summary.driftStatus}`,
@@ -152,6 +165,9 @@ export function renderAutonomyStatus(summary: AutonomyStatusSummary): string {
   }
   if (summary.suppressedDriftLabels.length) {
     lines.push(`- suppressed drift: ${summary.suppressedDriftLabels.join(", ")}`);
+  }
+  if (summary.openIncidents.labels.length) {
+    lines.push(`- incident keys: ${summary.openIncidents.labels.join(", ")}`);
   }
 
   return lines.join("\n");

@@ -3,19 +3,23 @@ import { captureConsole, flushModuleSideEffects, importFresh, resetProcess, setA
 
 const spawnSync = vi.hoisted(() => vi.fn());
 const collectAutonomyScorecard = vi.hoisted(() => vi.fn());
+const collectOpenIncidentSummary = vi.hoisted(() => vi.fn());
 vi.mock("node:child_process", () => ({ spawnSync }));
 vi.mock("../../tools/monitoring/autonomy-scorecard.ts", () => ({ collectAutonomyScorecard }));
+vi.mock("../../tools/monitoring/autonomy-incidents.ts", () => ({ collectOpenIncidentSummary }));
 
 describe("autonomy-status", () => {
   beforeEach(() => {
     spawnSync.mockReset();
     collectAutonomyScorecard.mockReset();
+    collectOpenIncidentSummary.mockReset();
     collectAutonomyScorecard.mockReturnValue({
       windowHours: 168,
       counts: { autoFixAttempted: 0, autoFixSucceeded: 0, escalations: 0, blockedOrExceededAuthority: 0, staleReportSuppressions: 0, familyCriticalFailures: 0 },
       activeFollowUps: [],
       incidentReviews: [],
     });
+    collectOpenIncidentSummary.mockReturnValue({ open: 0, recurring: 0, labels: [] });
     resetProcess();
   });
 
@@ -66,6 +70,7 @@ describe("autonomy-status", () => {
       activeFollowUps: [{ system: "channel", taskId: 12 }],
       incidentReviews: [],
     });
+    collectOpenIncidentSummary.mockReturnValue({ open: 2, recurring: 1, labels: ["channel:telegram_delivery", "cron:critical_cron_lane"] });
 
     setArgv([]);
     const consoleSpy = captureConsole();
@@ -84,10 +89,12 @@ describe("autonomy-status", () => {
     expect(output).toContain("failed then recovered: gateway, cron");
     expect(output).toContain("waiting on Hamel: 1 drift item(s), 1 escalated check(s)");
     expect(output).toContain("deferred/exceeded authority: channel:escalate");
+    expect(output).toContain("open incidents: 2 recurring=1");
     expect(output).toContain("family-critical lane: recovered=1 escalated=1");
     expect(output).toContain("service remediation: remediated=2 escalated=1 healthy=0 skipped=0");
     expect(output).toContain("actionable drift: cron/jobs.json");
     expect(output).toContain("suppressed drift: agent-profiles.json");
+    expect(output).toContain("incident keys: channel:telegram_delivery, cron:critical_cron_lane");
   });
 
   it("emits machine-readable json with the same operational summary", async () => {
@@ -127,6 +134,7 @@ describe("autonomy-status", () => {
       driftStatus: "healthy",
       remediationCounts: { remediated: 0, escalated: 0, healthy: 4, skipped: 0 },
       familyCritical: { recovered: 0, escalated: 0 },
+      openIncidents: { total: 0, recurring: 0 },
     });
   });
 

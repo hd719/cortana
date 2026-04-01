@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { loadAutonomyConfig } from "./autonomy-lanes.ts";
+import { resolveIncident, upsertOpenIncident } from "./autonomy-incidents.ts";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..");
 const STATE_FILE = process.env.AUTONOMY_REMEDIATION_STATE_FILE ?? path.join(os.tmpdir(), "cortana-autonomy-remediation-state.json");
@@ -600,7 +601,20 @@ LIMIT 1;
 }
 
 function logActionResult(item: RemediationItem): RemediationItem {
-  if (item.status === 'healthy') return item;
+  if (item.status === 'healthy') {
+    resolveIncident(`remediation:${item.system}`, {
+      source: "autonomy-remediation",
+      summary: `${item.system} healthy`,
+      detail: item.detail,
+      remediationStatus: "verified",
+      autoResolved: true,
+      metadata: {
+        verification_status: item.verificationStatus ?? "verified",
+        lane_label: item.laneLabel ?? null,
+      },
+    });
+    return item;
+  }
 
   const prior = latestStatusForSystem(item.system);
   if ((item.status === 'remediated') && (prior === 'escalate' || prior === 'skipped')) {
@@ -653,6 +667,38 @@ VALUES (
   )
 );
 `);
+
+  const incidentKey = `remediation:${item.system}`;
+  if (item.status === "escalate" || item.status === "skipped") {
+    upsertOpenIncident({
+      incidentKey,
+      incidentType: "remediation",
+      system: item.system,
+      source: "autonomy-remediation",
+      severity: item.status === "escalate" ? (item.familyCritical ? "error" : "warning") : "info",
+      summary: `${item.system} ${item.status}`,
+      detail: item.detail,
+      remediationStatus: item.status,
+      metadata: {
+        family_critical: item.familyCritical ?? false,
+        lane_label: item.laneLabel ?? null,
+        verification_status: item.verificationStatus ?? "uncertain",
+        followup_task_id: followUpTaskId,
+      },
+    });
+  } else if (item.status === "remediated") {
+    resolveIncident(incidentKey, {
+      source: "autonomy-remediation",
+      summary: `${item.system} remediated`,
+      detail: item.detail,
+      remediationStatus: "remediated",
+      autoResolved: true,
+      metadata: {
+        verification_status: item.verificationStatus ?? "verified",
+        lane_label: item.laneLabel ?? null,
+      },
+    });
+  }
   return item;
 }
 
