@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { execSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { describePendingStateFromCandidates, pickPendingFromCandidates, type SummaryCandidate } from "../../tools/trading/backtest-notify";
+import { buildNotifyArgs, describePendingStateFromCandidates, pickPendingFromCandidates, type SummaryCandidate } from "../../tools/trading/backtest-notify";
 
 function candidate(
   file: string,
@@ -175,6 +175,35 @@ describe("backtest notify delivery contract", () => {
 
     const updated = JSON.parse(readFileSync(summaryPath, "utf8"));
     expect(updated.notifiedAt).toBeNull();
+  });
+
+  it("passes a trading-specific dedupe key and label to the delivery guard", () => {
+    const args = buildNotifyArgs(
+      {
+        schemaVersion: 1,
+        runId: "20260401-133049",
+        strategy: "Trading market-session unified",
+        status: "success",
+        completedAt: "2026-04-01T13:40:06.245Z",
+        notifiedAt: null,
+        artifacts: {
+          directory: "/tmp/run",
+          summary: "/tmp/run/summary.json",
+          log: "/tmp/run/run.log",
+        },
+      },
+      "hello",
+    );
+
+    expect(args[0]).toBe("hello");
+    expect(args[1]).toBe("8171372724");
+    expect(args[3]).toBe("trading_market_snapshot");
+    expect(args[4]).toBe("trading_market_snapshot:20260401-133049");
+    expect(args[5]).toBe("high");
+    expect(args[6]).toBe("monitor");
+    expect(args[7]).toBe("Trading Advisor");
+    expect(args[8]).toBe("now");
+    expect(args[9]).toBe("cron-market");
   });
 
   it("fails when guard fails delivery", () => {

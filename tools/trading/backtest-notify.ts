@@ -35,6 +35,11 @@ const RUNS_DIR = path.join(process.env.BACKTEST_ROOT_DIR || DEFAULT_ROOT, "runs"
 const NOTIFY_BIN = process.env.BACKTEST_NOTIFY_BIN || path.join(process.cwd(), "tools", "notifications", "telegram-delivery-guard.sh");
 const TARGET = process.env.BACKTEST_NOTIFY_TARGET || "8171372724";
 const INCLUDE_FAILURES = process.env.BACKTEST_NOTIFY_INCLUDE_FAILURES === "1";
+const TRADING_ALERT_TYPE = "trading_market_snapshot";
+const TRADING_SYSTEM = "Trading Advisor";
+const TRADING_OWNER = "monitor";
+const TRADING_ACTION_NEEDED = "now";
+const TRADING_SOURCE_AGENT = "cron-market";
 
 function listSummaries(): string[] {
   if (!existsSync(RUNS_DIR)) return [];
@@ -140,6 +145,21 @@ function loadDurableMessage(summary: BacktestSummary): string | null {
   return null;
 }
 
+export function buildNotifyArgs(summary: BacktestSummary, message: string): string[] {
+  return [
+    message,
+    TARGET,
+    "",
+    TRADING_ALERT_TYPE,
+    `${TRADING_ALERT_TYPE}:${summary.runId}`,
+    "high",
+    TRADING_OWNER,
+    TRADING_SYSTEM,
+    TRADING_ACTION_NEEDED,
+    TRADING_SOURCE_AGENT,
+  ];
+}
+
 function markNotified(file: string, summary: BacktestSummary): void {
   const updated = { ...summary, notifiedAt: new Date().toISOString() };
   const tmp = `${file}.tmp`;
@@ -155,7 +175,7 @@ function main(): void {
   }
 
   const message = loadDurableMessage(picked.summary) || renderMessage(picked.summary);
-  const proc = spawnSync(NOTIFY_BIN, [message, TARGET], {
+  const proc = spawnSync(NOTIFY_BIN, buildNotifyArgs(picked.summary, message), {
     cwd: process.cwd(),
     encoding: "utf8",
     env: process.env,
