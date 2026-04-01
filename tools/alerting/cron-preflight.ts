@@ -113,8 +113,8 @@ function checkGog(): boolean {
 }
 
 function checkGogOauth(): boolean {
-  const script = path.join(repoRoot(), "tools/gog/oauth-refresh.sh");
-  return shell(script, []).status === 0;
+  const script = path.join(repoRoot(), "tools/gog/oauth-refresh.ts");
+  return shell("npx", ["tsx", script]).status === 0;
 }
 
 function checkFitness(): boolean {

@@ -82,4 +82,20 @@ describe("cron-preflight", () => {
 
     expect(fsMock.rmSync).toHaveBeenCalledWith(qfile, { force: true });
   });
+
+  it("runs the TypeScript gog oauth preflight via npx tsx", async () => {
+    setArgv(["cronA", "gog_oauth"]);
+    runPsql.mockReturnValue({ status: 0 });
+    fsMock.existsSync.mockReturnValue(false);
+    fsMock.readdirSync.mockReturnValue([]);
+    spawnSync.mockReturnValue({ status: 0, stdout: "", stderr: "" });
+
+    await importFresh("../../tools/alerting/cron-preflight.ts");
+
+    expect(spawnSync).toHaveBeenCalledWith(
+      "npx",
+      ["tsx", "/repo/tools/gog/oauth-refresh.ts"],
+      expect.objectContaining({ encoding: "utf8" }),
+    );
+  });
 });
