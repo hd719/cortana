@@ -83,10 +83,13 @@ type RunPsqlOptions = {
 };
 
 function resolvePsqlBin(env: NodeJS.ProcessEnv): string {
+  const safeExistsSync = typeof (fs as { existsSync?: unknown }).existsSync === "function"
+    ? (filePath: string) => fs.existsSync(filePath)
+    : (_filePath: string) => false;
   const explicit = env.PSQL_BIN;
-  if (explicit && fs.existsSync(explicit)) return explicit;
+  if (explicit && safeExistsSync(explicit)) return explicit;
   const preferred = `${PG_BIN_DIR}/psql`;
-  if (fs.existsSync(preferred)) return preferred;
+  if (safeExistsSync(preferred)) return preferred;
   return "psql";
 }
 
