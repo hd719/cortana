@@ -67,6 +67,11 @@ export function monthlyWindows(anchorYmd = localYmd()): { current: MonthWindow; 
   };
 }
 
+export function completedMonthlyWindows(anchorYmd = localYmd()): { current: MonthWindow; previous: MonthWindow } {
+  const completed = shiftMonth(parseAnchor(anchorYmd), -1);
+  return monthlyWindows(fmtYmd(completed.year, completed.month, 1));
+}
+
 function delta(current: number | null, previous: number | null): { delta: number | null; delta_pct: number | null } {
   if (current == null || previous == null) return { delta: null, delta_pct: null };
   const d = Number((current - previous).toFixed(2));
@@ -85,8 +90,9 @@ function trajectory(current: FitnessWindowSummary, previous: FitnessWindowSummar
 }
 
 function main(): void {
-  const anchorYmd = process.argv[2] && /^\d{4}-\d{2}-\d{2}$/.test(process.argv[2]) ? process.argv[2] : localYmd();
-  const windows = monthlyWindows(anchorYmd);
+  const explicitAnchor = process.argv[2] && /^\d{4}-\d{2}-\d{2}$/.test(process.argv[2]) ? process.argv[2] : null;
+  const anchorYmd = explicitAnchor ?? localYmd();
+  const windows = explicitAnchor ? monthlyWindows(anchorYmd) : completedMonthlyWindows(anchorYmd);
 
   const current = fetchFitnessWindowSummary(windows.current.start, windows.current.end);
   const previous = fetchFitnessWindowSummary(windows.previous.start, windows.previous.end);
@@ -94,6 +100,7 @@ function main(): void {
   const out = {
     generated_at: new Date().toISOString(),
     anchor_date: anchorYmd,
+    reporting_mode: explicitAnchor ? "anchor_month" : "most_recent_completed_month",
     source: "db:cortana_fitness_daily_facts",
     month_windows: windows,
     trajectory: trajectory(current, previous),
