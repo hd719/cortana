@@ -117,6 +117,10 @@ describe("fitness cron contract", () => {
     expect(message).toContain("current.total_steps");
     expect(message).toContain("current.avg_daily_steps");
     expect(message).toContain("data_quality.step_coverage_days");
+    expect(message).toContain("data_quality.readiness_coverage_days");
+    expect(message).toContain("data_quality.sleep_coverage_days");
+    expect(message).toContain("data_quality.tonal_volume");
+    expect(message).toContain("do not imply the whole month lacks data");
     expect(message).toContain("age-100 objective");
   });
 });

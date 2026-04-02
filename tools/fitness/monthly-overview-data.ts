@@ -120,9 +120,13 @@ function main(): void {
     data_quality: {
       days_with_data: current.days_with_data,
       has_minimum_coverage: current.days_with_data >= 14,
+      readiness_coverage_days: current.days_with_readiness,
+      sleep_coverage_days: current.days_with_sleep,
       hydration_coverage_days: current.days_with_hydration,
       step_coverage_days: current.days_with_steps,
       protein_coverage_days: current.days_with_protein,
+      tonal_sessions: current.total_tonal_sessions,
+      tonal_volume: current.total_tonal_volume,
     },
     notes: [
       "Monthly overview uses DB snapshots only (no live Whoop/Tonal fetches).",
