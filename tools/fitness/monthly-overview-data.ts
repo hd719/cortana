@@ -14,6 +14,12 @@ type YearMonth = {
   month: number; // 1-12
 };
 
+type Trajectory =
+  | "improving"
+  | "stable"
+  | "regressing"
+  | "unknown";
+
 function parseAnchor(anchorYmd: string): YearMonth {
   const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(anchorYmd);
   if (!m) {
@@ -79,7 +85,7 @@ function delta(current: number | null, previous: number | null): { delta: number
   return { delta: d, delta_pct: pct };
 }
 
-function trajectory(current: FitnessWindowSummary, previous: FitnessWindowSummary): "improving" | "stable" | "regressing" | "unknown" {
+export function trajectory(current: FitnessWindowSummary, previous: FitnessWindowSummary): Trajectory {
   if (current.days_with_data < 8 || previous.days_with_data < 8) return "unknown";
   const readiness = delta(current.avg_readiness, previous.avg_readiness).delta ?? 0;
   const sleep = delta(current.avg_sleep_hours, previous.avg_sleep_hours).delta ?? 0;
@@ -89,6 +95,22 @@ function trajectory(current: FitnessWindowSummary, previous: FitnessWindowSummar
   return "stable";
 }
 
+export function trajectoryReason(current: FitnessWindowSummary, previous: FitnessWindowSummary): string {
+  if (current.days_with_data < 8) {
+    return "insufficient current-month coverage for a stable monthly trend signal";
+  }
+  if (previous.days_with_data < 8) {
+    return "no prior completed-month baseline with sufficient coverage";
+  }
+  return "trend signal computed from completed monthly DB snapshots";
+}
+
+export function stepCoverageReason(current: FitnessWindowSummary): string | null {
+  if (current.days_with_steps > 0) return null;
+  if (current.days_with_data === 0) return "no monthly fitness snapshots were captured";
+  return "Whoop/Tonal fitness snapshots exist, but no daily step field was persisted from the provider payload";
+}
+
 function main(): void {
   const explicitAnchor = process.argv[2] && /^\d{4}-\d{2}-\d{2}$/.test(process.argv[2]) ? process.argv[2] : null;
   const anchorYmd = explicitAnchor ?? localYmd();
@@ -96,6 +118,9 @@ function main(): void {
 
   const current = fetchFitnessWindowSummary(windows.current.start, windows.current.end);
   const previous = fetchFitnessWindowSummary(windows.previous.start, windows.previous.end);
+  const currentTrajectory = trajectory(current, previous);
+  const currentTrajectoryReason = trajectoryReason(current, previous);
+  const currentStepCoverageReason = stepCoverageReason(current);
 
   const out = {
     generated_at: new Date().toISOString(),
@@ -103,7 +128,8 @@ function main(): void {
     reporting_mode: explicitAnchor ? "anchor_month" : "most_recent_completed_month",
     source: "db:cortana_fitness_daily_facts",
     month_windows: windows,
-    trajectory: trajectory(current, previous),
+    trajectory: currentTrajectory,
+    trajectory_reason: currentTrajectoryReason,
     current,
     previous,
     deltas: {
@@ -120,9 +146,20 @@ function main(): void {
     data_quality: {
       days_with_data: current.days_with_data,
       has_minimum_coverage: current.days_with_data >= 14,
+      readiness_coverage_days: current.days_with_readiness,
+      sleep_coverage_days: current.days_with_sleep,
       hydration_coverage_days: current.days_with_hydration,
       step_coverage_days: current.days_with_steps,
       protein_coverage_days: current.days_with_protein,
+      tonal_sessions: current.total_tonal_sessions,
+      tonal_volume: current.total_tonal_volume,
+    },
+    diagnostics: {
+      has_whoop_signal: current.days_with_readiness > 0 || current.days_with_sleep > 0 || current.avg_whoop_strain != null,
+      has_tonal_signal: current.total_tonal_sessions > 0 || current.total_tonal_volume > 0,
+      step_coverage_missing: current.days_with_steps === 0,
+      step_coverage_reason: currentStepCoverageReason,
+      trajectory_reason: currentTrajectoryReason,
     },
     notes: [
       "Monthly overview uses DB snapshots only (no live Whoop/Tonal fetches).",
