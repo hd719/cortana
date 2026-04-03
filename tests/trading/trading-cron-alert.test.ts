@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { applyTradingCronReliabilityDefaults, buildCronAlertFromPipelineReport } from "../../tools/trading/trading-cron-alert";
+import { applyTradingCronReliabilityDefaults, buildCronAlertFromPipelineReport, buildCronAlertFromPipelineSnapshot } from "../../tools/trading/trading-cron-alert";
 
 describe("trading cron alert formatter", () => {
   it("applies chunked scan defaults for the live cron path without overwriting explicit env", () => {
@@ -150,6 +150,52 @@ Dip Buyer: scanned 120 | evaluated 7 | threshold-passed 7 | emitted BUY 0 / WATC
 
     expect(alert).toContain("👀 Dip Buyer Watchlist (showing 3 of 7):");
     expect(alert).toContain(" ALGN 7/12 · AEP 8/12 · ADSK 9/12 [partial: 4 unavailable]");
+  });
+
+  it("builds the same alert shape from a structured pipeline snapshot", () => {
+    const alert = buildCronAlertFromPipelineSnapshot({
+      decision: "WATCH",
+      confidence: 0.8,
+      risk: "MEDIUM",
+      correctionMode: true,
+      regimeGates: "correction=YES | correction | defensive",
+      summary: { buy: 0, watch: 4, noBuy: 0 },
+      strategies: {
+        canslim: {
+          scanned: 120,
+          evaluated: 1,
+          thresholdPassed: 1,
+          buy: 0,
+          watch: 1,
+          noBuy: 0,
+          signals: [{ ticker: "AAPL", score: 7, action: "WATCH", reason: "Watch setup", section: "CANSLIM" }],
+        },
+        dipBuyer: {
+          scanned: 120,
+          evaluated: 3,
+          thresholdPassed: 3,
+          buy: 0,
+          watch: 3,
+          noBuy: 0,
+          signals: [
+            { ticker: "GOOGL", score: 9, action: "WATCH", reason: "Watch setup", section: "Dip Buyer" },
+            { ticker: "NFLX", score: 9, action: "WATCH", reason: "Watch setup", section: "Dip Buyer" },
+            { ticker: "MSFT", score: 9, action: "WATCH", reason: "Watch setup", section: "Dip Buyer" },
+          ],
+        },
+      },
+      guardrailCount: 0,
+      relatedDetections: 4,
+      calibration: { status: "fresh", settledCandidates: 18 },
+      failClosedScans: [],
+    });
+
+    expect(alert).toContain("🎯 Decision: WATCH | Confidence: 0.80 | Risk: MEDIUM");
+    expect(alert).toContain("│ BUY 0 │ WATCH 4 │ NO_BUY 0 │");
+    expect(alert).toContain("👀 Dip Buyer Watchlist (3):");
+    expect(alert).toContain(" GOOGL 9/12 · NFLX 9/12 · MSFT 9/12");
+    expect(alert).toContain("👀 CANSLIM Watchlist (1):");
+    expect(alert).toContain(" AAPL 7/12");
   });
 
   it("prefers the final ticker state when the pipeline emits conflicting duplicates", () => {

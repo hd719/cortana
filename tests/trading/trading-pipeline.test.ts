@@ -2,7 +2,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { runTradingPipeline } from "../../tools/trading/trading-pipeline";
+import { runTradingPipeline, runTradingPipelineDetailed } from "../../tools/trading/trading-pipeline";
 
 const CANSLIM_NO_BUY = `📈 Trading Advisor - CANSLIM Scan
 Market: correction | Position Sizing: 0%
@@ -470,6 +470,112 @@ Summary: scanned 2 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY
     expect(report).toContain("CANSLIM: scanned 4 | evaluated 2 | threshold-passed 2 | emitted BUY 0 / WATCH 2 / NO_BUY 0");
     expect(report).toContain("• AAPL (7/12) → WATCH | Watch setup");
     expect(report).toContain("• MSFT (8/12) → WATCH | Watch setup");
+  });
+
+  it("returns a structured pipeline snapshot for typed payloads", async () => {
+    const { report, snapshot } = await runTradingPipelineDetailed({
+      runCommand: (_cmd, args) => {
+        if (args[0] === "canslim_alert.py") {
+          return JSON.stringify(
+            buildStrategyPayload("canslim", {
+              summary: { scanned: 120, evaluated: 1, threshold_passed: 1, buy_count: 0, watch_count: 1, no_buy_count: 0 },
+              signals: [{ symbol: "AAPL", score: 7, action: "WATCH", reason: "Watch setup", data_source: "schwab", data_staleness_seconds: 0 }],
+              render_lines: [
+                "CANSLIM Scan",
+                "Market: confirmed_uptrend | Position Sizing: 100%",
+                "Status: Trend healthy.",
+                "Summary: scanned 120 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY 0",
+                "• AAPL (7/12) → WATCH",
+              ],
+            }),
+          );
+        }
+        return JSON.stringify(
+          buildStrategyPayload("dip_buyer", {
+            summary: { scanned: 120, evaluated: 3, threshold_passed: 3, buy_count: 0, watch_count: 3, no_buy_count: 0 },
+            signals: [
+              { symbol: "GOOGL", score: 9, action: "WATCH", reason: "Watch setup", data_source: "schwab", data_staleness_seconds: 0 },
+              { symbol: "NFLX", score: 9, action: "WATCH", reason: "Watch setup", data_source: "schwab", data_staleness_seconds: 0 },
+              { symbol: "MSFT", score: 9, action: "WATCH", reason: "Watch setup", data_source: "schwab", data_staleness_seconds: 0 },
+            ],
+            render_lines: [
+              "Dip Buyer Scan",
+              "Market: uptrend_under_pressure | Position Sizing: 50%",
+              "Status: Selective risk only.",
+              "Macro Gate: OPEN | VIX 21 | PCR 0.96 | HY 421 bps (fred) | Fear 42",
+              "Dip Profile: under_pressure | buy>=7 | watch>=6 | max_pos=6%",
+              "Summary: scanned 120 | evaluated 3 | threshold-passed 3 | BUY 0 | WATCH 3 | NO_BUY 0",
+              "• GOOGL (9/12) → WATCH",
+            ],
+          }),
+        );
+      },
+      council: async () => ({ verdicts: [] }),
+    });
+
+    expect(snapshot.decision).toBe("WATCH");
+    expect(snapshot.confidence).toBe(0.8);
+    expect(snapshot.risk).toBe("LOW");
+    expect(snapshot.summary).toEqual({ buy: 0, watch: 4, noBuy: 0 });
+    expect(snapshot.strategies.canslim.watch).toBe(1);
+    expect(snapshot.strategies.dipBuyer.watch).toBe(3);
+    expect(snapshot.strategies.canslim.signals.map((signal) => signal.ticker)).toEqual(["AAPL"]);
+    expect(snapshot.strategies.dipBuyer.signals.map((signal) => signal.ticker)).toEqual(["GOOGL", "NFLX", "MSFT"]);
+    expect(report).toContain("Summary: BUY 0 | WATCH 4 | NO_BUY 0");
+  });
+
+  it("returns a merged structured pipeline snapshot for chunked typed payloads", async () => {
+    process.env.TRADING_SCAN_LIMIT_CANSLIM = "4";
+    process.env.TRADING_SCAN_CHUNK_SIZE_CANSLIM = "2";
+    process.env.TRADING_SCAN_CHUNK_PARALLELISM_CANSLIM = "1";
+
+    const canslimChunks = [
+      JSON.stringify(
+        buildStrategyPayload("canslim", {
+          summary: { scanned: 2, evaluated: 1, threshold_passed: 1, buy_count: 0, watch_count: 1, no_buy_count: 0 },
+          signals: [{ symbol: "AAPL", score: 7, action: "WATCH", reason: "Watch setup", data_source: "schwab", data_staleness_seconds: 0 }],
+          render_lines: [
+            "CANSLIM Scan",
+            "Market: confirmed_uptrend | Position Sizing: 100%",
+            "Status: Trend healthy.",
+            "Summary: scanned 2 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY 0",
+            "• AAPL (7/12) → WATCH",
+          ],
+        }),
+      ),
+      JSON.stringify(
+        buildStrategyPayload("canslim", {
+          summary: { scanned: 2, evaluated: 1, threshold_passed: 1, buy_count: 0, watch_count: 1, no_buy_count: 0 },
+          signals: [{ symbol: "MSFT", score: 8, action: "WATCH", reason: "Watch setup", data_source: "schwab", data_staleness_seconds: 0 }],
+          render_lines: [
+            "CANSLIM Scan",
+            "Market: confirmed_uptrend | Position Sizing: 100%",
+            "Status: Trend healthy.",
+            "Summary: scanned 2 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY 0",
+            "• MSFT (8/12) → WATCH",
+          ],
+        }),
+      ),
+    ];
+
+    const { report, snapshot } = await runTradingPipelineDetailed({
+      getUniverse: async (limit) => ["AAPL", "MSFT", "NVDA", "TSLA"].slice(0, limit),
+      runCommand: (_cmd, args) => {
+        if (args[0] === "canslim_alert.py") {
+          return canslimChunks.shift() ?? JSON.stringify(buildStrategyPayload("canslim"));
+        }
+        return DIP_NO_BUY;
+      },
+      council: async () => ({ verdicts: [] }),
+    });
+
+    expect(snapshot.summary).toEqual({ buy: 0, watch: 3, noBuy: 0 });
+    expect(snapshot.strategies.canslim.scanned).toBe(4);
+    expect(snapshot.strategies.canslim.evaluated).toBe(2);
+    expect(snapshot.strategies.canslim.thresholdPassed).toBe(2);
+    expect(snapshot.strategies.canslim.signals.map((signal) => signal.ticker)).toEqual(["AAPL", "MSFT"]);
+    expect(report).toContain("CANSLIM: scanned 4 | evaluated 2 | threshold-passed 2 | emitted BUY 0 / WATCH 2 / NO_BUY 0");
+    expect(report).toContain("Summary: BUY 0 | WATCH 3 | NO_BUY 0");
   });
 
   it("enforces CANSLIM correction hard gate and skips council when blocked", async () => {

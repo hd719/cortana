@@ -18,6 +18,7 @@ const DEFAULT_BUY_DECISION_CALIBRATION_PATH = resolve(
 );
 export type TradingStrategyName = "CANSLIM" | "Dip Buyer";
 type StructuredStrategyName = "canslim" | "dip_buyer";
+export type PipelineDecisionState = "BUY" | "WATCH" | "NO_TRADE";
 
 interface ScanResult {
   name: TradingStrategyName;
@@ -68,6 +69,53 @@ interface PipelineDeps {
   runCommand: (command: string, args: string[], options?: RunCommandOptions) => string | Promise<string>;
   council: (alertText: string) => Promise<{ verdicts: CouncilVerdict[] }>;
   getUniverse: (limit: number) => Promise<string[]>;
+}
+
+export interface PipelineSnapshotSignal {
+  ticker: string;
+  score?: number;
+  action: "BUY" | "WATCH" | "NO_BUY";
+  reason: string;
+  section: "CANSLIM" | "Dip Buyer";
+}
+
+export interface PipelineSnapshot {
+  decision: PipelineDecisionState;
+  confidence: number;
+  risk: "LOW" | "MEDIUM" | "HIGH";
+  correctionMode: boolean;
+  regimeGates: string;
+  summary: { buy: number; watch: number; noBuy: number };
+  strategies: {
+    canslim: {
+      scanned: number;
+      evaluated: number;
+      thresholdPassed: number;
+      buy: number;
+      watch: number;
+      noBuy: number;
+      signals: PipelineSnapshotSignal[];
+    };
+    dipBuyer: {
+      scanned: number;
+      evaluated: number;
+      thresholdPassed: number;
+      buy: number;
+      watch: number;
+      noBuy: number;
+      signals: PipelineSnapshotSignal[];
+    };
+  };
+  guardrailCount: number;
+  relatedDetections: number;
+  calibration: BuyDecisionCalibrationSummary | null;
+  failClosedScans: string[];
+  noTradeReason?: string;
+}
+
+export interface PipelineResult {
+  report: string;
+  snapshot: PipelineSnapshot;
 }
 
 export interface RunCommandOptions {
@@ -672,13 +720,13 @@ function applyFailClosedPolicy(scans: ScanResult[]): ScanResult[] {
   });
 }
 
-function decisionStateFromCounts(buy: number, watch: number): DecisionState {
+function decisionStateFromCounts(buy: number, watch: number): PipelineDecisionState {
   if (buy > 0) return "BUY";
   if (watch > 0) return "WATCH";
   return "NO_TRADE";
 }
 
-function confidenceAndRiskFor(state: DecisionState, correctionMode: boolean, failClosed: boolean): { confidence: number; risk: "LOW" | "MEDIUM" | "HIGH" } {
+function confidenceAndRiskFor(state: PipelineDecisionState, correctionMode: boolean, failClosed: boolean): { confidence: number; risk: "LOW" | "MEDIUM" | "HIGH" } {
   if (failClosed) return { confidence: 0.95, risk: "LOW" };
   if (state === "BUY") return { confidence: correctionMode ? 0.61 : 0.74, risk: correctionMode ? "HIGH" : "MEDIUM" };
   if (state === "WATCH") return { confidence: 0.8, risk: correctionMode ? "MEDIUM" : "LOW" };
@@ -854,14 +902,11 @@ function buildRegimeGateLine(scans: ScanResult[]): string {
   return parts.join(" | ");
 }
 
-function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): string {
+function buildPipelineSnapshot(scans: ScanResult[]): PipelineSnapshot {
   const allSignals = scans.flatMap((s) => s.signals);
   const buy = allSignals.filter((s) => s.action === "BUY").length;
   const watch = allSignals.filter((s) => s.action === "WATCH").length;
   const noBuy = allSignals.filter((s) => s.action === "NO_BUY").length;
-
-  const now = new Date().toLocaleString("en-US", { timeZone: "America/New_York", hour12: true });
-  const marketLines = scans.map((s) => s.marketLine).filter(Boolean) as string[];
   const correctionMode = scans.some((s) => s.marketRegime === "correction");
   const symbolsScanned = scans.reduce((sum, s) => sum + (s.scanned || s.scanLimit), 0);
   const candidatesEvaluated = scans.reduce((sum, s) => sum + s.candidatesEvaluated, 0);
@@ -877,11 +922,74 @@ function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): stri
         : (scans.map((scan) => topBlocker(scan)).find((x) => x && x !== "n/a") ?? "No qualifying setups met strategy gates."))
       : undefined;
 
+  const sectionSignals = (name: TradingStrategyName): PipelineSnapshotSignal[] =>
+    scans
+      .find((scan) => scan.name === name)
+      ?.signals.map((signal) => ({
+        ticker: signal.ticker,
+        score: signal.score,
+        action: signal.action,
+        reason: signal.reason,
+        section: name,
+      })) ?? [];
+
+  const countsFor = (name: TradingStrategyName) => {
+    const scan = scans.find((item) => item.name === name);
+    const signals = sectionSignals(name);
+    return {
+      scanned: scan?.scanned || scan?.scanLimit || 0,
+      evaluated: scan?.candidatesEvaluated || 0,
+      thresholdPassed: scan?.thresholdPassed || 0,
+      buy: signals.filter((signal) => signal.action === "BUY").length,
+      watch: signals.filter((signal) => signal.action === "WATCH").length,
+      noBuy: signals.filter((signal) => signal.action === "NO_BUY").length,
+      signals,
+    };
+  };
+
+  return {
+    decision: decisionState,
+    confidence: metrics.confidence,
+    risk: metrics.risk,
+    correctionMode,
+    regimeGates: buildRegimeGateLine(scans),
+    summary: { buy, watch, noBuy },
+    strategies: {
+      canslim: countsFor("CANSLIM"),
+      dipBuyer: countsFor("Dip Buyer"),
+    },
+    guardrailCount: blockedByGuards,
+    relatedDetections: candidatesEvaluated,
+    calibration,
+    failClosedScans: failClosedScans.map((scan) => scan.name),
+    noTradeReason,
+  };
+}
+
+function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): string {
+  const snapshot = buildPipelineSnapshot(scans);
+  const allSignals = scans.flatMap((s) => s.signals);
+  const buy = snapshot.summary.buy;
+  const watch = snapshot.summary.watch;
+  const noBuy = snapshot.summary.noBuy;
+
+  const now = new Date().toLocaleString("en-US", { timeZone: "America/New_York", hour12: true });
+  const marketLines = scans.map((s) => s.marketLine).filter(Boolean) as string[];
+  const correctionMode = snapshot.correctionMode;
+  const blockedByGuards = snapshot.guardrailCount;
+  const candidatesEvaluated = snapshot.relatedDetections;
+  const calibration = snapshot.calibration;
+  const failClosedScans = snapshot.failClosedScans;
+  const decisionState = snapshot.decision;
+  const metrics = { confidence: snapshot.confidence, risk: snapshot.risk };
+  const noTradeReason = snapshot.noTradeReason;
+  const symbolsScanned = scans.reduce((sum, s) => sum + (s.scanned || s.scanLimit), 0);
+
   const lines: string[] = [
     "📈 Trading Advisor - Unified Pipeline",
     `Run: ${now} ET`,
     ...marketLines,
-    buildRegimeGateLine(scans),
+    snapshot.regimeGates,
     `Diagnostics: symbols scanned ${symbolsScanned} | candidates evaluated ${candidatesEvaluated}`,
     calibration
       ? `Calibration: ${calibration.status} | settled ${calibration.settledCandidates}${calibration.reason && calibration.status === "stale" ? ` | ${calibration.reason}` : ""}`
@@ -890,7 +998,7 @@ function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): stri
     `Decision: ${decisionState}`,
     `Confidence: ${metrics.confidence.toFixed(2)} | Risk: ${metrics.risk}`,
     noTradeReason ? `No-trade reason: ${noTradeReason}` : undefined,
-    failClosedScans.length > 0 ? `Fail-closed scans: ${failClosedScans.map((s) => s.name).join(", ")}` : undefined,
+    failClosedScans.length > 0 ? `Fail-closed scans: ${failClosedScans.join(", ")}` : undefined,
     `Summary: BUY ${buy} | WATCH ${watch} | NO_BUY ${noBuy}`,
     "",
   ].filter(Boolean) as string[];
@@ -929,9 +1037,9 @@ function buildFinalReport(scans: ScanResult[], verdicts: CouncilVerdict[]): stri
   return lines.join("\n").trim();
 }
 
-export async function runTradingPipeline(
+export async function runTradingPipelineDetailed(
   deps?: Partial<PipelineDeps> & { includeCouncil?: boolean },
-): Promise<string> {
+): Promise<PipelineResult> {
   const runCommand = deps?.runCommand ?? defaultRunCommand;
   const includeCouncil = deps?.includeCouncil !== false;
   const council = deps?.council ?? (async (alertText: string) => runTradingCouncil(alertText));
@@ -989,7 +1097,16 @@ export async function runTradingPipeline(
     }
   }
 
-  return buildFinalReport(guardedOutputs, councilVerdicts);
+  return {
+    report: buildFinalReport(guardedOutputs, councilVerdicts),
+    snapshot: buildPipelineSnapshot(guardedOutputs),
+  };
+}
+
+export async function runTradingPipeline(
+  deps?: Partial<PipelineDeps> & { includeCouncil?: boolean },
+): Promise<string> {
+  return (await runTradingPipelineDetailed(deps)).report;
 }
 
 export async function runTradingStrategy(

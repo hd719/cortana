@@ -2,7 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import { resolve } from "node:path";
-import { runTradingPipeline, type RunCommandOptions } from "./trading-pipeline";
+import { runTradingPipelineDetailed, type PipelineSnapshot, type RunCommandOptions } from "./trading-pipeline";
 
 export const BACKTESTER_CWD = "/Users/hd/Developer/cortana-external/backtester";
 export const PYTHON_BIN = resolve(BACKTESTER_CWD, ".venv/bin/python");
@@ -278,11 +278,110 @@ export function buildCronAlertFromPipelineReport(report: string): string {
   return messageLines.filter(Boolean).join("\n").trim();
 }
 
+export function buildCronAlertFromPipelineSnapshot(snapshot: PipelineSnapshot): string {
+  const summaryCounts = snapshot.summary;
+  const canslimCounts = snapshot.strategies.canslim;
+  const dipCounts = snapshot.strategies.dipBuyer;
+
+  const watchDip = dipCounts.signals.filter((s) => s.action === "WATCH").map((signal) => ({
+    ticker: signal.ticker,
+    score: signal.score ?? 0,
+    action: signal.action,
+    section: "Dip Buyer" as const,
+  }));
+  const watchCanslim = canslimCounts.signals.filter((s) => s.action === "WATCH").map((signal) => ({
+    ticker: signal.ticker,
+    score: signal.score ?? 0,
+    action: signal.action,
+    section: "CANSLIM" as const,
+  }));
+
+  const buySignals = [...canslimCounts.signals, ...dipCounts.signals].filter((s) => s.action === "BUY");
+  const focusSignal =
+    buySignals[0] ?? [...dipCounts.signals, ...canslimCounts.signals].find((s) => s.action !== "NO_BUY");
+  const focusSources = focusSignal
+    ? [
+        canslimCounts.signals.some((s) => s.ticker === focusSignal.ticker) ? "CANSLIM" : "",
+        dipCounts.signals.some((s) => s.ticker === focusSignal.ticker) ? "Dip Buyer" : "",
+      ].filter(Boolean)
+    : [];
+
+  const calibration = snapshot.calibration
+    ? `${snapshot.calibration.status} | settled ${snapshot.calibration.settledCandidates}${snapshot.calibration.reason && snapshot.calibration.status === "stale" ? ` | ${snapshot.calibration.reason}` : ""}`
+    : "";
+
+  const formatWatchEntry = (signal: { ticker: string; score: number }): string => `${signal.ticker} ${signal.score}/12`;
+  const renderWatchlist = (
+    section: "Dip Buyer" | "CANSLIM",
+    items: Array<{ ticker: string; score: number }>,
+    declaredWatchCount: number,
+  ): { title: string; body: string } => {
+    const availableCount = items.length;
+    const totalCount = declaredWatchCount > 0 ? declaredWatchCount : availableCount;
+    const hasFullList = declaredWatchCount <= 0 || availableCount >= declaredWatchCount;
+    const collapsedFullList = hasFullList && totalCount > COMPACT_WATCHLIST_FULL_LIMIT;
+    const title = !hasFullList
+      ? `👀 ${section} Watchlist (showing ${availableCount} of ${totalCount}):`
+      : collapsedFullList
+        ? `👀 ${section} Watchlist (top ${Math.min(totalCount, COMPACT_WATCHLIST_TRUNCATED_LIMIT)} of ${totalCount}):`
+        : `👀 ${section} Watchlist (${totalCount}):`;
+
+    if (!availableCount) return { title, body: " —" };
+
+    if (hasFullList && totalCount <= COMPACT_WATCHLIST_FULL_LIMIT) {
+      return { title, body: ` ${items.map(formatWatchEntry).join(" · ")}` };
+    }
+
+    if (hasFullList) {
+      const shown = items.slice(0, COMPACT_WATCHLIST_TRUNCATED_LIMIT).map(formatWatchEntry).join(" · ");
+      const remaining = totalCount - Math.min(totalCount, COMPACT_WATCHLIST_TRUNCATED_LIMIT);
+      return { title, body: remaining > 0 ? ` ${shown} [+${remaining} more]` : ` ${shown}` };
+    }
+
+    const listed = items.map(formatWatchEntry).join(" · ");
+    const missing = Math.max(totalCount - availableCount, 0);
+    return { title, body: missing > 0 ? ` ${listed} [partial: ${missing} unavailable]` : ` ${listed}` };
+  };
+  const dipWatchlist = renderWatchlist("Dip Buyer", watchDip, dipCounts.watch);
+  const canslimWatchlist = renderWatchlist("CANSLIM", watchCanslim, canslimCounts.watch);
+
+  const messageLines = [
+    "📈 Trading Advisor — Market Snapshot",
+    "⚡ P1 High | Action Now",
+    "",
+    `🎯 Decision: ${snapshot.decision} | Confidence: ${snapshot.confidence.toFixed(2)} | Risk: ${snapshot.risk}`,
+    snapshot.correctionMode ? `🔴 Regime: CORRECTION — no new positions` : `🟢 Regime: ${snapshot.regimeGates}`,
+    "",
+    "┌ Summary ─────────────────────┐",
+    `│ BUY ${summaryCounts.buy} │ WATCH ${summaryCounts.watch} │ NO_BUY ${summaryCounts.noBuy} │`,
+    "├──────────────────────────────┤",
+    `│ CANSLIM: BUY ${canslimCounts.buy} · WATCH ${canslimCounts.watch} │`,
+    `│ Dip Buyer: BUY ${dipCounts.buy} · WATCH ${dipCounts.watch} │`,
+    "└──────────────────────────────┘",
+    "",
+    focusSignal
+      ? `🔥 Focus: ${focusSignal.ticker} — ${focusSignal.action}${focusSources.length ? ` (${focusSources.join(" + ")})` : ""}`
+      : "🔥 Focus: unavailable",
+    calibration ? `🧪 Calibration: ${calibration.replace(/^fresh\b/i, "FRESH").replace(/^stale\b/i, "STALE")}` : undefined,
+    "",
+    dipWatchlist.title,
+    dipWatchlist.body,
+    "",
+    canslimWatchlist.title,
+    canslimWatchlist.body,
+    "",
+    `🛡️ Guardrail blocks/downgrades: ${snapshot.guardrailCount}`,
+    `🔎 Related detections: ${snapshot.relatedDetections}`,
+  ];
+
+  return messageLines.filter(Boolean).join("\n").trim();
+}
+
 async function main(): Promise<void> {
   try {
     applyTradingCronReliabilityDefaults();
-    const report = await runTradingPipeline({ runCommand: boundedRunCommand });
-    console.log(buildCronAlertFromPipelineReport(report));
+    const { snapshot } = await runTradingPipelineDetailed({ runCommand: boundedRunCommand });
+    console.log(buildCronAlertFromPipelineSnapshot(snapshot));
   } catch (error) {
     console.log(`📈 Trading Advisor - Error: ${error instanceof Error ? error.message : String(error)}`);
     process.exit(1);
