@@ -24,6 +24,7 @@ interface ScanResult {
   name: TradingStrategyName;
   output: string;
   signals: TradingSignal[];
+  outcomeClass?: string;
   marketRegime?: string;
   marketLine?: string;
   statusLine?: string;
@@ -329,7 +330,6 @@ function parseStrategyAlertPayload(raw: string): StrategyAlertPayload | null {
     const parsed = JSON.parse(raw) as Partial<StrategyAlertPayload>;
     if (!parsed || typeof parsed !== "object") return null;
     if (parsed.artifact_family !== "strategy_alert") return null;
-    if (!Array.isArray(parsed.render_lines)) return null;
     if (!Array.isArray(parsed.signals)) return null;
     if (!parsed.summary || typeof parsed.summary !== "object") return null;
     if (!parsed.strategy || (parsed.strategy !== "canslim" && parsed.strategy !== "dip_buyer")) return null;
@@ -339,8 +339,62 @@ function parseStrategyAlertPayload(raw: string): StrategyAlertPayload | null {
   }
 }
 
+function payloadStrategyName(payload: StrategyAlertPayload): TradingStrategyName {
+  return payload.strategy === "canslim" ? "CANSLIM" : "Dip Buyer";
+}
+
+function payloadMarketLine(payload: StrategyAlertPayload): string {
+  const market = payload.market as Record<string, unknown> | undefined;
+  const regime = typeof market?.regime === "string" && market.regime.trim() ? market.regime.trim() : "n/a";
+  return `Market: ${regime}`;
+}
+
+function payloadStatusLine(payload: StrategyAlertPayload): string {
+  return `Status: ${payload.status} | outcome_class=${payload.outcome_class} | degraded=${payload.degraded_status}`;
+}
+
+function payloadTopBlockerLine(payload: StrategyAlertPayload, signals: TradingSignal[]): string {
+  if (signals.length > 0) return "";
+  switch (payload.outcome_class) {
+    case "analysis_failed":
+      return "Why no buys: analysis failed";
+    case "market_gate_blocked":
+      return "Why no buys: market gate blocked";
+    case "healthy_no_candidates":
+      return "Why no buys: no names cleared the strategy threshold";
+    case "healthy_candidates_found":
+      return "Why no buys: no qualifying setups survived the typed payload merge";
+    default:
+      return "Why no buys: no qualifying setups met strategy gates";
+  }
+}
+
 function renderStrategyPayload(payload: StrategyAlertPayload): string {
-  return payload.render_lines.join("\n").trim();
+  const name = payloadStrategyName(payload);
+  const signals = payloadSignalsToTradingSignals(payload, name);
+  const summary = payloadSummaryCounts(payload);
+  const buyCount = signals.filter((signal) => signal.action === "BUY").length;
+  const watchCount = signals.filter((signal) => signal.action === "WATCH").length;
+  const noBuyCount = signals.filter((signal) => signal.action === "NO_BUY").length;
+  const topNames = Array.from(new Set(signals.map((signal) => signal.ticker))).slice(0, 3);
+
+  const lines = [
+    `${name} Scan`,
+    payloadMarketLine(payload),
+    payloadStatusLine(payload),
+    `Summary: scanned ${summary.scanned} | evaluated ${summary.candidatesEvaluated} | threshold-passed ${summary.thresholdPassed} | BUY ${buyCount} | WATCH ${watchCount} | NO_BUY ${noBuyCount}`,
+    `Top names considered: ${(topNames.length ? topNames : ["none"]).join(", ")}`,
+  ];
+
+  if (signals.length > 0) {
+    for (const signal of signals) {
+      lines.push(formatSignalLine(signal));
+    }
+  } else {
+    lines.push(payloadTopBlockerLine(payload, signals));
+  }
+
+  return lines.join("\n").trim();
 }
 
 function payloadSignalsToTradingSignals(payload: StrategyAlertPayload, name: TradingStrategyName): TradingSignal[] {
@@ -467,7 +521,7 @@ function buildMergedStrategyPayload(
     },
     signals: allSignals.map((signal) => ({
       symbol: signal.ticker,
-      score: signal.score ?? 0,
+      ...(signal.score != null ? { score: signal.score } : {}),
       action: signal.action,
       reason: signal.reason,
       data_source: "mixed",
@@ -713,7 +767,10 @@ function applyFailClosedPolicy(scans: ScanResult[]): ScanResult[] {
     if (!scan.statusLine) {
       return failCloseScan(scan, "missing status line in scanner output");
     }
-    if (scan.candidatesEvaluated > 0 && scan.thresholdPassed <= 0) {
+    const typedEmptyOutcome =
+      scan.outcomeClass === "healthy_no_candidates" ||
+      scan.outcomeClass === "market_gate_blocked";
+    if (scan.candidatesEvaluated > 0 && scan.thresholdPassed <= 0 && !typedEmptyOutcome) {
       return failCloseScan(scan, "summary counts inconsistent (evaluated>0 but threshold-passed=0)");
     }
     return scan;
@@ -1067,6 +1124,7 @@ export async function runTradingPipelineDetailed(
     {
       name: "CANSLIM",
       output: canslimOutput,
+      outcomeClass: canslimRun.payload?.outcome_class,
       signals: canslimRun.payload ? payloadSignalsToTradingSignals(canslimRun.payload, "CANSLIM") : canonicalizeStrategySignals(parseSignals(canslimOutput)),
       scanLimit: canslimLimit,
       ...canslimSummary,
@@ -1076,6 +1134,7 @@ export async function runTradingPipelineDetailed(
     {
       name: "Dip Buyer",
       output: dipOutput,
+      outcomeClass: dipRun.payload?.outcome_class,
       signals: dipRun.payload ? payloadSignalsToTradingSignals(dipRun.payload, "Dip Buyer") : canonicalizeStrategySignals(parseSignals(dipOutput)),
       scanLimit: dipLimit,
       ...dipSummary,

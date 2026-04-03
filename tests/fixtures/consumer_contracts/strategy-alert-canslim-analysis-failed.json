@@ -1,0 +1,21 @@
+{
+  "artifact_family": "strategy_alert",
+  "schema_version": 1,
+  "producer": "backtester.canslim_alert",
+  "status": "error",
+  "generated_at": "2026-04-03T13:34:00Z",
+  "known_at": "2026-04-03T13:34:00Z",
+  "degraded_status": "degraded_risky",
+  "outcome_class": "analysis_failed",
+  "strategy": "canslim",
+  "signals": [],
+  "summary": {
+    "scanned": 20,
+    "evaluated": 0,
+    "threshold_passed": 0,
+    "buy_count": 0
+  },
+  "render_lines": [
+    "CANSLIM Scan"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "artifact_family": "strategy_alert",
+  "schema_version": 1,
+  "producer": "backtester.canslim_alert",
+  "status": "ok",
+  "generated_at": "2026-04-03T13:33:00Z",
+  "known_at": "2026-04-03T13:33:00Z",
+  "degraded_status": "healthy",
+  "outcome_class": "healthy_candidates_found",
+  "strategy": "canslim",
+  "signals": [
+    {
+      "symbol": "MSFT",
+      "action": "BUY"
+    }
+  ],
+  "summary": {
+    "scanned": 20,
+    "evaluated": 14,
+    "threshold_passed": 1,
+    "buy_count": 1
+  },
+  "render_lines": [
+    "CANSLIM Scan"
+  ]
+}

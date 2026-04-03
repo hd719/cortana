@@ -1,0 +1,21 @@
+{
+  "artifact_family": "strategy_alert",
+  "schema_version": 1,
+  "producer": "backtester.dipbuyer_alert",
+  "status": "ok",
+  "generated_at": "2026-04-03T13:35:00Z",
+  "known_at": "2026-04-03T13:35:00Z",
+  "degraded_status": "healthy",
+  "outcome_class": "market_gate_blocked",
+  "strategy": "dip_buyer",
+  "signals": [],
+  "summary": {
+    "scanned": 25,
+    "evaluated": 12,
+    "buy_count": 0,
+    "watch_count": 0
+  },
+  "render_lines": [
+    "Dip Buyer Scan"
+  ]
+}

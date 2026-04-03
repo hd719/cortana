@@ -1,3 +1,4 @@
+import fs from "node:fs";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -49,6 +50,12 @@ Decision review: BUY 0 | WATCH 5 | NO_BUY 0
 Tuning balance: clean BUY 0 | risky BUY proxy 0 | abstain 0 | veto 0 | higher-tq restraint proxy n/a
 Leaders: GOOGL WATCH (9/12) 🐦 Neutral | NFLX WATCH (9/12) 🐦 Neutral | MSFT WATCH (9/12) 🐦 Neutral
 Final action: DO NOT BUY — market regime veto (Regime score -7: 6 distribution days and -4.5% drawdown. Stay defensive)`;
+
+const FIXTURE_DIR = "tests/fixtures/consumer_contracts";
+
+function loadConsumerContractFixture(name: string): Record<string, unknown> {
+  return JSON.parse(fs.readFileSync(`${FIXTURE_DIR}/${name}`, "utf8")) as Record<string, unknown>;
+}
 
 function buildStrategyPayload(
   strategy: "canslim" | "dip_buyer",
@@ -157,16 +164,15 @@ describe("trading pipeline orchestration", () => {
     const report = await runTradingPipeline({
       runCommand: (_cmd, args) =>
         args[0] === "canslim_alert.py"
-          ? JSON.stringify(buildStrategyPayload("canslim"))
-          : JSON.stringify(buildStrategyPayload("dip_buyer")),
+          ? JSON.stringify(loadConsumerContractFixture("strategy-alert-canslim-healthy-candidates-found.json"))
+          : JSON.stringify(loadConsumerContractFixture("strategy-alert-dipbuyer-healthy-no-candidates.json")),
       council,
     });
 
-    expect(council).toHaveBeenCalledTimes(2);
-    expect(report).toContain("CANSLIM: scanned 2 | evaluated 1 | threshold-passed 1 | emitted BUY 1 / WATCH 0 / NO_BUY 0");
-    expect(report).toContain("Dip Buyer: scanned 2 | evaluated 1 | threshold-passed 1 | emitted BUY 1 / WATCH 0 / NO_BUY 0");
-    expect(report).toContain("• NVDA (9/12) → BUY | Momentum setup");
-    expect(report).toContain("• TSLA (8/12) → BUY | Reversal setup");
+    expect(council).toHaveBeenCalledTimes(1);
+    expect(report).toContain("CANSLIM: scanned 20 | evaluated 14 | threshold-passed 1 | emitted BUY 1 / WATCH 0 / NO_BUY 0");
+    expect(report).toContain("Dip Buyer: scanned 25 | evaluated 12 | threshold-passed 0 | emitted BUY 0 / WATCH 0 / NO_BUY 0");
+    expect(report).toContain("• MSFT (n/a) → BUY");
   });
 
   it("calls council when BUY signals are present", async () => {
@@ -185,7 +191,10 @@ describe("trading pipeline orchestration", () => {
     }));
 
     const report = await runTradingPipeline({
-      runCommand: (_cmd, args) => (args[0] === "canslim_alert.py" ? CANSLIM_BUY : DIP_NO_BUY),
+      runCommand: (_cmd, args) =>
+        args[0] === "canslim_alert.py"
+          ? JSON.stringify(loadConsumerContractFixture("strategy-alert-canslim-healthy-candidates-found.json"))
+          : JSON.stringify(loadConsumerContractFixture("strategy-alert-dipbuyer-market-gate-blocked.json")),
       council,
     });
 
@@ -428,32 +437,8 @@ Summary: scanned 2 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY
     process.env.TRADING_SCAN_CHUNK_PARALLELISM_CANSLIM = "1";
 
     const canslimChunks = [
-      JSON.stringify(
-        buildStrategyPayload("canslim", {
-          summary: { scanned: 2, evaluated: 1, threshold_passed: 1, buy_count: 0, watch_count: 1, no_buy_count: 0 },
-          signals: [{ symbol: "AAPL", score: 7, action: "WATCH", reason: "Watch setup", data_source: "schwab", data_staleness_seconds: 0 }],
-          render_lines: [
-            "CANSLIM Scan",
-            "Market: confirmed_uptrend | Position Sizing: 100%",
-            "Status: Trend healthy.",
-            "Summary: scanned 2 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY 0",
-            "• AAPL (7/12) → WATCH",
-          ],
-        }),
-      ),
-      JSON.stringify(
-        buildStrategyPayload("canslim", {
-          summary: { scanned: 2, evaluated: 1, threshold_passed: 1, buy_count: 0, watch_count: 1, no_buy_count: 0 },
-          signals: [{ symbol: "MSFT", score: 8, action: "WATCH", reason: "Watch setup", data_source: "schwab", data_staleness_seconds: 0 }],
-          render_lines: [
-            "CANSLIM Scan",
-            "Market: confirmed_uptrend | Position Sizing: 100%",
-            "Status: Trend healthy.",
-            "Summary: scanned 2 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY 0",
-            "• MSFT (8/12) → WATCH",
-          ],
-        }),
-      ),
+      JSON.stringify(loadConsumerContractFixture("strategy-alert-canslim-healthy-candidates-found.json")),
+      JSON.stringify(loadConsumerContractFixture("strategy-alert-canslim-analysis-failed.json")),
     ];
 
     const report = await runTradingPipeline({
@@ -462,14 +447,16 @@ Summary: scanned 2 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY
         if (args[0] === "canslim_alert.py") {
           return canslimChunks.shift() ?? JSON.stringify(buildStrategyPayload("canslim"));
         }
-        return DIP_NO_BUY;
+        return JSON.stringify(loadConsumerContractFixture("strategy-alert-dipbuyer-healthy-no-candidates.json"));
       },
       council: async () => ({ verdicts: [] }),
     });
 
-    expect(report).toContain("CANSLIM: scanned 4 | evaluated 2 | threshold-passed 2 | emitted BUY 0 / WATCH 2 / NO_BUY 0");
-    expect(report).toContain("• AAPL (7/12) → WATCH | Watch setup");
-    expect(report).toContain("• MSFT (8/12) → WATCH | Watch setup");
+    expect(report).toContain("CANSLIM: scanned 40 | evaluated 14 | threshold-passed 1 | emitted BUY 1 / WATCH 0 / NO_BUY 0");
+    expect(report).toContain("outcome_class=analysis_failed");
+    expect(report).toContain("Dip Buyer: scanned 25 | evaluated 12 | threshold-passed 0 | emitted BUY 0 / WATCH 0 / NO_BUY 0");
+    expect(report).toContain("Top blocker: All candidates were NO_BUY.");
+    expect(report).toContain("• MSFT (n/a) → BUY");
   });
 
   it("returns a structured pipeline snapshot for typed payloads", async () => {
