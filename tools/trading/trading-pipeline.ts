@@ -17,6 +17,7 @@ const DEFAULT_BUY_DECISION_CALIBRATION_PATH = resolve(
   ".cache/experimental_alpha/calibration/buy-decision-calibration-latest.json",
 );
 export type TradingStrategyName = "CANSLIM" | "Dip Buyer";
+type StructuredStrategyName = "canslim" | "dip_buyer";
 
 interface ScanResult {
   name: TradingStrategyName;
@@ -38,6 +39,27 @@ interface ScanResult {
   guardNotes?: string[];
   failClosed?: boolean;
   failClosedReason?: string;
+}
+
+interface StrategyAlertPayload {
+  artifact_family: "strategy_alert";
+  schema_version: number;
+  producer: string;
+  status: "ok" | "degraded" | "error";
+  degraded_status: "healthy" | "degraded_safe" | "degraded_risky";
+  outcome_class: string;
+  strategy: StructuredStrategyName;
+  summary: Record<string, unknown>;
+  signals: Array<Record<string, unknown>>;
+  market?: Record<string, unknown>;
+  inputs?: Record<string, unknown>;
+  overlays?: Record<string, unknown>;
+  render_lines?: string[];
+}
+
+interface StrategyRunResult {
+  output: string;
+  payload: StrategyAlertPayload | null;
 }
 
 type DecisionState = "BUY" | "WATCH" | "NO_TRADE";
@@ -254,12 +276,192 @@ function buildMergedStrategyOutput(name: TradingStrategyName, outputs: string[],
   return lines.join("\n").trim();
 }
 
+function parseStrategyAlertPayload(raw: string): StrategyAlertPayload | null {
+  try {
+    const parsed = JSON.parse(raw) as Partial<StrategyAlertPayload>;
+    if (!parsed || typeof parsed !== "object") return null;
+    if (parsed.artifact_family !== "strategy_alert") return null;
+    if (!Array.isArray(parsed.render_lines)) return null;
+    if (!Array.isArray(parsed.signals)) return null;
+    if (!parsed.summary || typeof parsed.summary !== "object") return null;
+    if (!parsed.strategy || (parsed.strategy !== "canslim" && parsed.strategy !== "dip_buyer")) return null;
+    return parsed as StrategyAlertPayload;
+  } catch {
+    return null;
+  }
+}
+
+function renderStrategyPayload(payload: StrategyAlertPayload): string {
+  return payload.render_lines.join("\n").trim();
+}
+
+function payloadSignalsToTradingSignals(payload: StrategyAlertPayload, name: TradingStrategyName): TradingSignal[] {
+  const source = name === "CANSLIM" ? "CANSLIM" : "DipBuyer";
+  const out: TradingSignal[] = [];
+  for (const item of payload.signals) {
+    const ticker = typeof item.symbol === "string" ? item.symbol : "";
+    const action = item.action === "BUY" || item.action === "WATCH" || item.action === "NO_BUY" ? item.action : "NO_BUY";
+    if (!ticker) continue;
+    const score = Number(item.score);
+    out.push({
+      ticker,
+      action,
+      score: Number.isFinite(score) ? score : undefined,
+      reason: typeof item.reason === "string" ? item.reason : "",
+      source,
+    });
+  }
+  return canonicalizeStrategySignals(out);
+}
+
+function payloadSummaryCounts(payload: StrategyAlertPayload): { candidatesEvaluated: number; scanned: number; thresholdPassed: number } {
+  const summary = payload.summary ?? {};
+  const readNumber = (...keys: string[]): number => {
+    for (const key of keys) {
+      const value = Number(summary[key]);
+      if (Number.isFinite(value)) return value;
+    }
+    return 0;
+  };
+  return {
+    scanned: readNumber("scanned", "symbols_scanned"),
+    candidatesEvaluated: readNumber("evaluated", "candidates_evaluated"),
+    thresholdPassed: readNumber("threshold_passed", "passed", "qualified"),
+  };
+}
+
+function buildMergedStrategyPayload(
+  name: TradingStrategyName,
+  payloads: StrategyAlertPayload[],
+  universe: string[],
+  scanLimit: number,
+): StrategyAlertPayload {
+  const renderedOutputs = payloads.map(renderStrategyPayload);
+  const allSignals = canonicalizeStrategySignals(payloads.flatMap((payload) => payloadSignalsToTradingSignals(payload, name)));
+  const summaries = payloads.map(payloadSummaryCounts);
+  const marketLine = renderedOutputs.map((output) => parseMarketLine(output).marketLine).find(Boolean);
+  const statusLine = renderedOutputs.map((output) => parseMarketLine(output).statusLine).find(Boolean);
+  const common = renderedOutputs.map(parseCommonDiagnostics);
+  const blockerCandidates = common.map((x) => x.blockerLine).filter(Boolean);
+  const blockerSamples = common.map((x) => x.blockerSamplesLine).filter(Boolean);
+  const primaryStatus = renderedOutputs
+    .map((output) => output.split(/\r?\n/).find((line) => line.startsWith("Status:")))
+    .find(Boolean);
+  const primaryMarket = renderedOutputs
+    .map((output) => output.split(/\r?\n/).find((line) => line.startsWith("Market:")))
+    .find(Boolean);
+  const dipDiagnostics = name === "Dip Buyer" ? renderedOutputs.map(parseDipDiagnostics) : [];
+
+  const candidatesEvaluated = summaries.reduce((sum, item) => sum + item.candidatesEvaluated, 0);
+  const scanned = summaries.reduce((sum, item) => sum + item.scanned, 0);
+  const thresholdPassed = summaries.reduce((sum, item) => sum + item.thresholdPassed, 0);
+  const buyCount = allSignals.filter((signal) => signal.action === "BUY").length;
+  const watchCount = allSignals.filter((signal) => signal.action === "WATCH").length;
+  const noBuyCount = allSignals.filter((signal) => signal.action === "NO_BUY").length;
+  const topNames = Array.from(new Set(allSignals.map((signal) => signal.ticker))).slice(0, 3);
+  const scannedCount = scanned > 0 ? scanned : universe.length || scanLimit;
+
+  const lines = [`${name} Scan`, primaryMarket ?? marketLine ?? "Market: correction — no new positions"];
+  lines.push(primaryStatus ?? statusLine ?? "Status: unavailable");
+  if (name === "Dip Buyer") {
+    const macroGateLine = dipDiagnostics.map((x) => x.macroGateLine).find(Boolean);
+    const hyNoteLine = dipDiagnostics.map((x) => x.hyNoteLine).find(Boolean);
+    const dipProfileLine = dipDiagnostics.map((x) => x.dipProfileLine).find(Boolean);
+    if (macroGateLine) lines.push(macroGateLine);
+    if (hyNoteLine) lines.push(hyNoteLine);
+    if (dipProfileLine) lines.push(dipProfileLine);
+  }
+
+  lines.push(
+    `Summary: scanned ${scannedCount} | evaluated ${candidatesEvaluated} | threshold-passed ${thresholdPassed} | BUY ${buyCount} | WATCH ${watchCount} | NO_BUY ${noBuyCount}`,
+  );
+  lines.push(`Top names considered: ${(topNames.length ? topNames : universe.slice(0, 3)).join(", ") || "none"}`);
+
+  if (buyCount === 0 && watchCount === 0) {
+    const fallback = name === "CANSLIM" ? "no names cleared the CANSLIM threshold" : "no names cleared the Dip Buyer threshold";
+    const reason = blockerCandidates[0]?.replace(/^Blockers:\s*/i, "") ?? fallback;
+    lines.push(`Why no buys: ${reason}`);
+  } else {
+    if (blockerCandidates[0]) lines.push(blockerCandidates[0]!);
+    if (blockerSamples[0]) lines.push(blockerSamples[0]!);
+    for (const signal of allSignals) lines.push(formatSignalLine(signal));
+  }
+
+  if (noBuyCount > 0 && !blockerCandidates[0]) {
+    lines.push(`Blockers: NO_BUY ${noBuyCount}`);
+  }
+
+  return {
+    artifact_family: "strategy_alert",
+    schema_version: 1,
+    producer: name === "CANSLIM" ? "cortana.trading_pipeline" : "cortana.trading_pipeline",
+    status: payloads.some((payload) => payload.status === "error")
+      ? "error"
+      : payloads.some((payload) => payload.status === "degraded")
+        ? "degraded"
+        : "ok",
+    degraded_status: payloads.some((payload) => payload.degraded_status === "degraded_risky")
+      ? "degraded_risky"
+      : payloads.some((payload) => payload.degraded_status === "degraded_safe")
+        ? "degraded_safe"
+        : "healthy",
+    outcome_class:
+      payloads.find((payload) => payload.outcome_class === "analysis_failed")?.outcome_class ??
+      (buyCount > 0 ? "healthy_candidates_found" : watchCount > 0 ? "healthy_candidates_found" : "healthy_no_candidates"),
+    strategy: name === "CANSLIM" ? "canslim" : "dip_buyer",
+    summary: {
+      scanned: scannedCount,
+      evaluated: candidatesEvaluated,
+      threshold_passed: thresholdPassed,
+      buy_count: buyCount,
+      watch_count: watchCount,
+      no_buy_count: noBuyCount,
+    },
+    signals: allSignals.map((signal) => ({
+      symbol: signal.ticker,
+      score: signal.score ?? 0,
+      action: signal.action,
+      reason: signal.reason,
+      data_source: "mixed",
+      data_staleness_seconds: 0,
+    })),
+    market: {},
+    render_lines: lines,
+    generated_at: new Date().toISOString(),
+    known_at: new Date().toISOString(),
+  };
+}
+
+async function runStrategyCommandPreferJson(
+  scriptName: "canslim_alert.py" | "dipbuyer_alert.py",
+  name: TradingStrategyName,
+  limit: number,
+  universeSize: number,
+  runCommand: (command: string, args: string[], options?: RunCommandOptions) => string | Promise<string>,
+  options: RunCommandOptions = {},
+): Promise<{ output: string; payload: StrategyAlertPayload | null }> {
+  const raw = await Promise.resolve(
+    runCommand("python3", [scriptName, "--limit", String(limit), "--min-score", "6", "--universe-size", String(universeSize), "--json"], options),
+  );
+  const payload = parseStrategyAlertPayload(raw);
+  if (payload) {
+    return {
+      output: renderStrategyPayload(payload),
+      payload,
+    };
+  }
+  return {
+    output: raw,
+    payload: null,
+  };
+}
+
 async function runChunkedStrategy(
   name: TradingStrategyName,
   scriptName: "canslim_alert.py" | "dipbuyer_alert.py",
   limit: number,
   deps: Pick<PipelineDeps, "runCommand" | "getUniverse">,
-): Promise<string> {
+): Promise<StrategyRunResult> {
   const runCommand = deps.runCommand;
   const scanLimit = getScanLimit(name);
   const chunkSize = Math.min(getChunkSize(name) || scanLimit, scanLimit);
@@ -270,13 +472,7 @@ async function runChunkedStrategy(
   );
 
   if (chunkSize <= 0 || scanLimit <= chunkSize) {
-    return Promise.resolve(
-      runCommand(
-        "python3",
-        [scriptName, "--limit", String(limit), "--min-score", "6", "--universe-size", String(scanLimit)],
-        { timeoutMs },
-      ),
-    );
+    return runStrategyCommandPreferJson(scriptName, name, limit, scanLimit, runCommand, { timeoutMs });
   }
 
   const universe = await deps.getUniverse(scanLimit);
@@ -286,6 +482,7 @@ async function runChunkedStrategy(
 
   try {
     const outputs: string[] = [];
+    const payloads: StrategyAlertPayload[] = [];
     for (let i = 0; i < chunks.length; i += parallelism) {
       const batch = chunks.slice(i, i + parallelism);
       console.error(`[${name}] batch ${Math.floor(i / parallelism) + 1}/${Math.ceil(chunks.length / parallelism)} starting (${batch.length} chunk(s))`);
@@ -294,26 +491,32 @@ async function runChunkedStrategy(
         console.error(`[${name}] chunk ${chunkNumber}/${chunks.length} starting (${symbols.length} symbols): ${symbols.join(", ")}`);
         const file = join(tempDir, `chunk-${i + batchIndex}.txt`);
         await writeFile(file, `${symbols.join("\n")}\n`, "utf8");
-        const output = await Promise.resolve(
-          runCommand(
-            "python3",
-            [scriptName, "--limit", String(limit), "--min-score", "6", "--universe-size", String(symbols.length)],
-            {
-              timeoutMs,
-              env: {
-                TRADING_PRIORITY_FILE: file,
-                TRADING_INCLUDE_WATCHLIST_PRIORITY: "0",
-              },
+        const result = await runStrategyCommandPreferJson(
+          scriptName,
+          name,
+          limit,
+          symbols.length,
+          runCommand,
+          {
+            timeoutMs,
+            env: {
+              TRADING_PRIORITY_FILE: file,
+              TRADING_INCLUDE_WATCHLIST_PRIORITY: "0",
             },
-          ),
+          },
         );
         console.error(`[${name}] chunk ${chunkNumber}/${chunks.length} done`);
-        return output;
+        return result;
       }));
-      outputs.push(...results);
+      outputs.push(...results.map((result) => result.output));
+      payloads.push(...results.flatMap((result) => (result.payload ? [result.payload] : [])));
       console.error(`[${name}] batch ${Math.floor(i / parallelism) + 1}/${Math.ceil(chunks.length / parallelism)} done`);
     }
-    return buildMergedStrategyOutput(name, outputs, universe, scanLimit);
+    if (payloads.length === outputs.length && payloads.length > 0) {
+      const mergedPayload = buildMergedStrategyPayload(name, payloads, universe, scanLimit);
+      return { output: renderStrategyPayload(mergedPayload), payload: mergedPayload };
+    }
+    return { output: buildMergedStrategyOutput(name, outputs, universe, scanLimit), payload: null };
   } finally {
     await rm(tempDir, { recursive: true, force: true });
   }
@@ -741,20 +944,22 @@ export async function runTradingPipeline(
   const canslimLimit = getScanLimit("CANSLIM");
   const dipLimit = getScanLimit("Dip Buyer");
 
-  const [canslimOutput, dipOutput] = await Promise.all([
+  const [canslimRun, dipRun] = await Promise.all([
     runChunkedStrategy("CANSLIM", "canslim_alert.py", 8, { runCommand, getUniverse }),
     runChunkedStrategy("Dip Buyer", "dipbuyer_alert.py", 8, { runCommand, getUniverse }),
   ]);
+  const canslimOutput = canslimRun.output;
+  const dipOutput = dipRun.output;
 
-  const canslimSummary = parseSummaryCounts(canslimOutput);
-  const dipSummary = parseSummaryCounts(dipOutput);
+  const canslimSummary = canslimRun.payload ? payloadSummaryCounts(canslimRun.payload) : parseSummaryCounts(canslimOutput);
+  const dipSummary = dipRun.payload ? payloadSummaryCounts(dipRun.payload) : parseSummaryCounts(dipOutput);
   const dipDiagnostics = parseDipDiagnostics(dipOutput);
 
   const scanOutputs: ScanResult[] = [
     {
       name: "CANSLIM",
       output: canslimOutput,
-      signals: canonicalizeStrategySignals(parseSignals(canslimOutput)),
+      signals: canslimRun.payload ? payloadSignalsToTradingSignals(canslimRun.payload, "CANSLIM") : canonicalizeStrategySignals(parseSignals(canslimOutput)),
       scanLimit: canslimLimit,
       ...canslimSummary,
       ...parseMarketLine(canslimOutput),
@@ -763,7 +968,7 @@ export async function runTradingPipeline(
     {
       name: "Dip Buyer",
       output: dipOutput,
-      signals: canonicalizeStrategySignals(parseSignals(dipOutput)),
+      signals: dipRun.payload ? payloadSignalsToTradingSignals(dipRun.payload, "Dip Buyer") : canonicalizeStrategySignals(parseSignals(dipOutput)),
       scanLimit: dipLimit,
       ...dipSummary,
       ...dipDiagnostics,
@@ -806,7 +1011,7 @@ export async function runTradingStrategy(
     strategy === "CANSLIM" ? "canslim_alert.py" : "dipbuyer_alert.py",
     8,
     { runCommand, getUniverse, includeCouncil },
-  );
+  ).then((result) => result.output);
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
