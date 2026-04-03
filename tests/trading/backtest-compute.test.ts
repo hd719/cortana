@@ -64,6 +64,7 @@ const PIPELINE_SNAPSHOT: PipelineSnapshot = {
   summary: { buy: 1, watch: 4, noBuy: 1 },
   strategies: {
     canslim: {
+      outcomeClass: "healthy_candidates_found",
       scanned: 120,
       evaluated: 1,
       thresholdPassed: 1,
@@ -76,6 +77,7 @@ const PIPELINE_SNAPSHOT: PipelineSnapshot = {
       ],
     },
     dipBuyer: {
+      outcomeClass: "healthy_candidates_found",
       scanned: 120,
       evaluated: 5,
       thresholdPassed: 5,
@@ -143,7 +145,69 @@ describe("backtest compute watchlist artifacts", () => {
     const fromReport = buildFullWatchlistArtifact("20260319-211220", UNIFIED_REPORT, "2026-03-19T21:12:20.000Z");
     const fromSnapshot = buildFullWatchlistArtifactFromSnapshot("20260319-211220", PIPELINE_SNAPSHOT, "2026-03-19T21:12:20.000Z");
 
-    expect(fromSnapshot).toEqual(fromReport);
+    expect(fromSnapshot).toMatchObject({
+      schemaVersion: fromReport.schemaVersion,
+      decision: fromReport.decision,
+      correctionMode: fromReport.correctionMode,
+      summary: fromReport.summary,
+      focus: fromReport.focus,
+      strategies: {
+        canslim: {
+          outcomeClass: "healthy_candidates_found",
+          buy: fromReport.strategies.canslim.buy,
+          watch: fromReport.strategies.canslim.watch,
+          noBuy: fromReport.strategies.canslim.noBuy,
+        },
+        dipBuyer: {
+          outcomeClass: "healthy_candidates_found",
+          buy: fromReport.strategies.dipBuyer.buy,
+          watch: fromReport.strategies.dipBuyer.watch,
+          noBuy: fromReport.strategies.dipBuyer.noBuy,
+        },
+      },
+    });
+  });
+
+  it("preserves per-strategy outcome classes when artifact is built from snapshot", () => {
+    const outcomeBlockedSnapshot: typeof PIPELINE_SNAPSHOT = {
+      ...PIPELINE_SNAPSHOT,
+      strategies: {
+        ...PIPELINE_SNAPSHOT.strategies,
+        canslim: {
+          ...PIPELINE_SNAPSHOT.strategies.canslim,
+          outcomeClass: "analysis_failed",
+          scanned: 120,
+          evaluated: 0,
+          thresholdPassed: 0,
+          signals: [],
+          buy: 0,
+          watch: 0,
+          noBuy: 0,
+        },
+        dipBuyer: {
+          ...PIPELINE_SNAPSHOT.strategies.dipBuyer,
+          outcomeClass: "market_gate_blocked",
+          scanned: 120,
+          evaluated: 0,
+          thresholdPassed: 0,
+          signals: [],
+          buy: 0,
+          watch: 0,
+          noBuy: 0,
+        },
+      },
+    };
+
+    const fromSnapshot = buildFullWatchlistArtifactFromSnapshot(
+      "20260319-211220",
+      outcomeBlockedSnapshot,
+      "2026-03-19T21:12:20.000Z",
+    );
+
+    expect(fromSnapshot.strategies.canslim.outcomeClass).toBe("analysis_failed");
+    expect(fromSnapshot.strategies.dipBuyer.outcomeClass).toBe("market_gate_blocked");
+    expect(formatFullWatchlistArtifactText(fromSnapshot)).toContain("CANSLIM status: analysis failed");
+    expect(formatFullWatchlistArtifactText(fromSnapshot)).toContain("Dip Buyer status: market gate blocked");
   });
 });
 

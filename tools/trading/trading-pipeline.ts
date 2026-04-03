@@ -89,6 +89,7 @@ export interface PipelineSnapshot {
   summary: { buy: number; watch: number; noBuy: number };
   strategies: {
     canslim: {
+      outcomeClass?: string;
       scanned: number;
       evaluated: number;
       thresholdPassed: number;
@@ -98,6 +99,7 @@ export interface PipelineSnapshot {
       signals: PipelineSnapshotSignal[];
     };
     dipBuyer: {
+      outcomeClass?: string;
       scanned: number;
       evaluated: number;
       thresholdPassed: number;
@@ -994,6 +996,7 @@ function buildPipelineSnapshot(scans: ScanResult[]): PipelineSnapshot {
     const scan = scans.find((item) => item.name === name);
     const signals = sectionSignals(name);
     return {
+      outcomeClass: scan?.outcomeClass,
       scanned: scan?.scanned || scan?.scanLimit || 0,
       evaluated: scan?.candidatesEvaluated || 0,
       thresholdPassed: scan?.thresholdPassed || 0,

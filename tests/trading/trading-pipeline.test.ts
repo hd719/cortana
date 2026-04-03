@@ -504,6 +504,8 @@ Summary: scanned 2 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY
     expect(snapshot.confidence).toBe(0.8);
     expect(snapshot.risk).toBe("LOW");
     expect(snapshot.summary).toEqual({ buy: 0, watch: 4, noBuy: 0 });
+    expect(snapshot.strategies.canslim.outcomeClass).toBe("healthy_candidates_found");
+    expect(snapshot.strategies.dipBuyer.outcomeClass).toBe("healthy_candidates_found");
     expect(snapshot.strategies.canslim.watch).toBe(1);
     expect(snapshot.strategies.dipBuyer.watch).toBe(3);
     expect(snapshot.strategies.canslim.signals.map((signal) => signal.ticker)).toEqual(["AAPL"]);
