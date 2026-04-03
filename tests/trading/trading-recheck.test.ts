@@ -5,7 +5,9 @@ import {
   applyTrackedSymbolExclusions,
   evaluateRecheckChanges,
   extractTrackedSymbols,
+  extractTrackedSymbolsFromWatchlistArtifact,
   formatRecheckAlert,
+  loadTrackedSymbolsFromSummary,
   loadState,
   loadRecheckExcludedSymbols,
   pickEligibleBaseRun,
@@ -72,6 +74,44 @@ describe("trading re-check base run selection", () => {
 
     expect(picked).toBeNull();
   });
+
+  it("accepts the latest successful run when only watchlist-full.json is present", () => {
+    const root = mkdtempSync(path.join(process.cwd(), "tmp-recheck-watchlist-"));
+    const runDir = path.join(root, "runs", "20260319-143000");
+    mkdirSync(runDir, { recursive: true });
+    writeFileSync(
+      path.join(runDir, "watchlist-full.json"),
+      JSON.stringify({
+        strategies: {
+          canslim: { buy: [{ ticker: "AAPL", action: "BUY", strategy: "CANSLIM" }], watch: [], noBuy: [] },
+          dipBuyer: { buy: [], watch: [], noBuy: [] },
+        },
+      }),
+    );
+
+    const picked = pickEligibleBaseRun(
+      [
+        {
+          file: path.join(runDir, "summary.json"),
+          summary: {
+            runId: "20260319-143000",
+            status: "success",
+            completedAt: "2026-03-19T14:30:00.000Z",
+            artifacts: {
+              directory: runDir,
+              summary: path.join(runDir, "summary.json"),
+              log: path.join(runDir, "run.log"),
+              watchlistFullJson: path.join(runDir, "watchlist-full.json"),
+            },
+          },
+        },
+      ],
+      Date.parse("2026-03-19T15:00:00.000Z"),
+      4 * 60 * 60 * 1000,
+    );
+
+    expect(picked?.summary.runId).toBe("20260319-143000");
+  });
 });
 
 describe("trading re-check signal extraction", () => {
@@ -83,6 +123,71 @@ CANSLIM: scanned 120 | evaluated 3 | threshold-passed 2 | BUY 1 | WATCH 1 | NO_B
 Dip Buyer: scanned 120 | evaluated 2 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY 1
 • ROKU (7/12) → WATCH | • COIN (4/12) → NO_BUY
 `);
+
+    expect(tracked.map((item) => item.ticker)).toEqual(["AAPL", "MSFT", "ROKU"]);
+  });
+
+  it("extracts current BUY/WATCH names from the structured full watchlist artifact", () => {
+    const tracked = extractTrackedSymbolsFromWatchlistArtifact({
+      strategies: {
+        canslim: {
+          buy: [{ ticker: "AAPL", action: "BUY", strategy: "CANSLIM" }],
+          watch: [{ ticker: "MSFT", action: "WATCH", strategy: "CANSLIM" }],
+          noBuy: [{ ticker: "SHOP", action: "NO_BUY", strategy: "CANSLIM" }],
+        },
+        dipBuyer: {
+          buy: [],
+          watch: [{ ticker: "ROKU", action: "WATCH", strategy: "Dip Buyer" }],
+          noBuy: [{ ticker: "COIN", action: "NO_BUY", strategy: "Dip Buyer" }],
+        },
+      },
+    });
+
+    expect(tracked.map((item) => item.ticker)).toEqual(["AAPL", "MSFT", "ROKU"]);
+  });
+
+  it("prefers the structured full watchlist artifact over stdout report parsing", () => {
+    const root = mkdtempSync(path.join(process.cwd(), "tmp-recheck-prefers-artifact-"));
+    const runDir = path.join(root, "runs", "20260319-143000");
+    mkdirSync(runDir, { recursive: true });
+    writeFileSync(
+      path.join(runDir, "watchlist-full.json"),
+      JSON.stringify({
+        strategies: {
+          canslim: {
+            buy: [{ ticker: "AAPL", action: "BUY", strategy: "CANSLIM" }],
+            watch: [{ ticker: "MSFT", action: "WATCH", strategy: "CANSLIM" }],
+            noBuy: [],
+          },
+          dipBuyer: {
+            buy: [],
+            watch: [{ ticker: "ROKU", action: "WATCH", strategy: "Dip Buyer" }],
+            noBuy: [],
+          },
+        },
+      }),
+    );
+    writeFileSync(
+      path.join(runDir, "stdout.txt"),
+      `
+Decision: BUY
+CANSLIM: scanned 120 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 0 | NO_BUY 1
+• SHOP (5/12) → NO_BUY
+`,
+    );
+
+    const tracked = loadTrackedSymbolsFromSummary({
+      runId: "20260319-143000",
+      status: "success",
+      completedAt: "2026-03-19T14:30:00.000Z",
+      artifacts: {
+        directory: runDir,
+        summary: path.join(runDir, "summary.json"),
+        log: path.join(runDir, "run.log"),
+        stdout: path.join(runDir, "stdout.txt"),
+        watchlistFullJson: path.join(runDir, "watchlist-full.json"),
+      },
+    });
 
     expect(tracked.map((item) => item.ticker)).toEqual(["AAPL", "MSFT", "ROKU"]);
   });
@@ -121,6 +226,36 @@ CANSLIM: scanned 120 | evaluated 1 | threshold-passed 0 | BUY 0 | WATCH 0 | NO_B
 `);
 
     expect(tracked).toEqual([]);
+  });
+
+  it("falls back to stdout parsing when the structured artifact is missing", () => {
+    const root = mkdtempSync(path.join(process.cwd(), "tmp-recheck-stdout-fallback-"));
+    const runDir = path.join(root, "runs", "20260319-143000");
+    mkdirSync(runDir, { recursive: true });
+    writeFileSync(
+      path.join(runDir, "stdout.txt"),
+      `
+Decision: BUY
+CANSLIM: scanned 120 | evaluated 3 | threshold-passed 2 | BUY 1 | WATCH 1 | NO_BUY 1
+• AAPL (9/12) → BUY | • MSFT (8/12) → WATCH | • SHOP (5/12) → NO_BUY
+Dip Buyer: scanned 120 | evaluated 2 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY 1
+• ROKU (7/12) → WATCH | • COIN (4/12) → NO_BUY
+`,
+    );
+
+    const tracked = loadTrackedSymbolsFromSummary({
+      runId: "20260319-143000",
+      status: "success",
+      completedAt: "2026-03-19T14:30:00.000Z",
+      artifacts: {
+        directory: runDir,
+        summary: path.join(runDir, "summary.json"),
+        log: path.join(runDir, "run.log"),
+        stdout: path.join(runDir, "stdout.txt"),
+      },
+    });
+
+    expect(tracked.map((item) => item.ticker)).toEqual(["AAPL", "MSFT", "ROKU"]);
   });
 });
 

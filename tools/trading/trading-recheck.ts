@@ -15,6 +15,28 @@ type BaseSummary = {
     log: string;
     stdout?: string;
     message?: string;
+    watchlistFullJson?: string;
+  };
+};
+
+type WatchlistEntry = {
+  ticker: string;
+  action: "BUY" | "WATCH" | "NO_BUY";
+  strategy: "CANSLIM" | "Dip Buyer";
+};
+
+type FullWatchlistArtifact = {
+  strategies?: {
+    canslim?: {
+      buy?: WatchlistEntry[];
+      watch?: WatchlistEntry[];
+      noBuy?: WatchlistEntry[];
+    };
+    dipBuyer?: {
+      buy?: WatchlistEntry[];
+      watch?: WatchlistEntry[];
+      noBuy?: WatchlistEntry[];
+    };
   };
 };
 
@@ -122,7 +144,11 @@ export function pickEligibleBaseRun(
   const completedAtMs = parseIsoMs(latest.summary.completedAt);
   if (completedAtMs == null) return null;
   if (nowMs - completedAtMs > maxAgeMs) return null;
-  if (!latest.summary.artifacts?.stdout || !existsSync(latest.summary.artifacts.stdout)) return null;
+  const hasWatchlistArtifact =
+    Boolean(latest.summary.artifacts?.watchlistFullJson) && existsSync(latest.summary.artifacts.watchlistFullJson!);
+  const hasStdoutArtifact =
+    Boolean(latest.summary.artifacts?.stdout) && existsSync(latest.summary.artifacts.stdout!);
+  if (!hasWatchlistArtifact && !hasStdoutArtifact) return null;
   return latest;
 }
 
@@ -136,6 +162,43 @@ export function extractTrackedSymbols(report: string): TrackedSymbol[] {
     byTicker.set(signal.ticker, current);
   }
   return [...byTicker.values()].sort((a, b) => a.ticker.localeCompare(b.ticker));
+}
+
+export function extractTrackedSymbolsFromWatchlistArtifact(artifact: FullWatchlistArtifact): TrackedSymbol[] {
+  const byTicker = new Map<string, TrackedSymbol>();
+  const sections = [
+    { label: "CANSLIM" as const, groups: artifact.strategies?.canslim },
+    { label: "Dip Buyer" as const, groups: artifact.strategies?.dipBuyer },
+  ];
+
+  for (const section of sections) {
+    for (const action of ["buy", "watch"] as const) {
+      const entries = section.groups?.[action] ?? [];
+      for (const entry of entries) {
+        const current = byTicker.get(entry.ticker) || { ticker: entry.ticker, sections: [], actions: [] };
+        if (!current.sections.includes(section.label)) current.sections.push(section.label);
+        if (!current.actions.includes(entry.action)) current.actions.push(entry.action);
+        byTicker.set(entry.ticker, current);
+      }
+    }
+  }
+
+  return [...byTicker.values()].sort((a, b) => a.ticker.localeCompare(b.ticker));
+}
+
+export function loadTrackedSymbolsFromSummary(summary: BaseSummary): TrackedSymbol[] {
+  const artifactPath = summary.artifacts?.watchlistFullJson;
+  if (artifactPath && existsSync(artifactPath)) {
+    const artifact = readJson<FullWatchlistArtifact>(artifactPath);
+    if (artifact) return extractTrackedSymbolsFromWatchlistArtifact(artifact);
+  }
+
+  const stdoutPath = summary.artifacts?.stdout;
+  if (stdoutPath && existsSync(stdoutPath)) {
+    return extractTrackedSymbols(readFileSync(stdoutPath, "utf8"));
+  }
+
+  return [];
 }
 
 function parseSymbolTokens(raw: string): string[] {
@@ -340,9 +403,8 @@ function main(): void {
     return;
   }
 
-  const report = readFileSync(picked.summary.artifacts.stdout!, "utf8");
   const excludedSymbols = loadRecheckExcludedSymbols();
-  const tracked = applyTrackedSymbolExclusions(extractTrackedSymbols(report), excludedSymbols);
+  const tracked = applyTrackedSymbolExclusions(loadTrackedSymbolsFromSummary(picked.summary), excludedSymbols);
   if (!tracked.length) {
     console.log("NO_REPLY");
     return;
