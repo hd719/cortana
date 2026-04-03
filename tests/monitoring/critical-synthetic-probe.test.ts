@@ -3,6 +3,7 @@ import { captureConsole, flushModuleSideEffects, importFresh, resetProcess } fro
 
 const fsMock = vi.hoisted(() => ({
   readFileSync: vi.fn(),
+  existsSync: vi.fn(),
 }));
 const spawnSync = vi.hoisted(() => vi.fn());
 const upsertOpenIncident = vi.hoisted(() => vi.fn());
@@ -23,6 +24,7 @@ vi.mock("../../tools/monitoring/autonomy-incidents.ts", () => ({
 describe("critical-synthetic-probe", () => {
   beforeEach(() => {
     fsMock.readFileSync.mockReset();
+    fsMock.existsSync.mockReset();
     spawnSync.mockReset();
     upsertOpenIncident.mockReset();
     resolveIncident.mockReset();
@@ -35,6 +37,7 @@ describe("critical-synthetic-probe", () => {
   });
 
   function mockHealthyRuntimeFiles() {
+    fsMock.existsSync.mockReturnValue(false);
     fsMock.readFileSync.mockImplementation((filePath: string) => {
       if (String(filePath).endsWith("/.openclaw/cron/jobs.json")) {
         return JSON.stringify({
@@ -110,5 +113,43 @@ describe("critical-synthetic-probe", () => {
     const output = consoleSpy.logs.join("\n");
     expect(output).toContain("Critical synthetic probes");
     expect(output).toContain("human_auth");
+  });
+
+  it("uses gateway plist GOG keyring password for headless gog probe", async () => {
+    mockHealthyRuntimeFiles();
+    upsertOpenIncident.mockReturnValue("created");
+    delete process.env.GOG_KEYRING_PASSWORD;
+    fsMock.existsSync.mockImplementation((filePath: string) =>
+      String(filePath).endsWith("/Library/LaunchAgents/ai.openclaw.gateway.plist"),
+    );
+
+    spawnSync.mockImplementation((cmd: string, args: string[], options?: { env?: Record<string, string> }) => {
+      const joined = args.join(" ");
+      if (cmd === "plutil") {
+        return { status: 0, stdout: "secret-from-plist\n", stderr: "" } as any;
+      }
+      if (cmd === "gog") {
+        expect(options?.env?.GOG_KEYRING_PASSWORD).toBe("secret-from-plist");
+        return { status: 0, stdout: "ok", stderr: "" } as any;
+      }
+      if (cmd === "remindctl") return { status: 0, stdout: "[]", stderr: "" } as any;
+      if (cmd === "openclaw" && joined === "status --json") {
+        return { status: 0, stdout: JSON.stringify({ gateway: { reachable: true }, channelSummary: ["Telegram: configured"] }), stderr: "" } as any;
+      }
+      if (cmd === "openclaw" && joined === "status") {
+        return { status: 0, stdout: "Telegram | ON | OK", stderr: "" } as any;
+      }
+      if (cmd === "openclaw" && joined === "gateway status --no-probe") {
+        return { status: 0, stdout: "running", stderr: "" } as any;
+      }
+      throw new Error(`unexpected spawn ${cmd} ${joined}`);
+    });
+
+    const consoleSpy = captureConsole();
+    await importFresh("../../tools/monitoring/critical-synthetic-probe.ts");
+    await flushModuleSideEffects();
+    consoleSpy.restore();
+
+    expect(consoleSpy.logs.join("\n")).toContain("NO_REPLY");
   });
 });

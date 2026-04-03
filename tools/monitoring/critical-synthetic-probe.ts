@@ -48,12 +48,36 @@ function run(cmd: string, args: string[], timeoutMs = 15000) {
     encoding: "utf8",
     timeout: timeoutMs,
     stdio: ["ignore", "pipe", "pipe"],
+    env: process.env,
   });
   return {
     status: proc.status ?? 1,
     stdout: String(proc.stdout ?? ""),
     stderr: String(proc.stderr ?? ""),
     error: proc.error,
+  };
+}
+
+function readGatewayEnvValue(key: string): string | null {
+  const gatewayPlist = process.env.OPENCLAW_GATEWAY_PLIST || path.join(os.homedir(), "Library", "LaunchAgents", "ai.openclaw.gateway.plist");
+  if (!fs.existsSync(gatewayPlist)) return null;
+  const r = spawnSync("plutil", ["-extract", `EnvironmentVariables.${key}`, "raw", "-o", "-", gatewayPlist], {
+    encoding: "utf8",
+    timeout: 5000,
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if ((r.status ?? 1) !== 0) return null;
+  const value = String(r.stdout ?? "").trim();
+  return value.length ? value : null;
+}
+
+function gogProbeEnv(): NodeJS.ProcessEnv {
+  if (process.env.GOG_KEYRING_PASSWORD) return process.env;
+  const inherited = readGatewayEnvValue("GOG_KEYRING_PASSWORD");
+  if (!inherited) return process.env;
+  return {
+    ...process.env,
+    GOG_KEYRING_PASSWORD: inherited,
   };
 }
 
@@ -98,7 +122,18 @@ function gatewayServiceHealthy(): { healthy: boolean; detail: string } {
 }
 
 function probeGog(): ProbeResult {
-  const r = run("gog", ["--account", GOG_ACCOUNT, "cal", "list", GOG_CALENDAR, "--from", "today", "--plain", "--no-input"]);
+  const proc = spawnSync("gog", ["--account", GOG_ACCOUNT, "cal", "list", GOG_CALENDAR, "--from", "today", "--plain", "--no-input"], {
+    encoding: "utf8",
+    timeout: 15000,
+    stdio: ["ignore", "pipe", "pipe"],
+    env: gogProbeEnv(),
+  });
+  const r = {
+    status: proc.status ?? 1,
+    stdout: String(proc.stdout ?? ""),
+    stderr: String(proc.stderr ?? ""),
+    error: proc.error,
+  };
   const merged = `${r.stdout}\n${r.stderr}`;
 
   if (r.status === 0) return { probe: "gog", ok: true };
