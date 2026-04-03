@@ -95,6 +95,32 @@ function parseCounts(line: string | undefined): { buy: number; watch: number; no
   };
 }
 
+function formatStrategyOutcomeLine(
+  label: "CANSLIM" | "Dip Buyer",
+  outcomeClass: string | undefined,
+  emittedSignals: number,
+): string | undefined {
+  if (!outcomeClass) return undefined;
+  if (emittedSignals > 0 && outcomeClass === "healthy_candidates_found") return undefined;
+
+  const humanized = (() => {
+    switch (outcomeClass) {
+      case "analysis_failed":
+        return "analysis failed";
+      case "market_gate_blocked":
+        return "market gate blocked";
+      case "healthy_no_candidates":
+        return "healthy no candidates";
+      case "healthy_candidates_found":
+        return "healthy candidates found";
+      default:
+        return outcomeClass.replace(/_/g, " ");
+    }
+  })();
+
+  return `${label} status: ${humanized}`;
+}
+
 export type ParsedSignal = { ticker: string; score: number; action: "BUY" | "WATCH" | "NO_BUY"; section: string };
 
 function parseSignalFragments(text: string, section: string): ParsedSignal[] {
@@ -245,7 +271,6 @@ export function buildCronAlertFromPipelineReport(report: string): string {
   };
   const dipWatchlist = renderWatchlist("Dip Buyer", watchDip, dipCounts.watch);
   const canslimWatchlist = renderWatchlist("CANSLIM", watchCanslim, canslimCounts.watch);
-
   const messageLines = [
     "📈 Trading Advisor — Market Snapshot",
     "⚡ P1 High | Action Now",
@@ -344,6 +369,16 @@ export function buildCronAlertFromPipelineSnapshot(snapshot: PipelineSnapshot): 
   };
   const dipWatchlist = renderWatchlist("Dip Buyer", watchDip, dipCounts.watch);
   const canslimWatchlist = renderWatchlist("CANSLIM", watchCanslim, canslimCounts.watch);
+  const dipOutcomeLine = formatStrategyOutcomeLine(
+    "Dip Buyer",
+    snapshot.strategies.dipBuyer.outcomeClass,
+    dipCounts.buy + dipCounts.watch + dipCounts.noBuy,
+  );
+  const canslimOutcomeLine = formatStrategyOutcomeLine(
+    "CANSLIM",
+    snapshot.strategies.canslim.outcomeClass,
+    canslimCounts.buy + canslimCounts.watch + canslimCounts.noBuy,
+  );
 
   const messageLines = [
     "📈 Trading Advisor — Market Snapshot",
@@ -366,9 +401,11 @@ export function buildCronAlertFromPipelineSnapshot(snapshot: PipelineSnapshot): 
     "",
     dipWatchlist.title,
     dipWatchlist.body,
+    dipOutcomeLine ?? undefined,
     "",
     canslimWatchlist.title,
     canslimWatchlist.body,
+    canslimOutcomeLine ?? undefined,
     "",
     `🛡️ Guardrail blocks/downgrades: ${snapshot.guardrailCount}`,
     `🔎 Related detections: ${snapshot.relatedDetections}`,

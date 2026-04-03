@@ -70,6 +70,13 @@ type FullWatchlistEntry = {
   action: "BUY" | "WATCH" | "NO_BUY";
   strategy: "CANSLIM" | "Dip Buyer";
 };
+type StrategyOutcomeClass = PipelineSnapshot["strategies"]["canslim"]["outcomeClass"];
+type FullWatchlistStrategyArtifact = {
+  outcomeClass?: StrategyOutcomeClass;
+  buy: FullWatchlistEntry[];
+  watch: FullWatchlistEntry[];
+  noBuy: FullWatchlistEntry[];
+};
 
 export type FullWatchlistArtifact = {
   schemaVersion: 1;
@@ -90,16 +97,8 @@ export type FullWatchlistArtifact = {
     strategy: "CANSLIM" | "Dip Buyer";
   } | null;
   strategies: {
-    canslim: {
-      buy: FullWatchlistEntry[];
-      watch: FullWatchlistEntry[];
-      noBuy: FullWatchlistEntry[];
-    };
-    dipBuyer: {
-      buy: FullWatchlistEntry[];
-      watch: FullWatchlistEntry[];
-      noBuy: FullWatchlistEntry[];
-    };
+    canslim: FullWatchlistStrategyArtifact;
+    dipBuyer: FullWatchlistStrategyArtifact;
   };
 };
 
@@ -426,11 +425,13 @@ export function buildFullWatchlistArtifact(
     focus: focusSignal ? toEntry(focusSignal) : null,
     strategies: {
       canslim: {
+        outcomeClass: undefined,
         buy: byAction(signals.canslim, "BUY"),
         watch: byAction(signals.canslim, "WATCH"),
         noBuy: byAction(signals.canslim, "NO_BUY"),
       },
       dipBuyer: {
+        outcomeClass: undefined,
         buy: byAction(signals.dipBuyer, "BUY"),
         watch: byAction(signals.dipBuyer, "WATCH"),
         noBuy: byAction(signals.dipBuyer, "NO_BUY"),
@@ -482,11 +483,13 @@ export function buildFullWatchlistArtifactFromSnapshot(
     focus: focusSignal ? snapshotSignalToEntry(focusSignal) : null,
     strategies: {
       canslim: {
+        outcomeClass: snapshot.strategies.canslim.outcomeClass,
         buy: byAction(snapshot.strategies.canslim.signals, "BUY"),
         watch: byAction(snapshot.strategies.canslim.signals, "WATCH"),
         noBuy: byAction(snapshot.strategies.canslim.signals, "NO_BUY"),
       },
       dipBuyer: {
+        outcomeClass: snapshot.strategies.dipBuyer.outcomeClass,
         buy: byAction(snapshot.strategies.dipBuyer.signals, "BUY"),
         watch: byAction(snapshot.strategies.dipBuyer.signals, "WATCH"),
         noBuy: byAction(snapshot.strategies.dipBuyer.signals, "NO_BUY"),
@@ -500,6 +503,15 @@ function formatEntries(entries: FullWatchlistEntry[]): string {
   return entries.map((entry) => `${entry.ticker} ${entry.score}/12`).join(" · ");
 }
 
+function formatStrategyOutcomeLine(outcomeClass: StrategyOutcomeClass): string | undefined {
+  if (!outcomeClass || outcomeClass === "healthy_candidates_found") return undefined;
+
+  if (outcomeClass === "analysis_failed") return "analysis failed";
+  if (outcomeClass === "market_gate_blocked") return "market gate blocked";
+  if (outcomeClass === "healthy_no_candidates") return "healthy no candidates";
+  return outcomeClass.replace(/_/g, " ");
+}
+
 function writeAtomically(targetPath: string, content: string): void {
   const tmpPath = `${targetPath}.tmp`;
   writeFileSync(tmpPath, content);
@@ -507,6 +519,9 @@ function writeAtomically(targetPath: string, content: string): void {
 }
 
 export function formatFullWatchlistArtifactText(artifact: FullWatchlistArtifact): string {
+  const canslimOutcome = formatStrategyOutcomeLine(artifact.strategies.canslim.outcomeClass);
+  const dipOutcome = formatStrategyOutcomeLine(artifact.strategies.dipBuyer.outcomeClass);
+
   return [
     "Trading Watchlist - Full",
     `Run: ${artifact.runId}`,
@@ -517,6 +532,12 @@ export function formatFullWatchlistArtifactText(artifact: FullWatchlistArtifact)
     artifact.focus
       ? `Focus: ${artifact.focus.ticker} ${artifact.focus.score}/12 → ${artifact.focus.action} (${artifact.focus.strategy})`
       : "Focus: unavailable",
+    canslimOutcome
+      ? `CANSLIM status: ${canslimOutcome}`
+      : "CANSLIM status: unavailable",
+    dipOutcome
+      ? `Dip Buyer status: ${dipOutcome}`
+      : "Dip Buyer status: unavailable",
     "",
     `Dip Buyer BUY (${artifact.strategies.dipBuyer.buy.length}): ${formatEntries(artifact.strategies.dipBuyer.buy)}`,
     `Dip Buyer WATCH (${artifact.strategies.dipBuyer.watch.length}): ${formatEntries(artifact.strategies.dipBuyer.watch)}`,
