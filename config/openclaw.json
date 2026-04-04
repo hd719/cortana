@@ -195,7 +195,9 @@
       {
         "id": "monitor",
         "workspace": "/Users/hd/Developer/cortana",
-        "model": "openai-codex/gpt-5.1"
+        "model": "openai-codex/gpt-5.1",
+        "bootstrapMaxChars": 4000,
+        "bootstrapTotalMaxChars": 7000
       },
       {
         "id": "arbiter",

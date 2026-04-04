@@ -57,6 +57,8 @@
     "id": "monitor",
     "workspace": "/Users/hd/Developer/cortana",
     "identityNamespace": "monitor",
-    "model": "openai-codex/gpt-5.3-codex"
+    "model": "openai-codex/gpt-5.3-codex",
+    "bootstrapMaxChars": 4000,
+    "bootstrapTotalMaxChars": 7000
   }
 ]

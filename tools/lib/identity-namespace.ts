@@ -7,6 +7,7 @@ export const IDENTITY_NAMESPACE_FILES = [
   "IDENTITY.md",
   "HEARTBEAT.md",
   "MEMORY.md",
+  "TOOLS.md",
 ] as const;
 
 export type IdentityNamespaceFile = (typeof IDENTITY_NAMESPACE_FILES)[number];
