@@ -174,12 +174,12 @@
       },
       {
         "id": "huragok",
-        "workspace": "/Users/hd/Developer/cortana",
+        "workspace": "/Users/hd/Developer/cortana/identities/huragok",
         "model": "openai-codex/gpt-5.3-codex"
       },
       {
         "id": "researcher",
-        "workspace": "/Users/hd/Developer/cortana",
+        "workspace": "/Users/hd/Developer/cortana/identities/researcher",
         "model": "openai-codex/gpt-5.3-codex"
       },
       {
@@ -189,7 +189,7 @@
       },
       {
         "id": "oracle",
-        "workspace": "/Users/hd/Developer/cortana",
+        "workspace": "/Users/hd/Developer/cortana/identities/oracle",
         "model": "openai-codex/gpt-5.3-codex"
       },
       {

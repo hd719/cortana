@@ -14,9 +14,10 @@ This system runs multiple agents, each with its own workspace, model, and sessio
 | cron-fitness | Fitness data | `~/.openclaw/workspaces/cron-fitness` | gpt-5.3-codex | No — cron only |
 | cron-market | Market analysis | `~/.openclaw/workspaces/cron-market` | gpt-5.3-codex | No — cron only |
 | cron-maintenance | System updates | `~/.openclaw/workspaces/cron-maintenance` | gpt-5.1 | No — cron only |
-| **huragok** | Standalone Huragok identity (dedicated Telegram-bound lane + spawn target) | `/Users/hd/Developer/cortana` | gpt-5.3-codex | Yes (bound group/channel) |
-| **researcher** | Dedicated investigation/research execution lane for Cortana delegation | `/Users/hd/Developer/cortana` | gpt-5.3-codex | No — spawn target only |
+| **huragok** | Standalone Huragok identity (dedicated Telegram-bound lane + spawn target) | `/Users/hd/Developer/cortana/identities/huragok` | gpt-5.3-codex | Yes (bound group/channel) |
+| **researcher** | Dedicated investigation/research execution lane for Cortana delegation | `/Users/hd/Developer/cortana/identities/researcher` | gpt-5.3-codex | No — spawn target only |
 | cortana-acp | On-demand specialist coding lane for explicit ACP runtime requests | `/Users/hd/Developer/cortana` | gpt-5.3-codex | No — spawn target only |
+| **oracle** | Strategic judgment / foresight lane | `/Users/hd/Developer/cortana/identities/oracle` | gpt-5.3-codex | Yes (bound group/channel) |
 
 ## Channel Routing
 
