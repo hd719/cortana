@@ -46,8 +46,16 @@ function resolveDefaultSourceRepo(): string {
   return process.env.CORTANA_SOURCE_REPO || FALLBACK_SOURCE_REPO;
 }
 
+function resolveDefaultRuntimeRepo(sourceRepo: string): string {
+  const configured = process.env.CORTANA_RUNTIME_REPO;
+  if (configured) return configured;
+  const compatRepo = "/Users/hd/openclaw";
+  if (repoExists(compatRepo) || pathExists(compatRepo)) return compatRepo;
+  return sourceRepo;
+}
+
 const DEFAULT_SOURCE_REPO = resolveDefaultSourceRepo();
-const DEFAULT_RUNTIME_REPO = process.env.CORTANA_RUNTIME_REPO || DEFAULT_SOURCE_REPO;
+const DEFAULT_RUNTIME_REPO = resolveDefaultRuntimeRepo(DEFAULT_SOURCE_REPO);
 
 function parseArgs(): Args {
   const argv = process.argv.slice(2);

@@ -28,7 +28,12 @@ describe("runtime-repo-drift-monitor", () => {
     execSync.mockReset();
     existsSync.mockReset();
     realpathSync.mockReset();
-    existsSync.mockImplementation((filePath: string) => !String(filePath).includes("/Users/hd/Developer/cortana-deploy/.git"));
+    existsSync.mockImplementation((filePath: string) => {
+      const value = String(filePath);
+      return !value.includes("/Users/hd/Developer/cortana-deploy/.git") &&
+        !value.includes("/Users/hd/openclaw/.git") &&
+        value !== "/Users/hd/openclaw";
+    });
     realpathSync.mockImplementation((p: string) => p);
   });
 
@@ -123,6 +128,14 @@ describe("runtime-repo-drift-monitor", () => {
 
     seedRepos({
       "/Users/hd/Developer/cortana-deploy": {
+        branch: "main",
+        upstream: "origin/main",
+        head: "abc123",
+        originHead: "abc123",
+        remoteUrl: "git@github-cortana:hd719/cortana.git",
+        clean: true,
+      },
+      "/Users/hd/openclaw": {
         branch: "main",
         upstream: "origin/main",
         head: "abc123",

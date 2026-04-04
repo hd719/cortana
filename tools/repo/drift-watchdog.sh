@@ -7,7 +7,12 @@ if [[ -d "/Users/hd/Developer/cortana-deploy/.git" ]]; then
 fi
 
 SOURCE_REPO="${SOURCE_REPO:-$DEFAULT_SOURCE_REPO}"
-RUNTIME_REPO="${RUNTIME_REPO:-$SOURCE_REPO}"
+DEFAULT_RUNTIME_REPO="/Users/hd/openclaw"
+if [[ ! -e "$DEFAULT_RUNTIME_REPO" && ! -L "$DEFAULT_RUNTIME_REPO" ]]; then
+  DEFAULT_RUNTIME_REPO="$SOURCE_REPO"
+fi
+
+RUNTIME_REPO="${RUNTIME_REPO:-$DEFAULT_RUNTIME_REPO}"
 MONITOR="${MONITOR:-$SOURCE_REPO/tools/monitoring/runtime-repo-drift-monitor.ts}"
 
 if [[ ! -f "$MONITOR" ]]; then
