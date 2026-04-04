@@ -4,7 +4,14 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
-SOURCE_REPO="${SOURCE_REPO:-/Users/hd/Developer/cortana}"
+DEFAULT_DEPLOY_REPO="${CORTANA_DEPLOY_REPO:-/Users/hd/Developer/cortana-deploy}"
+if [[ -z "${SOURCE_REPO:-}" ]]; then
+  if [[ -d "$DEFAULT_DEPLOY_REPO/.git" ]]; then
+    SOURCE_REPO="$DEFAULT_DEPLOY_REPO"
+  else
+    SOURCE_REPO="${CORTANA_SOURCE_REPO:-/Users/hd/Developer/cortana}"
+  fi
+fi
 COMPAT_REPO="${COMPAT_REPO:-${RUNTIME_REPO:-/Users/hd/openclaw}}"
 SOURCE_BRANCH="${SOURCE_BRANCH:-main}"
 RUNTIME_HOME="${RUNTIME_HOME:-$HOME}"
@@ -21,6 +28,7 @@ Usage:
 
 Safety rules:
   - source repo must be clean, on main, and exactly at origin/main
+  - if /Users/hd/Developer/cortana-deploy exists, it is preferred as the default source repo
   - no destructive reset is performed
   - existing ~/openclaw checkout is backed up before being replaced with a shim
 EOF

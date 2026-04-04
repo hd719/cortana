@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-SOURCE_REPO="${SOURCE_REPO:-/Users/hd/Developer/cortana}"
+DEFAULT_SOURCE_REPO="/Users/hd/Developer/cortana"
+if [[ -d "/Users/hd/Developer/cortana-deploy/.git" ]]; then
+  DEFAULT_SOURCE_REPO="/Users/hd/Developer/cortana-deploy"
+fi
+
+SOURCE_REPO="${SOURCE_REPO:-$DEFAULT_SOURCE_REPO}"
 RUNTIME_REPO="${RUNTIME_REPO:-$SOURCE_REPO}"
 MONITOR="${MONITOR:-$SOURCE_REPO/tools/monitoring/runtime-repo-drift-monitor.ts}"
 

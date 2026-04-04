@@ -86,6 +86,13 @@ if [[ "$probe_out" != "NO_REPLY" ]]; then
   mark_fail
 fi
 
+print_header "Runtime Integrity"
+integrity_out="$(npx tsx tools/openclaw/runtime-integrity-check.ts --json 2>&1 || true)"
+printf '%s\n' "$integrity_out"
+if ! printf '%s' "$integrity_out" | python3 -c 'import json,sys; print("true" if json.load(sys.stdin).get("overall_ok") else "false")' | grep -qx 'true'; then
+  mark_fail
+fi
+
 print_header "Validate System"
 validate_out="$(npx tsx tools/qa/validate-system.ts --json 2>&1 || true)"
 printf '%s\n' "$validate_out"

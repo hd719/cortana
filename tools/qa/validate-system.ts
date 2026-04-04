@@ -63,6 +63,8 @@ const OPTIONAL_TOOLS = [
   "tools/task-board/completion-sync.sh",
   "tools/reaper/reaper.sh",
   "tools/notifications/telegram-delivery-guard.ts",
+  "tools/deploy/ensure-deploy-worktree.sh",
+  "tools/openclaw/runtime-integrity-check.ts",
 ];
 
 function run(cmd: string[], cwd?: string): [number, string, string] {
@@ -250,6 +252,37 @@ function checkCronDefinitions(): Check {
   else if (invalidPayload.length) fail(check, "One or more cron jobs have invalid payload definitions");
   else if (missingRouting.length) warn(check, "One or more cron jobs are missing model or agent routing");
 
+  check.details = details;
+  return check;
+}
+
+function checkRuntimeIntegrity(fix: boolean): Check {
+  const check = makeCheck("runtime_integrity");
+  const script = path.join(REPO_ROOT, "tools", "openclaw", "runtime-integrity-check.ts");
+  const details: Json = { path: script, fix };
+
+  if (!fs.existsSync(script)) {
+    fail(check, "runtime integrity check script missing");
+    check.details = details;
+    return check;
+  }
+
+  const args = ["npx", "tsx", script, "--json"];
+  if (fix) args.push("--repair");
+  const [rc, out, err] = run(args, REPO_ROOT);
+  details.stdout = out;
+  details.stderr = err;
+
+  try {
+    const parsed = JSON.parse(out || "{}");
+    details.overall_ok = Boolean(parsed.overall_ok);
+    details.results = parsed.results ?? [];
+    if (!parsed.overall_ok) fail(check, "Runtime integrity checks failed");
+  } catch (error) {
+    fail(check, `Runtime integrity output invalid: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  if (rc !== 0 && check.status === "pass") fail(check, err || out || "Runtime integrity check failed");
   check.details = details;
   return check;
 }
@@ -723,6 +756,7 @@ async function main(): Promise<void> {
     checkRuntimeCronState(args.fix),
     checkCronDefinitions(),
     checkAgentProfileSync(),
+    checkRuntimeIntegrity(args.fix),
     checkDbConnectivity(),
     checkCriticalTools(),
     checkHeartbeatState(),

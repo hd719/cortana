@@ -23,6 +23,12 @@ type ProbeResult = {
 };
 
 type IncidentChange = ProbeResult & { incidentChange?: "created" | "updated" | "unchanged" };
+const PROBE_FRESHNESS_MS: Record<ProbeResult["probe"], number> = {
+  gog: 90 * 60 * 1000,
+  apple_reminders: 60 * 60 * 1000,
+  telegram_delivery: 30 * 60 * 1000,
+  critical_cron_lane: 60 * 60 * 1000,
+};
 
 type RuntimeJob = {
   name?: string;
@@ -307,6 +313,7 @@ function probeCriticalCronLane(): ProbeResult {
 }
 
 function formatActionable(results: ProbeResult[]): string {
+  const now = new Date();
   const byCategory = new Map<FailureClass, ProbeResult[]>();
   for (const r of results) {
     if (!r.category) continue;
@@ -327,8 +334,11 @@ function formatActionable(results: ProbeResult[]): string {
   for (const category of ordered) {
     const items = byCategory.get(category);
     if (!items?.length) continue;
-    const labels = items.map((i) => `${i.probe}: ${i.detail ?? "failed"}`).join("; ");
-    lines.push(`- ${category}: ${compact(labels, 180)}`);
+    const labels = items.map((i) => {
+      const freshUntil = new Date(now.valueOf() + PROBE_FRESHNESS_MS[i.probe]).toISOString();
+      return `${i.probe}: ${i.detail ?? "failed"} (observed ${now.toISOString()}, fresh until ${freshUntil})`;
+    }).join("; ");
+    lines.push(`- ${category}: ${compact(labels, 220)}`);
   }
   return lines.join("\n");
 }
@@ -355,7 +365,9 @@ function syncIncidentState(results: ProbeResult[]): IncidentChange[] {
         detail: "probe healthy",
         remediationStatus: "verified",
         autoResolved: true,
-        metadata: { probe: result.probe },
+      metadata: { probe: result.probe },
+      observedAt: new Date().toISOString(),
+      stateSource: "probe",
       });
       return result;
     }
@@ -374,6 +386,9 @@ function syncIncidentState(results: ProbeResult[]): IncidentChange[] {
         category: result.category ?? "unknown",
         actionable: Boolean(result.actionable),
       },
+      observedAt: new Date().toISOString(),
+      freshUntil: new Date(Date.now() + PROBE_FRESHNESS_MS[result.probe]).toISOString(),
+      stateSource: "probe",
     });
     return { ...result, incidentChange: change };
   });

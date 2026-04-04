@@ -19,7 +19,7 @@ describe("autonomy-status", () => {
       activeFollowUps: [],
       incidentReviews: [],
     });
-    collectOpenIncidentSummary.mockReturnValue({ open: 0, recurring: 0, labels: [] });
+    collectOpenIncidentSummary.mockReturnValue({ open: 0, recurring: 0, stale: 0, labels: [] });
     resetProcess();
   });
 
@@ -70,7 +70,7 @@ describe("autonomy-status", () => {
       activeFollowUps: [{ system: "channel", taskId: 12 }],
       incidentReviews: [],
     });
-    collectOpenIncidentSummary.mockReturnValue({ open: 2, recurring: 1, labels: ["channel:telegram_delivery", "cron:critical_cron_lane"] });
+    collectOpenIncidentSummary.mockReturnValue({ open: 2, recurring: 1, stale: 1, labels: ["channel:telegram_delivery", "cron:critical_cron_lane"] });
 
     setArgv([]);
     const consoleSpy = captureConsole();
@@ -89,7 +89,7 @@ describe("autonomy-status", () => {
     expect(output).toContain("failed then recovered: gateway, cron");
     expect(output).toContain("waiting on Hamel: 1 drift item(s), 1 escalated check(s)");
     expect(output).toContain("deferred/exceeded authority: channel:escalate");
-    expect(output).toContain("open incidents: 2 recurring=1");
+    expect(output).toContain("open incidents: 2 recurring=1 stale-suppressed=1");
     expect(output).toContain("family-critical lane: recovered=1 escalated=1");
     expect(output).toContain("service remediation: remediated=2 escalated=1 healthy=0 skipped=0");
     expect(output).toContain("actionable drift: cron/jobs.json");
@@ -134,7 +134,7 @@ describe("autonomy-status", () => {
       driftStatus: "healthy",
       remediationCounts: { remediated: 0, escalated: 0, healthy: 4, skipped: 0 },
       familyCritical: { recovered: 0, escalated: 0 },
-      openIncidents: { total: 0, recurring: 0 },
+      openIncidents: { total: 0, recurring: 0, stale: 0 },
     });
   });
 

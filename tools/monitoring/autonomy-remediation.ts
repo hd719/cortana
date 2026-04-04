@@ -15,7 +15,7 @@ const PSQL = "/opt/homebrew/opt/postgresql@17/bin/psql";
 
 type JsonMap = Record<string, unknown>;
 type RemediationItem = {
-  system: "gateway" | "channel" | "cron" | "session" | "browser" | "vacation";
+  system: "gateway" | "channel" | "cron" | "session" | "browser" | "vacation" | "runtime";
   status: "healthy" | "remediated" | "escalate" | "skipped";
   detail: string;
   verification?: string;
@@ -343,6 +343,51 @@ function remediateVacationMode(): RemediationItem {
   };
 }
 
+function remediateRuntimeIntegrity(): RemediationItem {
+  const check = runTs("tools/openclaw/runtime-integrity-check.ts", ["--json", "--repair"]);
+  if (check.ok) {
+    return {
+      system: "runtime",
+      status: "healthy",
+      detail: "runtime integrity healthy",
+      verification: check.stdout || "ok",
+      verificationStatus: "verified",
+    };
+  }
+
+  const parsed = parseJson(check.stdout);
+  const failed = Array.isArray(parsed.results)
+    ? parsed.results.filter((item: any) => item && item.ok === false)
+    : [];
+  const detail = failed.length
+    ? failed.map((item: any) => `${item.name}: ${item.detail}`).join("; ")
+    : (check.stderr || check.stdout || "runtime integrity degraded");
+  const repaired = Array.isArray(parsed.results) && parsed.results.some((item: any) => item?.repaired && item?.ok);
+
+  if (repaired) {
+    return {
+      system: "runtime",
+      status: "remediated",
+      detail: "runtime integrity repaired",
+      verification: detail,
+      action: "runtime-integrity-check --repair",
+      verificationStatus: "verified",
+      policyLesson: "runtime env drift should be repaired from durable gateway env sources before paging",
+    };
+  }
+
+  return {
+    system: "runtime",
+    status: "escalate",
+    detail: "runtime integrity degraded",
+    verification: detail,
+    action: "npx tsx tools/openclaw/runtime-integrity-check.ts --json --repair",
+    verificationStatus: "uncertain",
+    escalationPath: "page Hamel because runtime integrity remains degraded after bounded repair",
+    policyLesson: "runtime/plugin/env integrity needs one bounded repair then escalation",
+  };
+}
+
 function remediateGateway(state: StateShape): RemediationItem {
   const initial = gatewayHealthy();
   if (initial.healthy) {
@@ -612,6 +657,8 @@ function logActionResult(item: RemediationItem): RemediationItem {
         verification_status: item.verificationStatus ?? "verified",
         lane_label: item.laneLabel ?? null,
       },
+      observedAt: new Date().toISOString(),
+      stateSource: "remediation",
     });
     return item;
   }
@@ -685,6 +732,9 @@ VALUES (
         verification_status: item.verificationStatus ?? "uncertain",
         followup_task_id: followUpTaskId,
       },
+      observedAt: new Date().toISOString(),
+      freshUntil: new Date(Date.now() + 60 * 60 * 1000).toISOString(),
+      stateSource: "remediation",
     });
   } else if (item.status === "remediated") {
     resolveIncident(incidentKey, {
@@ -697,6 +747,8 @@ VALUES (
         verification_status: item.verificationStatus ?? "verified",
         lane_label: item.laneLabel ?? null,
       },
+      observedAt: new Date().toISOString(),
+      stateSource: "remediation",
     });
   }
   return item;
@@ -711,6 +763,7 @@ function main() {
     remediateChannel(state),
     remediateCriticalCron(),
     remediateSessionLifecycle(),
+    remediateRuntimeIntegrity(),
     remediateVacationMode(),
   ].map(logActionResult);
   writeState(state);

@@ -14,11 +14,15 @@ export type IncidentUpsertInput = {
   detail?: string;
   metadata?: Record<string, unknown>;
   remediationStatus?: IncidentRemediationStatus;
+  observedAt?: string;
+  freshUntil?: string | null;
+  stateSource?: string;
 };
 
 export type OpenIncidentSummary = {
   open: number;
   recurring: number;
+  stale: number;
   labels: string[];
 };
 
@@ -29,6 +33,9 @@ type IncidentRow = {
   last_detail: string;
   remediation_status: string;
   occurrence_count: number;
+  observed_at?: string | null;
+  fresh_until?: string | null;
+  state_source?: string | null;
 };
 
 let schemaEnsured = false;
@@ -71,6 +78,9 @@ ALTER TABLE cortana_autonomy_incidents ADD COLUMN IF NOT EXISTS last_detail TEXT
 ALTER TABLE cortana_autonomy_incidents ADD COLUMN IF NOT EXISTS verification TEXT NOT NULL DEFAULT '';
 ALTER TABLE cortana_autonomy_incidents ADD COLUMN IF NOT EXISTS action TEXT NOT NULL DEFAULT '';
 ALTER TABLE cortana_autonomy_incidents ADD COLUMN IF NOT EXISTS occurrence_count INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE cortana_autonomy_incidents ADD COLUMN IF NOT EXISTS observed_at TIMESTAMPTZ NOT NULL DEFAULT NOW();
+ALTER TABLE cortana_autonomy_incidents ADD COLUMN IF NOT EXISTS fresh_until TIMESTAMPTZ;
+ALTER TABLE cortana_autonomy_incidents ADD COLUMN IF NOT EXISTS state_source TEXT NOT NULL DEFAULT 'runtime';
 UPDATE cortana_autonomy_incidents
 SET incident_key = CONCAT('legacy:', id)
 WHERE incident_key IS NULL OR incident_key = '';
@@ -95,7 +105,10 @@ SELECT json_build_object(
   'summary', summary,
   'last_detail', last_detail,
   'remediation_status', remediation_status,
-  'occurrence_count', occurrence_count
+  'occurrence_count', occurrence_count,
+  'observed_at', observed_at,
+  'fresh_until', fresh_until,
+  'state_source', state_source
 )::text
 FROM cortana_autonomy_incidents
 WHERE incident_key = '${sqlEscape(incidentKey)}'
@@ -116,13 +129,24 @@ export function upsertOpenIncident(input: IncidentUpsertInput): "created" | "upd
   const nextDetail = String(input.detail ?? "");
   const nextSummary = String(input.summary ?? "");
   const nextSeverity = String(input.severity);
-  const changed = !existing || existing.state !== "open" || existing.severity !== nextSeverity || existing.summary !== nextSummary || existing.last_detail !== nextDetail || existing.remediation_status !== remediationStatus;
+  const observedAt = input.observedAt ?? new Date().toISOString();
+  const freshUntilSql = input.freshUntil ? `TIMESTAMPTZ '${sqlEscape(input.freshUntil)}'` : "NULL";
+  const stateSource = input.stateSource ?? input.source;
+  const changed = !existing ||
+    existing.state !== "open" ||
+    existing.severity !== nextSeverity ||
+    existing.summary !== nextSummary ||
+    existing.last_detail !== nextDetail ||
+    existing.remediation_status !== remediationStatus ||
+    (existing.fresh_until ?? null) !== (input.freshUntil ?? null) ||
+    (existing.state_source ?? null) !== stateSource;
 
   const sql = `
 INSERT INTO cortana_autonomy_incidents (
   incident_key, incident_type, system, source, severity, state,
   first_seen_at, last_seen_at, resolved_at, remediation_status,
-  summary, last_detail, occurrence_count, auto_resolved, escalated_to_human, metadata
+  summary, last_detail, occurrence_count, auto_resolved, escalated_to_human, metadata,
+  observed_at, fresh_until, state_source
 )
 VALUES (
   '${sqlEscape(input.incidentKey)}',
@@ -140,7 +164,10 @@ VALUES (
   1,
   FALSE,
   ${remediationStatus === "escalate" ? "TRUE" : "FALSE"},
-  ${jsonSql(input.metadata)}
+  ${jsonSql(input.metadata)},
+  TIMESTAMPTZ '${sqlEscape(observedAt)}',
+  ${freshUntilSql},
+  '${sqlEscape(stateSource)}'
 )
 ON CONFLICT (incident_key) DO UPDATE SET
   timestamp = NOW(),
@@ -157,7 +184,10 @@ ON CONFLICT (incident_key) DO UPDATE SET
   occurrence_count = cortana_autonomy_incidents.occurrence_count + 1,
   auto_resolved = FALSE,
   escalated_to_human = EXCLUDED.escalated_to_human,
-  metadata = EXCLUDED.metadata;
+  metadata = EXCLUDED.metadata,
+  observed_at = EXCLUDED.observed_at,
+  fresh_until = EXCLUDED.fresh_until,
+  state_source = EXCLUDED.state_source;
 `;
   const res = run(sql);
   if (res.status !== 0) {
@@ -176,12 +206,16 @@ export function resolveIncident(
     remediationStatus?: IncidentRemediationStatus;
     autoResolved?: boolean;
     metadata?: Record<string, unknown>;
+    observedAt?: string;
+    stateSource?: string;
   },
 ): "resolved" | "already_resolved" | "missing" {
   ensureAutonomyIncidentSchema();
   const existing = selectIncident(incidentKey);
   if (!existing) return "missing";
   const remediationStatus = resolution.remediationStatus ?? "resolved";
+  const observedAt = resolution.observedAt ?? new Date().toISOString();
+  const stateSource = resolution.stateSource ?? resolution.source;
   if (existing.state === "resolved" && existing.remediation_status === remediationStatus) {
     return "already_resolved";
   }
@@ -197,7 +231,9 @@ SET
   summary = '${sqlEscape(resolution.summary)}',
   last_detail = '${sqlEscape(String(resolution.detail ?? ""))}',
   auto_resolved = ${resolution.autoResolved ? "TRUE" : "FALSE"},
-  metadata = ${jsonSql(resolution.metadata)}
+  metadata = ${jsonSql(resolution.metadata)},
+  observed_at = TIMESTAMPTZ '${sqlEscape(observedAt)}',
+  state_source = '${sqlEscape(stateSource)}'
 WHERE incident_key = '${sqlEscape(incidentKey)}';
 `);
   if (res.status !== 0) {
@@ -210,11 +246,12 @@ export function collectOpenIncidentSummary(): OpenIncidentSummary {
   ensureAutonomyIncidentSchema();
   const res = run(`
 SELECT json_build_object(
-  'open', COUNT(*)::int,
-  'recurring', COUNT(*) FILTER (WHERE occurrence_count > 1)::int,
+  'open', COUNT(*) FILTER (WHERE fresh_until IS NULL OR fresh_until >= NOW())::int,
+  'recurring', COUNT(*) FILTER (WHERE occurrence_count > 1 AND (fresh_until IS NULL OR fresh_until >= NOW()))::int,
+  'stale', COUNT(*) FILTER (WHERE fresh_until IS NOT NULL AND fresh_until < NOW())::int,
   'labels', COALESCE(
     json_agg(CONCAT(system, ':', incident_type) ORDER BY last_seen_at DESC)
-      FILTER (WHERE state = 'open'),
+      FILTER (WHERE state = 'open' AND (fresh_until IS NULL OR fresh_until >= NOW())),
     '[]'::json
   )
 )::text
@@ -225,11 +262,12 @@ WHERE state = 'open';
     throw new Error((res.stderr || res.stdout || "failed to collect autonomy incidents").trim());
   }
   const raw = String(res.stdout ?? "").trim();
-  if (!raw) return { open: 0, recurring: 0, labels: [] };
-  const parsed = JSON.parse(raw) as { open?: number; recurring?: number; labels?: string[] | null };
+  if (!raw) return { open: 0, recurring: 0, stale: 0, labels: [] };
+  const parsed = JSON.parse(raw) as { open?: number; recurring?: number; stale?: number; labels?: string[] | null };
   return {
     open: Number(parsed.open ?? 0),
     recurring: Number(parsed.recurring ?? 0),
+    stale: Number(parsed.stale ?? 0),
     labels: Array.isArray(parsed.labels) ? parsed.labels.slice(0, 5).map(String) : [],
   };
 }

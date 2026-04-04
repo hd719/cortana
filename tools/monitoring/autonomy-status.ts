@@ -38,6 +38,7 @@ type AutonomyStatusSummary = {
   openIncidents: {
     total: number;
     recurring: number;
+    stale: number;
     labels: string[];
   };
   actionableDriftLabels: string[];
@@ -131,6 +132,7 @@ export function collectAutonomyStatus(): AutonomyStatusSummary {
     openIncidents: {
       total: openIncidents.open,
       recurring: openIncidents.recurring,
+      stale: openIncidents.stale,
       labels: openIncidents.labels,
     },
     actionableDriftLabels: Array.isArray(drift.actionable) ? drift.actionable.map((x: any) => x.check?.label).filter(Boolean) : [],
@@ -151,7 +153,7 @@ export function renderAutonomyStatus(summary: AutonomyStatusSummary): string {
     `- failed then recovered: ${summary.failedRecoveredItems.length ? summary.failedRecoveredItems.join(", ") : "none"}`,
     `- waiting on Hamel: ${summary.waitingOnHuman.length ? summary.waitingOnHuman.join(", ") : "none"}`,
     `- deferred/exceeded authority: ${summary.deferredItems.length ? summary.deferredItems.join(", ") : "none"}`,
-    `- open incidents: ${summary.openIncidents.total} recurring=${summary.openIncidents.recurring}`,
+    `- open incidents: ${summary.openIncidents.total} recurring=${summary.openIncidents.recurring} stale-suppressed=${summary.openIncidents.stale}`,
     `- family-critical lane: recovered=${summary.familyCritical.recovered} escalated=${summary.familyCritical.escalated}`,
     `- session lifecycle: ${summary.sessionStatus}`,
     `- runtime drift: ${summary.driftStatus}`,

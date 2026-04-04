@@ -66,6 +66,9 @@ describe("autonomy-remediation", () => {
       if (cmd === "npx" && String(args[2]).includes("session-lifecycle-policy.ts")) {
         return { status: 0, stdout: JSON.stringify({ status: "remediated", cleanupChangedCount: 2 }), stderr: "" } as any;
       }
+      if (cmd === "npx" && String(args[2]).includes("runtime-integrity-check.ts")) {
+        return { status: 0, stdout: JSON.stringify({ overall_ok: true, results: [] }), stderr: "" } as any;
+      }
       if (cmd === "/opt/homebrew/opt/postgresql@17/bin/psql") {
         return { status: 0, stdout: "", stderr: "" } as any;
       }
@@ -113,6 +116,9 @@ describe("autonomy-remediation", () => {
       }
       if (cmd === "npx" && String(args[2]).includes("session-lifecycle-policy.ts")) {
         return { status: 0, stdout: JSON.stringify({ status: "healthy" }), stderr: "" } as any;
+      }
+      if (cmd === "npx" && String(args[2]).includes("runtime-integrity-check.ts")) {
+        return { status: 0, stdout: JSON.stringify({ overall_ok: true, results: [] }), stderr: "" } as any;
       }
       if (cmd === "/opt/homebrew/opt/postgresql@17/bin/psql") {
         return { status: 0, stdout: "", stderr: "" } as any;

@@ -28,7 +28,7 @@ describe("runtime-repo-drift-monitor", () => {
     execSync.mockReset();
     existsSync.mockReset();
     realpathSync.mockReset();
-    existsSync.mockReturnValue(true);
+    existsSync.mockImplementation((filePath: string) => !String(filePath).includes("/Users/hd/Developer/cortana-deploy/.git"));
     realpathSync.mockImplementation((p: string) => p);
   });
 
@@ -116,6 +116,27 @@ describe("runtime-repo-drift-monitor", () => {
     expect(payload.status).toBe("healthy");
     expect(payload.actionable ?? []).toEqual([]);
     expect(payload.missing ?? []).toEqual([]);
+  });
+
+  it("prefers the deploy worktree as default source repo when it exists", async () => {
+    existsSync.mockImplementation(() => true);
+
+    seedRepos({
+      "/Users/hd/Developer/cortana-deploy": {
+        branch: "main",
+        upstream: "origin/main",
+        head: "abc123",
+        originHead: "abc123",
+        remoteUrl: "git@github-cortana:hd719/cortana.git",
+        clean: true,
+      },
+    });
+
+    const output = await runMonitor(["--json"]);
+    const payload = JSON.parse(output);
+    expect(payload.status).toBe("healthy");
+    expect(payload.sourceRepo).toBe("/Users/hd/Developer/cortana-deploy");
+    expect(payload.sourceOfTruth).toBe("deploy-worktree");
   });
 
   it("flags runtime lag behind the source deploy commit", async () => {
