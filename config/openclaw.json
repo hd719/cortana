@@ -194,7 +194,7 @@
       },
       {
         "id": "monitor",
-        "workspace": "/Users/hd/Developer/cortana",
+        "workspace": "/Users/hd/Developer/cortana/identities/monitor",
         "model": "openai-codex/gpt-5.1"
       },
       {

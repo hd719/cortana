@@ -122,6 +122,7 @@ Namespace files loaded (when present):
 - `IDENTITY.md`
 - `HEARTBEAT.md`
 - `MEMORY.md`
+- `TOOLS.md`
 
 If a namespace file is missing, the hook logs a warning and keeps the workspace default file (non-breaking fallback).
 

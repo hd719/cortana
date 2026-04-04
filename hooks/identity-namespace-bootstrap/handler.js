@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const FILES = ["SOUL.md", "USER.md", "IDENTITY.md", "HEARTBEAT.md", "MEMORY.md"];
+const FILES = ["SOUL.md", "USER.md", "IDENTITY.md", "HEARTBEAT.md", "MEMORY.md", "TOOLS.md"];
 
 function normalizeBootstrapEntryName(entryFile) {
   if (!entryFile || typeof entryFile !== "object") return "";

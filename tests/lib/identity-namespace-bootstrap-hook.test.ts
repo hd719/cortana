@@ -26,6 +26,7 @@ describe("identity namespace bootstrap hook", () => {
     const monitorDir = path.join(workspace, "identities", "monitor");
     fs.mkdirSync(monitorDir, { recursive: true });
     fs.writeFileSync(path.join(monitorDir, "SOUL.md"), "# Monitor soul\n", "utf8");
+    fs.writeFileSync(path.join(monitorDir, "TOOLS.md"), "# Monitor tools\n", "utf8");
 
     const event = {
       event: "agent:bootstrap",
@@ -39,6 +40,12 @@ describe("identity namespace bootstrap hook", () => {
             content: "# Main soul\n",
             missing: false,
           },
+          {
+            name: "TOOLS.md",
+            path: path.join(workspace, "TOOLS.md"),
+            content: "# Main tools\n",
+            missing: false,
+          },
         ],
       },
     };
@@ -50,5 +57,11 @@ describe("identity namespace bootstrap hook", () => {
     expect(soulEntry.path).toBe(path.join(workspace, "identities", "monitor", "SOUL.md"));
     expect(soulEntry.content).toBe("# Monitor soul\n");
     expect(soulEntry.missing).toBe(false);
+
+    const toolsEntry = event.context.bootstrapFiles.find((file: any) => file.name === "TOOLS.md");
+    expect(toolsEntry).toBeTruthy();
+    expect(toolsEntry.path).toBe(path.join(workspace, "identities", "monitor", "TOOLS.md"));
+    expect(toolsEntry.content).toBe("# Monitor tools\n");
+    expect(toolsEntry.missing).toBe(false);
   });
 });

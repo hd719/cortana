@@ -55,7 +55,7 @@
   },
   {
     "id": "monitor",
-    "workspace": "/Users/hd/Developer/cortana",
+    "workspace": "/Users/hd/Developer/cortana/identities/monitor",
     "identityNamespace": "monitor",
     "model": "openai-codex/gpt-5.3-codex"
   }
