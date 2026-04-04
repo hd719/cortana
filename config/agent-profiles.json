@@ -3,32 +3,32 @@
     "id": "main",
     "workspace": "/Users/hd/Developer/cortana",
     "identityNamespace": "main",
-    "model": "anthropic/claude-opus-4-6"
+    "model": "openai-codex/gpt-5.4"
   },
   {
     "id": "cron-health",
     "workspace": "/Users/hd/.openclaw/workspaces/cron-health",
-    "model": "openai-codex/gpt-5.1"
+    "model": "openai-codex/gpt-5.3-codex-spark"
   },
   {
     "id": "cron-fitness",
     "workspace": "/Users/hd/.openclaw/workspaces/cron-fitness",
-    "model": "openai-codex/gpt-5.3-codex"
+    "model": "openai-codex/gpt-5.3-codex-spark"
   },
   {
     "id": "cron-market",
     "workspace": "/Users/hd/.openclaw/workspaces/cron-market",
-    "model": "openai-codex/gpt-5.3-codex"
+    "model": "openai-codex/gpt-5.3-codex-spark"
   },
   {
     "id": "cron-comms",
     "workspace": "/Users/hd/.openclaw/workspaces/cron-comms",
-    "model": "openai-codex/gpt-5.3-codex"
+    "model": "openai-codex/gpt-5.3-codex-spark"
   },
   {
     "id": "cron-maintenance",
     "workspace": "/Users/hd/.openclaw/workspaces/cron-maintenance",
-    "model": "openai-codex/gpt-5.1"
+    "model": "openai-codex/gpt-5.3-codex-spark"
   },
   {
     "id": "huragok",
@@ -57,6 +57,18 @@
     "id": "monitor",
     "workspace": "/Users/hd/Developer/cortana/identities/monitor",
     "identityNamespace": "monitor",
+    "model": "openai-codex/gpt-5.1"
+  },
+  {
+    "id": "arbiter",
+    "workspace": "/Users/hd/Developer/cortana/identities/arbiter",
+    "identityNamespace": "arbiter",
+    "model": "openai-codex/gpt-5.3-codex"
+  },
+  {
+    "id": "spartan",
+    "workspace": "/Users/hd/Developer/cortana/identities/spartan",
+    "identityNamespace": "spartan",
     "model": "openai-codex/gpt-5.3-codex"
   }
 ]

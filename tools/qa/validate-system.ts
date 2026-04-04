@@ -6,6 +6,7 @@ import path from "path";
 import { spawnSync } from "child_process";
 import { HEARTBEAT_MAX_AGE_MS, validateHeartbeatState } from "../lib/heartbeat-schema.js";
 import { PSQL_BIN, resolveRepoPath } from "../lib/paths.js";
+import { evaluateAgentProfileSync } from "./validate-agent-profile-sync.js";
 
 type Check = {
   name: string;
@@ -455,6 +456,18 @@ function checkMemoryFiles(): Check {
   return check;
 }
 
+function checkAgentProfileSync(): Check {
+  const check = makeCheck("agent_profile_sync");
+  const report = evaluateAgentProfileSync();
+  check.details = report;
+
+  if (!report.ok) {
+    fail(check, "config/agent-profiles.json is not aligned with config/openclaw.json");
+  }
+
+  return check;
+}
+
 function checkGitStatus(): Check {
   const check = makeCheck("git_status");
   const details: Json = {};
@@ -709,6 +722,7 @@ async function main(): Promise<void> {
   const checks: Check[] = [
     checkRuntimeCronState(args.fix),
     checkCronDefinitions(),
+    checkAgentProfileSync(),
     checkDbConnectivity(),
     checkCriticalTools(),
     checkHeartbeatState(),

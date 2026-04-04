@@ -198,6 +198,8 @@ The `main` agent MUST be explicitly listed in both:
 
 Without an explicit entry, webchat falls back to `~/.openclaw/workspace-main` (a blank bootstrap workspace) instead of the Cortana workspace.
 
+`config/agent-profiles.json` must mirror the explicit agent list in `config/openclaw.json` for workspace + primary model. Treat `config/openclaw.json` as the canonical source; validate drift with `npx tsx /Users/hd/Developer/cortana/tools/qa/validate-agent-profile-sync.ts --json`.
+
 ## Cross-Agent Visibility (Messaging + History)
 
 If `sessions_send` works but cross-session history/listing is still limited, both of these config keys must be set in `~/.openclaw/openclaw.json`.
