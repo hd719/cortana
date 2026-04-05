@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 
-const DEFAULT_SOURCE = path.join("/Users/hd/Developer/cortana-deploy", "config", "openclaw.json");
+const DEFAULT_SOURCE = path.join("/Users/hd/Developer/cortana", "config", "openclaw.json");
 const DEFAULT_RUNTIME = path.join(os.homedir(), ".openclaw", "openclaw.json");
 
 type Json = Record<string, any>;

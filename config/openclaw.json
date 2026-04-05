@@ -398,53 +398,49 @@
         8171372724
       ],
       "groupPolicy": "allowlist",
-      "streaming": "partial",
-      "threadBindings": {
-        "enabled": true,
-        "spawnAcpSessions": true
-      },
+      "streaming": "off",
       "accounts": {
         "researcher": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
-          "streaming": "partial"
+          "streaming": "off"
         },
         "default": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
-          "streaming": "partial"
+          "streaming": "off"
         },
         "huragok": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
-          "streaming": "partial"
+          "streaming": "off"
         },
         "oracle": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
-          "streaming": "partial"
+          "streaming": "off"
         },
         "monitor": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
-          "streaming": "partial"
+          "streaming": "off"
         },
         "arbiter": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
-          "streaming": "partial"
+          "streaming": "off"
         },
         "spartan": {
           "dmPolicy": "pairing",
           "botToken": "__SPARTAN_BOT_TOKEN__",
           "groupPolicy": "allowlist",
-          "streaming": "partial"
+          "streaming": "off"
         }
       }
     }
