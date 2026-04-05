@@ -1,4 +1,5 @@
 import { runPsql } from "../lib/db.js";
+import type { SpartanPhaseMode } from "./spartan-defaults.js";
 
 export type CoachDecisionInput = {
   tsUtc?: string;
@@ -65,7 +66,29 @@ export type CoachNutritionInput = {
   proteinTargetG: number;
   proteinActualG?: number | null;
   hydrationStatus: string;
+  caloriesActualKcal?: number | null;
+  carbsG?: number | null;
+  fatsG?: number | null;
+  hydrationLiters?: number | null;
+  mealsLogged?: number | null;
+  confidence?: "high" | "medium" | "low" | null;
+  phaseMode?: SpartanPhaseMode | "unknown" | null;
   notes?: string | null;
+};
+
+export type CoachNutritionRow = {
+  date_local: string;
+  protein_target_g: number;
+  protein_actual_g: number | null;
+  hydration_status: string;
+  calories_actual_kcal: number | null;
+  carbs_g: number | null;
+  fats_g: number | null;
+  hydration_liters: number | null;
+  meals_logged: number | null;
+  confidence: "high" | "medium" | "low" | null;
+  phase_mode: SpartanPhaseMode | "unknown" | null;
+  notes: string | null;
 };
 
 let schemaEnsured = false;
@@ -97,6 +120,11 @@ function parseSingleJsonLine<T>(raw: string): T | null {
 function sqlNum(value: number | null | undefined): string {
   if (value == null || !Number.isFinite(value)) return "NULL";
   return String(value);
+}
+
+function sqlInt(value: number | null | undefined): string {
+  if (value == null || !Number.isFinite(value)) return "NULL";
+  return String(Math.trunc(value));
 }
 
 export function buildCoachSchemaSql(): string {
@@ -168,9 +196,24 @@ CREATE TABLE IF NOT EXISTS coach_nutrition_log (
   protein_target_g int NOT NULL CHECK (protein_target_g > 0),
   protein_actual_g int CHECK (protein_actual_g >= 0),
   hydration_status text NOT NULL,
+  calories_actual_kcal numeric(8,2),
+  carbs_g numeric(8,2),
+  fats_g numeric(8,2),
+  hydration_liters numeric(8,3),
+  meals_logged int,
+  confidence text,
+  phase_mode text,
   notes text,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE coach_nutrition_log ADD COLUMN IF NOT EXISTS calories_actual_kcal numeric(8,2);
+ALTER TABLE coach_nutrition_log ADD COLUMN IF NOT EXISTS carbs_g numeric(8,2);
+ALTER TABLE coach_nutrition_log ADD COLUMN IF NOT EXISTS fats_g numeric(8,2);
+ALTER TABLE coach_nutrition_log ADD COLUMN IF NOT EXISTS hydration_liters numeric(8,3);
+ALTER TABLE coach_nutrition_log ADD COLUMN IF NOT EXISTS meals_logged int;
+ALTER TABLE coach_nutrition_log ADD COLUMN IF NOT EXISTS confidence text;
+ALTER TABLE coach_nutrition_log ADD COLUMN IF NOT EXISTS phase_mode text;
 
 CREATE TABLE IF NOT EXISTS coach_weekly_score (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -279,6 +322,40 @@ SET
   payload = COALESCE(coach_decision_log.payload, '{}'::jsonb) || COALESCE(EXCLUDED.payload, '{}'::jsonb);`;
 }
 
+export function buildCoachNutritionUpsertSql(input: CoachNutritionInput): string {
+  return `
+INSERT INTO coach_nutrition_log (
+  date_local, protein_target_g, protein_actual_g, hydration_status,
+  calories_actual_kcal, carbs_g, fats_g, hydration_liters, meals_logged, confidence, phase_mode, notes
+) VALUES (
+  ${sqlText(input.dateLocal)}::date,
+  ${sqlInt(input.proteinTargetG)},
+  ${sqlInt(input.proteinActualG)},
+  ${sqlText(input.hydrationStatus)},
+  ${sqlNum(input.caloriesActualKcal)},
+  ${sqlNum(input.carbsG)},
+  ${sqlNum(input.fatsG)},
+  ${sqlNum(input.hydrationLiters)},
+  ${sqlInt(input.mealsLogged)},
+  ${sqlText(input.confidence ?? null)},
+  ${sqlText(input.phaseMode ?? null)},
+  ${sqlText(input.notes ?? null)}
+)
+ON CONFLICT (date_local) DO UPDATE
+SET
+  protein_target_g = EXCLUDED.protein_target_g,
+  protein_actual_g = COALESCE(EXCLUDED.protein_actual_g, coach_nutrition_log.protein_actual_g),
+  hydration_status = COALESCE(NULLIF(EXCLUDED.hydration_status, ''), coach_nutrition_log.hydration_status),
+  calories_actual_kcal = COALESCE(EXCLUDED.calories_actual_kcal, coach_nutrition_log.calories_actual_kcal),
+  carbs_g = COALESCE(EXCLUDED.carbs_g, coach_nutrition_log.carbs_g),
+  fats_g = COALESCE(EXCLUDED.fats_g, coach_nutrition_log.fats_g),
+  hydration_liters = COALESCE(EXCLUDED.hydration_liters, coach_nutrition_log.hydration_liters),
+  meals_logged = COALESCE(EXCLUDED.meals_logged, coach_nutrition_log.meals_logged),
+  confidence = COALESCE(NULLIF(EXCLUDED.confidence, ''), coach_nutrition_log.confidence),
+  phase_mode = COALESCE(NULLIF(EXCLUDED.phase_mode, ''), coach_nutrition_log.phase_mode),
+  notes = COALESCE(EXCLUDED.notes, coach_nutrition_log.notes);`;
+}
+
 
 export function upsertCoachConversation(input: CoachConversationInput): { ok: boolean; error?: string } {
   try {
@@ -371,23 +448,7 @@ WHERE id = (SELECT id FROM coach_decision_log ORDER BY ts_utc DESC LIMIT 1);`;
 export function upsertCoachNutrition(input: CoachNutritionInput): { ok: boolean; error?: string } {
   try {
     ensureCoachSchema();
-    const sql = `
-INSERT INTO coach_nutrition_log (
-  date_local, protein_target_g, protein_actual_g, hydration_status, notes
-) VALUES (
-  ${sqlText(input.dateLocal)}::date,
-  ${Math.trunc(input.proteinTargetG)},
-  ${input.proteinActualG == null ? "NULL" : Math.max(0, Math.trunc(input.proteinActualG))},
-  ${sqlText(input.hydrationStatus)},
-  ${sqlText(input.notes ?? null)}
-)
-ON CONFLICT (date_local) DO UPDATE
-SET
-  protein_target_g = EXCLUDED.protein_target_g,
-  protein_actual_g = COALESCE(EXCLUDED.protein_actual_g, coach_nutrition_log.protein_actual_g),
-  hydration_status = COALESCE(NULLIF(EXCLUDED.hydration_status, ''), coach_nutrition_log.hydration_status),
-  notes = COALESCE(EXCLUDED.notes, coach_nutrition_log.notes);
-`;
+    const sql = buildCoachNutritionUpsertSql(input);
     const result = runPsql(sql);
     if (result.status !== 0) {
       return { ok: false, error: (result.stderr || "coach nutrition upsert failed").trim() };
@@ -396,6 +457,37 @@ SET
   } catch (error) {
     return { ok: false, error: error instanceof Error ? error.message : String(error) };
   }
+}
+
+export function buildFetchCoachNutritionRowSql(dateLocal: string): string {
+  return `
+SELECT COALESCE(row_to_json(t)::text, '{}') AS payload
+FROM (
+  SELECT
+    date_local::text AS date_local,
+    protein_target_g,
+    protein_actual_g,
+    hydration_status,
+    calories_actual_kcal,
+    carbs_g,
+    fats_g,
+    hydration_liters,
+    meals_logged,
+    confidence,
+    phase_mode,
+    notes
+  FROM coach_nutrition_log
+  WHERE date_local = ${sqlText(dateLocal)}::date
+) t;`;
+}
+
+export function fetchCoachNutritionRow(dateLocal: string): CoachNutritionRow | null {
+  ensureCoachSchema();
+  const result = runPsql(buildFetchCoachNutritionRowSql(dateLocal));
+  if (result.status !== 0) return null;
+  const parsed = parseSingleJsonLine<CoachNutritionRow>(String(result.stdout ?? ""));
+  if (!parsed) return null;
+  return parsed.date_local ? parsed : null;
 }
 
 export function upsertCoachCaffeine(input: CoachCaffeineInput): { ok: boolean; error?: string } {

@@ -10,6 +10,7 @@ export type MealEntry = {
   calories: number | null;
   carbsG: number | null;
   fatG: number | null;
+  hydrationLiters: number | null;
   note: string | null;
   sourceFile: string;
 };
@@ -25,6 +26,7 @@ export type MealRollup = {
     calories: number | null;
     carbsG: number | null;
     fatG: number | null;
+    hydrationLiters: number | null;
     proteinStatus: "below" | "on_target" | "above" | "unknown";
     proteinGapG: number | null;
   };
@@ -32,11 +34,12 @@ export type MealRollup = {
     mealsLogged: number;
     daysLogged: number;
     avgDailyProteinG: number | null;
+    avgDailyHydrationLiters: number | null;
     daysMeetingProteinTarget: number;
   };
 };
 
-type ParserAliases = "p" | "protein" | "cals" | "calories" | "carbs" | "fat" | "note";
+type ParserAliases = "p" | "protein" | "cals" | "calories" | "carbs" | "fat" | "note" | "hydration";
 
 function toNumeric(value: string | undefined): number | null {
   if (!value) return null;
@@ -54,6 +57,20 @@ function normalizeKey(key: string): ParserAliases | null {
   if (k === "carbs") return "carbs";
   if (k === "fat") return "fat";
   if (k === "note") return "note";
+  if (
+    k === "water" ||
+    k === "hydration" ||
+    k === "water_l" ||
+    k === "hydration_l" ||
+    k === "water_liters" ||
+    k === "hydration_liters" ||
+    k === "water_ml" ||
+    k === "hydration_ml" ||
+    k === "water_oz" ||
+    k === "hydration_oz"
+  ) {
+    return "hydration";
+  }
   return null;
 }
 
@@ -65,8 +82,26 @@ function trimWrapped(value: string): string {
   return trimmed;
 }
 
+function parseHydrationLiters(value: string | undefined): number | null {
+  if (!value) return null;
+  const cleaned = value.trim().toLowerCase().replace(/,/g, "");
+  if (!cleaned) return null;
+  const match = cleaned.match(/^(-?\d+(?:\.\d+)?)(?:\s*(l|liter|liters|litre|litres|ml|milliliter|milliliters|millilitre|millilitres|oz|ounce|ounces))?$/);
+  if (!match) return toNumeric(value);
+  const amount = Number.parseFloat(match[1] ?? "");
+  if (!Number.isFinite(amount) || amount < 0) return null;
+  const unit = match[2] ?? "l";
+  if (unit === "ml" || unit === "milliliter" || unit === "milliliters" || unit === "millilitre" || unit === "millilitres") {
+    return Number((amount / 1000).toFixed(3));
+  }
+  if (unit === "oz" || unit === "ounce" || unit === "ounces") {
+    return Number((amount * 0.0295735295625).toFixed(3));
+  }
+  return Number(amount.toFixed(3));
+}
+
 function parseSingleMealLine(mealText: string, timestamp: string, sourceFile: string, timeZone: string): MealEntry | null {
-  const kvRegex = /(?:^|\s)([a-zA-Z]+)=("[^"]*"|'[^']*'|[^\s]+)/g;
+  const kvRegex = /(?:^|\s)([a-zA-Z_]+)=("[^"]*"|'[^']*'|[^\s]+)/g;
   const parsed: Record<ParserAliases, string> = {} as Record<ParserAliases, string>;
   let match: RegExpExecArray | null;
 
@@ -80,8 +115,15 @@ function parseSingleMealLine(mealText: string, timestamp: string, sourceFile: st
   const calories = toNumeric(parsed.cals ?? parsed.calories);
   const carbsG = toNumeric(parsed.carbs);
   const fatG = toNumeric(parsed.fat);
+  const hydrationLiters = parseHydrationLiters(parsed.hydration);
   const note = parsed.note ? parsed.note.trim() : null;
-  const hasSignal = proteinG != null || calories != null || carbsG != null || fatG != null || (note && note.length > 0);
+  const hasSignal =
+    proteinG != null ||
+    calories != null ||
+    carbsG != null ||
+    fatG != null ||
+    hydrationLiters != null ||
+    (note && note.length > 0);
   if (!hasSignal) return null;
 
   return {
@@ -91,6 +133,7 @@ function parseSingleMealLine(mealText: string, timestamp: string, sourceFile: st
     calories,
     carbsG,
     fatG,
+    hydrationLiters,
     note: note && note.length > 0 ? note : null,
     sourceFile,
   };
@@ -208,6 +251,7 @@ export function summarizeMealRollup(entries: MealEntry[], todayYmd = localYmd())
   const trailing7Entries = entries.filter((entry) => entry.date >= trailing7Start && entry.date <= todayYmd);
 
   const todayProtein = sumNullable(todayEntries.map((entry) => entry.proteinG));
+  const todayHydrationLiters = sumNullable(todayEntries.map((entry) => entry.hydrationLiters));
   const proteinStatus = (() => {
     if (todayProtein == null) return "unknown";
     if (todayProtein < proteinMinG) return "below";
@@ -223,11 +267,15 @@ export function summarizeMealRollup(entries: MealEntry[], todayYmd = localYmd())
   })();
 
   const proteinByDay = new Map<string, number>();
+  const hydrationByDay = new Map<string, number>();
   for (const entry of trailing7Entries) {
     const prev = proteinByDay.get(entry.date) ?? 0;
     proteinByDay.set(entry.date, prev + (entry.proteinG ?? 0));
+    const hydrationPrev = hydrationByDay.get(entry.date) ?? 0;
+    hydrationByDay.set(entry.date, hydrationPrev + (entry.hydrationLiters ?? 0));
   }
   const proteinTotals = Array.from(proteinByDay.values());
+  const hydrationTotals = Array.from(hydrationByDay.values());
   const daysMeetingProteinTarget = proteinTotals.filter((protein) => protein >= proteinMinG && protein <= proteinMaxG).length;
 
   return {
@@ -241,6 +289,7 @@ export function summarizeMealRollup(entries: MealEntry[], todayYmd = localYmd())
       calories: sumNullable(todayEntries.map((entry) => entry.calories)),
       carbsG: sumNullable(todayEntries.map((entry) => entry.carbsG)),
       fatG: sumNullable(todayEntries.map((entry) => entry.fatG)),
+      hydrationLiters: todayHydrationLiters,
       proteinStatus,
       proteinGapG,
     },
@@ -248,8 +297,8 @@ export function summarizeMealRollup(entries: MealEntry[], todayYmd = localYmd())
       mealsLogged: trailing7Entries.length,
       daysLogged: proteinByDay.size,
       avgDailyProteinG: average(proteinTotals),
+      avgDailyHydrationLiters: average(hydrationTotals),
       daysMeetingProteinTarget,
     },
   };
 }
-

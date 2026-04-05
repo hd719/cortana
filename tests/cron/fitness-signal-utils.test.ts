@@ -3,9 +3,12 @@ import {
   buildReadinessSignal,
   computeTrend,
   extractDailyStepCount,
+  extractTonalSetActivities,
   overreachFlags,
   summarizeWhoopWeekly,
   summarizeTonalWeekly,
+  tonalLoadBucket,
+  tonalRepBucket,
 } from "../../tools/fitness/signal-utils.ts";
 
 describe("fitness signal utils", () => {
@@ -117,5 +120,40 @@ describe("fitness signal utils", () => {
     const workoutSteps = extractDailyStepCount(workoutPayload, "2026-03-18");
     expect(workoutSteps.stepCount).toBe(7300);
     expect(workoutSteps.source).toBe("workouts_sum");
+  });
+
+  it("extracts tonal set activities with deterministic mapping and buckets", () => {
+    const activities = extractTonalSetActivities({
+      workouts: [
+        {
+          id: "tonal-1",
+          beginTime: "2026-03-18T10:00:00Z",
+          workoutSetActivity: [
+            {
+              setId: "set-1",
+              movementTitle: "Bench Press",
+              repCount: 8,
+              avgWeight: 55,
+              volume: 440,
+            },
+            {
+              setId: "set-2",
+              movementTitle: "Unknown cable sorcery",
+              repCount: 15,
+              avgWeight: 12,
+            },
+          ],
+        },
+      ],
+    });
+
+    expect(activities).toHaveLength(2);
+    expect(activities[0]?.muscleGroup).toBe("chest");
+    expect(activities[0]?.loadBucket).toBe("heavy");
+    expect(activities[0]?.repBucket).toBe("low");
+    expect(activities[1]?.mapped).toBe(false);
+    expect(activities[1]?.unmappedReason).toContain("No Tonal movement mapping matched");
+    expect(tonalLoadBucket(12)).toBe("light");
+    expect(tonalRepBucket(15)).toBe("high");
   });
 });

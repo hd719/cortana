@@ -1,3 +1,5 @@
+import { resolveTonalMovement, type TonalMovementResolution } from "./tonal-movement-map.js";
+
 type JsonObject = Record<string, unknown>;
 
 export type ReadinessBand = "green" | "yellow" | "red" | "unknown";
@@ -68,6 +70,28 @@ export type TonalWorkoutSummary = {
   volume: number | null;
   durationMinutes: number | null;
   title: string | null;
+};
+
+export type TonalLoadBucket = "unknown" | "light" | "moderate" | "heavy" | "very_heavy";
+export type TonalRepBucket = "unknown" | "very_low" | "low" | "moderate" | "high";
+
+export type TonalSetActivity = {
+  sourcePath: string;
+  workoutId: string | null;
+  setId: string | null;
+  movementId: string | null;
+  movementTitle: string | null;
+  reps: number | null;
+  load: number | null;
+  volume: number | null;
+  loadBucket: TonalLoadBucket;
+  repBucket: TonalRepBucket;
+  muscleGroup: TonalMovementResolution["muscleGroup"];
+  pattern: TonalMovementResolution["pattern"];
+  confidence: number;
+  mapped: boolean;
+  unmappedReason: string | null;
+  raw: JsonObject;
 };
 
 export type TonalWeeklySummary = {
@@ -250,6 +274,138 @@ function sumNumbers(values: Array<number | null>): number | null {
   const nums = values.filter((value): value is number => typeof value === "number" && Number.isFinite(value));
   if (!nums.length) return null;
   return nums.reduce((total, value) => total + value, 0);
+}
+
+function firstString(...values: Array<unknown>): string | null {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const text = value.trim();
+    if (text.length > 0) return text;
+  }
+  return null;
+}
+
+function coalesceNumber(...values: Array<unknown>): number | null {
+  for (const value of values) {
+    const num = toNumber(value);
+    if (num != null) return num;
+  }
+  return null;
+}
+
+function isSetLike(row: JsonObject): boolean {
+  const hasMovementIdentity = row.movementId != null || row.movementTitle != null || row.movementName != null || row.exerciseName != null || row.exerciseTitle != null;
+  const hasSetIdentity = row.setId != null || row.reps != null || row.repCount != null || row.prescribedReps != null;
+  const hasLoadSignal =
+    row.baseWeight != null
+    || row.avgWeight != null
+    || row.volume != null
+    || row.totalVolume != null
+    || row.weight != null
+    || row.weightAtMaxConPower != null
+    || row.oneRepMax != null;
+  return (
+    row.setId != null
+    || row.movementId != null
+    || row.repCount != null
+    || row.reps != null
+    || (hasMovementIdentity && (hasSetIdentity || hasLoadSignal))
+  );
+}
+
+function collectTonalSetCandidates(value: unknown, sourcePath: string[], out: Array<{ path: string; raw: JsonObject }>): void {
+  if (Array.isArray(value)) {
+    value.forEach((item, index) => {
+      collectTonalSetCandidates(item, [...sourcePath, String(index)], out);
+    });
+    return;
+  }
+  if (!value || typeof value !== "object") return;
+
+  const row = value as JsonObject;
+  if (isSetLike(row)) {
+    out.push({ path: sourcePath.join("."), raw: row });
+  }
+
+  for (const [key, child] of Object.entries(row)) {
+    if (!child || typeof child !== "object") continue;
+    collectTonalSetCandidates(child, [...sourcePath, key], out);
+  }
+}
+
+export function tonalLoadBucket(load: number | null): TonalLoadBucket {
+  if (load == null || !Number.isFinite(load)) return "unknown";
+  if (load < 20) return "light";
+  if (load < 40) return "moderate";
+  if (load < 60) return "heavy";
+  return "very_heavy";
+}
+
+export function tonalRepBucket(reps: number | null): TonalRepBucket {
+  if (reps == null || !Number.isFinite(reps)) return "unknown";
+  if (reps <= 4) return "very_low";
+  if (reps <= 8) return "low";
+  if (reps <= 12) return "moderate";
+  return "high";
+}
+
+export function resolveTonalMovementToMuscle(input: {
+  movementId?: string | number | null;
+  movementTitle?: string | null;
+  title?: string | null;
+  name?: string | null;
+}): TonalMovementResolution {
+  return resolveTonalMovement(input);
+}
+
+export function extractTonalSetActivities(payload: unknown): TonalSetActivity[] {
+  const root = toObj(payload);
+  const candidates: Array<{ path: string; raw: JsonObject }> = [];
+  collectTonalSetCandidates(root, [], candidates);
+
+  const seen = new Set<string>();
+  const out: TonalSetActivity[] = [];
+
+  for (const candidate of candidates) {
+    const raw = candidate.raw;
+    const movementId = firstString(raw.movementId);
+    const movementTitle = firstString(raw.movementTitle, raw.movementName, raw.title, raw.name, raw.exerciseName, raw.exerciseTitle);
+    const workoutId = firstString(raw.workoutId, raw.workoutActivityID, raw.workoutActivityId, raw.activityId);
+    const setId = firstString(raw.setId, raw.id);
+    const repCount = coalesceNumber(raw.repCount, raw.reps, raw.prescribedReps, raw.durationBasedRepGoal);
+    const load = coalesceNumber(raw.avgWeight, raw.baseWeight, raw.weight, raw.weightAtMaxConPower, raw.maxWeight, raw.suggestedWeight);
+    const volume = coalesceNumber(raw.totalVolume, raw.volume) ?? (load != null && repCount != null ? Number((load * repCount).toFixed(2)) : null);
+    const resolution = resolveTonalMovementToMuscle({
+      movementId,
+      movementTitle,
+      title: movementTitle,
+      name: movementTitle,
+    });
+    const dedupeKey = [candidate.path, setId ?? "", movementId ?? "", movementTitle ?? "", String(raw.beginTime ?? ""), String(raw.round ?? ""), String(raw.repetition ?? "")].join("|");
+    if (seen.has(dedupeKey)) continue;
+    seen.add(dedupeKey);
+
+    out.push({
+      sourcePath: candidate.path,
+      workoutId,
+      setId,
+      movementId,
+      movementTitle,
+      reps: repCount,
+      load,
+      volume,
+      loadBucket: tonalLoadBucket(load),
+      repBucket: tonalRepBucket(repCount),
+      muscleGroup: resolution.muscleGroup,
+      pattern: resolution.pattern,
+      confidence: resolution.confidence,
+      mapped: resolution.mapped,
+      unmappedReason: resolution.mapped ? null : resolution.reason,
+      raw,
+    });
+  }
+
+  return out;
 }
 
 export function extractDailyStepCount(payload: unknown, today = localYmd(), timeZone = "America/New_York"): DailyStepSummary {

@@ -3,8 +3,11 @@ import { describe, expect, it } from "vitest";
 import {
   buildCoachConversationUpsertSql,
   buildCoachDecisionUpsertSql,
+  buildFetchCoachNutritionRowSql,
+  buildCoachNutritionUpsertSql,
   buildCoachSchemaSql,
 } from "../../tools/fitness/coach-db.ts";
+import { resolveSpartanPhaseDefaults } from "../../tools/fitness/spartan-defaults.ts";
 
 describe("fitness coach DB helpers", () => {
   it("adds linkage columns needed by the coaching loop schema", () => {
@@ -18,6 +21,23 @@ describe("fitness coach DB helpers", () => {
     expect(schema).toContain("expected_followup_by timestamptz");
     expect(schema).toContain("decision_key text UNIQUE");
     expect(schema).toContain("payload jsonb NOT NULL DEFAULT '{}'::jsonb");
+    expect(schema).toContain("calories_actual_kcal numeric(8,2)");
+    expect(schema).toContain("carbs_g numeric(8,2)");
+    expect(schema).toContain("fats_g numeric(8,2)");
+    expect(schema).toContain("hydration_liters numeric(8,3)");
+    expect(schema).toContain("meals_logged int");
+    expect(schema).toContain("confidence text");
+    expect(schema).toContain("phase_mode text");
+  });
+
+  it("resolves typed phase defaults for the nutrition baseline", () => {
+    const cut = resolveSpartanPhaseDefaults("gentle_cut");
+    const maintain = resolveSpartanPhaseDefaults("maintenance");
+
+    expect(cut.proteinTargetG).toBe(160);
+    expect(cut.targetCutRatePctPerWeek).toBe(0.35);
+    expect(maintain.proteinTargetG).toBe(140);
+    expect(maintain.caloriesDeltaKcalPerDay).toBe(0);
   });
 
   it("builds a safe conversation upsert with parsed entities and decision linkage", () => {
@@ -70,5 +90,43 @@ describe("fitness coach DB helpers", () => {
     expect(sql).toContain("source_iso_week");
     expect(sql).toContain("expected_followup_by");
     expect(sql).toContain("today_mission_key");
+  });
+
+  it("builds a nutrition upsert that persists the new daily nutrition fields", () => {
+    const sql = buildCoachNutritionUpsertSql({
+      dateLocal: "2026-04-05",
+      proteinTargetG: 160,
+      proteinActualG: 148,
+      hydrationStatus: "moderate",
+      caloriesActualKcal: 2450.5,
+      carbsG: 210.25,
+      fatsG: 72,
+      hydrationLiters: 2.35,
+      mealsLogged: 5,
+      confidence: "high",
+      phaseMode: "gentle_cut",
+      notes: "baseline day with manual hydration estimate",
+    });
+
+    expect(sql).toContain("INSERT INTO coach_nutrition_log");
+    expect(sql).toContain("calories_actual_kcal");
+    expect(sql).toContain("carbs_g");
+    expect(sql).toContain("fats_g");
+    expect(sql).toContain("hydration_liters");
+    expect(sql).toContain("meals_logged");
+    expect(sql).toContain("confidence");
+    expect(sql).toContain("phase_mode");
+    expect(sql).toContain("baseline day with manual hydration estimate");
+    expect(sql).toContain("gentle_cut");
+    expect(sql).toContain("ON CONFLICT (date_local) DO UPDATE");
+  });
+
+  it("builds a fetch query for one nutrition row", () => {
+    const sql = buildFetchCoachNutritionRowSql("2026-04-05");
+
+    expect(sql).toContain("FROM coach_nutrition_log");
+    expect(sql).toContain("protein_target_g");
+    expect(sql).toContain("hydration_liters");
+    expect(sql).toContain("WHERE date_local = '2026-04-05'::date");
   });
 });

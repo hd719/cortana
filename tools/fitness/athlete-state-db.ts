@@ -107,6 +107,7 @@ type UpsertResult = {
 };
 
 let schemaEnsured = false;
+const ATHLETE_STATE_SCHEMA_LOCK_KEY = 732041905;
 
 function esc(value: string): string {
   return value.replace(/'/g, "''");
@@ -212,7 +213,12 @@ CREATE INDEX IF NOT EXISTS idx_muscle_volume_group ON cortana_fitness_muscle_vol
 
 function ensureAthleteStateSchema(): void {
   if (schemaEnsured) return;
-  const result = runPsql(`${buildAthleteStateSchemaSql()}\n${buildMuscleVolumeSchemaSql()}`);
+  const result = runPsql(`
+SELECT pg_advisory_lock(${ATHLETE_STATE_SCHEMA_LOCK_KEY});
+${buildAthleteStateSchemaSql()}
+${buildMuscleVolumeSchemaSql()}
+SELECT pg_advisory_unlock(${ATHLETE_STATE_SCHEMA_LOCK_KEY});
+`);
   if (result.status !== 0) {
     throw new Error((result.stderr || "failed to ensure athlete-state schema").trim());
   }
