@@ -2,6 +2,13 @@
 
 Use these to spawn deep fitness analysis on demand. Just tell Cortana what you want and she'll spawn the right specialist.
 
+Before running raw-provider analysis, load the structured loop artifacts when they exist:
+- `~/Developer/cortana/memory/fitness/daily/YYYY-MM-DD.json`
+- `~/Developer/cortana/memory/fitness/weekly/YYYY-WXX.md`
+- coaching evidence in `coach_checkin_log`, `coach_alert_log`, and `coach_outcome_eval_weekly`
+
+Treat those artifacts as the baseline coaching state, then use Whoop/Tonal pulls to explain or extend them.
+
 ---
 
 ## Available Analyses
@@ -69,6 +76,8 @@ Report:
 - Days trained, volume lifted, cardio minutes
 - Average strain, recovery, sleep scores
 - Trend vs previous week
+- What the structured weekly outcome evaluation says went right or wrong
+- Whether alerts, missed check-ins, or pain flags changed the coaching interpretation
 - Muscle group coverage
 - Standout performances and areas for improvement
 - Recommendations for next week
