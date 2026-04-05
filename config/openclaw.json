@@ -32,20 +32,6 @@
       }
     }
   },
-  "acp": {
-    "enabled": true,
-    "dispatch": {
-      "enabled": true
-    },
-    "backend": "acpx",
-    "defaultAgent": "codex",
-    "allowedAgents": [
-      "codex"
-    ],
-    "runtime": {
-      "ttlMinutes": 30
-    }
-  },
   "models": {
     "providers": {
       "openai": {
@@ -183,11 +169,6 @@
         "model": "openai-codex/gpt-5.3-codex"
       },
       {
-        "id": "cortana-acp",
-        "workspace": "/Users/hd/Developer/cortana",
-        "model": "openai-codex/gpt-5.3-codex"
-      },
-      {
         "id": "oracle",
         "workspace": "/Users/hd/Developer/cortana/identities/oracle",
         "model": "openai-codex/gpt-5.3-codex"
@@ -232,11 +213,7 @@
         "oracle",
         "monitor",
         "arbiter",
-        "spartan",
-        "codex",
-        "agent:codex:*",
-        "cortana-acp",
-        "agent:cortana-acp:*"
+        "spartan"
       ]
     },
     "exec": {
@@ -473,14 +450,8 @@
   "plugins": {
     "allow": [
       "telegram",
-      "memory-core",
-      "acpx"
+      "memory-core"
     ],
-    "load": {
-      "paths": [
-        "/opt/homebrew/lib/node_modules/openclaw/extensions/acpx"
-      ]
-    },
     "slots": {
       "memory": "memory-core"
     },
@@ -489,9 +460,6 @@
         "enabled": true
       },
       "memory-core": {
-        "enabled": true
-      },
-      "acpx": {
         "enabled": true
       }
     }

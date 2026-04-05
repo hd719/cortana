@@ -16,7 +16,6 @@ This system runs multiple agents, each with its own workspace, model, and sessio
 | cron-maintenance | System updates | `~/.openclaw/workspaces/cron-maintenance` | gpt-5.1 | No — cron only |
 | **huragok** | Standalone Huragok identity (dedicated Telegram-bound lane + spawn target) | `/Users/hd/Developer/cortana/identities/huragok` | gpt-5.3-codex | Yes (bound group/channel) |
 | **researcher** | Dedicated investigation/research execution lane for Cortana delegation | `/Users/hd/Developer/cortana/identities/researcher` | gpt-5.3-codex | No — spawn target only |
-| cortana-acp | On-demand specialist coding lane for explicit ACP runtime requests | `/Users/hd/Developer/cortana` | gpt-5.3-codex | No — spawn target only |
 | **oracle** | Strategic judgment / foresight lane | `/Users/hd/Developer/cortana/identities/oracle` | gpt-5.3-codex | Yes (bound group/channel) |
 
 ## Channel Routing
@@ -25,8 +24,7 @@ This system runs multiple agents, each with its own workspace, model, and sessio
 - **Webchat** → `main` agent (Cortana)
 - **Telegram group `-5229462108`** → `huragok` (dedicated standalone Huragok Telegram identity)
 - **Huragok spawned work** → `huragok` (`agentId: "huragok"`; no separate worker lane)
-- **Explicit coding-runtime asks** ("use Codex", "use Claude Code", "use Gemini") → Codex ACP harness target (`agentId: "codex"`)
-- **Huragok requesting ACP escalation** → bubble back to `main`/Cortana for dispatch; Huragok is not an ACP dispatcher
+- **Code and infra work** → `huragok`
 - **Cron jobs** → respective cron/specialist agent (deliver results via `message` tool using mapped `accountId`; keep Cortana lane clean)
 
 ## Stable Ops Owner Lane
@@ -49,46 +47,6 @@ Quiet maintenance watchers should return exactly `NO_REPLY` on healthy paths.
 - Cortana lane should contain decisions, synthesis, blockers, and coordination — not routine cron noise.
 - Status claims must be check-backed (CI/cron/runtime verification before declaring green).
 - If wrong, correct quickly and post the verified state.
-
-## ACP On-Demand Routing Policy
-
-Default behavior stays unchanged: use normal sub-agent orchestration.
-
-Route to Codex ACP (`agentId: "codex"`) only when the user explicitly requests a coding runtime (Codex, Claude Code, Gemini). This keeps ACP available as a specialist lane without hijacking normal dispatch.
-
-Telegram-specific usage notes and known ACP thread-binding limits are documented in `docs/telegram-acp-usage.md`.
-
-### Huragok ↔ Codex doctrine
-
-Think of it this way:
-- **Huragok = foreman**
-- **Codex ACP = power tool**
-- **Cortana/main = only ACP dispatcher**
-
-Huragok stays **native by default** for:
-- triage, diagnosis, and root-cause isolation
-- small surgical fixes
-- config/path/prompt tweaks
-- PR review, merge judgment, and release confidence calls
-- cross-system coordination
-- high-reliability moments when provider/runtime stability matters more than throughput
-
-Escalate to **Codex ACP** for:
-- new feature implementation
-- multi-file refactors
-- repo exploration plus iterative coding
-- test work that spans multiple files or loops
-- explicit “ship a PR” / implementation-heavy build asks
-
-Dispatcher rule:
-- Huragok may recommend ACP escalation, but **does not spawn ACP directly**
-- when Huragok wants ACP, the request must bubble to **Cortana/main**, which dispatches `agentId: "codex"`
-
-Quick decision rule:
-- User explicitly names Codex/Claude/Gemini or asks for "ACP" → spawn with `agentId: "codex"`
-- User asks for code/infra work without naming a coding runtime → route to Huragok first
-- Huragok determines the task is implementation-heavy enough for ACP → hand back to Cortana/main for ACP dispatch
-- Otherwise → spawn normal Covenant role agent (`huragok`, `researcher`, `monitor`, `oracle`, `librarian`) per task type
 
 For Researcher bootstrap + usage details, see `docs/researcher-bot-bootstrap.md`.
 
