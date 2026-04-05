@@ -22,10 +22,16 @@ describe("fitness athlete state DB helpers", () => {
     expect(athleteSchema).toContain("body_weight_source TEXT");
     expect(athleteSchema).toContain("active_energy_kcal NUMERIC(8,2)");
     expect(athleteSchema).toContain("health_context JSONB NOT NULL DEFAULT '{}'::jsonb");
+    expect(athleteSchema).toContain("fatigue_debt NUMERIC(6,2)");
+    expect(athleteSchema).toContain("training_context JSONB NOT NULL DEFAULT '{}'::jsonb");
+    expect(athleteSchema).toContain("ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS fatigue_debt");
     expect(athleteSchema).toContain("quality_flags JSONB NOT NULL DEFAULT '{}'::jsonb");
     expect(muscleSchema).toContain("CREATE TABLE IF NOT EXISTS cortana_fitness_muscle_volume_daily");
     expect(muscleSchema).toContain("PRIMARY KEY (state_date, muscle_group)");
     expect(muscleSchema).toContain("load_bucket_summary JSONB NOT NULL DEFAULT '{}'::jsonb");
+    expect(muscleSchema).toContain("weekly_rollup_sets NUMERIC(6,2)");
+    expect(muscleSchema).toContain("weekly_status TEXT");
+    expect(muscleSchema).toContain("ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS weekly_rollup_sets");
   });
 
   it("builds a safe athlete-state upsert statement", () => {
@@ -37,6 +43,12 @@ describe("fitness athlete state DB helpers", () => {
       whoopStrain: 12.4,
       bodyWeightSource: "apple_health",
       activeEnergyKcal: 650,
+      fatigueDebt: 10.5,
+      sleepDebt: 1.8,
+      progressionMomentum: 4.2,
+      trainingContext: {
+        cardio_mode: "run",
+      },
       healthContext: {
         goal_mode: "on_pace",
       },
@@ -53,6 +65,8 @@ describe("fitness athlete state DB helpers", () => {
     expect(sql).toContain("body_weight_source");
     expect(sql).toContain("active_energy_kcal");
     expect(sql).toContain("health_context");
+    expect(sql).toContain("fatigue_debt");
+    expect(sql).toContain("training_context");
     expect(sql).toContain("quality_flags");
     expect(sql).toContain("coach''s warning");
   });
@@ -64,6 +78,10 @@ describe("fitness athlete state DB helpers", () => {
         muscleGroup: "chest",
         hardSets: 8,
         sourceConfidence: 0.9,
+        weeklyRollupSets: 12,
+        weeklyStatus: "adequate",
+        targetSetsMin: 10,
+        targetSetsMax: 18,
       },
       {
         stateDate: "2026-04-06",
