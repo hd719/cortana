@@ -22,6 +22,15 @@ export type AthleteStateDailyInput = {
   cardioMinutes?: number | null;
   cardioSummary?: Record<string, unknown> | null;
   bodyWeightKg?: number | null;
+  bodyWeightSource?: string | null;
+  bodyWeightConfidence?: number | null;
+  activeEnergyKcal?: number | null;
+  restingEnergyKcal?: number | null;
+  walkingRunningDistanceKm?: number | null;
+  bodyFatPct?: number | null;
+  leanMassKg?: number | null;
+  healthSourceConfidence?: number | null;
+  healthContext?: Record<string, unknown> | null;
   phaseMode?: AthleteStatePhaseMode | null;
   targetWeightDeltaPctWeek?: number | null;
   proteinG?: number | null;
@@ -71,6 +80,15 @@ export type AthleteStateDailyRow = {
   cardio_minutes: number | null;
   cardio_summary: Record<string, unknown>;
   body_weight_kg: number | null;
+  body_weight_source: string | null;
+  body_weight_confidence: number | null;
+  active_energy_kcal: number | null;
+  resting_energy_kcal: number | null;
+  walking_running_distance_km: number | null;
+  body_fat_pct: number | null;
+  lean_mass_kg: number | null;
+  health_source_confidence: number | null;
+  health_context: Record<string, unknown>;
   phase_mode: string | null;
   target_weight_delta_pct_week: number | null;
   protein_g: number | null;
@@ -164,6 +182,15 @@ CREATE TABLE IF NOT EXISTS cortana_fitness_athlete_state_daily (
   cardio_minutes NUMERIC(8,2),
   cardio_summary JSONB NOT NULL DEFAULT '{}'::jsonb,
   body_weight_kg NUMERIC(6,2),
+  body_weight_source TEXT,
+  body_weight_confidence NUMERIC(4,3),
+  active_energy_kcal NUMERIC(8,2),
+  resting_energy_kcal NUMERIC(8,2),
+  walking_running_distance_km NUMERIC(8,2),
+  body_fat_pct NUMERIC(6,3),
+  lean_mass_kg NUMERIC(8,2),
+  health_source_confidence NUMERIC(4,3),
+  health_context JSONB NOT NULL DEFAULT '{}'::jsonb,
   phase_mode TEXT,
   target_weight_delta_pct_week NUMERIC(6,3),
   protein_g NUMERIC(8,2),
@@ -231,6 +258,8 @@ INSERT INTO cortana_fitness_athlete_state_daily (
   state_date, generated_at, readiness_score, readiness_band, readiness_confidence,
   sleep_hours, sleep_performance, hrv, rhr, whoop_strain, whoop_workouts, step_count,
   step_source, tonal_sessions, tonal_volume, cardio_minutes, cardio_summary, body_weight_kg,
+  body_weight_source, body_weight_confidence, active_energy_kcal, resting_energy_kcal,
+  walking_running_distance_km, body_fat_pct, lean_mass_kg, health_source_confidence, health_context,
   phase_mode, target_weight_delta_pct_week, protein_g, protein_target_g, calories_kcal, carbs_g,
   fat_g, hydration_liters, nutrition_confidence, recommendation_mode, recommendation_confidence,
   quality_flags, source_refs, raw
@@ -253,6 +282,15 @@ INSERT INTO cortana_fitness_athlete_state_daily (
   ${sqlNum(input.cardioMinutes)},
   ${sqlJson(input.cardioSummary ?? null)},
   ${sqlNum(input.bodyWeightKg)},
+  ${sqlText(input.bodyWeightSource ?? null)},
+  ${sqlNum(input.bodyWeightConfidence)},
+  ${sqlNum(input.activeEnergyKcal)},
+  ${sqlNum(input.restingEnergyKcal)},
+  ${sqlNum(input.walkingRunningDistanceKm)},
+  ${sqlNum(input.bodyFatPct)},
+  ${sqlNum(input.leanMassKg)},
+  ${sqlNum(input.healthSourceConfidence)},
+  ${sqlJson(input.healthContext ?? null)},
   ${sqlText(input.phaseMode ?? null)},
   ${sqlNum(input.targetWeightDeltaPctWeek)},
   ${sqlNum(input.proteinG)},
@@ -287,6 +325,15 @@ SET
   cardio_minutes = COALESCE(EXCLUDED.cardio_minutes, cortana_fitness_athlete_state_daily.cardio_minutes),
   cardio_summary = COALESCE(cortana_fitness_athlete_state_daily.cardio_summary, '{}'::jsonb) || COALESCE(EXCLUDED.cardio_summary, '{}'::jsonb),
   body_weight_kg = COALESCE(EXCLUDED.body_weight_kg, cortana_fitness_athlete_state_daily.body_weight_kg),
+  body_weight_source = COALESCE(EXCLUDED.body_weight_source, cortana_fitness_athlete_state_daily.body_weight_source),
+  body_weight_confidence = COALESCE(EXCLUDED.body_weight_confidence, cortana_fitness_athlete_state_daily.body_weight_confidence),
+  active_energy_kcal = COALESCE(EXCLUDED.active_energy_kcal, cortana_fitness_athlete_state_daily.active_energy_kcal),
+  resting_energy_kcal = COALESCE(EXCLUDED.resting_energy_kcal, cortana_fitness_athlete_state_daily.resting_energy_kcal),
+  walking_running_distance_km = COALESCE(EXCLUDED.walking_running_distance_km, cortana_fitness_athlete_state_daily.walking_running_distance_km),
+  body_fat_pct = COALESCE(EXCLUDED.body_fat_pct, cortana_fitness_athlete_state_daily.body_fat_pct),
+  lean_mass_kg = COALESCE(EXCLUDED.lean_mass_kg, cortana_fitness_athlete_state_daily.lean_mass_kg),
+  health_source_confidence = COALESCE(EXCLUDED.health_source_confidence, cortana_fitness_athlete_state_daily.health_source_confidence),
+  health_context = COALESCE(cortana_fitness_athlete_state_daily.health_context, '{}'::jsonb) || COALESCE(EXCLUDED.health_context, '{}'::jsonb),
   phase_mode = COALESCE(EXCLUDED.phase_mode, cortana_fitness_athlete_state_daily.phase_mode),
   target_weight_delta_pct_week = COALESCE(EXCLUDED.target_weight_delta_pct_week, cortana_fitness_athlete_state_daily.target_weight_delta_pct_week),
   protein_g = COALESCE(EXCLUDED.protein_g, cortana_fitness_athlete_state_daily.protein_g),
