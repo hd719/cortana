@@ -13,6 +13,7 @@ import {
 import { evaluateWeeklyOutcome } from "./outcome-eval.js";
 import { localYmd, type ReadinessBand } from "./signal-utils.js";
 import { buildWeeklyDoseCalls, detectCardioInterference, detectCutRateRisk } from "./training-engine.js";
+import { buildAndPersistWeeklyPlan } from "./weekly-plan-data.js";
 
 type WindowMetrics = {
   days_with_recovery: number;
@@ -269,9 +270,20 @@ function main(): void {
   const caffeinePrevious = fetchCoachCaffeineWindowSummary(previousStart, previousEnd);
   const checkinSummary = fetchCoachCheckinWindowSummary(currentStart, currentEnd);
   const alertSummary = fetchCoachAlertWindowSummary(currentStart, currentEnd);
-  const weeklyDoseCalls = buildWeeklyDoseCalls(currentMuscleRows);
+  const phaseModeForWeek = currentRows
+    .slice()
+    .reverse()
+    .find((row) => row.phase_mode && row.phase_mode !== "unknown")?.phase_mode ?? "unknown";
+  const weeklyDoseCalls = buildWeeklyDoseCalls(currentMuscleRows, phaseModeForWeek);
   const cutRateRisk = detectCutRateRisk(currentRows);
   const cardioInterferenceRisk = detectCardioInterference(currentRows, currentMuscleRows);
+  const weeklyPlan = buildAndPersistWeeklyPlan({
+    endDate: currentEnd,
+    athleteStateRows: currentRows,
+    muscleVolumeRows: currentMuscleRows,
+  });
+  if (!weeklyPlan.trainingStateWrite.ok) errors.push(`training_state_weekly_upsert_failed:${weeklyPlan.trainingStateWrite.error ?? "unknown"}`);
+  if (!weeklyPlan.recommendationWrite.ok) errors.push(`recommendation_log_upsert_failed:${weeklyPlan.recommendationWrite.error ?? "unknown"}`);
 
   const pendingInsights = fetchPendingHealthInsights(8);
   const surfacedInsightIds = chooseSurfacedInsightIds(pendingInsights, riskBand, 2);
@@ -400,6 +412,8 @@ function main(): void {
       weekly_dose_calls: weeklyDoseCalls,
       cut_rate_risk: cutRateRisk,
       cardio_interference_risk: cardioInterferenceRisk,
+      weekly_training_state: weeklyPlan.trainingState,
+      weekly_recommendation: weeklyPlan.recommendation,
     },
     body_composition: {
       current_avg_body_weight_kg: currentMetrics.avg_body_weight_kg,

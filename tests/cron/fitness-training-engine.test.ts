@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  buildCardioInterferenceAssessment,
+  buildCardioModeSummary,
   buildDailyRecommendation,
   buildWeeklyDoseCalls,
   detectCardioInterference,
@@ -59,6 +61,11 @@ describe("fitness training engine", () => {
     }).mode).toBe("controlled_train");
 
     expect(buildDailyRecommendation({
+      weeklyRecommendationMode: "deload",
+      weeklyFatigueScore: 28,
+      weeklyInterferenceRiskScore: 20,
+      underdosedMusclesCount: 0,
+      overdosedMusclesCount: 2,
       readinessBand: "green",
       readinessConfidence: 0.92,
       sleepPerformance: 90,
@@ -66,6 +73,20 @@ describe("fitness training engine", () => {
       proteinTargetG: 130,
       proteinG: 132,
       nutritionConfidence: "high",
+    }).mode).toBe("recover");
+
+    expect(buildDailyRecommendation({
+      readinessBand: "green",
+      readinessConfidence: 0.92,
+      sleepPerformance: 90,
+      whoopStrain: 8,
+      proteinTargetG: 130,
+      proteinG: 132,
+      nutritionConfidence: "high",
+      weeklyFatigueScore: 8,
+      weeklyInterferenceRiskScore: 10,
+      underdosedMusclesCount: 2,
+      overdosedMusclesCount: 0,
     }).mode).toBe("push");
   });
 
@@ -119,8 +140,7 @@ describe("fitness training engine", () => {
     ]);
     expect(cutRateRisk).toBe("watch");
 
-    const cardioRisk = detectCardioInterference(
-      [{
+    const cardioRows = [{
         state_date: "2026-04-01",
         generated_at: "2026-04-01T12:00:00Z",
         readiness_score: 62,
@@ -137,7 +157,7 @@ describe("fitness training engine", () => {
         tonal_sessions: 1,
         tonal_volume: 12000,
         cardio_minutes: 60,
-        cardio_summary: {},
+        cardio_summary: { by_sport_minutes: { run: 45, walk: 15 } },
         body_weight_kg: null,
         phase_mode: "maintenance",
         target_weight_delta_pct_week: 0,
@@ -153,13 +173,26 @@ describe("fitness training engine", () => {
         quality_flags: {},
         source_refs: {},
         raw: {},
-      }],
-      [
-        { state_date: "2026-04-01", muscle_group: "quads", hard_sets: 8 } as any,
-        { state_date: "2026-04-01", muscle_group: "hamstrings", hard_sets: 5 } as any,
-        { state_date: "2026-04-01", muscle_group: "glutes", hard_sets: 6 } as any,
-      ],
+      }];
+    const legRows = [
+      { state_date: "2026-04-01", muscle_group: "quads", hard_sets: 8 } as any,
+      { state_date: "2026-04-01", muscle_group: "hamstrings", hard_sets: 5 } as any,
+      { state_date: "2026-04-01", muscle_group: "glutes", hard_sets: 6 } as any,
+    ];
+
+    const cardioRisk = detectCardioInterference(
+      cardioRows as any,
+      legRows,
     );
     expect(cardioRisk).toBe("watch");
+
+    const cardioSummary = buildCardioModeSummary(cardioRows as any);
+    expect(cardioSummary.dominant_mode).toBe("run");
+
+    const interference = buildCardioInterferenceAssessment(
+      cardioRows as any,
+      legRows,
+    );
+    expect(interference.score).toBeGreaterThan(45);
   });
 });

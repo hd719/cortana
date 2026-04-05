@@ -47,10 +47,10 @@ Week 4: V6 (threshold hardening, live validation, and documentation cleanup)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/volume-engine.ts` with phase-aware target bands by muscle group and deterministic `underdosed`, `adequate`, `overdosed`, `unknown` classification helpers.
-- Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/spartan-defaults.ts` with the first production target ranges and rule comments that explain intent, not implementation trivia.
-- Sub-task 3: Extend `/Users/hd/Developer/cortana/tools/fitness/athlete-state-db.ts` and add `/Users/hd/Developer/cortana/tools/fitness/training-intelligence-db.ts` to persist weekly dose outputs.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-volume-engine.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/volume-engine.ts` with phase-aware target bands by muscle group and deterministic `underdosed`, `adequate`, `overdosed`, `unknown` classification helpers.
+- [x] Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/spartan-defaults.ts` with the first production target ranges and rule comments that explain intent, not implementation trivia.
+- [x] Sub-task 3: Extend `/Users/hd/Developer/cortana/tools/fitness/athlete-state-db.ts` and add `/Users/hd/Developer/cortana/tools/fitness/training-intelligence-db.ts` to persist weekly dose outputs.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-volume-engine.test.ts`.
 
 #### Testing
 
@@ -68,10 +68,10 @@ Week 4: V6 (threshold hardening, live validation, and documentation cleanup)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/fatigue-engine.ts` with deterministic functions for rolling fatigue debt, sleep debt, and deload triggers.
-- Sub-task 2: Create `/Users/hd/Developer/cortana/tools/fitness/progression-engine.ts` for progression momentum and plateau detection using Tonal output and recent recovery context.
-- Sub-task 3: Extend `/Users/hd/Developer/cortana/tools/fitness/athlete-state-data.ts` to persist per-day fatigue contributions needed by weekly rollups.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-fatigue-engine.test.ts` and `/Users/hd/Developer/cortana/tests/cron/fitness-progression-engine.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/fatigue-engine.ts` with deterministic functions for rolling fatigue debt, sleep debt, and deload triggers.
+- [x] Sub-task 2: Create `/Users/hd/Developer/cortana/tools/fitness/progression-engine.ts` for progression momentum and plateau detection using Tonal output and recent recovery context.
+- [x] Sub-task 3: Extend `/Users/hd/Developer/cortana/tools/fitness/athlete-state-data.ts` to persist per-day fatigue contributions needed by weekly rollups.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-fatigue-engine.test.ts` and `/Users/hd/Developer/cortana/tests/cron/fitness-progression-engine.test.ts`.
 
 #### Testing
 
@@ -89,10 +89,10 @@ Week 4: V6 (threshold hardening, live validation, and documentation cleanup)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/goal-mode.ts` to resolve phase defaults and related targets from athlete-state inputs and manual overrides.
-- Sub-task 2: Add cardio mode and interference helpers in `/Users/hd/Developer/cortana/tools/fitness/training-engine.ts` or a dedicated helper module if the file becomes too large.
-- Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/signal-utils.ts` and `/Users/hd/Developer/cortana/tools/fitness/athlete-state-data.ts` so cardio mode and dose are available as structured inputs.
-- Sub-task 4: Add tests covering walking, cycling, running, and HIIT in `/Users/hd/Developer/cortana/tests/cron/fitness-training-engine.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/goal-mode.ts` to resolve phase defaults and related targets from athlete-state inputs and manual overrides.
+- [x] Sub-task 2: Add cardio mode and interference helpers in `/Users/hd/Developer/cortana/tools/fitness/training-engine.ts` or a dedicated helper module if the file becomes too large.
+- [x] Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/signal-utils.ts` and `/Users/hd/Developer/cortana/tools/fitness/athlete-state-data.ts` so cardio mode and dose are available as structured inputs.
+- [x] Sub-task 4: Add tests covering walking, cycling, running, and HIIT in `/Users/hd/Developer/cortana/tests/cron/fitness-training-engine.test.ts`.
 
 #### Testing
 
@@ -112,10 +112,10 @@ Week 4: V6 (threshold hardening, live validation, and documentation cleanup)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/weekly-plan-data.ts` to compose the weekly training-state row, next-week recommendation summary, and operator-facing artifact payload.
-- Sub-task 2: Add weekly storage helpers in `/Users/hd/Developer/cortana/tools/fitness/training-intelligence-db.ts`.
-- Sub-task 3: Write recommendation rows into `cortana_fitness_recommendation_log` and weekly state rows into `cortana_fitness_training_state_weekly`.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-weekly-plan-data.test.ts` and `/Users/hd/Developer/cortana/tests/cron/fitness-training-intelligence-db.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/weekly-plan-data.ts` to compose the weekly training-state row, next-week recommendation summary, and operator-facing artifact payload.
+- [x] Sub-task 2: Add weekly storage helpers in `/Users/hd/Developer/cortana/tools/fitness/training-intelligence-db.ts`.
+- [x] Sub-task 3: Write recommendation rows into `cortana_fitness_recommendation_log` and weekly state rows into `cortana_fitness_training_state_weekly`.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-weekly-plan-data.test.ts` and `/Users/hd/Developer/cortana/tests/cron/fitness-training-intelligence-db.test.ts`.
 
 #### Important Planning Notes
 
@@ -141,10 +141,10 @@ Week 4: V6 (threshold hardening, live validation, and documentation cleanup)
 
 #### Jira
 
-- Sub-task 1: Update `/Users/hd/Developer/cortana/tools/fitness/weekly-insights-data.ts` to consume the structured weekly training-state artifact instead of raw heuristics.
-- Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts` so daily recommendations can account for weekly dose status, fatigue debt, and cut-aware logic.
-- Sub-task 3: Extend `/Users/hd/Developer/cortana/tools/fitness/coach-db.ts` if structured decision logging needs additional fields beyond the baseline plan.
-- Sub-task 4: Update tests in `/Users/hd/Developer/cortana/tests/cron/fitness-weekly-insights-data.test.ts` and `/Users/hd/Developer/cortana/tests/cron/fitness-morning-brief-data.test.ts`.
+- [x] Sub-task 1: Update `/Users/hd/Developer/cortana/tools/fitness/weekly-insights-data.ts` to consume the structured weekly training-state artifact instead of raw heuristics.
+- [x] Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts` so daily recommendations can account for weekly dose status, fatigue debt, and cut-aware logic.
+- [x] Sub-task 3: Extend `/Users/hd/Developer/cortana/tools/fitness/coach-db.ts` if structured decision logging needs additional fields beyond the baseline plan.
+- [x] Sub-task 4: Update tests in `/Users/hd/Developer/cortana/tests/cron/fitness-weekly-insights-data.test.ts` and `/Users/hd/Developer/cortana/tests/cron/fitness-morning-brief-data.test.ts`.
 
 #### Testing
 
@@ -164,10 +164,10 @@ Week 4: V6 (threshold hardening, live validation, and documentation cleanup)
 
 #### Jira
 
-- Sub-task 1: Run `vitest` in `/Users/hd/Developer/cortana`.
-- Sub-task 2: Build weekly training-state outputs across at least the last 4 completed weeks and inspect obvious outliers.
-- Sub-task 3: Compare generated underdose and overdose calls against the current Tonal history and weekly markdown summaries in `/Users/hd/Developer/cortana/memory/fitness/weekly`.
-- Sub-task 4: Tune thresholds in `/Users/hd/Developer/cortana/tools/fitness/spartan-defaults.ts` only after the deterministic test suite remains green.
+- [x] Sub-task 1: Run `vitest` in `/Users/hd/Developer/cortana`.
+- [x] Sub-task 2: Build weekly training-state outputs across at least the last 4 completed weeks and inspect obvious outliers.
+- [x] Sub-task 3: Compare generated underdose and overdose calls against the current Tonal history and weekly markdown summaries in `/Users/hd/Developer/cortana/memory/fitness/weekly`.
+- [ ] Sub-task 4: Tune thresholds in `/Users/hd/Developer/cortana/tools/fitness/spartan-defaults.ts` only after the deterministic test suite remains green.
 
 #### Testing
 

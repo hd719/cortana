@@ -33,6 +33,10 @@ export type AthleteStateDailyInput = {
   healthContext?: Record<string, unknown> | null;
   phaseMode?: AthleteStatePhaseMode | null;
   targetWeightDeltaPctWeek?: number | null;
+  fatigueDebt?: number | null;
+  sleepDebt?: number | null;
+  progressionMomentum?: number | null;
+  trainingContext?: Record<string, unknown> | null;
   proteinG?: number | null;
   proteinTargetG?: number | null;
   caloriesKcal?: number | null;
@@ -58,6 +62,10 @@ export type MuscleVolumeDailyInput = {
   repBucketSummary?: Record<string, unknown> | null;
   rirEstimateAvg?: number | null;
   sourceConfidence?: number | null;
+  weeklyRollupSets?: number | null;
+  weeklyStatus?: string | null;
+  targetSetsMin?: number | null;
+  targetSetsMax?: number | null;
   notes?: Record<string, unknown> | null;
 };
 
@@ -91,6 +99,10 @@ export type AthleteStateDailyRow = {
   health_context: Record<string, unknown>;
   phase_mode: string | null;
   target_weight_delta_pct_week: number | null;
+  fatigue_debt: number | null;
+  sleep_debt: number | null;
+  progression_momentum: number | null;
+  training_context: Record<string, unknown>;
   protein_g: number | null;
   protein_target_g: number | null;
   calories_kcal: number | null;
@@ -116,6 +128,10 @@ export type MuscleVolumeDailyRow = {
   rep_bucket_summary: Record<string, unknown>;
   rir_estimate_avg: number | null;
   source_confidence: number | null;
+  weekly_rollup_sets: number | null;
+  weekly_status: string | null;
+  target_sets_min: number | null;
+  target_sets_max: number | null;
   notes: Record<string, unknown>;
 };
 
@@ -193,6 +209,10 @@ CREATE TABLE IF NOT EXISTS cortana_fitness_athlete_state_daily (
   health_context JSONB NOT NULL DEFAULT '{}'::jsonb,
   phase_mode TEXT,
   target_weight_delta_pct_week NUMERIC(6,3),
+  fatigue_debt NUMERIC(6,2),
+  sleep_debt NUMERIC(6,2),
+  progression_momentum NUMERIC(6,2),
+  training_context JSONB NOT NULL DEFAULT '{}'::jsonb,
   protein_g NUMERIC(8,2),
   protein_target_g NUMERIC(8,2),
   calories_kcal NUMERIC(8,2),
@@ -211,6 +231,11 @@ CREATE TABLE IF NOT EXISTS cortana_fitness_athlete_state_daily (
 
 CREATE INDEX IF NOT EXISTS idx_athlete_state_generated_at ON cortana_fitness_athlete_state_daily(generated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_athlete_state_phase_mode ON cortana_fitness_athlete_state_daily(phase_mode);
+
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS fatigue_debt NUMERIC(6,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS sleep_debt NUMERIC(6,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS progression_momentum NUMERIC(6,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS training_context JSONB NOT NULL DEFAULT '{}'::jsonb;
 `;
 }
 
@@ -227,6 +252,10 @@ CREATE TABLE IF NOT EXISTS cortana_fitness_muscle_volume_daily (
   rep_bucket_summary JSONB NOT NULL DEFAULT '{}'::jsonb,
   rir_estimate_avg NUMERIC(4,2),
   source_confidence NUMERIC(4,3),
+  weekly_rollup_sets NUMERIC(6,2),
+  weekly_status TEXT,
+  target_sets_min NUMERIC(6,2),
+  target_sets_max NUMERIC(6,2),
   notes JSONB NOT NULL DEFAULT '{}'::jsonb,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
@@ -235,6 +264,11 @@ CREATE TABLE IF NOT EXISTS cortana_fitness_muscle_volume_daily (
 
 CREATE INDEX IF NOT EXISTS idx_muscle_volume_state_date ON cortana_fitness_muscle_volume_daily(state_date DESC);
 CREATE INDEX IF NOT EXISTS idx_muscle_volume_group ON cortana_fitness_muscle_volume_daily(muscle_group);
+
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS weekly_rollup_sets NUMERIC(6,2);
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS weekly_status TEXT;
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS target_sets_min NUMERIC(6,2);
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS target_sets_max NUMERIC(6,2);
 `;
 }
 
@@ -260,7 +294,8 @@ INSERT INTO cortana_fitness_athlete_state_daily (
   step_source, tonal_sessions, tonal_volume, cardio_minutes, cardio_summary, body_weight_kg,
   body_weight_source, body_weight_confidence, active_energy_kcal, resting_energy_kcal,
   walking_running_distance_km, body_fat_pct, lean_mass_kg, health_source_confidence, health_context,
-  phase_mode, target_weight_delta_pct_week, protein_g, protein_target_g, calories_kcal, carbs_g,
+  phase_mode, target_weight_delta_pct_week, fatigue_debt, sleep_debt, progression_momentum, training_context,
+  protein_g, protein_target_g, calories_kcal, carbs_g,
   fat_g, hydration_liters, nutrition_confidence, recommendation_mode, recommendation_confidence,
   quality_flags, source_refs, raw
 ) VALUES (
@@ -293,6 +328,10 @@ INSERT INTO cortana_fitness_athlete_state_daily (
   ${sqlJson(input.healthContext ?? null)},
   ${sqlText(input.phaseMode ?? null)},
   ${sqlNum(input.targetWeightDeltaPctWeek)},
+  ${sqlNum(input.fatigueDebt)},
+  ${sqlNum(input.sleepDebt)},
+  ${sqlNum(input.progressionMomentum)},
+  ${sqlJson(input.trainingContext ?? null)},
   ${sqlNum(input.proteinG)},
   ${sqlNum(input.proteinTargetG)},
   ${sqlNum(input.caloriesKcal)},
@@ -336,6 +375,10 @@ SET
   health_context = COALESCE(cortana_fitness_athlete_state_daily.health_context, '{}'::jsonb) || COALESCE(EXCLUDED.health_context, '{}'::jsonb),
   phase_mode = COALESCE(EXCLUDED.phase_mode, cortana_fitness_athlete_state_daily.phase_mode),
   target_weight_delta_pct_week = COALESCE(EXCLUDED.target_weight_delta_pct_week, cortana_fitness_athlete_state_daily.target_weight_delta_pct_week),
+  fatigue_debt = COALESCE(EXCLUDED.fatigue_debt, cortana_fitness_athlete_state_daily.fatigue_debt),
+  sleep_debt = COALESCE(EXCLUDED.sleep_debt, cortana_fitness_athlete_state_daily.sleep_debt),
+  progression_momentum = COALESCE(EXCLUDED.progression_momentum, cortana_fitness_athlete_state_daily.progression_momentum),
+  training_context = COALESCE(cortana_fitness_athlete_state_daily.training_context, '{}'::jsonb) || COALESCE(EXCLUDED.training_context, '{}'::jsonb),
   protein_g = COALESCE(EXCLUDED.protein_g, cortana_fitness_athlete_state_daily.protein_g),
   protein_target_g = COALESCE(EXCLUDED.protein_target_g, cortana_fitness_athlete_state_daily.protein_target_g),
   calories_kcal = COALESCE(EXCLUDED.calories_kcal, cortana_fitness_athlete_state_daily.calories_kcal),
@@ -358,7 +401,8 @@ export function buildReplaceMuscleVolumeSql(stateDate: string, rows: MuscleVolum
     statements.push(`
 INSERT INTO cortana_fitness_muscle_volume_daily (
   state_date, muscle_group, direct_sets, indirect_sets, hard_sets, sessions,
-  load_bucket_summary, rep_bucket_summary, rir_estimate_avg, source_confidence, notes
+  load_bucket_summary, rep_bucket_summary, rir_estimate_avg, source_confidence,
+  weekly_rollup_sets, weekly_status, target_sets_min, target_sets_max, notes
 ) VALUES (
   ${sqlText(row.stateDate)}::date,
   ${sqlText(row.muscleGroup)},
@@ -370,6 +414,10 @@ INSERT INTO cortana_fitness_muscle_volume_daily (
   ${sqlJson(row.repBucketSummary ?? null)},
   ${sqlNum(row.rirEstimateAvg)},
   ${sqlNum(row.sourceConfidence)},
+  ${sqlNum(row.weeklyRollupSets)},
+  ${sqlText(row.weeklyStatus ?? null)},
+  ${sqlNum(row.targetSetsMin)},
+  ${sqlNum(row.targetSetsMax)},
   ${sqlJson(row.notes ?? null)}
 );`);
   }

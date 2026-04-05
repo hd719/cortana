@@ -273,6 +273,9 @@ describe("fitness athlete-state builder", () => {
       bodyWeightKg: 84,
       bodyWeightSource: "apple_health",
       activeEnergyKcal: 680,
+      fatigueDebt: expect.any(Number),
+      sleepDebt: expect.any(Number),
+      progressionMomentum: expect.any(Number),
       phaseMode: "gentle_cut",
       proteinG: 145,
       proteinTargetG: 160,
@@ -281,6 +284,7 @@ describe("fitness athlete-state builder", () => {
     });
     expect(result.athleteState.qualityFlags?.duplicate_whoop_workouts_removed).toBe(2);
     expect(result.athleteState.qualityFlags?.unmapped_tonal_movements).toBe(1);
+    expect(result.athleteState.trainingContext?.fatigue_contribution).toBeTruthy();
     expect(result.athleteState.healthContext?.goal_mode).toMatchObject({
       phaseMode: "gentle_cut",
       status: "too_fast",

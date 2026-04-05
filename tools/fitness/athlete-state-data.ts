@@ -1,6 +1,7 @@
 import type { AthleteStateDailyInput, AthleteStatePhaseMode, MuscleVolumeDailyInput } from "./athlete-state-db.js";
 import type { CoachNutritionRow } from "./coach-db.js";
 import { buildWeeklyBodyWeightTrend, selectPreferredMetricForDate } from "./body-composition-engine.js";
+import { buildFatigueDailyContribution } from "./fatigue-engine.js";
 import { assessGoalModeProgress } from "./goal-mode.js";
 import type { HealthSourceDailyRow } from "./health-source-db.js";
 import { summarizeMealRollup, type MealEntry } from "./meal-log.js";
@@ -104,6 +105,16 @@ function readWhoopQuality(payload: unknown): JsonObject {
   return toObj(toObj(payload).quality);
 }
 
+function cardioModeFromSportName(sportName: string): "walk" | "cycle" | "run" | "hiit" | "other" {
+  const normalized = sportName.trim().toLowerCase();
+  if (!normalized) return "other";
+  if (normalized.includes("walk") || normalized.includes("hike")) return "walk";
+  if (normalized.includes("cycle") || normalized.includes("ride") || normalized.includes("bike")) return "cycle";
+  if (normalized.includes("run") || normalized.includes("jog")) return "run";
+  if (normalized.includes("hiit") || normalized.includes("interval") || normalized.includes("conditioning")) return "hiit";
+  return "other";
+}
+
 function cardioDurationMinutes(payload: unknown, stateDate: string, timeZone = "America/New_York"): {
   totalMinutes: number | null;
   summary: JsonObject;
@@ -111,6 +122,7 @@ function cardioDurationMinutes(payload: unknown, stateDate: string, timeZone = "
   const cardioSports = ["run", "ride", "cycle", "bike", "walk", "hike", "row", "swim", "cardio", "conditioning"];
   const workouts = Array.isArray(toObj(payload).workouts) ? (toObj(payload).workouts as unknown[]) : [];
   const bySport = new Map<string, number>();
+  const byMode = new Map<string, number>();
   let totalMinutes = 0;
   let matched = 0;
 
@@ -136,6 +148,8 @@ function cardioDurationMinutes(payload: unknown, stateDate: string, timeZone = "
     matched += 1;
     totalMinutes += minutes;
     bySport.set(sportName || "unknown", Number(((bySport.get(sportName || "unknown") ?? 0) + minutes).toFixed(2)));
+    const cardioMode = cardioModeFromSportName(sportName);
+    byMode.set(cardioMode, Number(((byMode.get(cardioMode) ?? 0) + minutes).toFixed(2)));
   }
 
   return {
@@ -143,8 +157,25 @@ function cardioDurationMinutes(payload: unknown, stateDate: string, timeZone = "
     summary: {
       sessions: matched,
       by_sport_minutes: Object.fromEntries(bySport.entries()),
+      by_mode_minutes: Object.fromEntries(byMode.entries()),
     },
   };
+}
+
+function buildDailyProgressionMomentum(input: {
+  tonalVolume: number | null;
+  tonalSessions: number | null;
+  readinessScore: number | null;
+  sleepPerformance: number | null;
+  fatigueDebt: number;
+}): number {
+  const score =
+    ((input.tonalVolume ?? 0) / 3000)
+    + ((input.tonalSessions ?? 0) * 1.5)
+    + Math.max(0, ((input.readinessScore ?? 60) - 60) / 8)
+    + Math.max(0, ((input.sleepPerformance ?? 75) - 75) / 10)
+    - (input.fatigueDebt * 0.75);
+  return Number(Math.max(-20, Math.min(20, score)).toFixed(2));
 }
 
 function extractBodyWeightKg(payload: unknown): number | null {
@@ -463,6 +494,70 @@ export function buildAthleteStateForDate(input: AthleteStateBuildInput): Athlete
       body_weight_trend: bodyWeightTrend,
       goal_mode_assessment: goalModeAssessment,
     },
+  };
+
+  const fatigueContribution = buildFatigueDailyContribution({
+    state_date: athleteState.stateDate,
+    generated_at: athleteState.generatedAt ?? generatedAt,
+    readiness_score: athleteState.readinessScore ?? null,
+    readiness_band: athleteState.readinessBand ?? null,
+    readiness_confidence: athleteState.readinessConfidence ?? null,
+    sleep_hours: athleteState.sleepHours ?? null,
+    sleep_performance: athleteState.sleepPerformance ?? null,
+    hrv: athleteState.hrv ?? null,
+    rhr: athleteState.rhr ?? null,
+    whoop_strain: athleteState.whoopStrain ?? null,
+    whoop_workouts: athleteState.whoopWorkouts ?? null,
+    step_count: athleteState.stepCount ?? null,
+    step_source: athleteState.stepSource ?? null,
+    tonal_sessions: athleteState.tonalSessions ?? null,
+    tonal_volume: athleteState.tonalVolume ?? null,
+    cardio_minutes: athleteState.cardioMinutes ?? null,
+    cardio_summary: athleteState.cardioSummary ?? {},
+    body_weight_kg: athleteState.bodyWeightKg ?? null,
+    body_weight_source: athleteState.bodyWeightSource ?? null,
+    body_weight_confidence: athleteState.bodyWeightConfidence ?? null,
+    active_energy_kcal: athleteState.activeEnergyKcal ?? null,
+    resting_energy_kcal: athleteState.restingEnergyKcal ?? null,
+    walking_running_distance_km: athleteState.walkingRunningDistanceKm ?? null,
+    body_fat_pct: athleteState.bodyFatPct ?? null,
+    lean_mass_kg: athleteState.leanMassKg ?? null,
+    health_source_confidence: athleteState.healthSourceConfidence ?? null,
+    health_context: athleteState.healthContext ?? {},
+    phase_mode: athleteState.phaseMode ?? null,
+    target_weight_delta_pct_week: athleteState.targetWeightDeltaPctWeek ?? null,
+    fatigue_debt: null,
+    sleep_debt: null,
+    progression_momentum: null,
+    training_context: {},
+    protein_g: athleteState.proteinG ?? null,
+    protein_target_g: athleteState.proteinTargetG ?? null,
+    calories_kcal: athleteState.caloriesKcal ?? null,
+    carbs_g: athleteState.carbsG ?? null,
+    fat_g: athleteState.fatG ?? null,
+    hydration_liters: athleteState.hydrationLiters ?? null,
+    nutrition_confidence: athleteState.nutritionConfidence ?? null,
+    recommendation_mode: athleteState.recommendationMode ?? null,
+    recommendation_confidence: athleteState.recommendationConfidence ?? null,
+    quality_flags: athleteState.qualityFlags ?? {},
+    source_refs: athleteState.sourceRefs ?? {},
+    raw: athleteState.raw ?? {},
+  });
+
+  athleteState.sleepDebt = fatigueContribution.sleep_debt;
+  athleteState.fatigueDebt = fatigueContribution.fatigue_debt;
+  athleteState.progressionMomentum = buildDailyProgressionMomentum({
+    tonalVolume: athleteState.tonalVolume ?? null,
+    tonalSessions: athleteState.tonalSessions ?? null,
+    readinessScore: athleteState.readinessScore ?? null,
+    sleepPerformance: athleteState.sleepPerformance ?? null,
+    fatigueDebt: fatigueContribution.fatigue_debt,
+  });
+  athleteState.trainingContext = {
+    cardio_modes: athleteState.cardioSummary?.by_mode_minutes ?? {},
+    fatigue_contribution: fatigueContribution,
+    goal_mode: goalModeAssessment.status,
+    recommendation_ready: athleteState.readinessBand ?? "unknown",
   };
 
   return {
