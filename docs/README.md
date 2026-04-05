@@ -22,6 +22,7 @@ It does **not** replace:
 - `source/reference/` - compact reference docs
 - `source/prompts/` - reusable prompt artifacts
 - `source/planning/` - PRDs, tech specs, implementation plans, and roadmaps
+- `source/planning/templates/` - shared planning templates for PRDs, tech specs, and implementation plans
 
 ## Most Important Source Docs
 
@@ -30,6 +31,10 @@ It does **not** replace:
 - [Heartbeat ops](./source/doctrine/heartbeat-ops.md)
 - [Autonomy policy](./source/doctrine/autonomy-policy.md)
 - [Task board](./source/doctrine/task-board.md)
+- [Documentation authoring guide](./source/architecture/documentation-authoring-guide.md)
+- [PRD template](./source/planning/templates/prd-template.md)
+- [Tech spec template](./source/planning/templates/techspec-template.md)
+- [Implementation plan template](./source/planning/templates/implementation-template.md)
 - [Memory engine design](./source/architecture/memory-engine-design.md)
 - [Runtime deploy model](./source/architecture/runtime-deploy-model.md)
 - [Sub-agent reliability runbook](./source/runbook/subagent-reliability-runbook.md)

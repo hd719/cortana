@@ -145,6 +145,16 @@ Within a planning domain, use typed subfolders when appropriate:
 - `architecture/`
 - `tickets/`
 
+### `docs/source/planning/templates/`
+
+Use for reusable planning templates.
+
+Current shared templates:
+
+- `prd-template.md`
+- `techspec-template.md`
+- `implementation-template.md`
+
 ## Knowledge Layer Rules
 
 Use `knowledge/domains/` when you want a new reader or LLM to quickly understand:
@@ -188,17 +198,22 @@ Do not create a new doc just because the old one is annoying.
 - Prefer the new canonical path, not legacy pre-reorg paths.
 - After moving docs, update inbound references in root docs, config, tests, and tools if those paths are used operationally.
 
-## Existing Template Pattern
+## Planning Template Rules
 
-The `cortana` repo does not currently have one shared planning-template directory like `cortana-external`.
+When creating a new planning doc:
 
-For now, follow the established Spartan planning pattern:
+1. start from the matching file in `docs/source/planning/templates/`
+2. place the new doc in the correct planning domain
+3. replace placeholder text with repo-specific details
+4. link the PRD, Tech Spec, and Implementation Plan together once they exist
 
-- PRD
-- Tech Spec
-- Implementation Plan
+Use:
 
-If you create a new planning family, match that structure.
+- `docs/source/planning/templates/prd-template.md` for product requirements
+- `docs/source/planning/templates/techspec-template.md` for technical design
+- `docs/source/planning/templates/implementation-template.md` for execution planning
+
+If you create a new planning family, keep the same three-document shape unless there is a clear reason not to.
 
 ## Recommended Authoring Flow
 
