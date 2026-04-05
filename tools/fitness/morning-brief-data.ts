@@ -14,6 +14,7 @@ import {
   whoopRecoveryBandFromScore,
 } from "./coaching-rules.js";
 import { buildDailyRecommendation } from "./training-engine.js";
+import { fetchLatestTrainingStateWeekly } from "./training-intelligence-db.js";
 import { buildTodayMissionArtifact, persistTodayMissionArtifact } from "./today-mission-data.js";
 import {
   buildReadinessSignal,
@@ -234,6 +235,7 @@ function main(): void {
     coachNutrition,
     healthSourceRows: appleHealth.healthRows,
   });
+  const latestWeeklyTrainingState = fetchLatestTrainingStateWeekly();
   const recommendation = buildDailyRecommendation({
     readinessBand: athleteStateBuild.athleteState.readinessBand ?? "unknown",
     readinessConfidence: athleteStateBuild.athleteState.readinessConfidence ?? null,
@@ -246,6 +248,12 @@ function main(): void {
     phaseMode: athleteStateBuild.athleteState.phaseMode ?? null,
     targetWeightDeltaPctWeek: athleteStateBuild.athleteState.targetWeightDeltaPctWeek ?? null,
     cardioMinutes: athleteStateBuild.athleteState.cardioMinutes ?? null,
+    weeklyFatigueScore: latestWeeklyTrainingState?.fatigue_score ?? null,
+    weeklyProgressionScore: latestWeeklyTrainingState?.progression_score ?? null,
+    weeklyInterferenceRiskScore: latestWeeklyTrainingState?.interference_risk_score ?? null,
+    weeklyRecommendationMode: String(latestWeeklyTrainingState?.recommendation_summary?.mode ?? ""),
+    underdosedMusclesCount: Object.keys(latestWeeklyTrainingState?.underdosed_muscles ?? {}).length,
+    overdosedMusclesCount: Object.keys(latestWeeklyTrainingState?.overdosed_muscles ?? {}).length,
   });
   const todayMission = buildTodayMissionArtifact({
     dateLocal: today,
@@ -393,6 +401,7 @@ function main(): void {
     },
     today_training_recommendation: recommendation,
     athlete_state: athleteStateBuild.athleteState,
+    weekly_training_state: latestWeeklyTrainingState,
     muscle_volume_today: athleteStateBuild.muscleVolumeRows,
     today_mission: todayMission,
     today_mission_file_path: todayMissionWrite.sandboxFilePath,
