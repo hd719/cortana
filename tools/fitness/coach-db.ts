@@ -11,6 +11,11 @@ export type CoachDecisionInput = {
   sleepPerfPct?: number | null;
   recoveryScore?: number | null;
   complianceStatus?: string | null;
+  sourceStateDate?: string | null;
+  sourceIsoWeek?: string | null;
+  expectedFollowupBy?: string | null;
+  decisionKey?: string | null;
+  payload?: Record<string, unknown> | null;
 };
 
 
@@ -22,6 +27,9 @@ export type CoachConversationInput = {
   messageText: string;
   intent?: string | null;
   tags?: Record<string, unknown> | null;
+  linkedStateDate?: string | null;
+  linkedDecisionKey?: string | null;
+  parsedEntities?: Record<string, unknown> | null;
 };
 
 export type CoachWeeklyScoreInput = {
@@ -91,9 +99,8 @@ function sqlNum(value: number | null | undefined): string {
   return String(value);
 }
 
-function ensureCoachSchema(): void {
-  if (schemaEnsured) return;
-  const sql = `
+export function buildCoachSchemaSql(): string {
+  return `
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
 
 DO $$
@@ -112,11 +119,19 @@ CREATE TABLE IF NOT EXISTS coach_conversation_log (
   message_text text NOT NULL,
   intent text,
   tags jsonb NOT NULL DEFAULT '{}'::jsonb,
+  linked_state_date date,
+  linked_decision_key text,
+  parsed_entities jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );
 
 ALTER TABLE coach_conversation_log ADD COLUMN IF NOT EXISTS source_key text;
+ALTER TABLE coach_conversation_log ADD COLUMN IF NOT EXISTS linked_state_date date;
+ALTER TABLE coach_conversation_log ADD COLUMN IF NOT EXISTS linked_decision_key text;
+ALTER TABLE coach_conversation_log ADD COLUMN IF NOT EXISTS parsed_entities jsonb NOT NULL DEFAULT '{}'::jsonb;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_coach_conversation_source_key ON coach_conversation_log(source_key);
+CREATE INDEX IF NOT EXISTS idx_coach_conversation_state_date ON coach_conversation_log(linked_state_date DESC);
+CREATE INDEX IF NOT EXISTS idx_coach_conversation_decision_key ON coach_conversation_log(linked_decision_key);
 
 CREATE TABLE IF NOT EXISTS coach_decision_log (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -130,8 +145,22 @@ CREATE TABLE IF NOT EXISTS coach_decision_log (
   sleep_perf_pct numeric(5,2),
   recovery_score numeric(5,2),
   compliance_status text,
+  source_state_date date,
+  source_iso_week text,
+  expected_followup_by timestamptz,
+  decision_key text UNIQUE,
+  payload jsonb NOT NULL DEFAULT '{}'::jsonb,
   created_at timestamptz NOT NULL DEFAULT now()
 );
+
+ALTER TABLE coach_decision_log ADD COLUMN IF NOT EXISTS source_state_date date;
+ALTER TABLE coach_decision_log ADD COLUMN IF NOT EXISTS source_iso_week text;
+ALTER TABLE coach_decision_log ADD COLUMN IF NOT EXISTS expected_followup_by timestamptz;
+ALTER TABLE coach_decision_log ADD COLUMN IF NOT EXISTS decision_key text;
+ALTER TABLE coach_decision_log ADD COLUMN IF NOT EXISTS payload jsonb NOT NULL DEFAULT '{}'::jsonb;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_coach_decision_key ON coach_decision_log(decision_key);
+CREATE INDEX IF NOT EXISTS idx_coach_decision_state_date ON coach_decision_log(source_state_date DESC);
+CREATE INDEX IF NOT EXISTS idx_coach_decision_iso_week ON coach_decision_log(source_iso_week);
 
 CREATE TABLE IF NOT EXISTS coach_nutrition_log (
   id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -169,20 +198,21 @@ CREATE TABLE IF NOT EXISTS coach_caffeine_log (
 CREATE INDEX IF NOT EXISTS idx_coach_caffeine_date ON coach_caffeine_log(date_local DESC);
 CREATE INDEX IF NOT EXISTS idx_coach_caffeine_consumed_at ON coach_caffeine_log(consumed_at_utc DESC);
 `;
-  const result = runPsql(sql);
+}
+
+function ensureCoachSchema(): void {
+  if (schemaEnsured) return;
+  const result = runPsql(buildCoachSchemaSql());
   if (result.status !== 0) {
     throw new Error((result.stderr || "failed to ensure coach schema").trim());
   }
   schemaEnsured = true;
 }
 
-
-export function upsertCoachConversation(input: CoachConversationInput): { ok: boolean; error?: string } {
-  try {
-    ensureCoachSchema();
-    const sql = `
+export function buildCoachConversationUpsertSql(input: CoachConversationInput): string {
+  return `
 INSERT INTO coach_conversation_log (
-  source_key, ts_utc, channel, direction, message_text, intent, tags
+  source_key, ts_utc, channel, direction, message_text, intent, tags, linked_state_date, linked_decision_key, parsed_entities
 ) VALUES (
   ${sqlText(input.sourceKey)},
   COALESCE(${sqlText(input.tsUtc)}::timestamptz, now()),
@@ -190,7 +220,10 @@ INSERT INTO coach_conversation_log (
   ${sqlText(input.direction)}::coach_direction,
   ${sqlText(input.messageText)},
   ${sqlText(input.intent ?? null)},
-  ${sqlJson(input.tags ?? null)}
+  ${sqlJson(input.tags ?? null)},
+  ${sqlText(input.linkedStateDate ?? null)}::date,
+  ${sqlText(input.linkedDecisionKey ?? null)},
+  ${sqlJson(input.parsedEntities ?? null)}
 )
 ON CONFLICT (source_key) DO UPDATE
 SET
@@ -199,8 +232,58 @@ SET
   direction = EXCLUDED.direction,
   message_text = EXCLUDED.message_text,
   intent = COALESCE(EXCLUDED.intent, coach_conversation_log.intent),
-  tags = COALESCE(coach_conversation_log.tags, '{}'::jsonb) || COALESCE(EXCLUDED.tags, '{}'::jsonb);`;
-    const result = runPsql(sql);
+  tags = COALESCE(coach_conversation_log.tags, '{}'::jsonb) || COALESCE(EXCLUDED.tags, '{}'::jsonb),
+  linked_state_date = COALESCE(EXCLUDED.linked_state_date, coach_conversation_log.linked_state_date),
+  linked_decision_key = COALESCE(EXCLUDED.linked_decision_key, coach_conversation_log.linked_decision_key),
+  parsed_entities = COALESCE(coach_conversation_log.parsed_entities, '{}'::jsonb) || COALESCE(EXCLUDED.parsed_entities, '{}'::jsonb);`;
+}
+
+export function buildCoachDecisionUpsertSql(input: CoachDecisionInput): string {
+  return `
+INSERT INTO coach_decision_log (
+  ts_utc, readiness_call, longevity_impact, top_risk, reason_summary, prescribed_action,
+  actual_day_strain, sleep_perf_pct, recovery_score, compliance_status,
+  source_state_date, source_iso_week, expected_followup_by, decision_key, payload
+) VALUES (
+  COALESCE(${sqlText(input.tsUtc)}::timestamptz, now()),
+  ${sqlText(input.readinessCall)},
+  ${sqlText(input.longevityImpact)},
+  ${sqlText(input.topRisk)},
+  ${sqlText(input.reasonSummary)},
+  ${sqlText(input.prescribedAction)},
+  ${sqlNum(input.actualDayStrain)},
+  ${sqlNum(input.sleepPerfPct)},
+  ${sqlNum(input.recoveryScore)},
+  ${sqlText(input.complianceStatus ?? null)},
+  ${sqlText(input.sourceStateDate ?? null)}::date,
+  ${sqlText(input.sourceIsoWeek ?? null)},
+  ${sqlText(input.expectedFollowupBy ?? null)}::timestamptz,
+  ${sqlText(input.decisionKey ?? null)},
+  ${sqlJson(input.payload ?? null)}
+)
+ON CONFLICT (decision_key) DO UPDATE
+SET
+  ts_utc = EXCLUDED.ts_utc,
+  readiness_call = EXCLUDED.readiness_call,
+  longevity_impact = EXCLUDED.longevity_impact,
+  top_risk = EXCLUDED.top_risk,
+  reason_summary = EXCLUDED.reason_summary,
+  prescribed_action = EXCLUDED.prescribed_action,
+  actual_day_strain = EXCLUDED.actual_day_strain,
+  sleep_perf_pct = EXCLUDED.sleep_perf_pct,
+  recovery_score = EXCLUDED.recovery_score,
+  compliance_status = COALESCE(EXCLUDED.compliance_status, coach_decision_log.compliance_status),
+  source_state_date = COALESCE(EXCLUDED.source_state_date, coach_decision_log.source_state_date),
+  source_iso_week = COALESCE(EXCLUDED.source_iso_week, coach_decision_log.source_iso_week),
+  expected_followup_by = COALESCE(EXCLUDED.expected_followup_by, coach_decision_log.expected_followup_by),
+  payload = COALESCE(coach_decision_log.payload, '{}'::jsonb) || COALESCE(EXCLUDED.payload, '{}'::jsonb);`;
+}
+
+
+export function upsertCoachConversation(input: CoachConversationInput): { ok: boolean; error?: string } {
+  try {
+    ensureCoachSchema();
+    const result = runPsql(buildCoachConversationUpsertSql(input));
     if (result.status !== 0) {
       return { ok: false, error: (result.stderr || "coach conversation upsert failed").trim() };
     }
@@ -213,23 +296,7 @@ SET
 export function upsertCoachDecision(input: CoachDecisionInput): { ok: boolean; error?: string } {
   try {
     ensureCoachSchema();
-    const sql = `
-INSERT INTO coach_decision_log (
-  ts_utc, readiness_call, longevity_impact, top_risk, reason_summary, prescribed_action,
-  actual_day_strain, sleep_perf_pct, recovery_score, compliance_status
-) VALUES (
-  COALESCE(${sqlText(input.tsUtc)}::timestamptz, now()),
-  ${sqlText(input.readinessCall)},
-  ${sqlText(input.longevityImpact)},
-  ${sqlText(input.topRisk)},
-  ${sqlText(input.reasonSummary)},
-  ${sqlText(input.prescribedAction)},
-  ${sqlNum(input.actualDayStrain)},
-  ${sqlNum(input.sleepPerfPct)},
-  ${sqlNum(input.recoveryScore)},
-  ${sqlText(input.complianceStatus ?? null)}
-);`;
-    const result = runPsql(sql);
+    const result = runPsql(buildCoachDecisionUpsertSql(input));
     if (result.status !== 0) {
       return { ok: false, error: (result.stderr || "coach decision insert failed").trim() };
     }

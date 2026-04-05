@@ -406,6 +406,15 @@ function main(): void {
     actualDayStrain: whoopSummary.total_strain_today,
     sleepPerfPct: sleeps[0]?.sleepPerformance ?? null,
     recoveryScore: recoveries[0]?.recoveryScore ?? null,
+    sourceStateDate: today,
+    decisionKey: `spartan:decision:evening:${today}`,
+    payload: {
+      load_band: loadBand,
+      whoop_summary: whoopSummary,
+      nutrition_assumption: nutritionAssumption,
+      sleep_target: sleepTarget,
+      hydration_status: hydrationStatus,
+    },
   });
   if (!decisionWrite.ok) errors.push(`coach_decision_upsert_failed:${decisionWrite.error ?? "unknown"}`);
 

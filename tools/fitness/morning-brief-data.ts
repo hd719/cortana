@@ -3,8 +3,16 @@
 import { spawnSync } from "node:child_process";
 import { chooseSurfacedInsightIds, fetchPendingHealthInsights, markInsightsSql } from "./insights-db.js";
 import { upsertFitnessDailySnapshot } from "./facts-db.js";
+import { collectRecentMealEntries, summarizeMealRollup } from "./meal-log.js";
 import { fetchCoachCaffeineDaySummary, upsertCoachDecision } from "./coach-db.js";
 import {
+  buildMorningTrainingRecommendation,
+  readinessEmoji,
+  whoopRecoveryBandFromScore,
+} from "./coaching-rules.js";
+import { buildTodayMissionArtifact, persistTodayMissionArtifact } from "./today-mission-data.js";
+import {
+  buildReadinessSignal,
   computeTrend,
   dataFreshnessHours,
   extractDailyStepCount,
@@ -12,10 +20,10 @@ import {
   extractSleepEntries,
   extractWhoopWorkouts,
   localYmd,
-  tonalTodayWorkouts,
-  tonalWorkoutsFromPayload as tonalWorkoutsFromPayloadCore,
   type ReadinessBand,
   type RecoveryEntry,
+  tonalTodayWorkouts,
+  tonalWorkoutsFromPayload as tonalWorkoutsFromPayloadCore,
 } from "./signal-utils.js";
 
 function curlJson(url: string, timeoutSec: number): unknown {
@@ -86,19 +94,7 @@ function tonalTodayWorkoutsWithFallback(payload: unknown, today = localYmd(), ti
     .sort((a, b) => a.time.localeCompare(b.time));
 }
 
-export function whoopRecoveryBandFromScore(score: number | null): ReadinessBand {
-  if (score == null || !Number.isFinite(score)) return "unknown";
-  if (score >= 67) return "green";
-  if (score >= 34) return "yellow";
-  return "red";
-}
-
-export function readinessEmoji(band: ReadinessBand): string {
-  if (band === "green") return "🟢";
-  if (band === "yellow") return "🟡";
-  if (band === "red") return "🔴";
-  return "⚪";
-}
+export { buildMorningTrainingRecommendation, readinessEmoji, whoopRecoveryBandFromScore } from "./coaching-rules.js";
 
 export function buildReadinessSupport(recoveries: RecoveryEntry[]): {
   hrv_latest: number | null;
@@ -127,13 +123,6 @@ function sleepQualityBand(sleepPerformance: number | null): "good" | "fair" | "p
   return "poor";
 }
 
-type MorningRecommendation = {
-  mode: "go_hard" | "controlled_train" | "zone2_mobility" | "rest_and_recover";
-  rationale: string;
-  concrete_action: string;
-};
-
-
 function toCoachReadiness(band: ReadinessBand): "Green" | "Yellow" | "Red" | "Unknown" {
   if (band === "green") return "Green";
   if (band === "yellow") return "Yellow";
@@ -155,41 +144,16 @@ function buildTopRisk(opts: { band: ReadinessBand; stale: boolean; sleepPerf: nu
   return "Turning a good readiness day into junk-volume fatigue.";
 }
 
-export function buildMorningTrainingRecommendation(opts: {
-  readinessBand: ReadinessBand;
-  sleepPerformance: number | null;
-  isStale: boolean;
-}): MorningRecommendation {
-  if (opts.isStale || opts.readinessBand === "unknown") {
-    return {
-      mode: "zone2_mobility",
-      rationale: "Data freshness is weak, so avoid high-intensity risk.",
-      concrete_action: "Do 30-45 min Zone 2 plus 10 min mobility; reassess once fresh recovery data lands.",
-    };
-  }
-  if (opts.readinessBand === "red") {
-    return {
-      mode: "rest_and_recover",
-      rationale: "Whoop readiness is red, so adaptation odds are low for hard work.",
-      concrete_action: "Skip heavy lifting and intervals; prioritize recovery work only.",
-    };
-  }
-  if (opts.readinessBand === "yellow" || (opts.sleepPerformance ?? 100) < 80) {
-    return {
-      mode: "controlled_train",
-      rationale: "Moderate readiness supports training only with controlled intensity.",
-      concrete_action: "Run a controlled session: quality lifts or Zone 2, no max-effort sets.",
-    };
-  }
-  return {
-    mode: "go_hard",
-    rationale: "Readiness and sleep quality support a progressive session.",
-    concrete_action: "Run the planned hard session, but stop when rep quality drops.",
-  };
+function previousProteinDaysLogged(entries: Array<{ date: string }>, today: string): number {
+  const currentStart = localYmd("America/New_York", new Date(`${today}T12:00:00Z`));
+  const previousStart = localYmd("America/New_York", new Date(Date.parse(`${currentStart}T12:00:00Z`) - 13 * 24 * 3600 * 1000));
+  const previousEnd = localYmd("America/New_York", new Date(Date.parse(`${currentStart}T12:00:00Z`) - 7 * 24 * 3600 * 1000));
+  return new Set(entries.filter((entry) => entry.date >= previousStart && entry.date <= previousEnd).map((entry) => entry.date)).size;
 }
 
 function main(): void {
   const errors: string[] = [];
+  const generatedAt = new Date().toISOString();
   const today = localYmd();
   const yesterday = localYmd("America/New_York", new Date(Date.now() - 24 * 3600 * 1000));
   const whoop = curlJson("http://localhost:3033/whoop/data", 12);
@@ -214,7 +178,8 @@ function main(): void {
 
   const recoveries = extractRecoveryEntries(whoop);
   const sleeps = extractSleepEntries(whoop);
-  const whoopWorkouts = extractWhoopWorkouts(whoop).filter((entry) => entry.date === today);
+  const allWhoopWorkouts = extractWhoopWorkouts(whoop);
+  const whoopWorkouts = allWhoopWorkouts.filter((entry) => entry.date === today);
   const stepSummary = extractDailyStepCount(whoop, today);
   const tonalWorkouts = tonalTodayWorkoutsWithFallback(tonal, today);
   const latestRecovery = recoveries[0] ?? null;
@@ -225,11 +190,54 @@ function main(): void {
   const sleepFreshnessHours = dataFreshnessHours(latestSleep?.createdAt ?? null);
   const isStale = (recoveryFreshnessHours ?? 99) > 18 || (sleepFreshnessHours ?? 99) > 18;
   const caffeineYesterday = fetchCoachCaffeineDaySummary(yesterday);
+  const mealEntries = collectRecentMealEntries({ days: 14, agentId: "spartan" });
+  const mealRollup = summarizeMealRollup(mealEntries, today);
+  const proteinDaysLoggedPrior = previousProteinDaysLogged(mealEntries, today);
   const recommendation = buildMorningTrainingRecommendation({
     readinessBand,
     sleepPerformance: latestSleep?.sleepPerformance ?? null,
     isStale,
   });
+  const todayWhoopStrain = Number(whoopWorkouts.reduce((sum, entry) => sum + (entry.strain ?? 0), 0).toFixed(2));
+  const yesterdayWhoopStrain = Number(
+    allWhoopWorkouts
+      .filter((entry) => entry.date === yesterday)
+      .reduce((sum, entry) => sum + (entry.strain ?? 0), 0)
+      .toFixed(2),
+  );
+  const readinessSignal = buildReadinessSignal({
+    recoveryTrend: computeTrend(recoveries.map((entry) => entry.recoveryScore)),
+    hrvTrend: computeTrend(recoveries.map((entry) => entry.hrv)),
+    rhrTrend: computeTrend(recoveries.map((entry) => entry.rhr)),
+    sleepPerformance: latestSleep?.sleepPerformance ?? null,
+    freshnessHours: recoveryFreshnessHours,
+    totalStrainToday: todayWhoopStrain,
+    yesterdayStrain: yesterdayWhoopStrain,
+  });
+  const todayMission = buildTodayMissionArtifact({
+    dateLocal: today,
+    readinessScore: latestRecovery?.recoveryScore ?? null,
+    sleepPerformance: latestSleep?.sleepPerformance ?? null,
+    hrvLatest: readinessSupport.hrv_latest,
+    rhrLatest: readinessSupport.rhr_latest,
+    recoveryFreshnessHours,
+    sleepFreshnessHours,
+    whoopStrainToday: todayWhoopStrain,
+    tonalSessionsToday: tonalWorkouts.length,
+    tonalVolumeToday: Number(tonalWorkouts.reduce((sum, entry) => sum + (entry.volume ?? 0), 0).toFixed(2)),
+    stepCountToday: stepSummary.stepCount,
+    mealsLoggedToday: mealRollup.today.mealsLogged,
+    proteinActualGToday: mealRollup.today.proteinG,
+    proteinStatusToday: mealRollup.today.proteinStatus,
+    proteinTargetG: mealRollup.target.proteinMinG,
+    hydrationStatusToday: "unknown",
+    weeklyProteinDaysLogged: mealRollup.trailing7.daysLogged,
+    weeklyProteinDaysOnTarget: mealRollup.trailing7.daysMeetingProteinTarget,
+    weeklyProteinDaysLoggedPrior: proteinDaysLoggedPrior,
+    weeklyProteinAvgDaily: mealRollup.trailing7.avgDailyProteinG,
+  });
+  const todayMissionWrite = persistTodayMissionArtifact(todayMission, { agentId: "cron-fitness" });
+  if (!todayMissionWrite.ok) errors.push(...todayMissionWrite.errors.map((error) => `today_mission_${error}`));
 
   const pendingInsights = fetchPendingHealthInsights(6);
   const surfacedInsightIds = chooseSurfacedInsightIds(
@@ -245,7 +253,7 @@ function main(): void {
 
   const snapshotWrite = upsertFitnessDailySnapshot({
     snapshotDate: today,
-    generatedAt: new Date().toISOString(),
+    generatedAt,
     readinessScore: latestRecovery?.recoveryScore ?? null,
     readinessBand,
     sleepHours: latestSleep?.sleepHours ?? null,
@@ -273,9 +281,8 @@ function main(): void {
   });
   if (!snapshotWrite.ok) errors.push(`fitness_daily_snapshot_upsert_failed:${snapshotWrite.error ?? "unknown"}`);
 
-  const todayWhoopStrain = Number(whoopWorkouts.reduce((sum, entry) => sum + (entry.strain ?? 0), 0).toFixed(2));
   const decisionWrite = upsertCoachDecision({
-    tsUtc: new Date().toISOString(),
+    tsUtc: generatedAt,
     readinessCall: toCoachReadiness(readinessBand),
     longevityImpact: buildLongevityImpact({ band: readinessBand, stale: isStale }),
     topRisk: buildTopRisk({ band: readinessBand, stale: isStale, sleepPerf: latestSleep?.sleepPerformance ?? null, caffeineYesterdayMg: caffeineYesterday.total_mg, caffeineLateYesterday: caffeineYesterday.latest_after_cutoff }),
@@ -284,11 +291,20 @@ function main(): void {
     actualDayStrain: todayWhoopStrain,
     sleepPerfPct: latestSleep?.sleepPerformance ?? null,
     recoveryScore: latestRecovery?.recoveryScore ?? null,
+    sourceStateDate: today,
+    decisionKey: `spartan:decision:morning:${today}`,
+    payload: {
+      recommendation,
+      readiness_signal: readinessSignal,
+      today_mission_key: todayMission.mission_key,
+      tonal_sessions_today: tonalWorkouts.length,
+      protein_status_today: mealRollup.today.proteinStatus,
+    },
   });
   if (!decisionWrite.ok) errors.push(`coach_decision_upsert_failed:${decisionWrite.error ?? "unknown"}`);
 
   const out = {
-    generated_at: new Date().toISOString(),
+    generated_at: generatedAt,
     date: today,
     morning_readiness: {
       score: latestRecovery?.recoveryScore ?? null,
@@ -305,6 +321,7 @@ function main(): void {
       freshness_hours: sleepFreshnessHours,
     },
     readiness_support_signals: readinessSupport,
+    readiness_signal: readinessSignal,
     caffeine_context: {
       yesterday_total_mg: caffeineYesterday.total_mg,
       yesterday_entries: caffeineYesterday.entries,
@@ -327,6 +344,15 @@ function main(): void {
       })),
     },
     today_training_recommendation: recommendation,
+    today_mission: todayMission,
+    today_mission_file_path: todayMissionWrite.sandboxFilePath,
+    today_mission_repo_file_path: todayMissionWrite.repoFilePath,
+    today_mission_write: {
+      status: todayMissionWrite.ok ? "ok" : "error",
+      sandbox: todayMissionWrite.sandboxWrite,
+      repo_mirror: todayMissionWrite.repoMirrorWrite,
+      errors: todayMissionWrite.errors,
+    },
     data_freshness: {
       is_stale: isStale,
       recovery_hours: recoveryFreshnessHours,
@@ -353,6 +379,7 @@ function main(): void {
       has_rhr_signal: readinessSupport.rhr_latest != null,
       has_sleep_signal: latestSleep?.sleepPerformance != null,
       has_tonal_today: tonalWorkouts.length > 0,
+      has_meal_logs: mealRollup.today.mealsLogged > 0,
     },
     tonal_health: tonalHealth,
   };

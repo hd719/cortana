@@ -7,6 +7,12 @@ import { collectRecentMealEntries } from "./meal-log.js";
 import { chooseSurfacedInsightIds, fetchPendingHealthInsights, markInsightsSql } from "./insights-db.js";
 import { fetchCoachCaffeineWindowSummary, upsertCoachWeeklyScore } from "./coach-db.js";
 import {
+  fetchCoachAlertWindowSummary,
+  fetchCoachCheckinWindowSummary,
+  upsertCoachOutcomeEvalWeekly,
+} from "./checkin-db.js";
+import { evaluateWeeklyOutcome } from "./outcome-eval.js";
+import {
   extractRecoveryEntries,
   extractSleepEntries,
   extractWhoopWorkouts,
@@ -240,6 +246,17 @@ export function buildWeeklyProteinAssumption(opts: {
   };
 }
 
+function performanceTrend(opts: {
+  tonalSessions: number;
+  tonalVolumeDeltaPct: number | null;
+  recoveryDeltaPct: number | null;
+}): "improving" | "stable" | "regressing" | "unknown" {
+  if (opts.tonalSessions === 0) return "unknown";
+  if ((opts.tonalVolumeDeltaPct ?? 0) >= 5 && (opts.recoveryDeltaPct ?? 0) >= -8) return "improving";
+  if ((opts.tonalVolumeDeltaPct ?? 0) <= -10) return "regressing";
+  return "stable";
+}
+
 
 
 function weeklyAge100Score(input: {
@@ -327,11 +344,51 @@ function main(): void {
 
   const caffeineCurrent = fetchCoachCaffeineWindowSummary(currentStart, currentEnd);
   const caffeinePrevious = fetchCoachCaffeineWindowSummary(previousStart, previousEnd);
+  const checkinSummary = fetchCoachCheckinWindowSummary(currentStart, currentEnd);
+  const alertSummary = fetchCoachAlertWindowSummary(currentStart, currentEnd);
 
   const pendingInsights = fetchPendingHealthInsights(8);
   const surfacedInsightIds = chooseSurfacedInsightIds(pendingInsights, riskBand, 2);
   const isoWeek = currentIsoWeekTag();
   const weeklyTarget = weeklyPaths(isoWeek);
+  const plannedTrainingDays = 5;
+  const completedTrainingDays = Math.max(
+    checkinSummary.completed_days,
+    Math.min(plannedTrainingDays, Math.max(currentMetrics.tonal_sessions, currentMetrics.whoop_workouts)),
+  );
+  const missedTrainingDays = Math.max(
+    checkinSummary.missed_days,
+    Math.max(0, plannedTrainingDays - completedTrainingDays),
+  );
+  const weeklyOutcome = evaluateWeeklyOutcome({
+    isoLabel: isoWeek,
+    periodStart: currentStart,
+    periodEnd: currentEnd,
+    plannedTrainingDays,
+    completedTrainingDays,
+    missedTrainingDays,
+    recoveryDaysLogged: currentMetrics.days_with_recovery,
+    sleepDaysLogged: currentMetrics.days_with_sleep,
+    proteinDaysLogged: currentMetrics.protein_days_logged,
+    proteinDaysOnTarget: currentMetrics.protein_days_on_target,
+    avgRecovery: currentMetrics.avg_recovery,
+    avgSleepHours: currentMetrics.avg_sleep_hours,
+    avgProteinG: currentMetrics.protein_avg_daily,
+    tonalSessions: currentMetrics.tonal_sessions,
+    tonalVolume: currentMetrics.tonal_total_volume,
+    tonalVolumeDeltaPct: trendSignals.tonal_volume.delta_pct,
+    whoopStrainDeltaPct: trendSignals.strain_load.delta_pct,
+    painDays: checkinSummary.pain_days,
+    scheduleConflicts: checkinSummary.schedule_conflict_days,
+    overreachAlerts: alertSummary.overreach_alerts,
+    staleDataDays: alertSummary.freshness_alerts,
+    performanceTrend: performanceTrend({
+      tonalSessions: currentMetrics.tonal_sessions,
+      tonalVolumeDeltaPct: trendSignals.tonal_volume.delta_pct,
+      recoveryDeltaPct: trendSignals.recovery.delta_pct,
+    }),
+    readinessBand: riskBand,
+  });
 
   const age100 = weeklyAge100Score({
     avgSleepHours: currentMetrics.avg_sleep_hours,
@@ -360,6 +417,26 @@ function main(): void {
     },
   });
   if (!weeklyScoreWrite.ok) errors.push(`coach_weekly_score_upsert_failed:${weeklyScoreWrite.error ?? "unknown"}`);
+  const outcomeWrite = upsertCoachOutcomeEvalWeekly({
+    isoWeek,
+    weekStart: currentStart,
+    weekEnd: currentEnd,
+    overallScore: weeklyOutcome.overall_score,
+    adherenceScore: weeklyOutcome.component_scores.adherence,
+    recoveryAlignmentScore: weeklyOutcome.component_scores.recovery_alignment,
+    nutritionAlignmentScore: weeklyOutcome.component_scores.nutrition_alignment,
+    riskManagementScore: weeklyOutcome.component_scores.risk_management,
+    performanceAlignmentScore: weeklyOutcome.component_scores.performance_alignment,
+    explanation: {
+      confidence: weeklyOutcome.confidence,
+      summary: weeklyOutcome.summary,
+      wins: weeklyOutcome.wins,
+      misses: weeklyOutcome.misses,
+      caveats: weeklyOutcome.caveats,
+    },
+    evidence: weeklyOutcome.evidence,
+  });
+  if (!outcomeWrite.ok) errors.push(`coach_outcome_eval_weekly_upsert_failed:${outcomeWrite.error ?? "unknown"}`);
 
   const out = {
     generated_at: new Date().toISOString(),
@@ -390,6 +467,10 @@ function main(): void {
       current: caffeineCurrent,
       previous: caffeinePrevious,
     },
+    coaching_evidence: {
+      checkins: checkinSummary,
+      alerts: alertSummary,
+    },
     protein_adherence_assumption: proteinAssumption,
     caffeine_summary: {
       current: caffeineCurrent,
@@ -401,6 +482,11 @@ function main(): void {
       components: age100.components,
       db_status: weeklyScoreWrite.ok ? "ok" : "error",
       db_error: weeklyScoreWrite.ok ? null : weeklyScoreWrite.error ?? "unknown",
+    },
+    coaching_outcome_evaluation: {
+      ...weeklyOutcome,
+      db_status: outcomeWrite.ok ? "ok" : "error",
+      db_error: outcomeWrite.ok ? null : outcomeWrite.error ?? "unknown",
     },
     hard_truth_inputs: {
       risk_band: riskBand,
