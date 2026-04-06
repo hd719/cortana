@@ -119,6 +119,48 @@ Analyze:
 Create: ~/Developer/cortana/memory/fitness/analysis/hrv-trends.md
 ```
 
+### 7. Tomorrow Tonal Plan Audit
+**Trigger:** "What should I do on Tonal tomorrow?"
+```
+Audit the structured Tonal planner output for tomorrow and explain whether it makes sense.
+
+Load first:
+- ~/Developer/cortana/memory/fitness/plans/YYYY-MM-DD-tomorrow-session.json
+- ~/Developer/cortana/memory/fitness/programs/current-tonal-catalog.json
+- ~/Developer/cortana/memory/fitness/daily/YYYY-MM-DD.json
+
+Fetch if needed:
+- curl -s http://localhost:3033/tonal/data?fresh=true
+
+Analyze:
+- whether the chosen template fits readiness, fatigue, and available time
+- whether the selected movements match lagging-muscle priorities
+- whether cardio interference or cut-support logic should force a different split
+- any low-confidence slots that should stay manual
+
+Create: ~/Developer/cortana/memory/fitness/analysis/tomorrow-tonal-plan-audit.md
+```
+
+### 8. Tonal Catalog Drift Check
+**Trigger:** "Audit my Tonal catalog"
+```
+Inspect the normalized Tonal catalog and look for mapping or payload drift.
+
+Load first:
+- ~/Developer/cortana/memory/fitness/programs/current-tonal-catalog.json
+
+Fetch if needed:
+- curl -s http://localhost:3033/tonal/data?fresh=true
+
+Analyze:
+- unmapped movements or weak mapping coverage
+- missing program/workout metadata
+- whether current templates cover the dominant movement families in recent Tonal history
+- planner risks caused by payload-shape changes
+
+Create: ~/Developer/cortana/memory/fitness/analysis/tonal-catalog-drift.md
+```
+
 ---
 
 ## How to Request

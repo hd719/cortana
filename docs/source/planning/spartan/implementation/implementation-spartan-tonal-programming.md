@@ -46,10 +46,11 @@ Week 4: V5 (validate against live Tonal data and harden payload assumptions)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/tonal-program-catalog.ts` to normalize Tonal workouts, programs, and movements into planner entities.
-- Sub-task 2: Create `/Users/hd/Developer/cortana/tools/fitness/tonal-plan-db.ts` schema helpers for `cortana_fitness_tonal_library_snapshot`.
-- Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/signal-utils.ts` with planner-specific Tonal extractors if existing helpers are not sufficient.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-tonal-program-catalog.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/tonal-program-catalog.ts` to normalize Tonal workouts, programs, and movements into planner entities.
+- [x] Sub-task 2: Create `/Users/hd/Developer/cortana/tools/fitness/tonal-plan-db.ts` schema helpers for `cortana_fitness_tonal_library_snapshot`.
+- [x] Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/signal-utils.ts` with planner-specific Tonal extractors if existing helpers are not sufficient.
+  Existing extractors were sufficient, so catalog normalization now consumes them directly without duplicating Tonal parsing logic.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-tonal-program-catalog.test.ts`.
 
 #### Testing
 
@@ -67,7 +68,7 @@ Week 4: V5 (validate against live Tonal data and harden payload assumptions)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/tonal-template-library.ts` with versioned templates for at least:
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/tonal-template-library.ts` with versioned templates for at least:
   - upper hypertrophy 45m
   - lower hypertrophy 45m
   - push 45m
@@ -75,9 +76,9 @@ Week 4: V5 (validate against live Tonal data and harden payload assumptions)
   - full body 30m
   - recovery 30m
   - cut-support upper/lower variants
-- Sub-task 2: Persist template definitions in code or structured repo files, not prompt text.
-- Sub-task 3: Add selection helpers that map weekly recommendation outputs to candidate templates.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-tonal-template-library.test.ts`.
+- [x] Sub-task 2: Persist template definitions in code or structured repo files, not prompt text.
+- [x] Sub-task 3: Add selection helpers that map weekly recommendation outputs to candidate templates.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-tonal-template-library.test.ts`.
 
 #### Testing
 
@@ -97,16 +98,16 @@ Week 4: V5 (validate against live Tonal data and harden payload assumptions)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/tonal-session-planner.ts` to combine weekly recommendations, athlete-state context, and template candidates into a chosen session plan.
-- Sub-task 2: Add planner persistence in `/Users/hd/Developer/cortana/tools/fitness/tonal-plan-db.ts` for `cortana_fitness_planned_session`.
-- Sub-task 3: Support planner constraints for:
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/tonal-session-planner.ts` to combine weekly recommendations, athlete-state context, and template candidates into a chosen session plan.
+- [x] Sub-task 2: Add planner persistence in `/Users/hd/Developer/cortana/tools/fitness/tonal-plan-db.ts` for `cortana_fitness_planned_session`.
+- [x] Sub-task 3: Support planner constraints for:
   - readiness
   - fatigue debt
   - available time
   - lagging muscles
   - cardio interference
   - soreness or recovery fallback
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-tonal-session-planner.test.ts`.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-tonal-session-planner.test.ts`.
 
 #### Important Planning Notes
 
@@ -132,10 +133,10 @@ Week 4: V5 (validate against live Tonal data and harden payload assumptions)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/tonal-plan-artifact.ts` to write JSON and markdown outputs under `/Users/hd/Developer/cortana/memory/fitness/plans/`.
-- Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts` or a dedicated tomorrow-plan script to surface the planner result concisely.
-- Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/specialist-prompts.md` with planner-specific deep-dive templates that align to the new artifacts.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-tonal-plan-artifact.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/tonal-plan-artifact.ts` to write JSON and markdown outputs under `/Users/hd/Developer/cortana/memory/fitness/plans/`.
+- [x] Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts` or a dedicated tomorrow-plan script to surface the planner result concisely.
+- [x] Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/specialist-prompts.md` with planner-specific deep-dive templates that align to the new artifacts.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-tonal-plan-artifact.test.ts`.
 
 #### Testing
 
@@ -155,10 +156,11 @@ Week 4: V5 (validate against live Tonal data and harden payload assumptions)
 
 #### Jira
 
-- Sub-task 1: Inspect live `http://127.0.0.1:3033/tonal/data?fresh=true` payloads and confirm planner-required fields are present.
-- Sub-task 2: Update `/Users/hd/Developer/cortana-external/apps/external-service/src/tonal/service.ts` if any planner-critical fields need more explicit preservation.
-- Sub-task 3: Extend `/Users/hd/Developer/cortana-external/apps/external-service/src/__tests__/tonal.test.ts` for planner-critical payload assumptions.
-- Sub-task 4: Run `vitest` in both repos for the new planner coverage.
+- [x] Sub-task 1: Inspect live `http://127.0.0.1:3033/tonal/data?fresh=true` payloads and confirm planner-required fields are present.
+- [x] Sub-task 2: Update `/Users/hd/Developer/cortana-external/apps/external-service/src/tonal/service.ts` if any planner-critical fields need more explicit preservation.
+  Live validation confirmed the current service already preserves the required planner fields, so no service-code change was needed in this pass.
+- [x] Sub-task 3: Extend `/Users/hd/Developer/cortana-external/apps/external-service/src/__tests__/tonal.test.ts` for planner-critical payload assumptions.
+- [x] Sub-task 4: Run `vitest` in both repos for the new planner coverage.
 
 #### Testing
 

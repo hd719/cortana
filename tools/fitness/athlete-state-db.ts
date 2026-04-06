@@ -232,10 +232,49 @@ CREATE TABLE IF NOT EXISTS cortana_fitness_athlete_state_daily (
 CREATE INDEX IF NOT EXISTS idx_athlete_state_generated_at ON cortana_fitness_athlete_state_daily(generated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_athlete_state_phase_mode ON cortana_fitness_athlete_state_daily(phase_mode);
 
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS readiness_score NUMERIC(6,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS readiness_band TEXT;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS readiness_confidence NUMERIC(4,3);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS sleep_hours NUMERIC(6,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS sleep_performance NUMERIC(6,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS hrv NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS rhr NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS whoop_strain NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS whoop_workouts INT;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS step_count INT;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS step_source TEXT;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS tonal_sessions INT;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS tonal_volume NUMERIC(12,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS cardio_minutes NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS cardio_summary JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS body_weight_kg NUMERIC(6,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS body_weight_source TEXT;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS body_weight_confidence NUMERIC(4,3);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS active_energy_kcal NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS resting_energy_kcal NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS walking_running_distance_km NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS body_fat_pct NUMERIC(6,3);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS lean_mass_kg NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS health_source_confidence NUMERIC(4,3);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS health_context JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS phase_mode TEXT;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS target_weight_delta_pct_week NUMERIC(6,3);
 ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS fatigue_debt NUMERIC(6,2);
 ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS sleep_debt NUMERIC(6,2);
 ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS progression_momentum NUMERIC(6,2);
 ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS training_context JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS protein_g NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS protein_target_g NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS calories_kcal NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS carbs_g NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS fat_g NUMERIC(8,2);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS hydration_liters NUMERIC(8,3);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS nutrition_confidence TEXT;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS recommendation_mode TEXT;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS recommendation_confidence NUMERIC(4,3);
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS quality_flags JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS source_refs JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE cortana_fitness_athlete_state_daily ADD COLUMN IF NOT EXISTS raw JSONB NOT NULL DEFAULT '{}'::jsonb;
 `;
 }
 
@@ -265,10 +304,19 @@ CREATE TABLE IF NOT EXISTS cortana_fitness_muscle_volume_daily (
 CREATE INDEX IF NOT EXISTS idx_muscle_volume_state_date ON cortana_fitness_muscle_volume_daily(state_date DESC);
 CREATE INDEX IF NOT EXISTS idx_muscle_volume_group ON cortana_fitness_muscle_volume_daily(muscle_group);
 
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS direct_sets NUMERIC(6,2);
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS indirect_sets NUMERIC(6,2);
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS hard_sets NUMERIC(6,2);
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS sessions INT;
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS load_bucket_summary JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS rep_bucket_summary JSONB NOT NULL DEFAULT '{}'::jsonb;
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS rir_estimate_avg NUMERIC(4,2);
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS source_confidence NUMERIC(4,3);
 ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS weekly_rollup_sets NUMERIC(6,2);
 ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS weekly_status TEXT;
 ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS target_sets_min NUMERIC(6,2);
 ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS target_sets_max NUMERIC(6,2);
+ALTER TABLE cortana_fitness_muscle_volume_daily ADD COLUMN IF NOT EXISTS notes JSONB NOT NULL DEFAULT '{}'::jsonb;
 `;
 }
 

@@ -16,6 +16,7 @@ import {
 import { buildDailyRecommendation } from "./training-engine.js";
 import { fetchLatestTrainingStateWeekly } from "./training-intelligence-db.js";
 import { buildTodayMissionArtifact, persistTodayMissionArtifact } from "./today-mission-data.js";
+import { buildAndPersistTomorrowTonalPlan } from "./tonal-plan-artifact.js";
 import {
   buildReadinessSignal,
   computeTrend,
@@ -279,6 +280,23 @@ function main(): void {
   });
   const todayMissionWrite = persistTodayMissionArtifact(todayMission, { agentId: "cron-fitness" });
   if (!todayMissionWrite.ok) errors.push(...todayMissionWrite.errors.map((error) => `today_mission_${error}`));
+  const tonalPlanBuild = buildAndPersistTomorrowTonalPlan({
+    today,
+    tonalPayload: tonal,
+    agentId: "cron-fitness",
+    athleteState: {
+      state_date: today,
+      readiness_band: athleteStateBuild.athleteState.readinessBand ?? null,
+      readiness_confidence: athleteStateBuild.athleteState.readinessConfidence ?? null,
+      fatigue_debt: athleteStateBuild.athleteState.fatigueDebt ?? null,
+      phase_mode: athleteStateBuild.athleteState.phaseMode ?? null,
+      ...athleteStateBuild.athleteState,
+    } as any,
+    weeklyTrainingState: latestWeeklyTrainingState as any,
+  });
+  if (!tonalPlanBuild.planWrite.ok) errors.push(`tonal_plan_upsert_failed:${tonalPlanBuild.planWrite.error ?? "unknown"}`);
+  if (!tonalPlanBuild.snapshotWrite.ok) errors.push(`tonal_library_snapshot_failed:${tonalPlanBuild.snapshotWrite.error ?? "unknown"}`);
+  if (!tonalPlanBuild.recommendationWrite.ok) errors.push(`tonal_planner_recommendation_failed:${tonalPlanBuild.recommendationWrite.error ?? "unknown"}`);
 
   const pendingInsights = fetchPendingHealthInsights(6);
   const surfacedInsightIds = chooseSurfacedInsightIds(
@@ -400,6 +418,12 @@ function main(): void {
       })),
     },
     today_training_recommendation: recommendation,
+    tomorrow_tonal_plan: tonalPlanBuild.artifact.plan,
+    tomorrow_tonal_plan_artifact: {
+      repo_json_path: tonalPlanBuild.artifactWrite.repoJsonPath,
+      repo_markdown_path: tonalPlanBuild.artifactWrite.repoMarkdownPath,
+      repo_catalog_path: tonalPlanBuild.artifactWrite.repoCatalogPath,
+    },
     athlete_state: athleteStateBuild.athleteState,
     weekly_training_state: latestWeeklyTrainingState,
     muscle_volume_today: athleteStateBuild.muscleVolumeRows,
