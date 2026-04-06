@@ -73,4 +73,37 @@ describe("fitness today mission artifact", () => {
     expect(paths.sandboxFilePath).toContain(path.join("memory", "fitness", "daily", "2026-04-05.json"));
     expect(paths.repoFilePath).toBe("/Users/hd/Developer/cortana/memory/fitness/daily/2026-04-05.json");
   });
+
+  it("uses the training override and guardrail summary when morning reliability is degraded", () => {
+    const mission = buildTodayMissionArtifact({
+      dateLocal: "2026-04-06",
+      readinessScore: 90,
+      sleepPerformance: 86,
+      recoveryFreshnessHours: 4,
+      sleepFreshnessHours: 4,
+      whoopStrainToday: 9,
+      tonalSessionsToday: 1,
+      tonalVolumeToday: 12000,
+      stepCountToday: 9800,
+      mealsLoggedToday: 0,
+      proteinActualGToday: null,
+      proteinStatusToday: "unknown",
+      weeklyProteinDaysLogged: 1,
+      weeklyProteinDaysLoggedPrior: 0,
+      weeklyProteinAvgDaily: 96,
+      trainingOverride: {
+        mode: "controlled_train",
+        rationale: "Reliability guardrail downgraded the day.",
+        concrete_action: "Run a controlled session and avoid a hard progression push.",
+      },
+      guardrailStatus: "warn",
+      guardrailSummary: "WHOOP recovery is aging out and should be treated conservatively.",
+    });
+
+    expect(mission.training.mode).toBe("controlled_train");
+    expect(mission.training.rationale).toBe("Reliability guardrail downgraded the day.");
+    expect(mission.priorities[0]).toContain("controlled session");
+    expect(mission.top_risk).toBe("WHOOP recovery is aging out and should be treated conservatively.");
+    expect(mission.confidence).toBe("medium");
+  });
 });

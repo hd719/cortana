@@ -26,6 +26,8 @@ export type AlertPolicyInput = {
   dateLocal: string;
   missionKey?: string | null;
   readinessBand?: ReadinessBand;
+  guardrailStatus?: "ok" | "warn" | "block" | null;
+  guardrailReasonCodes?: string[];
   dataFreshnessHours?: {
     recovery?: number | null;
     sleep?: number | null;
@@ -158,12 +160,14 @@ function scheduleSeverity(scheduleConstraint: string | null | undefined, planned
 export function evaluateAlertPolicy(input: AlertPolicyInput): AlertDecision[] {
   const alerts: AlertDecision[] = [];
   const riskFlags = input.riskFlags ?? [];
+  const guardrailStatus = input.guardrailStatus ?? null;
+  const guardrailReasonCodes = input.guardrailReasonCodes ?? [];
   const freshnessRecovery = input.dataFreshnessHours?.recovery ?? null;
   const freshnessSleep = input.dataFreshnessHours?.sleep ?? null;
 
-  if (shouldFlagFreshness(freshnessRecovery) || shouldFlagFreshness(freshnessSleep)) {
+  if (shouldFlagFreshness(freshnessRecovery) || shouldFlagFreshness(freshnessSleep) || guardrailStatus === "warn" || guardrailStatus === "block") {
     const severity =
-      shouldFlagFreshness(freshnessRecovery) && shouldFlagFreshness(freshnessSleep)
+      guardrailStatus === "block" || (shouldFlagFreshness(freshnessRecovery) && shouldFlagFreshness(freshnessSleep))
         ? "high"
         : "warning";
     alerts.push(
@@ -172,10 +176,14 @@ export function evaluateAlertPolicy(input: AlertPolicyInput): AlertDecision[] {
         dateLocal: input.dateLocal,
         severity,
         title: "Freshness degraded",
-        summary: "Recovery or sleep data is stale enough that the day should be treated conservatively.",
+        summary: guardrailStatus === "warn" || guardrailStatus === "block"
+          ? "The morning reliability guardrail downgraded the day because core signals are missing, stale, or operationally weak."
+          : "Recovery or sleep data is stale enough that the day should be treated conservatively.",
         context: {
           recovery_hours: freshnessRecovery,
           sleep_hours: freshnessSleep,
+          guardrail_status: guardrailStatus,
+          guardrail_reason_codes: guardrailReasonCodes,
           mission_key: input.missionKey ?? null,
         },
       }),

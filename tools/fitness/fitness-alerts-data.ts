@@ -20,6 +20,10 @@ type MorningArtifact = {
   morning_readiness?: {
     band?: AlertPolicyInput["readinessBand"];
   };
+  reliability_guardrail?: {
+    status?: AlertPolicyInput["guardrailStatus"];
+    reasons?: Array<{ code?: string }>;
+  };
   readiness_signal?: {
     riskFlags?: string[];
   };
@@ -96,10 +100,10 @@ export function parseRequestedAlertTypes(raw: string | null | undefined): AlertT
 }
 
 function plannedIntensityFor(mode: string | undefined): AlertPolicyInput["plannedIntensity"] {
-  if (mode === "go_hard") return "hard";
+  if (mode === "go_hard" || mode === "push") return "hard";
   if (mode === "controlled_train") return "moderate";
-  if (mode === "zone2_mobility") return "easy";
-  if (mode === "rest_and_recover") return "recovery";
+  if (mode === "zone2_mobility" || mode === "zone2_technique") return "easy";
+  if (mode === "rest_and_recover" || mode === "recover") return "recovery";
   return undefined;
 }
 
@@ -117,6 +121,12 @@ export function buildAlertPolicyInput(options: {
     dateLocal: options.dateLocal,
     missionKey: morning.today_mission?.mission_key ?? null,
     readinessBand: morning.morning_readiness?.band ?? evening.today_training_output?.load_signal?.band,
+    guardrailStatus: morning.reliability_guardrail?.status ?? null,
+    guardrailReasonCodes: Array.isArray(morning.reliability_guardrail?.reasons)
+      ? morning.reliability_guardrail?.reasons
+          .map((reason) => (typeof reason?.code === "string" ? reason.code : null))
+          .filter((reason): reason is string => Boolean(reason))
+      : [],
     dataFreshnessHours: {
       recovery: numberOrNull(morning.data_freshness?.recovery_hours),
       sleep: numberOrNull(morning.data_freshness?.sleep_hours),

@@ -1,4 +1,5 @@
 import type { AthleteStateDailyRow, MuscleVolumeDailyRow } from "./athlete-state-db.js";
+import type { MorningReliabilityGuardrail, ReliabilityGuardrailModeCap, ReliabilityGuardrailStatus } from "./reliability-guardrail.js";
 import { buildWeeklyMuscleDoseAssessments } from "./volume-engine.js";
 
 export type DailyRecommendationMode = "push" | "controlled_train" | "zone2_technique" | "recover";
@@ -22,6 +23,7 @@ export type DailyRecommendationContext = {
   weeklyRecommendationMode?: string | null;
   underdosedMusclesCount?: number | null;
   overdosedMusclesCount?: number | null;
+  guardrail?: MorningReliabilityGuardrail | null;
 };
 
 export type WeeklyMuscleDoseTarget = {
@@ -80,6 +82,10 @@ export type DailyRecommendation = {
   limitingFactor: string;
   topRisk: string;
   rationale: string;
+  guardrailStatus?: ReliabilityGuardrailStatus;
+  guardrailModeCap?: ReliabilityGuardrailModeCap;
+  guardrailReasonCodes?: string[];
+  guardrailSummary?: string | null;
 };
 
 export const DEFAULT_TRAINING_ENGINE_CONFIG: TrainingEngineConfig = {
@@ -100,6 +106,36 @@ function clamp(value: number, min: number, max: number): number {
 function round(value: number, digits = 2): number {
   const factor = 10 ** digits;
   return Math.round(value * factor) / factor;
+}
+
+function recommendationModeRank(mode: DailyRecommendationMode | ReliabilityGuardrailModeCap): number {
+  if (mode === "recover") return 0;
+  if (mode === "zone2_technique") return 1;
+  if (mode === "controlled_train") return 2;
+  return 3;
+}
+
+function applyReliabilityGuardrail(
+  recommendation: DailyRecommendation,
+  guardrail: MorningReliabilityGuardrail | null | undefined,
+): DailyRecommendation {
+  if (!guardrail) return recommendation;
+  const annotated: DailyRecommendation = {
+    ...recommendation,
+    guardrailStatus: guardrail.status,
+    guardrailModeCap: guardrail.modeCap,
+    guardrailReasonCodes: guardrail.reasons.map((reason) => reason.code),
+    guardrailSummary: guardrail.summary,
+  };
+  if (guardrail.status === "ok") return annotated;
+  if (recommendationModeRank(recommendation.mode) <= recommendationModeRank(guardrail.modeCap)) return annotated;
+  return {
+    ...annotated,
+    mode: guardrail.modeCap,
+    limitingFactor: "reliability_guardrail",
+    topRisk: guardrail.summary ?? recommendation.topRisk,
+    rationale: `The recommendation was clamped by the morning reliability guardrail. ${guardrail.summary ?? recommendation.rationale}`,
+  };
 }
 
 function hasQualityFlag(flags: Record<string, unknown> | null | undefined, key: string): boolean {
@@ -204,6 +240,7 @@ export function recommendationConfidence(context: DailyRecommendationContext): n
   if ((context.nutritionConfidence ?? "low") === "low") score -= 0.08;
   if ((context.weeklyFatigueScore ?? 0) >= 24) score -= 0.08;
   if ((context.weeklyInterferenceRiskScore ?? 0) >= 70) score -= 0.05;
+  if (context.guardrail?.confidenceCap != null) score = Math.min(score, context.guardrail.confidenceCap);
   return round(clamp(score, 0.2, 0.98), 3);
 }
 
@@ -218,56 +255,56 @@ export function buildDailyRecommendation(
       : null;
 
   if (context.weeklyRecommendationMode === "deload" || (context.weeklyFatigueScore ?? 0) >= config.deloadFatigueScoreFloor) {
-    return {
+    return applyReliabilityGuardrail({
       mode: "recover",
       confidence,
       limitingFactor: "fatigue_debt",
       topRisk: "Weekly fatigue debt is already too high to justify more overload today.",
       rationale: "The weekly state is already pointing toward deload or recovery emphasis.",
-    };
+    }, context.guardrail);
   }
 
   if (context.readinessBand === "red") {
-    return {
+    return applyReliabilityGuardrail({
       mode: "recover",
       confidence,
       limitingFactor: "recovery_tolerance",
       topRisk: "Low recovery means hard training is more likely to dig fatigue than build adaptation.",
       rationale: "Recovery is below tolerance for productive intensity.",
-    };
+    }, context.guardrail);
   }
 
   if (context.readinessBand === "unknown" || confidence < config.readinessConfidenceFloor) {
-    return {
+    return applyReliabilityGuardrail({
       mode: "zone2_technique",
       confidence,
       limitingFactor: "data_quality",
       topRisk: "Weak or stale input quality makes a hard call unreliable.",
       rationale: "Data quality is not strong enough to justify aggressive progression.",
-    };
+    }, context.guardrail);
   }
 
   if ((context.sleepPerformance ?? 100) < config.sleepPerformanceControlFloor) {
-    return {
+    return applyReliabilityGuardrail({
       mode: "recover",
       confidence,
       limitingFactor: "sleep_debt",
       topRisk: "Sleep debt is the limiter and makes additional load expensive.",
       rationale: "Poor sleep turns even moderate training into a recovery tax.",
-    };
+    }, context.guardrail);
   }
 
   if (
     (context.weeklyInterferenceRiskScore ?? 0) >= config.highInterferenceScore ||
     (context.overdosedMusclesCount ?? 0) > (context.underdosedMusclesCount ?? 0) + 1
   ) {
-    return {
+    return applyReliabilityGuardrail({
       mode: "controlled_train",
       confidence,
       limitingFactor: "weekly_load_balance",
       topRisk: "Weekly volume or interference is already elevated, so another hard push risks junk fatigue.",
       rationale: "The weekly state supports quality work, not additional volume accumulation.",
-    };
+    }, context.guardrail);
   }
 
   if (
@@ -277,7 +314,7 @@ export function buildDailyRecommendation(
     || proteinGap == null
     || proteinGap > 0
   ) {
-    return {
+    return applyReliabilityGuardrail({
       mode: "controlled_train",
       confidence,
       limitingFactor: proteinGap != null && proteinGap > 0 ? "fueling_gap" : "moderate_readiness",
@@ -285,16 +322,16 @@ export function buildDailyRecommendation(
         ? "Under-fueling will cap adaptation quality if training load rises today."
         : "Moderate readiness supports quality work, not ego volume.",
       rationale: "Conditions support training only if intensity and volume stay controlled.",
-    };
+    }, context.guardrail);
   }
 
-  return {
+  return applyReliabilityGuardrail({
     mode: "push",
     confidence,
     limitingFactor: "none",
     topRisk: "Green does not mean unlimited volume; fatigue still compounds if execution drifts.",
     rationale: "Readiness, sleep, fuel, and weekly context support productive progression today.",
-  };
+  }, context.guardrail);
 }
 
 export function buildWeeklyDoseCalls(rows: MuscleVolumeLike[], phaseMode: string | null = "maintenance"): WeeklyDoseCall[] {

@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { buildMorningTrainingRecommendation, readinessEmoji, whoopRecoveryBandFromScore } from "./coaching-rules.js";
 import { buildNutritionAssumption, type NutritionAssumption } from "./evening-recap-data.js";
+import type { ReliabilityGuardrailStatus } from "./reliability-guardrail.js";
 import { buildWeeklyProteinAssumption, type WeeklyProteinAssumption } from "./weekly-insights-data.js";
 import type { ReadinessBand } from "./signal-utils.js";
 
@@ -31,6 +32,13 @@ export type TodayMissionInput = {
   weeklyProteinDaysOnTarget?: number;
   weeklyProteinDaysLoggedPrior?: number;
   weeklyProteinAvgDaily?: number | null;
+  trainingOverride?: {
+    mode: TrainingRecommendation["mode"];
+    rationale: string;
+    concrete_action: string;
+  } | null;
+  guardrailStatus?: ReliabilityGuardrailStatus;
+  guardrailSummary?: string | null;
 };
 
 export type TodayMissionArtifact = {
@@ -143,7 +151,10 @@ function buildConfidence(opts: {
   readinessBand: ReadinessBand;
   nutrition: NutritionAssumption;
   weeklyFueling: WeeklyProteinAssumption;
+  guardrailStatus?: ReliabilityGuardrailStatus;
 }): "high" | "medium" | "low" {
+  if (opts.guardrailStatus === "block") return "low";
+  if (opts.guardrailStatus === "warn") return "medium";
   if (opts.stale || opts.readinessBand === "unknown") return "low";
   if (opts.nutrition.confidence === "high" && opts.weeklyFueling.confidence === "high") return "high";
   return "medium";
@@ -152,7 +163,7 @@ function buildConfidence(opts: {
 export function buildTodayMissionArtifact(input: TodayMissionInput): TodayMissionArtifact {
   const readinessBand = whoopRecoveryBandFromScore(input.readinessScore);
   const stale = (input.recoveryFreshnessHours ?? 99) > 18 || (input.sleepFreshnessHours ?? 99) > 18;
-  const recommendation = buildMorningTrainingRecommendation({
+  const recommendation = input.trainingOverride ?? buildMorningTrainingRecommendation({
     readinessBand,
     sleepPerformance: input.sleepPerformance,
     isStale: stale,
@@ -181,6 +192,9 @@ export function buildTodayMissionArtifact(input: TodayMissionInput): TodayMissio
     strain: input.whoopStrainToday,
     tonalSessions: input.tonalSessionsToday,
   });
+  const topRiskWithGuardrail = input.guardrailStatus && input.guardrailStatus !== "ok" && input.guardrailSummary
+    ? input.guardrailSummary
+    : topRisk;
 
   const priorities = [
     recommendation.concrete_action,
@@ -240,12 +254,13 @@ export function buildTodayMissionArtifact(input: TodayMissionInput): TodayMissio
     sleep_target: sleep,
     priorities,
     non_negotiables: nonNegotiables,
-    top_risk: topRisk,
+    top_risk: topRiskWithGuardrail,
     confidence: buildConfidence({
       stale,
       readinessBand,
       nutrition,
       weeklyFueling,
+      guardrailStatus: input.guardrailStatus,
     }),
     summary,
   };

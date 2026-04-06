@@ -90,6 +90,43 @@ describe("fitness training engine", () => {
     }).mode).toBe("push");
   });
 
+  it("clamps push recommendations when the reliability guardrail is degraded", () => {
+    const recommendation = buildDailyRecommendation({
+      readinessBand: "green",
+      readinessConfidence: 0.94,
+      sleepPerformance: 90,
+      whoopStrain: 7,
+      proteinTargetG: 130,
+      proteinG: 132,
+      nutritionConfidence: "high",
+      weeklyFatigueScore: 6,
+      weeklyInterferenceRiskScore: 10,
+      underdosedMusclesCount: 1,
+      overdosedMusclesCount: 0,
+      guardrail: {
+        status: "warn",
+        modeCap: "controlled_train",
+        confidenceCap: 0.72,
+        blocksPush: true,
+        summary: "Freshness is degraded enough that Spartan should avoid a push day.",
+        reasons: [
+          {
+            code: "whoop_recovery_stale",
+            severity: "warn",
+            impact: "mode",
+            message: "WHOOP recovery is aging out and should be treated conservatively.",
+          },
+        ],
+      },
+    });
+
+    expect(recommendation.mode).toBe("controlled_train");
+    expect(recommendation.confidence).toBe(0.72);
+    expect(recommendation.limitingFactor).toBe("reliability_guardrail");
+    expect(recommendation.guardrailStatus).toBe("warn");
+    expect(recommendation.guardrailReasonCodes).toEqual(["whoop_recovery_stale"]);
+  });
+
   it("classifies weekly underdose and overdose by muscle target", () => {
     const calls = buildWeeklyDoseCalls([
       { state_date: "2026-04-01", muscle_group: "chest", hard_sets: 3 } as any,

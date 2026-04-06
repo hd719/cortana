@@ -69,4 +69,27 @@ describe("fitness alert policy", () => {
     expect(deduped[0].severity).toBe("high");
     expect(deduped[0].context).toMatchObject({ source: "manual" });
   });
+
+  it("raises freshness alerts from the reliability guardrail even without explicit stale hours", () => {
+    const alerts = evaluateAlertPolicy({
+      dateLocal: "2026-04-06",
+      missionKey: "spartan:2026-04-06:guardrail",
+      readinessBand: "unknown",
+      guardrailStatus: "block",
+      guardrailReasonCodes: ["whoop_recovery_missing", "readiness_blind_spot"],
+      dataFreshnessHours: {
+        recovery: null,
+        sleep: null,
+      },
+    });
+
+    expect(alerts[0]).toMatchObject({
+      alert_type: "freshness",
+      severity: "high",
+    });
+    expect(alerts[0]?.context).toMatchObject({
+      guardrail_status: "block",
+      guardrail_reason_codes: ["whoop_recovery_missing", "readiness_blind_spot"],
+    });
+  });
 });

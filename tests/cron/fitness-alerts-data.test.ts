@@ -24,6 +24,10 @@ describe("fitness alerts data helpers", () => {
       dateLocal: "2026-04-05",
       morningArtifact: {
         morning_readiness: { band: "yellow" },
+        reliability_guardrail: {
+          status: "warn",
+          reasons: [{ code: "whoop_recovery_stale" }],
+        },
         readiness_signal: { riskFlags: ["hrv_down_vs_baseline"] },
         data_freshness: { recovery_hours: 5, sleep_hours: 6 },
         today_training_context: {
@@ -56,11 +60,35 @@ describe("fitness alerts data helpers", () => {
     });
 
     expect(input.readinessBand).toBe("yellow");
+    expect(input.guardrailStatus).toBe("warn");
+    expect(input.guardrailReasonCodes).toEqual(["whoop_recovery_stale"]);
     expect(input.riskFlags).toContain("hrv_down_vs_baseline");
     expect(input.plannedIntensity).toBe("moderate");
     expect(input.painFlag).toBe(true);
     expect(input.scheduleConstraint).toBe("travel");
     expect(input.proteinTargetG).toBe(130);
+  });
+
+  it("maps modern training-engine recommendation modes into alert intensities", () => {
+    const push = buildAlertPolicyInput({
+      dateLocal: "2026-04-06",
+      morningArtifact: {
+        today_training_recommendation: {
+          mode: "push",
+        },
+      },
+    });
+    const recover = buildAlertPolicyInput({
+      dateLocal: "2026-04-06",
+      morningArtifact: {
+        today_training_recommendation: {
+          mode: "recover",
+        },
+      },
+    });
+
+    expect(push.plannedIntensity).toBe("hard");
+    expect(recover.plannedIntensity).toBe("recovery");
   });
 
   it("chooses the highest-severity alert as primary", () => {

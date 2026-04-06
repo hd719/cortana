@@ -18,6 +18,10 @@ import { fetchLatestTrainingStateWeekly } from "./training-intelligence-db.js";
 import { buildTodayMissionArtifact, persistTodayMissionArtifact } from "./today-mission-data.js";
 import { buildAndPersistTomorrowTonalPlan } from "./tonal-plan-artifact.js";
 import {
+  buildReliabilityGuardrailErrorCodes,
+  evaluateMorningReliabilityGuardrail,
+} from "./reliability-guardrail.js";
+import {
   buildReadinessSignal,
   computeTrend,
   dataFreshnessHours,
@@ -157,6 +161,39 @@ function previousProteinDaysLogged(entries: Array<{ date: string }>, today: stri
   return new Set(entries.filter((entry) => entry.date >= previousStart && entry.date <= previousEnd).map((entry) => entry.date)).size;
 }
 
+function missionTrainingOverrideForRecommendation(recommendation: ReturnType<typeof buildDailyRecommendation>): {
+  mode: "go_hard" | "controlled_train" | "zone2_mobility" | "rest_and_recover";
+  rationale: string;
+  concrete_action: string;
+} {
+  if (recommendation.mode === "push") {
+    return {
+      mode: "go_hard",
+      rationale: recommendation.rationale,
+      concrete_action: "Run the planned hard session, but stop when rep quality drops.",
+    };
+  }
+  if (recommendation.mode === "controlled_train") {
+    return {
+      mode: "controlled_train",
+      rationale: recommendation.rationale,
+      concrete_action: "Run a controlled session: quality lifts or Zone 2, no max-effort sets.",
+    };
+  }
+  if (recommendation.mode === "recover") {
+    return {
+      mode: "rest_and_recover",
+      rationale: recommendation.rationale,
+      concrete_action: "Skip heavy lifting and intervals; prioritize recovery work only.",
+    };
+  }
+  return {
+    mode: "zone2_mobility",
+    rationale: recommendation.rationale,
+    concrete_action: "Do 30-45 min Zone 2 plus 10 min mobility; reassess once fresh recovery data lands.",
+  };
+}
+
 function main(): void {
   const errors: string[] = [];
   const generatedAt = new Date().toISOString();
@@ -237,6 +274,18 @@ function main(): void {
     healthSourceRows: appleHealth.healthRows,
   });
   const latestWeeklyTrainingState = fetchLatestTrainingStateWeekly();
+  const reliabilityGuardrail = evaluateMorningReliabilityGuardrail({
+    hasRecovery: recoveries.length > 0,
+    hasSleep: sleeps.length > 0,
+    recoveryFreshnessHours,
+    sleepFreshnessHours,
+    readinessBand: athleteStateBuild.athleteState.readinessBand ?? readinessBand,
+    sleepPerformance: athleteStateBuild.athleteState.sleepPerformance ?? latestSleep?.sleepPerformance ?? null,
+    tonalHealthy: /healthy/i.test(tonHealthRaw),
+    appleHealthStatus: appleHealth.serviceStatus,
+    proteinTargetG: athleteStateBuild.athleteState.proteinTargetG ?? mealRollup.target.proteinMinG,
+    proteinActualG: athleteStateBuild.athleteState.proteinG ?? mealRollup.today.proteinG,
+  });
   const recommendation = buildDailyRecommendation({
     readinessBand: athleteStateBuild.athleteState.readinessBand ?? "unknown",
     readinessConfidence: athleteStateBuild.athleteState.readinessConfidence ?? null,
@@ -255,6 +304,7 @@ function main(): void {
     weeklyRecommendationMode: String(latestWeeklyTrainingState?.recommendation_summary?.mode ?? ""),
     underdosedMusclesCount: Object.keys(latestWeeklyTrainingState?.underdosed_muscles ?? {}).length,
     overdosedMusclesCount: Object.keys(latestWeeklyTrainingState?.overdosed_muscles ?? {}).length,
+    guardrail: reliabilityGuardrail,
   });
   const todayMission = buildTodayMissionArtifact({
     dateLocal: today,
@@ -277,6 +327,9 @@ function main(): void {
     weeklyProteinDaysOnTarget: mealRollup.trailing7.daysMeetingProteinTarget,
     weeklyProteinDaysLoggedPrior: proteinDaysLoggedPrior,
     weeklyProteinAvgDaily: mealRollup.trailing7.avgDailyProteinG,
+    trainingOverride: missionTrainingOverrideForRecommendation(recommendation),
+    guardrailStatus: reliabilityGuardrail.status,
+    guardrailSummary: reliabilityGuardrail.summary,
   });
   const todayMissionWrite = persistTodayMissionArtifact(todayMission, { agentId: "cron-fitness" });
   if (!todayMissionWrite.ok) errors.push(...todayMissionWrite.errors.map((error) => `today_mission_${error}`));
@@ -309,6 +362,7 @@ function main(): void {
   if (sleeps.length === 0) errors.push("whoop_sleep_missing");
   if (recoveryFreshnessHours != null && recoveryFreshnessHours > 18) errors.push("whoop_recovery_stale");
   if (sleepFreshnessHours != null && sleepFreshnessHours > 18) errors.push("whoop_sleep_stale");
+  errors.push(...buildReliabilityGuardrailErrorCodes(reliabilityGuardrail).map((code) => `reliability_guardrail:${code}`));
 
   const athleteStateWrite = upsertAthleteStateDaily({
     ...athleteStateBuild.athleteState,
@@ -359,7 +413,7 @@ function main(): void {
     longevityImpact: buildLongevityImpact({ band: athleteStateBuild.athleteState.readinessBand ?? "unknown", stale: isStale }),
     topRisk: recommendation.topRisk,
     reasonSummary: recommendation.rationale,
-    prescribedAction: legacyRecommendation.concrete_action,
+    prescribedAction: todayMission.training.concrete_action,
     actualDayStrain: athleteStateBuild.athleteState.whoopStrain ?? todayWhoopStrain,
     sleepPerfPct: athleteStateBuild.athleteState.sleepPerformance,
     recoveryScore: athleteStateBuild.athleteState.readinessScore,
@@ -367,6 +421,7 @@ function main(): void {
     decisionKey: `spartan:decision:morning:${today}`,
     payload: {
       recommendation,
+      reliability_guardrail: reliabilityGuardrail,
       legacy_recommendation: legacyRecommendation,
       readiness_signal: readinessSignal,
       today_mission_key: todayMission.mission_key,
@@ -441,6 +496,17 @@ function main(): void {
       recovery_hours: recoveryFreshnessHours,
       sleep_hours: sleepFreshnessHours,
       apple_health_status: appleHealth.serviceStatus,
+      guardrail_status: reliabilityGuardrail.status,
+      guardrail_mode_cap: reliabilityGuardrail.modeCap,
+      guardrail_reason_codes: reliabilityGuardrail.reasons.map((reason) => reason.code),
+    },
+    reliability_guardrail: {
+      status: reliabilityGuardrail.status,
+      mode_cap: reliabilityGuardrail.modeCap,
+      confidence_cap: reliabilityGuardrail.confidenceCap,
+      blocks_push: reliabilityGuardrail.blocksPush,
+      summary: reliabilityGuardrail.summary,
+      reasons: reliabilityGuardrail.reasons,
     },
     pending_health_insights: pendingInsights,
     surfaced_insight_ids: surfacedInsightIds,
