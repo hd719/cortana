@@ -13,6 +13,7 @@ This directory contains the canonical planning set for the Spartan fitness train
 
 - [Program index](./roadmap/spartan-fitness-program-index.md)
 - [Ultimate fitness trainer roadmap](./roadmap/fitness-trainer-roadmap-2026-04-04.md)
+- [Operator guide](./usage/README.md)
 
 ## Epic Planning Sets
 
