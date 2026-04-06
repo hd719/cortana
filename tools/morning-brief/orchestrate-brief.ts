@@ -8,6 +8,9 @@ const execFileAsync = promisify(execFile);
 const TELEGRAM_TARGET = "8171372724";
 const DEFAULT_TIMEOUT_MS = 180_000;
 const TELEGRAM_MAX_MESSAGE_LEN = 3500;
+const ET_TIME_ZONE = "America/New_York";
+const CALENDAR_HELPER = "/Users/hd/Developer/cortana/tools/gog/calendar-events-json.ts";
+const REMINDER_LIST = "Cortana";
 
 const NOISY_KEYS = new Set([
   "metadata",
@@ -35,24 +38,41 @@ type SpecialistResult = {
   text: string;
 };
 
+type GogCalendarEvent = {
+  id?: string;
+  summary?: string;
+  status?: string;
+  start?: {
+    date?: string;
+    dateTime?: string;
+  };
+};
+
+type ReminderItem = {
+  title?: string;
+  isCompleted?: boolean;
+  listName?: string;
+};
+
+type BriefParts = {
+  weather: string;
+  schedule: string[];
+  reminders: string[];
+  specialists: SpecialistResult[];
+};
+
 const SPECIALIST_TASKS: SpecialistTask[] = [
   {
     sessionKey: "agent:researcher:main",
     agentId: "researcher",
     prompt:
-      "Gather today's top 3-5 news headlines (world + tech). Return concise bullet summary.",
+      "Return exactly 2 short bullets for Hamel's morning brief: one high-signal US/world item and one tech/cyber item. No intro.",
   },
   {
     sessionKey: "agent:oracle:main",
     agentId: "oracle",
     prompt:
-      "Pre-market snapshot: futures, key indices, overnight movers for held positions. Return concise summary.",
-  },
-  {
-    sessionKey: "agent:monitor:main",
-    agentId: "monitor",
-    prompt:
-      "Overnight system health: gateway status, cron failures, alerts. Return concise status.",
+      "Return 1-2 short bullets for a morning market snapshot: market status plus one notable risk or focus. No intro.",
   },
 ];
 
@@ -238,99 +258,198 @@ async function sessionsSend(task: SpecialistTask): Promise<SpecialistResult> {
 
 async function fetchWeather(): Promise<string> {
   try {
-    return await runCommand("curl", ["-s", "wttr.in/Warren+NJ?format=3"], 20_000);
+    const raw = await runCommand("curl", ["-s", "https://wttr.in/Warren+NJ?format=j1"], 20_000);
+    const parsed = safeJsonParse(raw) as
+      | {
+          current_condition?: Array<{
+            temp_F?: string;
+            FeelsLikeF?: string;
+            weatherDesc?: Array<{ value?: string }>;
+            windspeedMiles?: string;
+          }>;
+          weather?: Array<{
+            maxtempF?: string;
+            mintempF?: string;
+            hourly?: Array<{ chanceofrain?: string }>;
+          }>;
+        }
+      | null;
+
+    const current = parsed?.current_condition?.[0];
+    const today = parsed?.weather?.[0];
+    const condition = (current?.weatherDesc?.[0]?.value ?? "Weather").trim();
+    const temp = current?.temp_F ?? "?";
+    const feels = current?.FeelsLikeF ?? "?";
+    const high = today?.maxtempF ?? "?";
+    const low = today?.mintempF ?? "?";
+    const rain = today?.hourly?.reduce((max, hour) => {
+      const chance = Number(hour?.chanceofrain ?? 0);
+      return Number.isFinite(chance) ? Math.max(max, chance) : max;
+    }, 0) ?? 0;
+    const wind = current?.windspeedMiles ?? "?";
+
+    return `${condition}, ${temp}F (feels ${feels}F), high ${high}/low ${low}, rain ${rain}%, wind ${wind} mph`;
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     return `Weather unavailable (${msg})`;
   }
 }
 
-async function fetchCalendar(): Promise<string> {
+function formatEventLabel(event: GogCalendarEvent): string | null {
+  const summary = (event.summary ?? "Untitled").trim();
+  if (!summary) return null;
+
+  const dateTime = event.start?.dateTime;
+  const allDayDate = event.start?.date;
+  if (dateTime) {
+    const dt = new Date(dateTime);
+    if (Number.isNaN(dt.getTime())) return summary;
+    const label = new Intl.DateTimeFormat("en-US", {
+      timeZone: ET_TIME_ZONE,
+      hour: "numeric",
+      minute: "2-digit",
+      hour12: true,
+    }).format(dt);
+    return `${label} - ${summary}`;
+  }
+
+  if (allDayDate) return `All day - ${summary}`;
+  return summary;
+}
+
+function eventSortKey(event: GogCalendarEvent): number {
+  const dateTime = event.start?.dateTime;
+  if (dateTime) {
+    const ts = Date.parse(dateTime);
+    if (Number.isFinite(ts)) return ts;
+  }
+  const allDayDate = event.start?.date;
+  if (allDayDate) {
+    const ts = Date.parse(allDayDate);
+    if (Number.isFinite(ts)) return ts;
+  }
+  return Number.MAX_SAFE_INTEGER;
+}
+
+export function parseCalendarEvents(rawEvents: GogCalendarEvent[]): string[] {
+  const seen = new Set<string>();
+  return rawEvents
+    .filter((event) => event && event.status !== "cancelled")
+    .sort((a, b) => eventSortKey(a) - eventSortKey(b))
+    .map((event) => ({
+      key: `${event.start?.dateTime ?? event.start?.date ?? "na"}|${(event.summary ?? "").trim()}`,
+      label: formatEventLabel(event),
+    }))
+    .filter((entry) => Boolean(entry.label))
+    .filter((entry) => {
+      if (seen.has(entry.key)) return false;
+      seen.add(entry.key);
+      return true;
+    })
+    .map((entry) => entry.label as string)
+    .slice(0, 6);
+}
+
+async function fetchCalendarFrom(calendarId: string): Promise<GogCalendarEvent[]> {
+  const raw = await runCommand(
+    "npx",
+    [
+      "tsx",
+      CALENDAR_HELPER,
+      "--account",
+      "hameldesai3@gmail.com",
+      "cal",
+      "list",
+      calendarId,
+      "--from",
+      "today",
+      "--to",
+      "today",
+      "--json",
+    ],
+    45_000,
+  );
+
+  const parsed = safeJsonParse(raw) as { events?: GogCalendarEvent[] } | null;
+  return Array.isArray(parsed?.events) ? parsed.events : [];
+}
+
+async function fetchSchedule(): Promise<string[]> {
   try {
-    const out = await runCommand(
-      "gog",
-      ["cal", "list", "Clawdbot-Calendar", "--from", "today", "--to", "tomorrow", "--plain"],
-      45_000,
-    );
-    return out || "No events found.";
+    const [primary, clawdbot] = await Promise.all([
+      fetchCalendarFrom("primary"),
+      fetchCalendarFrom("Clawdbot-Calendar"),
+    ]);
+    const merged = parseCalendarEvents([...primary, ...clawdbot]);
+    return merged.length ? merged : ["No calendar blocks today."];
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    return `Calendar unavailable (${msg})`;
+    return [`Calendar unavailable (${msg})`];
   }
 }
 
-type ReminderItem = {
-  title?: string;
-  isCompleted?: boolean;
-  listName?: string;
-};
-
-async function fetchReminders(): Promise<string> {
+async function fetchReminders(): Promise<string[]> {
   try {
     const raw = await runCommand("remindctl", ["all", "--json"], 30_000);
     const parsed = safeJsonParse(raw);
-    if (!Array.isArray(parsed)) return "Unavailable (invalid Reminders output).";
+    if (!Array.isArray(parsed)) return ["Reminders unavailable (invalid output)."];
 
     const open = (parsed as ReminderItem[])
       .filter((item) => item && item.isCompleted === false)
-      .filter((item) => (item.listName ?? "") === "Cortana")
+      .filter((item) => (item.listName ?? "") === REMINDER_LIST)
       .map((item) => (item.title ?? "").trim())
-      .filter(Boolean);
+      .filter(Boolean)
+      .slice(0, 5);
 
-    if (open.length === 0) return "No open reminders in Cortana list.";
-
-    const top = open.slice(0, 8).map((title) => `- ${title}`);
-    const remainder = open.length - top.length;
-    if (remainder > 0) top.push(`- +${remainder} more`);
-
-    return top.join("\n");
+    return open.length ? open : ["No open Cortana reminders."];
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    return `Reminders unavailable (${msg})`;
+    return [`Reminders unavailable (${msg})`];
   }
 }
 
-function buildBrief(parts: {
-  weather: string;
-  calendar: string;
-  reminders: string;
-  specialists: SpecialistResult[];
-}): string {
-  const timestamp = new Date().toLocaleString("en-US", {
-    timeZone: "America/New_York",
-    weekday: "short",
-    month: "short",
-    day: "numeric",
-    hour: "numeric",
-    minute: "2-digit",
-    hour12: true,
-  });
+function normalizeBullets(input: string, fallback: string, maxItems: number): string[] {
+  const lines = cleanText(input)
+    .split(/\n+/)
+    .map((line) => line.replace(/^[-*•]\s*/, "").trim())
+    .filter(Boolean)
+    .slice(0, maxItems);
+  return lines.length ? lines : [fallback];
+}
 
+export function buildBrief(parts: BriefParts): string {
   const specialistMap = new Map(parts.specialists.map((s) => [s.sessionKey, s]));
-  const researcher = specialistMap.get("agent:researcher:main")?.text ?? "Unavailable";
-  const oracle = specialistMap.get("agent:oracle:main")?.text ?? "Unavailable";
-  const monitor = specialistMap.get("agent:monitor:main")?.text ?? "Unavailable";
+  const news = normalizeBullets(
+    specialistMap.get("agent:researcher:main")?.text ?? "",
+    "News unavailable.",
+    2,
+  );
+  const markets = normalizeBullets(
+    specialistMap.get("agent:oracle:main")?.text ?? "",
+    "Market snapshot unavailable.",
+    2,
+  );
 
-  return [
-    `☀️ Morning Brief — ${timestamp} ET`,
+  const renderSection = (title: string, items: string[]) => [
+    `${title}:`,
+    ...items.map((line) => `- ${line}`),
+  ];
+
+  const lines = [
+    "☀️ Brief - Morning Brief",
     "",
-    `🌤️ Weather: ${parts.weather}`,
+    ...renderSection("Schedule", parts.schedule),
     "",
-    "🗓️ Calendar (today → tomorrow):",
-    parts.calendar,
+    ...renderSection("Apple Reminders", parts.reminders),
     "",
-    "⏰ Reminders (Cortana):",
-    parts.reminders,
+    ...renderSection("Weather", [parts.weather]),
     "",
-    "📰 News (Researcher):",
-    researcher,
+    ...renderSection("News", news),
     "",
-    "📈 Pre-market (Oracle):",
-    oracle,
-    "",
-    "🛡️ System Health (Monitor):",
-    monitor,
-  ].join("\n");
+    ...renderSection("Markets", markets),
+  ];
+
+  return lines.join("\n");
 }
 
 async function sendTelegram(messageText: string): Promise<void> {
@@ -354,22 +473,35 @@ async function sendTelegram(messageText: string): Promise<void> {
   }
 }
 
-async function main(): Promise<void> {
-  const [specialists, weather, calendar, reminders] = await Promise.all([
+export async function runMorningBrief(options: { dryRun?: boolean } = {}): Promise<string> {
+  const [specialists, weather, schedule, reminders] = await Promise.all([
     Promise.all(SPECIALIST_TASKS.map((task) => sessionsSend(task))),
     fetchWeather(),
-    fetchCalendar(),
+    fetchSchedule(),
     fetchReminders(),
   ]);
 
-  const brief = buildBrief({ specialists, weather, calendar, reminders });
-  await sendTelegram(brief);
-  process.stdout.write(`${brief}\n`);
+  const brief = buildBrief({ specialists, weather, schedule, reminders });
+  if (!options.dryRun) {
+    await sendTelegram(brief);
+  }
+  return brief;
+}
+
+async function main(argv = process.argv.slice(2)): Promise<void> {
+  const dryRun = argv.includes("--dry-run");
+  const brief = await runMorningBrief({ dryRun });
+  process.stdout.write(dryRun ? `${brief}\n` : "Morning brief sent.\n");
 }
 
 main().catch((error) => {
   const msg = error instanceof Error ? error.message : String(error);
   const failMsg = `☀️ Morning Brief - ERROR\n${msg}`;
+
+  if (process.argv.includes("--dry-run")) {
+    process.stderr.write(`${failMsg}\n`);
+    process.exit(1);
+  }
 
   sendTelegram(failMsg)
     .catch(() => {
