@@ -141,6 +141,22 @@ CREATE TABLE IF NOT EXISTS cortana_fitness_planned_session (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
+WITH ranked_planned_sessions AS (
+  SELECT
+    id,
+    ROW_NUMBER() OVER (
+      PARTITION BY plan_type, state_date, iso_week
+      ORDER BY created_at DESC, id DESC
+    ) AS duplicate_rank
+  FROM cortana_fitness_planned_session
+)
+DELETE FROM cortana_fitness_planned_session
+WHERE id IN (
+  SELECT id
+  FROM ranked_planned_sessions
+  WHERE duplicate_rank > 1
+);
+
 ALTER TABLE cortana_fitness_recommendation_log ADD COLUMN IF NOT EXISTS planner_session_id UUID;
 ALTER TABLE cortana_fitness_recommendation_log ADD COLUMN IF NOT EXISTS planner_context JSONB NOT NULL DEFAULT '{}'::jsonb;
 
@@ -148,6 +164,7 @@ CREATE INDEX IF NOT EXISTS idx_tonal_library_snapshot_generated_at ON cortana_fi
 CREATE INDEX IF NOT EXISTS idx_program_template_active ON cortana_fitness_program_template(active, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_planned_session_state_date ON cortana_fitness_planned_session(state_date DESC);
 CREATE INDEX IF NOT EXISTS idx_planned_session_iso_week ON cortana_fitness_planned_session(iso_week);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_planned_session_unique ON cortana_fitness_planned_session(plan_type, state_date, iso_week) NULLS NOT DISTINCT;
 CREATE INDEX IF NOT EXISTS idx_recommendation_log_planner_session ON cortana_fitness_recommendation_log(planner_session_id);
 `;
 }
@@ -227,7 +244,7 @@ SET
 
 export function buildUpsertPlannedSessionSql(input: PlannedSessionInput): string {
   return `
-WITH inserted AS (
+WITH upserted AS (
   INSERT INTO cortana_fitness_planned_session (
     ${input.id ? "id," : ""} state_date, iso_week, plan_type, source_template_id, confidence, target_duration_minutes,
     target_muscles, session_blocks, constraints, rationale, artifact_path
@@ -244,10 +261,20 @@ WITH inserted AS (
     ${sqlJson(input.rationale ?? null)},
     ${sqlText(input.artifactPath ?? null)}
   )
+  ON CONFLICT (plan_type, state_date, iso_week) DO UPDATE
+  SET
+    source_template_id = EXCLUDED.source_template_id,
+    confidence = EXCLUDED.confidence,
+    target_duration_minutes = EXCLUDED.target_duration_minutes,
+    target_muscles = EXCLUDED.target_muscles,
+    session_blocks = EXCLUDED.session_blocks,
+    constraints = EXCLUDED.constraints,
+    rationale = EXCLUDED.rationale,
+    artifact_path = EXCLUDED.artifact_path
   RETURNING *
 )
-SELECT COALESCE(row_to_json(inserted)::text, '{}') AS payload
-FROM inserted;
+SELECT COALESCE(row_to_json(upserted)::text, '{}') AS payload
+FROM upserted;
 `;
 }
 

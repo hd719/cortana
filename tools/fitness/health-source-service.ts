@@ -9,7 +9,7 @@ import {
 
 type JsonObject = Record<string, unknown>;
 
-export type AppleHealthServiceStatus = "healthy" | "degraded" | "unhealthy" | "unknown";
+export type AppleHealthServiceStatus = "healthy" | "degraded" | "unhealthy" | "unconfigured" | "unknown";
 
 export type AppleHealthWindowLoadResult = {
   serviceStatus: AppleHealthServiceStatus;
@@ -49,7 +49,13 @@ function daysBefore(dateYmd: string, days: number): string {
 
 function serviceStatusFromHealthPayload(payload: unknown): AppleHealthServiceStatus {
   const status = toObject(payload).status;
-  return status === "healthy" || status === "degraded" || status === "unhealthy" ? status : "unknown";
+  return status === "healthy" || status === "degraded" || status === "unhealthy" || status === "unconfigured"
+    ? status
+    : "unknown";
+}
+
+function isMissingAppleHealthExportError(value: unknown): boolean {
+  return typeof value === "string" && /apple health export not found/i.test(value);
 }
 
 type IngestPayloadFn = (
@@ -81,15 +87,38 @@ export function loadAppleHealthWindow(opts: {
   const serviceStatus = serviceStatusFromHealthPayload(healthPayload);
   const dataPayload = fetchJson(`${baseUrl}/apple-health/data`, 12);
   const dataObject = toObject(dataPayload);
+  const dataStatus = typeof dataObject.status === "string" ? dataObject.status : null;
+  const dataError = typeof dataObject.error === "string" ? dataObject.error : null;
 
-  if (typeof dataObject.error === "string" && dataObject.error.length > 0) {
+  if (serviceStatus === "unconfigured" || dataStatus === "unconfigured") {
+    return {
+      serviceStatus: "unconfigured",
+      healthRows: fetchRows(startDate, opts.endDate),
+      ingestedRowCount: 0,
+      ignoredMetricCount: 0,
+      writeResult: null,
+      error: null,
+    };
+  }
+
+  if (dataError && dataError.length > 0) {
+    if (isMissingAppleHealthExportError(dataError)) {
+      return {
+        serviceStatus: "unconfigured",
+        healthRows: fetchRows(startDate, opts.endDate),
+        ingestedRowCount: 0,
+        ignoredMetricCount: 0,
+        writeResult: null,
+        error: null,
+      };
+    }
     return {
       serviceStatus,
       healthRows: fetchRows(startDate, opts.endDate),
       ingestedRowCount: 0,
       ignoredMetricCount: 0,
       writeResult: null,
-      error: dataObject.error,
+      error: dataError,
     };
   }
 

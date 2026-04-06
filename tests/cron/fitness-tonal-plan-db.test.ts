@@ -14,6 +14,8 @@ describe("fitness tonal plan DB helpers", () => {
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS cortana_fitness_tonal_library_snapshot");
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS cortana_fitness_program_template");
     expect(sql).toContain("CREATE TABLE IF NOT EXISTS cortana_fitness_planned_session");
+    expect(sql).toContain("DELETE FROM cortana_fitness_planned_session");
+    expect(sql).toContain("CREATE UNIQUE INDEX IF NOT EXISTS idx_planned_session_unique");
     expect(sql).toContain("ALTER TABLE cortana_fitness_recommendation_log ADD COLUMN IF NOT EXISTS planner_session_id UUID");
     expect(sql).toContain("ALTER TABLE cortana_fitness_recommendation_log ADD COLUMN IF NOT EXISTS planner_context JSONB");
   });
@@ -59,7 +61,8 @@ describe("fitness tonal plan DB helpers", () => {
       artifactPath: "/tmp/plan.md",
     });
     expect(plannedSql).toContain("INSERT INTO cortana_fitness_planned_session");
-    expect(plannedSql).toContain("WITH inserted AS");
+    expect(plannedSql).toContain("WITH upserted AS");
+    expect(plannedSql).toContain("ON CONFLICT (plan_type, state_date, iso_week) DO UPDATE");
 
     const linkSql = buildLinkPlannerSessionToRecommendationSql("spartan:planner:2026-04-06", "11111111-1111-1111-1111-111111111111", {
       template_id: "upper-hypertrophy-45m-v1",

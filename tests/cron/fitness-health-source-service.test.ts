@@ -70,10 +70,11 @@ describe("fitness apple health service loader", () => {
     expect(fetchRows).toHaveBeenCalledWith("2026-03-23", "2026-04-05");
   });
 
-  it("returns a clear error when the local service responds with an error payload", () => {
+  it("returns a clear error when the local service responds with a real unhealthy payload", () => {
     const result = loadAppleHealthWindow({
       endDate: "2026-04-05",
-      fetchJson: (url) => (url.endsWith("/health") ? { status: "unhealthy" } : { error: "apple health export not found" }),
+      fetchJson: (url) =>
+        url.endsWith("/health") ? { status: "unhealthy" } : { error: "invalid apple health export schema" },
       ingestPayload: vi.fn(),
       fetchRows: vi.fn(() => []),
     });
@@ -81,7 +82,38 @@ describe("fitness apple health service loader", () => {
     expect(result.serviceStatus).toBe("unhealthy");
     expect(result.healthRows).toEqual([]);
     expect(result.ingestedRowCount).toBe(0);
-    expect(result.error).toBe("apple health export not found");
+    expect(result.error).toBe("invalid apple health export schema");
+  });
+
+  it("treats an unconfigured Apple Health export as optional", () => {
+    const fetchRows = vi.fn(() => [
+      {
+        metric_date: "2026-04-04",
+        metric_name: "body_weight_kg",
+        source_name: "apple_health",
+        metric_value: 78.1,
+        unit: "kg",
+        freshness_hours: 24,
+        source_confidence: 0.7,
+        provenance: {},
+      },
+    ]);
+
+    const result = loadAppleHealthWindow({
+      endDate: "2026-04-05",
+      fetchJson: (url) =>
+        url.endsWith("/health")
+          ? { status: "unconfigured", note: "apple health export not configured" }
+          : { status: "unconfigured", data_path: "/tmp/apple-health.json" },
+      ingestPayload: vi.fn(),
+      fetchRows,
+    });
+
+    expect(result.serviceStatus).toBe("unconfigured");
+    expect(result.healthRows).toHaveLength(1);
+    expect(result.ingestedRowCount).toBe(0);
+    expect(result.error).toBeNull();
+    expect(fetchRows).toHaveBeenCalledWith("2026-03-23", "2026-04-05");
   });
 
   it("can return the in-memory normalized rows without hitting the DB", () => {
