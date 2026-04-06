@@ -20,6 +20,34 @@ Spartan is most useful when these are true:
 
 Apple Health is optional for now. If the export file is not configured, Spartan should show `appleHealth.status = "unconfigured"` rather than failing.
 
+## Apple Health Onboarding
+
+The supported Apple Health path is now:
+
+1. Produce a local JSON export that follows the Apple Health daily export contract.
+2. Import it into the local service:
+
+```bash
+curl -s \
+  -X POST http://127.0.0.1:3033/apple-health/import \
+  -H 'Content-Type: application/json' \
+  --data-binary @/path/to/apple-health-export.json | jq .
+```
+
+3. Verify the service:
+
+```bash
+curl -s http://127.0.0.1:3033/apple-health/health | jq .
+```
+
+4. Rerun the morning brief so Spartan ingests the imported rows into athlete state:
+
+```bash
+npx tsx tools/fitness/morning-brief-data.ts
+```
+
+When Apple Health is active, expect `stepCount`, `bodyWeightKg`, `activeEnergyKcal`, and related health fields to appear in the athlete-state payload with `source: "apple_health"`.
+
 ## Daily Operator Loop
 
 ### Morning

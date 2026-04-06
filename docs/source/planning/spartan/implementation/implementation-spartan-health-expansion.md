@@ -1,6 +1,6 @@
 # Implementation Plan - Spartan Health Expansion
 
-**Document Status:** Draft
+**Document Status:** Implemented
 
 ## Team
 
@@ -56,7 +56,7 @@ Week 5: V5 (validate with real exports and harden privacy/freshness behavior)
 #### Testing
 
 - A valid local export file is served successfully.
-- Missing or stale files return unhealthy status.
+- Missing files return `unconfigured`, stale files return `degraded`, and invalid files return `unhealthy`.
 - The route contract is deterministic and schema-validated.
 
 ---
@@ -145,7 +145,8 @@ Week 5: V5 (validate with real exports and harden privacy/freshness behavior)
 #### Jira
 
 - [x] Sub-task 1: Run `vitest` in both repos for all new Apple Health coverage.
-- [ ] Sub-task 2: Validate real local export files against the service and ingest pipeline.
+- [x] Sub-task 2: Validate real local export files against the service and ingest pipeline.
+  Validation now covers importing a local export file through the Apple Health service, confirming `healthy` service status, ingesting normalized rows into `cortana_fitness_health_source_daily`, and verifying athlete-state hydration/body-composition fields consume the imported metrics.
 - [x] Sub-task 3: Confirm sensitive health data remains in local file paths, local service responses, and local DB rows only.
 - [x] Sub-task 4: Add any small operational docs needed for exporter setup and troubleshooting.
 

@@ -1,6 +1,6 @@
 # Implementation Plan - Spartan Training Intelligence
 
-**Document Status:** Draft
+**Document Status:** Implemented
 
 ## Team
 
@@ -167,7 +167,8 @@ Week 4: V6 (threshold hardening, live validation, and documentation cleanup)
 - [x] Sub-task 1: Run `vitest` in `/Users/hd/Developer/cortana`.
 - [x] Sub-task 2: Build weekly training-state outputs across at least the last 4 completed weeks and inspect obvious outliers.
 - [x] Sub-task 3: Compare generated underdose and overdose calls against the current Tonal history and weekly markdown summaries in `/Users/hd/Developer/cortana/memory/fitness/weekly`.
-- [ ] Sub-task 4: Tune thresholds in `/Users/hd/Developer/cortana/tools/fitness/spartan-defaults.ts` only after the deterministic test suite remains green.
+- [x] Sub-task 4: Tune thresholds in `/Users/hd/Developer/cortana/tools/fitness/spartan-defaults.ts` only after the deterministic test suite remains green.
+  Threshold review was completed after the broad deterministic suite and live artifact checks remained green; current defaults were retained because early personal history is still sparse.
 
 #### Testing
 
@@ -207,7 +208,7 @@ Daily and weekly artifact integration should consume one structured weekly outpu
 
 - core baseline athlete-state and muscle-volume tables
 - Tonal movement mapping from the baseline epic
-- manual or config-based phase mode until health expansion exists
+- explicit operator or coach-driven phase mode until a stable phase source of truth exists
 
 ### Integration Points
 

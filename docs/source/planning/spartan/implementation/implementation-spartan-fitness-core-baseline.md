@@ -1,6 +1,6 @@
 # Implementation Plan - Spartan Fitness Core Baseline
 
-**Document Status:** Draft
+**Document Status:** Implemented
 
 ## Team
 
@@ -219,7 +219,7 @@ Artifact migration should happen only after the canonical state tables and query
 
 - `cortana-external` local Whoop and Tonal service must remain available at `http://127.0.0.1:3033`
 - unofficial Tonal API shape must remain compatible with the current service implementation
-- body weight and phase mode may require a temporary manual source until a later health-data integration exists
+- phase mode may still require explicit operator or coach input even though body weight can now come from Apple Health reconciliation
 
 ### Integration Points
 
@@ -234,5 +234,5 @@ Artifact migration should happen only after the canonical state tables and query
 
 This plan intentionally builds the baseline in the smallest credible order: clean inputs first, canonical state second, artifact migration third. That sequencing keeps the system explainable and prevents a large amount of duplicated logic from surviving the refactor.
 
-- **Biggest risks:** incomplete Tonal movement mapping, missing body-weight source for phase logic, and future unofficial Tonal API drift.
-- **Assumptions:** no Apple Health work in this phase, no new UI surface is required, and deterministic code-plus-tests remains the implementation standard rather than prompt-only behavior.
+- **Biggest risks:** incomplete Tonal movement mapping, weak phase-mode source of truth, sparse health-source coverage in early rollout, and future unofficial Tonal API drift.
+- **Assumptions:** no new UI surface is required, deterministic code-plus-tests remains the implementation standard rather than prompt-only behavior, and later Apple Health work can enrich but does not invalidate the baseline architecture.
