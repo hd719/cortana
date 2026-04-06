@@ -51,13 +51,13 @@ describe("buildBrief", () => {
     });
 
     expect(brief).toContain("☀️ Brief - Morning Brief");
-    expect(brief).toContain("• Schedule");
-    expect(brief).toContain("• Apple Reminders");
-    expect(brief).toContain("• Weather");
-    expect(brief).toContain("• News");
-    expect(brief).toContain("• Markets");
-    expect(brief).toContain("9:00 AM - Standup");
-    expect(brief).toContain("Submit quiz");
+    expect(brief).toContain("Schedule:");
+    expect(brief).toContain("Apple Reminders:");
+    expect(brief).toContain("Weather:");
+    expect(brief).toContain("News:");
+    expect(brief).toContain("Markets:");
+    expect(brief).toContain("- 9:00 AM - Standup");
+    expect(brief).toContain("- Submit quiz");
     expect(brief).not.toContain("Top 3 priorities");
     expect(brief).not.toContain("career-advancing task");
   });

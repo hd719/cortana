@@ -400,19 +400,23 @@ export function buildBrief(parts: BriefParts): string {
     2,
   );
 
+  const renderSection = (title: string, items: string[]) => [
+    `${title}:`,
+    ...items.map((line) => `- ${line}`),
+  ];
+
   const lines = [
     "☀️ Brief - Morning Brief",
     "",
-    "• Schedule",
-    ...parts.schedule.map((line) => `  • ${line}`),
-    "• Apple Reminders",
-    ...parts.reminders.map((line) => `  • ${line}`),
-    "• Weather",
-    `  • ${parts.weather}`,
-    "• News",
-    ...news.map((line) => `  • ${line}`),
-    "• Markets",
-    ...markets.map((line) => `  • ${line}`),
+    ...renderSection("Schedule", parts.schedule),
+    "",
+    ...renderSection("Apple Reminders", parts.reminders),
+    "",
+    ...renderSection("Weather", [parts.weather]),
+    "",
+    ...renderSection("News", news),
+    "",
+    ...renderSection("Markets", markets),
   ];
 
   return lines.join("\n");
