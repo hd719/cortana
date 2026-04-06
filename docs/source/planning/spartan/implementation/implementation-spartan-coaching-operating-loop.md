@@ -155,6 +155,30 @@ Week 4: V5 (integrate cron contracts, memory expectations, and end-to-end valida
 
 ---
 
+## Post-Launch Hardening
+
+### Vertical 6 - Morning Reliability Guardrail
+
+**cortana: Add a deterministic guardrail that clamps unsafe morning recommendations when core signal quality is weak**
+
+*Dependencies: Depends on V1, V3, and Training Intelligence*
+
+#### Jira
+
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/reliability-guardrail.ts` as the typed source of truth for morning guardrail status, caps, and reason codes.
+- [x] Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts` and `/Users/hd/Developer/cortana/tools/fitness/today-mission-data.ts` so the brief and mission stay aligned to the clamped recommendation.
+- [x] Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/training-engine.ts`, `/Users/hd/Developer/cortana/tools/fitness/alert-policy.ts`, and `/Users/hd/Developer/cortana/tools/fitness/fitness-alerts-data.ts` to apply the guardrail without introducing alert noise.
+- [x] Sub-task 4: Add focused regression coverage in `/Users/hd/Developer/cortana/tests/cron/fitness-reliability-guardrail.test.ts` and extend the morning, training, mission, and alert tests.
+
+#### Testing
+
+- Fresh inputs preserve normal recommendation behavior.
+- Stale or missing WHOOP inputs clamp recommendation intensity and surface explicit guardrail reasons.
+- Confidence-only issues such as nutrition incompleteness or Apple Health configuration gaps lower confidence without producing false freshness alerts.
+- Today mission remains consistent with the final clamped recommendation.
+
+---
+
 ## Dependency Notes
 
 ### V1 and V2 before V3
