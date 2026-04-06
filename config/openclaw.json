@@ -195,7 +195,6 @@
     "web": {
       "search": {
         "provider": "brave",
-        "apiKey": "REDACTED_USE_LIVE_CONFIG",
         "maxResults": 5,
         "timeoutSeconds": 30
       }
@@ -450,7 +449,9 @@
   "plugins": {
     "allow": [
       "telegram",
-      "memory-core"
+      "memory-core",
+      "brave",
+      "openai"
     ],
     "slots": {
       "memory": "memory-core"
@@ -459,8 +460,28 @@
       "telegram": {
         "enabled": true
       },
+      "openai": {
+        "enabled": true,
+        "config": {
+          "personality": "friendly"
+        }
+      },
+      "brave": {
+        "enabled": true,
+        "config": {
+          "webSearch": {
+            "apiKey": "REDACTED_USE_LIVE_CONFIG"
+          }
+        }
+      },
       "memory-core": {
-        "enabled": true
+        "enabled": true,
+        "config": {
+          "dreaming": {
+            "enabled": true,
+            "frequency": "0 3 * * *"
+          }
+        }
       }
     }
   }
