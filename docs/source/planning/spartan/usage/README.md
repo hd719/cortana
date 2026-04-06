@@ -20,33 +20,45 @@ Spartan is most useful when these are true:
 
 Apple Health is optional for now. If the export file is not configured, Spartan should show `appleHealth.status = "unconfigured"` rather than failing.
 
-## Apple Health Onboarding
+## HealthBridge On iPhone
 
-The supported Apple Health path is now:
+HealthBridge is the supported native iPhone producer for Apple Health data. It exports the canonical daily payload and posts it to the local importer.
 
-1. Produce a local JSON export that follows the Apple Health daily export contract.
-2. Import it into the local service:
+Source location:
+
+- `/Users/hd/Developer/cortana-external/apps/health-bridge-ios`
+
+Minimum setup:
+
+1. Install HealthBridge on the iPhone.
+2. Set the server URL to a reachable `cortana-external` host, for example a Mac mini LAN IP or Tailscale hostname. `http://127.0.0.1:3033` will not work from the phone.
+3. Set the API token to match `APPLE_HEALTH_API_TOKEN` if the importer is protected.
+4. Set a stable device name.
+5. Grant HealthKit read permissions on a real iPhone.
+
+To send data, HealthBridge posts the Apple Health export to:
 
 ```bash
 curl -s \
   -X POST http://127.0.0.1:3033/apple-health/import \
   -H 'Content-Type: application/json' \
+  -H 'Authorization: Bearer <token>' \
   --data-binary @/path/to/apple-health-export.json | jq .
 ```
 
-3. Verify the service:
+Verify the importer:
 
 ```bash
 curl -s http://127.0.0.1:3033/apple-health/health | jq .
 ```
 
-4. Rerun the morning brief so Spartan ingests the imported rows into athlete state:
+After a successful import, rerun the morning brief so Spartan ingests the imported rows into athlete state:
 
 ```bash
 npx tsx tools/fitness/morning-brief-data.ts
 ```
 
-When Apple Health is active, expect `stepCount`, `bodyWeightKg`, `activeEnergyKcal`, and related health fields to appear in the athlete-state payload with `source: "apple_health"`.
+When HealthBridge is active, expect `stepCount`, `bodyWeightKg`, `activeEnergyKcal`, and related health fields to appear in the athlete-state payload with `source: "apple_health"`.
 
 ## Daily Operator Loop
 

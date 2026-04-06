@@ -184,19 +184,21 @@ Preferred-source reconciliation is easier to harden after the consumer fields an
 
 - local Apple Health export contract
 - external-service Apple Health ingest
+- native iPhone producer path via HealthBridge
 - normalized daily health rows
 - athlete-state integration for body weight, steps, and activity energy
 - explicit source reconciliation and fallback behavior
 
 ### External Dependencies
 
-- a local Apple Health export mechanism
+- a native iPhone Apple Health exporter or equivalent local export mechanism
 - baseline athlete-state and training-intelligence logic
 - continued availability of the local external service
 
 ### Integration Points
 
 - reads local export file through `cortana-external`
+- accepts HealthBridge POSTs into `POST /apple-health/import`
 - writes `cortana_fitness_health_source_daily`
 - updates `cortana_fitness_athlete_state_daily`
 - feeds body-composition-aware weekly and monthly logic
@@ -208,4 +210,27 @@ Preferred-source reconciliation is easier to harden after the consumer fields an
 This epic should stay brutally practical. The value is not in a fancy Apple integration story; it is in getting trusted body weight and activity context into Spartan without destabilizing the existing stack.
 
 - **Biggest risks:** exporter inconsistency, stale files, and unclear preferred-source rules.
-- **Assumptions:** the first implementation is file-based, local, and read-only; no native HealthKit app work is required to get useful value.
+- **Assumptions:** the first implementation stays local and privacy-preserving; HealthBridge is the supported native iPhone producer, and any non-native fallback should post the same export contract into `POST /apple-health/import`.
+
+---
+
+## Sprint 6 - iPhone Producer Path
+
+### Vertical 6 - HealthBridge Native Exporter
+
+**HealthBridge: produce Apple Health exports on iPhone and send them to the local Apple Health importer**
+
+*Dependencies: Depends on V1-V5*
+
+#### Jira
+
+- [x] Sub-task 1: Document the supported native iPhone producer path as HealthBridge instead of leaving the export mechanism implicit.
+- [x] Sub-task 2: Record the required operator setup for server URL, API token, device name, HealthKit permission, and manual sync verification.
+- [x] Sub-task 3: State that HealthBridge posts the canonical Apple Health export contract to `POST /apple-health/import`.
+  The shipped source now lives in `/Users/hd/Developer/cortana-external/apps/health-bridge-ios` with shared-core validation plus Xcode project generation via `xcodegen`.
+
+#### Testing
+
+- The operator can configure HealthBridge without changing the server-side ingest contract.
+- The import path remains identical whether the export is produced manually or by the iPhone app.
+- Apple Health stays local-first and does not require a cloud relay.
