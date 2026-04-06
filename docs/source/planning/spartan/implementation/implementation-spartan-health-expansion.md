@@ -47,11 +47,11 @@ Week 5: V5 (validate with real exports and harden privacy/freshness behavior)
 
 #### Jira
 
-- Sub-task 1: Add Apple Health config support in `/Users/hd/Developer/cortana-external/apps/external-service/src/config.ts`, including a default local path such as `~/.openclaw/data/apple-health/latest.json`.
-- Sub-task 2: Create `/Users/hd/Developer/cortana-external/apps/external-service/src/apple-health/service.ts`, `routes.ts`, and `index.ts`.
-- Sub-task 3: Register the new service in `/Users/hd/Developer/cortana-external/apps/external-service/src/app.ts`.
-- Sub-task 4: Document the local contract in `/Users/hd/Developer/cortana-external/mjolnir/APPLE_HEALTH_SERVICE.md`.
-- Sub-task 5: Add tests in `/Users/hd/Developer/cortana-external/apps/external-service/src/__tests__/apple-health.test.ts`.
+- [x] Sub-task 1: Add Apple Health config support in `/Users/hd/Developer/cortana-external/apps/external-service/src/config.ts`, including a default local path such as `~/.openclaw/data/apple-health/latest.json`.
+- [x] Sub-task 2: Create `/Users/hd/Developer/cortana-external/apps/external-service/src/apple-health/service.ts`, `routes.ts`, and `index.ts`.
+- [x] Sub-task 3: Register the new service in `/Users/hd/Developer/cortana-external/apps/external-service/src/app.ts`.
+- [x] Sub-task 4: Document the local contract in `/Users/hd/Developer/cortana-external/mjolnir/APPLE_HEALTH_SERVICE.md`.
+- [x] Sub-task 5: Add tests in `/Users/hd/Developer/cortana-external/apps/external-service/src/__tests__/apple-health.test.ts`.
 
 #### Testing
 
@@ -71,9 +71,9 @@ Week 5: V5 (validate with real exports and harden privacy/freshness behavior)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/health-source-db.ts` with schema and upsert helpers for `cortana_fitness_health_source_daily`.
-- Sub-task 2: Add an ingest script or helper that reads `http://127.0.0.1:3033/apple-health/data` and normalizes rows for each supported metric.
-- Sub-task 3: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-health-source-db.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/health-source-db.ts` with schema and upsert helpers for `cortana_fitness_health_source_daily`.
+- [x] Sub-task 2: Add an ingest script or helper that reads `http://127.0.0.1:3033/apple-health/data` and normalizes rows for each supported metric.
+- [x] Sub-task 3: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-health-source-db.test.ts`.
 
 #### Testing
 
@@ -93,10 +93,10 @@ Week 5: V5 (validate with real exports and harden privacy/freshness behavior)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/body-composition-engine.ts` with preferred-source selection and weekly body-weight trend helpers.
-- Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/athlete-state-data.ts` and `/Users/hd/Developer/cortana/tools/fitness/athlete-state-db.ts` for new health-context fields.
-- Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/goal-mode.ts` so cut and gain pace can use real weekly weight change when confidence is adequate.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-body-composition-engine.test.ts` and extend athlete-state tests.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/body-composition-engine.ts` with preferred-source selection and weekly body-weight trend helpers.
+- [x] Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/athlete-state-data.ts` and `/Users/hd/Developer/cortana/tools/fitness/athlete-state-db.ts` for new health-context fields.
+- [x] Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/goal-mode.ts` so cut and gain pace can use real weekly weight change when confidence is adequate.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-body-composition-engine.test.ts` and extend athlete-state tests.
 
 #### Important Planning Notes
 
@@ -122,9 +122,9 @@ Week 5: V5 (validate with real exports and harden privacy/freshness behavior)
 
 #### Jira
 
-- Sub-task 1: Implement preferred-source rules in `/Users/hd/Developer/cortana/tools/fitness/body-composition-engine.ts` for body weight, steps, and energy fields.
-- Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/monthly-overview-data.ts` and weekly reporting code to explain when health-derived data is unavailable or low confidence.
-- Sub-task 3: Add tests for source switching, stale fallback, and conflict handling.
+- [x] Sub-task 1: Implement preferred-source rules in `/Users/hd/Developer/cortana/tools/fitness/body-composition-engine.ts` for body weight, steps, and energy fields.
+- [x] Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/monthly-overview-data.ts` and weekly reporting code to explain when health-derived data is unavailable or low confidence.
+- [x] Sub-task 3: Add tests for source switching, stale fallback, and conflict handling.
 
 #### Testing
 
@@ -144,10 +144,10 @@ Week 5: V5 (validate with real exports and harden privacy/freshness behavior)
 
 #### Jira
 
-- Sub-task 1: Run `vitest` in both repos for all new Apple Health coverage.
-- Sub-task 2: Validate real local export files against the service and ingest pipeline.
-- Sub-task 3: Confirm sensitive health data remains in local file paths, local service responses, and local DB rows only.
-- Sub-task 4: Add any small operational docs needed for exporter setup and troubleshooting.
+- [x] Sub-task 1: Run `vitest` in both repos for all new Apple Health coverage.
+- [ ] Sub-task 2: Validate real local export files against the service and ingest pipeline.
+- [x] Sub-task 3: Confirm sensitive health data remains in local file paths, local service responses, and local DB rows only.
+- [x] Sub-task 4: Add any small operational docs needed for exporter setup and troubleshooting.
 
 #### Testing
 

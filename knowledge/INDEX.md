@@ -35,7 +35,8 @@ Canonical current-truth pages now live under:
 - *(none yet)*
 
 ### Health & Fitness
-- *(none yet)*
+- [Spartan overview](./domains/spartan/overview.md)
+- [Spartan roadmap](./domains/spartan/roadmap.md)
 
 ### Career & Industry
 - *(none yet)*

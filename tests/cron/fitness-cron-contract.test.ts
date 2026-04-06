@@ -47,8 +47,9 @@ describe("fitness cron contract", () => {
     expect(morningMessage).toContain("morning_readiness");
     expect(morningMessage).toContain("readiness_support_signals");
     expect(morningMessage).toContain("color_emoji");
-    expect(morningMessage).toContain("today_training_recommendation");
     expect(morningMessage).toContain("today_training_context");
+    expect(morningMessage).toContain("today_mission.training.concrete_action");
+    expect(morningMessage).toContain("today_mission.summary");
     expect(morningMessage).toContain("Longevity impact:");
     expect(morningMessage).toContain("age-100 objective");
     expect(morningMessage).toContain("tonal_sessions_today");
@@ -77,6 +78,7 @@ describe("fitness cron contract", () => {
     expect(weeklyMessage).toContain("age-100 objective");
     expect(weeklyMessage).toContain("112-140g/day");
     expect(weeklyMessage).toContain("protein_adherence_assumption");
+    expect(weeklyMessage).toContain("coaching_outcome_evaluation.summary");
     expect(weeklyMessage).toContain("do not output only \"unknown\"");
     expect(weeklyMessage).toContain("state uncertainty rather than claiming zero strength output");
     expect(weeklyMessage).toContain("next 24h");
@@ -96,11 +98,16 @@ describe("fitness cron contract", () => {
       expect(job?.delivery?.accountId).toBe("spartan");
       expect(String(job?.payload?.message ?? "")).toContain("return exactly NO_REPLY");
       expect(job?.payload?.model).toBe("openai-codex/gpt-5.3-codex");
+      expect(String(job?.payload?.message ?? "")).toContain("tools/fitness/fitness-alerts-data.ts");
+      expect(String(job?.payload?.message ?? "")).toContain("mark_delivered_command");
     }
 
     expect(freshness?.schedule?.expr).toBe("20 6,12,18 * * *");
     expect(recoveryRisk?.schedule?.expr).toBe("5 9 * * *");
     expect(overreach?.schedule?.expr).toBe("15 19 * * *");
+    expect(String(freshness?.payload?.message ?? "")).toContain("--types=freshness");
+    expect(String(recoveryRisk?.payload?.message ?? "")).toContain("--types=recovery_risk");
+    expect(String(overreach?.payload?.message ?? "")).toContain("--types=overreach,protein_miss,pain,schedule_conflict");
   });
 
   it("defines monthly fitness overview cron with DB artifact contract", () => {

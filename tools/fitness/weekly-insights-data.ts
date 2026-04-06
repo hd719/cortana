@@ -1,19 +1,19 @@
 #!/usr/bin/env npx tsx
 
-import { spawnSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
-import { collectRecentMealEntries } from "./meal-log.js";
 import { chooseSurfacedInsightIds, fetchPendingHealthInsights, markInsightsSql } from "./insights-db.js";
 import { fetchCoachCaffeineWindowSummary, upsertCoachWeeklyScore } from "./coach-db.js";
+import { fetchAthleteStateRows, fetchMuscleVolumeRows, type AthleteStateDailyRow } from "./athlete-state-db.js";
 import {
-  extractRecoveryEntries,
-  extractSleepEntries,
-  extractWhoopWorkouts,
-  localYmd,
-  tonalWorkoutsFromPayload,
-  type ReadinessBand,
-} from "./signal-utils.js";
+  fetchCoachAlertWindowSummary,
+  fetchCoachCheckinWindowSummary,
+  upsertCoachOutcomeEvalWeekly,
+} from "./checkin-db.js";
+import { evaluateWeeklyOutcome } from "./outcome-eval.js";
+import { localYmd, type ReadinessBand } from "./signal-utils.js";
+import { buildWeeklyDoseCalls, detectCardioInterference, detectCutRateRisk } from "./training-engine.js";
+import { buildAndPersistWeeklyPlan } from "./weekly-plan-data.js";
 
 type WindowMetrics = {
   days_with_recovery: number;
@@ -29,6 +29,11 @@ type WindowMetrics = {
   tonal_sessions: number;
   tonal_total_volume: number | null;
   avg_tonal_volume: number | null;
+  body_weight_days_logged: number;
+  avg_body_weight_kg: number | null;
+  avg_active_energy_kcal: number | null;
+  avg_resting_energy_kcal: number | null;
+  avg_walking_running_distance_km: number | null;
   meals_logged: number;
   protein_days_logged: number;
   protein_avg_daily: number | null;
@@ -48,20 +53,6 @@ export type WeeklyProteinAssumption = {
   rationale: string;
   coaching_note: string;
 };
-
-function curlJson(url: string, timeoutSec: number): unknown {
-  const r = spawnSync("curl", ["-s", "--max-time", String(timeoutSec), url], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
-    maxBuffer: 16 * 1024 * 1024,
-  });
-  if ((r.status ?? 1) !== 0) return {};
-  try {
-    return JSON.parse((r.stdout ?? "").trim() || "{}");
-  } catch {
-    return {};
-  }
-}
 
 function currentIsoWeekTag(date = new Date()): string {
   const d = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate()));
@@ -109,92 +100,37 @@ function compareMetric(current: number | null, previous: number | null): MetricD
   return { current, previous, delta, delta_pct: deltaPct };
 }
 
-function numberOrNull(value: unknown): number | null {
-  if (typeof value === "number" && Number.isFinite(value)) return value;
-  if (typeof value === "string") {
-    const n = Number.parseFloat(value);
-    return Number.isFinite(n) ? n : null;
-  }
-  return null;
-}
-
-function ymdFromTimestamp(time: string | null, timeZone = "America/New_York"): string {
-  if (!time) return "";
-  const d = new Date(time);
-  if (Number.isNaN(d.getTime())) return time.slice(0, 10);
-  return new Intl.DateTimeFormat("en-CA", {
-    timeZone,
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).format(d);
-}
-
-function windowMetrics(opts: {
+export function buildWeeklyWindowMetricsFromState(opts: {
   startYmd: string;
   endYmd: string;
-  whoop: unknown;
-  tonal: unknown;
-  mealEntries: Array<{ date: string; proteinG: number | null }>;
+  athleteStateRows: AthleteStateDailyRow[];
 }): WindowMetrics {
-  const recoveriesByDate = new Map<string, { recovery: number | null; hrv: number | null; rhr: number | null }>();
-  for (const row of extractRecoveryEntries(opts.whoop)) {
-    if (!inRange(row.date, opts.startYmd, opts.endYmd)) continue;
-    if (recoveriesByDate.has(row.date)) continue;
-    recoveriesByDate.set(row.date, {
-      recovery: row.recoveryScore,
-      hrv: row.hrv,
-      rhr: row.rhr,
-    });
-  }
-
-  const sleepByDate = new Map<string, { hours: number | null; perf: number | null }>();
-  for (const row of extractSleepEntries(opts.whoop)) {
-    if (!inRange(row.date, opts.startYmd, opts.endYmd)) continue;
-    if (sleepByDate.has(row.date)) continue;
-    sleepByDate.set(row.date, {
-      hours: row.sleepHours,
-      perf: row.sleepPerformance,
-    });
-  }
-
-  const whoopWorkouts = extractWhoopWorkouts(opts.whoop).filter((row) => inRange(row.date, opts.startYmd, opts.endYmd));
-  const tonalWorkouts = tonalWorkoutsFromPayload(opts.tonal)
-    .map((entry) => ({
-      date: ymdFromTimestamp(typeof entry.beginTime === "string" ? entry.beginTime : null),
-      volume: (() => {
-        const stats = entry.stats as Record<string, unknown> | undefined;
-        return numberOrNull(stats?.totalVolume) ?? numberOrNull(entry.totalVolume);
-      })(),
-    }))
-    .filter((entry) => inRange(entry.date, opts.startYmd, opts.endYmd));
-
-  const meals = opts.mealEntries.filter((entry) => inRange(entry.date, opts.startYmd, opts.endYmd));
-  const proteinByDay = new Map<string, number>();
-  for (const meal of meals) {
-    if (meal.proteinG == null) continue;
-    proteinByDay.set(meal.date, Number(((proteinByDay.get(meal.date) ?? 0) + meal.proteinG).toFixed(2)));
-  }
-  const proteinTotals = Array.from(proteinByDay.values());
+  const rows = opts.athleteStateRows.filter((row) => inRange(row.state_date, opts.startYmd, opts.endYmd));
+  const proteinTotals = rows.map((row) => row.protein_g);
 
   return {
-    days_with_recovery: recoveriesByDate.size,
-    avg_recovery: average(Array.from(recoveriesByDate.values()).map((row) => row.recovery)),
-    avg_hrv: average(Array.from(recoveriesByDate.values()).map((row) => row.hrv)),
-    avg_rhr: average(Array.from(recoveriesByDate.values()).map((row) => row.rhr)),
-    days_with_sleep: sleepByDate.size,
-    avg_sleep_hours: average(Array.from(sleepByDate.values()).map((row) => row.hours)),
-    avg_sleep_performance: average(Array.from(sleepByDate.values()).map((row) => row.perf)),
-    whoop_workouts: whoopWorkouts.length,
-    total_strain: sum(whoopWorkouts.map((row) => row.strain)),
-    avg_strain: average(whoopWorkouts.map((row) => row.strain)),
-    tonal_sessions: tonalWorkouts.length,
-    tonal_total_volume: sum(tonalWorkouts.map((row) => row.volume)),
-    avg_tonal_volume: average(tonalWorkouts.map((row) => row.volume)),
-    meals_logged: meals.length,
-    protein_days_logged: proteinByDay.size,
+    days_with_recovery: rows.filter((row) => row.readiness_score != null).length,
+    avg_recovery: average(rows.map((row) => row.readiness_score)),
+    avg_hrv: average(rows.map((row) => row.hrv)),
+    avg_rhr: average(rows.map((row) => row.rhr)),
+    days_with_sleep: rows.filter((row) => row.sleep_hours != null).length,
+    avg_sleep_hours: average(rows.map((row) => row.sleep_hours)),
+    avg_sleep_performance: average(rows.map((row) => row.sleep_performance)),
+    whoop_workouts: rows.reduce((sum, row) => sum + (row.whoop_workouts ?? 0), 0),
+    total_strain: sum(rows.map((row) => row.whoop_strain)),
+    avg_strain: average(rows.map((row) => row.whoop_strain)),
+    tonal_sessions: rows.reduce((sum, row) => sum + (row.tonal_sessions ?? 0), 0),
+    tonal_total_volume: sum(rows.map((row) => row.tonal_volume)),
+    avg_tonal_volume: average(rows.map((row) => row.tonal_volume)),
+    body_weight_days_logged: rows.filter((row) => row.body_weight_kg != null).length,
+    avg_body_weight_kg: average(rows.map((row) => row.body_weight_kg)),
+    avg_active_energy_kcal: average(rows.map((row) => row.active_energy_kcal)),
+    avg_resting_energy_kcal: average(rows.map((row) => row.resting_energy_kcal)),
+    avg_walking_running_distance_km: average(rows.map((row) => row.walking_running_distance_km)),
+    meals_logged: rows.reduce((sum, row) => sum + ((row.raw?.meal_rollup as { mealsLogged?: number } | undefined)?.mealsLogged ?? 0), 0),
+    protein_days_logged: rows.filter((row) => row.protein_g != null).length,
     protein_avg_daily: average(proteinTotals),
-    protein_days_on_target: proteinTotals.filter((protein) => protein >= 112 && protein <= 140).length,
+    protein_days_on_target: rows.filter((row) => row.protein_g != null && row.protein_target_g != null && row.protein_g >= row.protein_target_g).length,
   };
 }
 
@@ -240,6 +176,17 @@ export function buildWeeklyProteinAssumption(opts: {
   };
 }
 
+function performanceTrend(opts: {
+  tonalSessions: number;
+  tonalVolumeDeltaPct: number | null;
+  recoveryDeltaPct: number | null;
+}): "improving" | "stable" | "regressing" | "unknown" {
+  if (opts.tonalSessions === 0) return "unknown";
+  if ((opts.tonalVolumeDeltaPct ?? 0) >= 5 && (opts.recoveryDeltaPct ?? 0) >= -8) return "improving";
+  if ((opts.tonalVolumeDeltaPct ?? 0) <= -10) return "regressing";
+  return "stable";
+}
+
 
 
 function weeklyAge100Score(input: {
@@ -273,35 +220,28 @@ function weeklyAge100Score(input: {
 function main(): void {
   const errors: string[] = [];
   const today = localYmd();
-  const whoop = curlJson("http://127.0.0.1:3033/whoop/data", 14);
-  const tonalHealthRaw = spawnSync("curl", ["-s", "--max-time", "5", "http://127.0.0.1:3033/tonal/health"], {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "ignore"],
-  }).stdout || "";
-  const tonal = /healthy/i.test(tonalHealthRaw) ? curlJson("http://127.0.0.1:3033/tonal/data?fresh=true", 20) : {};
-  if (!/healthy/i.test(tonalHealthRaw)) errors.push("tonal_not_healthy");
 
   const currentStart = ymdDaysAgo(6);
   const currentEnd = today;
   const previousStart = ymdDaysAgo(13);
   const previousEnd = ymdDaysAgo(7);
 
-  const mealEntries = collectRecentMealEntries({ days: 14, agentId: "spartan" });
-  const currentMetrics = windowMetrics({
+  const currentRows = fetchAthleteStateRows(currentStart, currentEnd);
+  const previousRows = fetchAthleteStateRows(previousStart, previousEnd);
+  const currentMuscleRows = fetchMuscleVolumeRows(currentStart, currentEnd);
+  const previousMuscleRows = fetchMuscleVolumeRows(previousStart, previousEnd);
+  const currentMetrics = buildWeeklyWindowMetricsFromState({
     startYmd: currentStart,
     endYmd: currentEnd,
-    whoop,
-    tonal,
-    mealEntries,
+    athleteStateRows: currentRows,
   });
-  const previousMetrics = windowMetrics({
+  const previousMetrics = buildWeeklyWindowMetricsFromState({
     startYmd: previousStart,
     endYmd: previousEnd,
-    whoop,
-    tonal,
-    mealEntries,
+    athleteStateRows: previousRows,
   });
 
+  if (currentRows.length === 0) errors.push("athlete_state_missing");
   if (currentMetrics.days_with_recovery === 0) errors.push("whoop_recovery_missing");
   if (currentMetrics.days_with_sleep === 0) errors.push("whoop_sleep_missing");
 
@@ -311,6 +251,7 @@ function main(): void {
     sleep_performance: compareMetric(currentMetrics.avg_sleep_performance, previousMetrics.avg_sleep_performance),
     strain_load: compareMetric(currentMetrics.total_strain, previousMetrics.total_strain),
     tonal_volume: compareMetric(currentMetrics.tonal_total_volume, previousMetrics.tonal_total_volume),
+    body_weight_kg: compareMetric(currentMetrics.avg_body_weight_kg, previousMetrics.avg_body_weight_kg),
     protein_avg_daily: compareMetric(currentMetrics.protein_avg_daily, previousMetrics.protein_avg_daily),
   };
 
@@ -327,11 +268,65 @@ function main(): void {
 
   const caffeineCurrent = fetchCoachCaffeineWindowSummary(currentStart, currentEnd);
   const caffeinePrevious = fetchCoachCaffeineWindowSummary(previousStart, previousEnd);
+  const checkinSummary = fetchCoachCheckinWindowSummary(currentStart, currentEnd);
+  const alertSummary = fetchCoachAlertWindowSummary(currentStart, currentEnd);
+  const phaseModeForWeek = currentRows
+    .slice()
+    .reverse()
+    .find((row) => row.phase_mode && row.phase_mode !== "unknown")?.phase_mode ?? "unknown";
+  const weeklyDoseCalls = buildWeeklyDoseCalls(currentMuscleRows, phaseModeForWeek);
+  const cutRateRisk = detectCutRateRisk(currentRows);
+  const cardioInterferenceRisk = detectCardioInterference(currentRows, currentMuscleRows);
+  const weeklyPlan = buildAndPersistWeeklyPlan({
+    endDate: currentEnd,
+    athleteStateRows: currentRows,
+    muscleVolumeRows: currentMuscleRows,
+  });
+  if (!weeklyPlan.trainingStateWrite.ok) errors.push(`training_state_weekly_upsert_failed:${weeklyPlan.trainingStateWrite.error ?? "unknown"}`);
+  if (!weeklyPlan.recommendationWrite.ok) errors.push(`recommendation_log_upsert_failed:${weeklyPlan.recommendationWrite.error ?? "unknown"}`);
 
   const pendingInsights = fetchPendingHealthInsights(8);
   const surfacedInsightIds = chooseSurfacedInsightIds(pendingInsights, riskBand, 2);
   const isoWeek = currentIsoWeekTag();
   const weeklyTarget = weeklyPaths(isoWeek);
+  const plannedTrainingDays = 5;
+  const completedTrainingDays = Math.max(
+    checkinSummary.completed_days,
+    Math.min(plannedTrainingDays, Math.max(currentMetrics.tonal_sessions, currentMetrics.whoop_workouts)),
+  );
+  const missedTrainingDays = Math.max(
+    checkinSummary.missed_days,
+    Math.max(0, plannedTrainingDays - completedTrainingDays),
+  );
+  const weeklyOutcome = evaluateWeeklyOutcome({
+    isoLabel: isoWeek,
+    periodStart: currentStart,
+    periodEnd: currentEnd,
+    plannedTrainingDays,
+    completedTrainingDays,
+    missedTrainingDays,
+    recoveryDaysLogged: currentMetrics.days_with_recovery,
+    sleepDaysLogged: currentMetrics.days_with_sleep,
+    proteinDaysLogged: currentMetrics.protein_days_logged,
+    proteinDaysOnTarget: currentMetrics.protein_days_on_target,
+    avgRecovery: currentMetrics.avg_recovery,
+    avgSleepHours: currentMetrics.avg_sleep_hours,
+    avgProteinG: currentMetrics.protein_avg_daily,
+    tonalSessions: currentMetrics.tonal_sessions,
+    tonalVolume: currentMetrics.tonal_total_volume,
+    tonalVolumeDeltaPct: trendSignals.tonal_volume.delta_pct,
+    whoopStrainDeltaPct: trendSignals.strain_load.delta_pct,
+    painDays: checkinSummary.pain_days,
+    scheduleConflicts: checkinSummary.schedule_conflict_days,
+    overreachAlerts: alertSummary.overreach_alerts,
+    staleDataDays: alertSummary.freshness_alerts,
+    performanceTrend: performanceTrend({
+      tonalSessions: currentMetrics.tonal_sessions,
+      tonalVolumeDeltaPct: trendSignals.tonal_volume.delta_pct,
+      recoveryDeltaPct: trendSignals.recovery.delta_pct,
+    }),
+    readinessBand: riskBand,
+  });
 
   const age100 = weeklyAge100Score({
     avgSleepHours: currentMetrics.avg_sleep_hours,
@@ -354,12 +349,40 @@ function main(): void {
       trend_signals: trendSignals,
     caffeine_trends: {
       current: caffeineCurrent,
-      previous: caffeinePrevious,
-    },
+        previous: caffeinePrevious,
+      },
       risk_band: riskBand,
+      weekly_dose_calls: weeklyDoseCalls,
+      cut_rate_risk: cutRateRisk,
+      cardio_interference_risk: cardioInterferenceRisk,
     },
   });
   if (!weeklyScoreWrite.ok) errors.push(`coach_weekly_score_upsert_failed:${weeklyScoreWrite.error ?? "unknown"}`);
+  const outcomeWrite = upsertCoachOutcomeEvalWeekly({
+    isoWeek,
+    weekStart: currentStart,
+    weekEnd: currentEnd,
+    overallScore: weeklyOutcome.overall_score,
+    adherenceScore: weeklyOutcome.component_scores.adherence,
+    recoveryAlignmentScore: weeklyOutcome.component_scores.recovery_alignment,
+    nutritionAlignmentScore: weeklyOutcome.component_scores.nutrition_alignment,
+    riskManagementScore: weeklyOutcome.component_scores.risk_management,
+    performanceAlignmentScore: weeklyOutcome.component_scores.performance_alignment,
+    explanation: {
+      confidence: weeklyOutcome.confidence,
+      summary: weeklyOutcome.summary,
+      wins: weeklyOutcome.wins,
+      misses: weeklyOutcome.misses,
+      caveats: weeklyOutcome.caveats,
+    },
+    evidence: weeklyOutcome.evidence,
+  });
+  if (!outcomeWrite.ok) errors.push(`coach_outcome_eval_weekly_upsert_failed:${outcomeWrite.error ?? "unknown"}`);
+
+  const latestHealthContext = currentRows
+    .slice()
+    .reverse()
+    .find((row) => row.health_context && Object.keys(row.health_context).length > 0)?.health_context ?? null;
 
   const out = {
     generated_at: new Date().toISOString(),
@@ -385,10 +408,32 @@ function main(): void {
         total_volume_delta: compareMetric(currentMetrics.tonal_total_volume, previousMetrics.tonal_total_volume).delta,
       },
     },
+    training_intelligence: {
+      weekly_dose_calls: weeklyDoseCalls,
+      cut_rate_risk: cutRateRisk,
+      cardio_interference_risk: cardioInterferenceRisk,
+      weekly_training_state: weeklyPlan.trainingState,
+      weekly_recommendation: weeklyPlan.recommendation,
+    },
+    body_composition: {
+      current_avg_body_weight_kg: currentMetrics.avg_body_weight_kg,
+      previous_avg_body_weight_kg: previousMetrics.avg_body_weight_kg,
+      current_body_weight_days_logged: currentMetrics.body_weight_days_logged,
+      previous_body_weight_days_logged: previousMetrics.body_weight_days_logged,
+      avg_active_energy_kcal: currentMetrics.avg_active_energy_kcal,
+      avg_resting_energy_kcal: currentMetrics.avg_resting_energy_kcal,
+      avg_walking_running_distance_km: currentMetrics.avg_walking_running_distance_km,
+      latest_goal_mode: latestHealthContext?.goal_mode ?? null,
+      latest_weight_trend: latestHealthContext?.weekly_body_weight_trend ?? null,
+    },
     trend_signals: trendSignals,
     caffeine_trends: {
       current: caffeineCurrent,
       previous: caffeinePrevious,
+    },
+    coaching_evidence: {
+      checkins: checkinSummary,
+      alerts: alertSummary,
     },
     protein_adherence_assumption: proteinAssumption,
     caffeine_summary: {
@@ -401,6 +446,11 @@ function main(): void {
       components: age100.components,
       db_status: weeklyScoreWrite.ok ? "ok" : "error",
       db_error: weeklyScoreWrite.ok ? null : weeklyScoreWrite.error ?? "unknown",
+    },
+    coaching_outcome_evaluation: {
+      ...weeklyOutcome,
+      db_status: outcomeWrite.ok ? "ok" : "error",
+      db_error: outcomeWrite.ok ? null : outcomeWrite.error ?? "unknown",
     },
     hard_truth_inputs: {
       risk_band: riskBand,

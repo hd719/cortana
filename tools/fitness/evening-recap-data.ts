@@ -5,6 +5,9 @@ import { collectRecentMealEntries, summarizeMealRollup } from "./meal-log.js";
 import { chooseSurfacedInsightIds, fetchPendingHealthInsights, markInsightsSql } from "./insights-db.js";
 import { upsertFitnessDailySnapshot } from "./facts-db.js";
 import { fetchCoachCaffeineDaySummary, upsertCoachDecision, upsertCoachNutrition } from "./coach-db.js";
+import { loadAppleHealthWindow } from "./health-source-service.js";
+import { buildAthleteStateForDate } from "./athlete-state-data.js";
+import { replaceMuscleVolumeDaily, upsertAthleteStateDaily } from "./athlete-state-db.js";
 import {
   dataFreshnessHours,
   extractDailyStepCount,
@@ -16,6 +19,7 @@ import {
   tonalWorkoutsFromPayload as tonalWorkoutsFromPayloadCore,
   type ReadinessBand,
 } from "./signal-utils.js";
+import { buildDailyRecommendation } from "./training-engine.js";
 
 type JsonObject = Record<string, unknown>;
 
@@ -306,6 +310,12 @@ function main(): void {
   const totalTonalDuration = Number(todayWorkouts.reduce((sum, item) => sum + (item.duration_minutes ?? 0), 0).toFixed(2));
 
   const mealEntries = collectRecentMealEntries({ days: 7, agentId: "spartan" });
+  const appleHealth = loadAppleHealthWindow({
+    endDate: today,
+    lookbackDays: 13,
+  });
+  if (appleHealth.error) errors.push(`apple_health:${appleHealth.error}`);
+  if (appleHealth.serviceStatus === "unhealthy") errors.push("apple_health_unhealthy");
   const mealRollup = summarizeMealRollup(mealEntries, today);
   const nutritionAssumption = buildNutritionAssumption({
     mealsLogged: mealRollup.today.mealsLogged,
@@ -338,38 +348,6 @@ function main(): void {
     1,
   );
 
-  const snapshotWrite = upsertFitnessDailySnapshot({
-    snapshotDate: today,
-    generatedAt: new Date().toISOString(),
-    whoopStrain: whoopSummary.total_strain_today,
-    whoopStrainSource: whoopSummary.strain_source,
-    stepCount: stepSummary.stepCount,
-    stepSource: stepSummary.source,
-    whoopWorkouts: whoopSummary.whoop_workouts_today,
-    tonalSessions: todayWorkouts.length,
-    tonalVolume: totalTonalVolume,
-    mealsLogged: mealRollup.today.mealsLogged,
-    proteinG: mealRollup.today.proteinG,
-    proteinStatus: mealRollup.today.proteinStatus,
-    nutritionConfidence: nutritionAssumption.confidence,
-    hydrationLiters: hydration.liters,
-    hydrationSource: hydration.source,
-    dataIsStale: (recoveryFreshnessHours ?? 99) > 18 || (sleepFreshnessHours ?? 99) > 18,
-    qualityFlags: {
-      has_whoop_training: whoopSummary.whoop_workouts_today > 0,
-      has_tonal_training: todayWorkouts.length > 0,
-      has_meal_logs: mealEntries.length > 0,
-      has_hydration_signal: hydration.liters != null,
-    },
-    raw: {
-      source: "evening_recap",
-      load_band: loadBand,
-      nutrition_assumption: nutritionAssumption,
-      errors,
-    },
-  });
-  if (!snapshotWrite.ok) errors.push(`fitness_daily_snapshot_upsert_failed:${snapshotWrite.error ?? "unknown"}`);
-
   const hydrationStatus = hydration.liters == null
     ? "unknown"
     : hydration.liters >= 2.5
@@ -378,34 +356,132 @@ function main(): void {
         ? "moderate"
         : "low";
 
-  const nutritionWrite = upsertCoachNutrition({
+  const nutritionInput = {
     dateLocal: today,
     proteinTargetG: mealRollup.target.proteinMinG,
     proteinActualG: mealRollup.today.proteinG == null ? null : Math.round(mealRollup.today.proteinG),
     hydrationStatus,
+    caloriesActualKcal: mealRollup.today.calories,
+    carbsG: mealRollup.today.carbsG,
+    fatsG: mealRollup.today.fatG,
+    hydrationLiters: mealRollup.today.hydrationLiters ?? hydration.liters,
+    mealsLogged: mealRollup.today.mealsLogged,
+    confidence: nutritionAssumption.confidence,
+    phaseMode: null,
     notes: nutritionAssumption.coaching_note,
+  } as const;
+
+  const nutritionWrite = upsertCoachNutrition({
+    ...nutritionInput,
   });
   if (!nutritionWrite.ok) errors.push(`coach_nutrition_upsert_failed:${nutritionWrite.error ?? "unknown"}`);
+
+  const athleteStateBuild = buildAthleteStateForDate({
+    stateDate: today,
+    whoopPayload: whoop,
+    tonalPayload: tonal,
+    mealEntries,
+    coachNutrition: {
+      date_local: nutritionInput.dateLocal,
+      protein_target_g: nutritionInput.proteinTargetG,
+      protein_actual_g: nutritionInput.proteinActualG,
+      hydration_status: nutritionInput.hydrationStatus,
+      calories_actual_kcal: nutritionInput.caloriesActualKcal,
+      carbs_g: nutritionInput.carbsG,
+      fats_g: nutritionInput.fatsG,
+      hydration_liters: nutritionInput.hydrationLiters,
+      meals_logged: nutritionInput.mealsLogged,
+      confidence: nutritionInput.confidence,
+      phase_mode: nutritionInput.phaseMode,
+      notes: nutritionInput.notes,
+    },
+    healthSourceRows: appleHealth.healthRows,
+  });
+  const recommendation = buildDailyRecommendation({
+    readinessBand: athleteStateBuild.athleteState.readinessBand ?? "unknown",
+    readinessConfidence: athleteStateBuild.athleteState.readinessConfidence ?? null,
+    sleepPerformance: athleteStateBuild.athleteState.sleepPerformance ?? null,
+    whoopStrain: athleteStateBuild.athleteState.whoopStrain ?? null,
+    proteinTargetG: athleteStateBuild.athleteState.proteinTargetG ?? null,
+    proteinG: athleteStateBuild.athleteState.proteinG ?? null,
+    nutritionConfidence: athleteStateBuild.athleteState.nutritionConfidence ?? null,
+    qualityFlags: athleteStateBuild.athleteState.qualityFlags ?? null,
+    phaseMode: athleteStateBuild.athleteState.phaseMode ?? null,
+    targetWeightDeltaPctWeek: athleteStateBuild.athleteState.targetWeightDeltaPctWeek ?? null,
+    cardioMinutes: athleteStateBuild.athleteState.cardioMinutes ?? null,
+  });
+  const athleteStateWrite = upsertAthleteStateDaily({
+    ...athleteStateBuild.athleteState,
+    recommendationMode: recommendation.mode,
+    recommendationConfidence: recommendation.confidence,
+  });
+  if (!athleteStateWrite.ok) errors.push(`athlete_state_upsert_failed:${athleteStateWrite.error ?? "unknown"}`);
+  const muscleVolumeWrite = replaceMuscleVolumeDaily(today, athleteStateBuild.muscleVolumeRows);
+  if (!muscleVolumeWrite.ok) errors.push(`muscle_volume_replace_failed:${muscleVolumeWrite.error ?? "unknown"}`);
+
+  const snapshotWrite = upsertFitnessDailySnapshot({
+    snapshotDate: today,
+    generatedAt: new Date().toISOString(),
+    readinessScore: athleteStateBuild.athleteState.readinessScore,
+    readinessBand: athleteStateBuild.athleteState.readinessBand,
+    sleepHours: athleteStateBuild.athleteState.sleepHours,
+    sleepPerformance: athleteStateBuild.athleteState.sleepPerformance,
+    hrv: athleteStateBuild.athleteState.hrv,
+    rhr: athleteStateBuild.athleteState.rhr,
+    whoopStrain: athleteStateBuild.athleteState.whoopStrain ?? whoopSummary.total_strain_today,
+    whoopStrainSource: whoopSummary.strain_source,
+    stepCount: athleteStateBuild.athleteState.stepCount ?? stepSummary.stepCount,
+    stepSource: athleteStateBuild.athleteState.stepSource as "cycle" | "workouts_sum" | "steps_collection" | "unknown" | null,
+    whoopWorkouts: athleteStateBuild.athleteState.whoopWorkouts ?? whoopSummary.whoop_workouts_today,
+    tonalSessions: athleteStateBuild.athleteState.tonalSessions ?? todayWorkouts.length,
+    tonalVolume: athleteStateBuild.athleteState.tonalVolume ?? totalTonalVolume,
+    mealsLogged: mealRollup.today.mealsLogged,
+    proteinG: athleteStateBuild.athleteState.proteinG,
+    proteinStatus: mealRollup.today.proteinStatus,
+    nutritionConfidence: athleteStateBuild.athleteState.nutritionConfidence,
+    hydrationLiters: athleteStateBuild.athleteState.hydrationLiters,
+    hydrationSource: hydration.source ?? (mealRollup.today.hydrationLiters != null ? "meal_log" : null),
+    dataIsStale: (recoveryFreshnessHours ?? 99) > 18 || (sleepFreshnessHours ?? 99) > 18,
+    qualityFlags: {
+      ...(athleteStateBuild.athleteState.qualityFlags ?? {}),
+      has_whoop_training: whoopSummary.whoop_workouts_today > 0,
+      has_tonal_training: todayWorkouts.length > 0,
+      has_meal_logs: mealEntries.length > 0,
+      has_hydration_signal: hydration.liters != null || mealRollup.today.hydrationLiters != null,
+    },
+    raw: {
+      source: "evening_recap",
+      load_band: loadBand,
+      nutrition_assumption: nutritionAssumption,
+      recommendation,
+      errors,
+    },
+  });
+  if (!snapshotWrite.ok) errors.push(`fitness_daily_snapshot_upsert_failed:${snapshotWrite.error ?? "unknown"}`);
 
   const highCaffeine = caffeineSummary.total_mg >= 300;
   const lateCaffeine = caffeineSummary.latest_after_cutoff;
   const overreachWarning = whoopSummary.total_strain_today >= 14 || highCaffeine || lateCaffeine;
   const decisionWrite = upsertCoachDecision({
     tsUtc: new Date().toISOString(),
-    readinessCall: toCoachReadiness(loadBand),
+    readinessCall: toCoachReadiness(athleteStateBuild.athleteState.readinessBand ?? loadBand),
     longevityImpact: longevityFromLoad(whoopSummary.total_strain_today),
-    topRisk: overreachWarning
-      ? (lateCaffeine
-          ? "Late caffeine plus training stress likely to reduce sleep quality and recovery."
-          : highCaffeine
-            ? "High caffeine load may mask fatigue and degrade sleep recovery."
-            : "Stacking another hard session before recovery closes.")
-      : "Inconsistent sleep and nutrition reducing adaptation quality.",
-    reasonSummary: `Evening load band ${loadBand} from strain ${whoopSummary.total_strain_today} and nutrition status ${mealRollup.today.proteinStatus}.`,
+    topRisk: recommendation.topRisk,
+    reasonSummary: recommendation.rationale,
     prescribedAction: sleepTarget.concrete_action,
-    actualDayStrain: whoopSummary.total_strain_today,
-    sleepPerfPct: sleeps[0]?.sleepPerformance ?? null,
-    recoveryScore: recoveries[0]?.recoveryScore ?? null,
+    actualDayStrain: athleteStateBuild.athleteState.whoopStrain ?? whoopSummary.total_strain_today,
+    sleepPerfPct: athleteStateBuild.athleteState.sleepPerformance ?? sleeps[0]?.sleepPerformance ?? null,
+    recoveryScore: athleteStateBuild.athleteState.readinessScore ?? recoveries[0]?.recoveryScore ?? null,
+    sourceStateDate: today,
+    decisionKey: `spartan:decision:evening:${today}`,
+    payload: {
+      recommendation,
+      load_band: loadBand,
+      whoop_summary: whoopSummary,
+      nutrition_assumption: nutritionAssumption,
+      sleep_target: sleepTarget,
+      hydration_status: hydrationStatus,
+    },
   });
   if (!decisionWrite.ok) errors.push(`coach_decision_upsert_failed:${decisionWrite.error ?? "unknown"}`);
 
@@ -441,19 +517,24 @@ function main(): void {
         max: mealRollup.target.proteinMaxG,
       },
       meals_logged: mealRollup.today.mealsLogged,
-      protein_g: mealRollup.today.proteinG,
+      protein_g: athleteStateBuild.athleteState.proteinG,
       protein_status: mealRollup.today.proteinStatus,
       protein_gap_g: mealRollup.today.proteinGapG,
-      calories: mealRollup.today.calories,
-      carbs_g: mealRollup.today.carbsG,
-      fat_g: mealRollup.today.fatG,
+      calories: athleteStateBuild.athleteState.caloriesKcal,
+      carbs_g: athleteStateBuild.athleteState.carbsG,
+      fat_g: athleteStateBuild.athleteState.fatG,
+      hydration_liters: athleteStateBuild.athleteState.hydrationLiters,
     },
     nutrition_assumption: nutritionAssumption,
+    recommendation,
+    athlete_state: athleteStateBuild.athleteState,
+    muscle_volume_today: athleteStateBuild.muscleVolumeRows,
     tonight_sleep_target: sleepTarget,
     data_freshness: {
       is_stale: (recoveryFreshnessHours ?? 99) > 18 || (sleepFreshnessHours ?? 99) > 18,
       recovery_hours: recoveryFreshnessHours,
       sleep_hours: sleepFreshnessHours,
+      apple_health_status: appleHealth.serviceStatus,
     },
     pending_health_insights: pendingInsights,
     surfaced_insight_ids: surfacedInsightIds,
@@ -485,11 +566,31 @@ function main(): void {
       status: nutritionWrite.ok ? "ok" : "error",
       error: nutritionWrite.ok ? null : nutritionWrite.error ?? "unknown",
     },
+    athlete_state_log: {
+      table: "cortana_fitness_athlete_state_daily",
+      status: athleteStateWrite.ok ? "ok" : "error",
+      error: athleteStateWrite.ok ? null : athleteStateWrite.error ?? "unknown",
+    },
+    muscle_volume_log: {
+      table: "cortana_fitness_muscle_volume_daily",
+      status: muscleVolumeWrite.ok ? "ok" : "error",
+      error: muscleVolumeWrite.ok ? null : muscleVolumeWrite.error ?? "unknown",
+    },
     errors,
     quality_flags: {
+      ...(athleteStateBuild.athleteState.qualityFlags ?? {}),
       has_whoop_training: whoopSummary.whoop_workouts_today > 0,
       has_tonal_training: todayWorkouts.length > 0,
       has_meal_logs: mealEntries.length > 0,
+      has_apple_health: appleHealth.healthRows.length > 0,
+    },
+    apple_health: {
+      status: appleHealth.serviceStatus,
+      rows_loaded: appleHealth.healthRows.length,
+      rows_ingested: appleHealth.ingestedRowCount,
+      ignored_metrics: appleHealth.ignoredMetricCount,
+      write_status: appleHealth.writeResult?.ok === false ? "error" : "ok",
+      write_error: appleHealth.writeResult?.ok === false ? appleHealth.writeResult.error ?? "unknown" : null,
     },
     tonal_health: tonalHealth,
   };

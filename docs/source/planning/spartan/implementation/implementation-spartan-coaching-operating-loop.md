@@ -1,6 +1,6 @@
 # Implementation Plan - Spartan Coaching Operating Loop
 
-**Document Status:** Draft
+**Document Status:** Implemented
 
 ## Team
 
@@ -46,10 +46,10 @@ Week 4: V5 (integrate cron contracts, memory expectations, and end-to-end valida
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/today-mission-data.ts` with a deterministic artifact contract built from athlete-state and daily recommendation inputs.
-- Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts` to generate or load the today mission before final brief rendering.
-- Sub-task 3: Persist or mirror today mission artifacts under a stable memory path such as `/Users/hd/Developer/cortana/memory/fitness/daily/`.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-today-mission-data.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/today-mission-data.ts` with a deterministic artifact contract built from athlete-state and daily recommendation inputs.
+- [x] Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts` to generate or load the today mission before final brief rendering.
+- [x] Sub-task 3: Persist or mirror today mission artifacts under a stable memory path such as `/Users/hd/Developer/cortana/memory/fitness/daily/`.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-today-mission-data.test.ts`.
 
 #### Testing
 
@@ -67,10 +67,10 @@ Week 4: V5 (integrate cron contracts, memory expectations, and end-to-end valida
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/post-workout-note-parser.ts` with deterministic entity extraction for completion, miss, soreness, pain, motivation, and schedule constraints.
-- Sub-task 2: Create `/Users/hd/Developer/cortana/tools/fitness/checkin-db.ts` and its schema helpers for `coach_checkin_log`.
-- Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/coach-conversation-sync.ts` to persist parsed entities and linked check-ins.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-post-workout-note-parser.test.ts` and `/Users/hd/Developer/cortana/tests/cron/fitness-checkin-db.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/post-workout-note-parser.ts` with deterministic entity extraction for completion, miss, soreness, pain, motivation, and schedule constraints.
+- [x] Sub-task 2: Create `/Users/hd/Developer/cortana/tools/fitness/checkin-db.ts` and its schema helpers for `coach_checkin_log`.
+- [x] Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/coach-conversation-sync.ts` to persist parsed entities and linked check-ins.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-post-workout-note-parser.test.ts` and `/Users/hd/Developer/cortana/tests/cron/fitness-checkin-db.test.ts`.
 
 #### Testing
 
@@ -90,10 +90,10 @@ Week 4: V5 (integrate cron contracts, memory expectations, and end-to-end valida
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/alert-policy.ts` to evaluate freshness, recovery risk, overreach, missed protein, pain, and schedule conflict conditions.
-- Sub-task 2: Add `coach_alert_log` helpers in `/Users/hd/Developer/cortana/tools/fitness/checkin-db.ts` or a dedicated alert DB helper module.
-- Sub-task 3: Update alert-related cron logic in `~/.openclaw/cron/jobs.json` or supporting scripts so they call the new shared policy layer.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-alert-policy.test.ts` and extend `/Users/hd/Developer/cortana/tests/cron/fitness-cron-contract.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/alert-policy.ts` to evaluate freshness, recovery risk, overreach, missed protein, pain, and schedule conflict conditions.
+- [x] Sub-task 2: Add `coach_alert_log` helpers in `/Users/hd/Developer/cortana/tools/fitness/checkin-db.ts` or a dedicated alert DB helper module.
+- [x] Sub-task 3: Update alert-related cron logic in `~/.openclaw/cron/jobs.json` or supporting scripts so they call the new shared policy layer.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-alert-policy.test.ts` and extend `/Users/hd/Developer/cortana/tests/cron/fitness-cron-contract.test.ts`.
 
 #### Testing
 
@@ -113,10 +113,10 @@ Week 4: V5 (integrate cron contracts, memory expectations, and end-to-end valida
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/outcome-eval.ts` with deterministic weekly outcome scoring rules.
-- Sub-task 2: Extend `/Users/hd/Developer/cortana/tools/fitness/coach-db.ts` or `/Users/hd/Developer/cortana/tools/fitness/checkin-db.ts` for `coach_outcome_eval_weekly` and decision linkage fields.
-- Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/weekly-insights-data.ts` to include the new evaluation result and explanation.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-outcome-eval.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/outcome-eval.ts` with deterministic weekly outcome scoring rules.
+- [x] Sub-task 2: Extend `/Users/hd/Developer/cortana/tools/fitness/coach-db.ts` or `/Users/hd/Developer/cortana/tools/fitness/checkin-db.ts` for `coach_outcome_eval_weekly` and decision linkage fields.
+- [x] Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/weekly-insights-data.ts` to include the new evaluation result and explanation.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-outcome-eval.test.ts`.
 
 #### Important Planning Notes
 
@@ -142,10 +142,10 @@ Week 4: V5 (integrate cron contracts, memory expectations, and end-to-end valida
 
 #### Jira
 
-- Sub-task 1: Update `~/.openclaw/cron/jobs.json` or supporting scripts so morning, evening, weekly, and alert jobs align to the new today mission and alert-policy layers.
-- Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/specialist-prompts.md` so specialist analyses reference the structured loop artifacts instead of ad hoc raw-provider-only analysis.
-- Sub-task 3: Review `/Users/hd/Developer/cortana/identities/spartan/MEMORY.md` and `/Users/hd/Developer/cortana/identities/spartan/SOUL.md` for any stable updates needed after the loop lands.
-- Sub-task 4: Run the end-to-end cron contract and fitness test suite.
+- [x] Sub-task 1: Update `~/.openclaw/cron/jobs.json` or supporting scripts so morning, evening, weekly, and alert jobs align to the new today mission and alert-policy layers.
+- [x] Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/specialist-prompts.md` so specialist analyses reference the structured loop artifacts instead of ad hoc raw-provider-only analysis.
+- [x] Sub-task 3: Review `/Users/hd/Developer/cortana/identities/spartan/MEMORY.md` and `/Users/hd/Developer/cortana/identities/spartan/SOUL.md` for any stable updates needed after the loop lands.
+- [x] Sub-task 4: Run the end-to-end cron contract and fitness test suite.
 
 #### Testing
 

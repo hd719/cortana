@@ -5,6 +5,8 @@ import os from "node:os";
 import path from "node:path";
 import crypto from "node:crypto";
 import { upsertCoachCaffeine, upsertCoachConversation, updateLatestDecisionCompliance } from "./coach-db.js";
+import { coachCheckinDateLocal, hasCoachCheckinSignal, parseCoachCheckin } from "./post-workout-note-parser.js";
+import { upsertCoachCheckin } from "./checkin-db.js";
 import { localYmd } from "./signal-utils.js";
 
 type ContentBlock = { type?: string; text?: string };
@@ -27,14 +29,6 @@ function parseTimestamp(row: SessionLine): string | null {
 
 function digest(value: string): string {
   return crypto.createHash("sha256").update(value).digest("hex").slice(0, 32);
-}
-
-function complianceFromText(text: string): { status: string; note: string } | null {
-  const t = text.toLowerCase();
-  if (/(done|completed|finished|checked off|executed)/.test(t)) return { status: "completed", note: "user_confirmed_done" };
-  if (/(skip|skipped|couldn't|did not|didn't do)/.test(t)) return { status: "missed", note: "user_reported_missed" };
-  if (/(later|not yet|soon)/.test(t)) return { status: "pending", note: "user_reported_pending" };
-  return null;
 }
 
 function classifyIntent(text: string): string | null {
@@ -107,6 +101,24 @@ function syncFile(filePath: string, cutoffMs: number): { scanned: number; upsert
 
     scanned += 1;
     const sourceKey = `spartan:${path.basename(filePath)}:${digest(`${ts}|${role}|${text}`)}`;
+    const parsedCheckin = role === "user" ? parseCoachCheckin(text, { timestampUtc: ts }) : null;
+    const linkedStateDate = parsedCheckin ? coachCheckinDateLocal(ts) : null;
+    const linkedDecisionKey = parsedCheckin ? `spartan:decision:morning:${linkedStateDate}` : null;
+    const parsedEntities = parsedCheckin
+      ? {
+          checkin_type: parsedCheckin.checkinType,
+          compliance_status: parsedCheckin.complianceStatus,
+          completed: parsedCheckin.completed,
+          missed: parsedCheckin.missed,
+          soreness_score: parsedCheckin.sorenessScore,
+          pain_flag: parsedCheckin.painFlag,
+          motivation_score: parsedCheckin.motivationScore,
+          schedule_constraints: parsedCheckin.scheduleConstraints,
+          schedule_constraint: parsedCheckin.scheduleConstraint,
+          confidence: parsedCheckin.confidence,
+          matched_signals: parsedCheckin.matchedSignals,
+        }
+      : null;
     const result = upsertCoachConversation({
       sourceKey,
       tsUtc: ts,
@@ -114,19 +126,47 @@ function syncFile(filePath: string, cutoffMs: number): { scanned: number; upsert
       direction: role === "user" ? "inbound" : "outbound",
       messageText: text,
       intent: role === "user" ? classifyIntent(text) : null,
+      linkedStateDate,
+      linkedDecisionKey,
+      parsedEntities,
       tags: {
         source_file: path.basename(filePath),
         source_agent: "spartan",
+        ...(parsedEntities ? { parsed_entities: parsedEntities } : {}),
       },
     });
     if (result.ok) upserted += 1;
     else errors += 1;
 
     if (role === "user") {
-      const compliance = complianceFromText(text);
-      if (compliance) {
-        const c = updateLatestDecisionCompliance({ status: compliance.status, note: compliance.note });
+      if (parsedCheckin && parsedCheckin.complianceStatus !== "unknown") {
+        const c = updateLatestDecisionCompliance({
+          status: parsedCheckin.complianceStatus,
+          note: parsedCheckin.matchedSignals.join(", "),
+        });
         if (!c.ok) errors += 1;
+      }
+
+      if (parsedCheckin && hasCoachCheckinSignal(parsedCheckin)) {
+        const checkin = upsertCoachCheckin({
+          sourceKey,
+          tsUtc: ts,
+          dateLocal: coachCheckinDateLocal(ts),
+          checkinType: parsedCheckin.checkinType,
+          complianceStatus: parsedCheckin.complianceStatus === "unknown" ? null : parsedCheckin.complianceStatus,
+          sorenessScore: parsedCheckin.sorenessScore,
+          painFlag: parsedCheckin.painFlag,
+          motivationScore: parsedCheckin.motivationScore,
+          scheduleConstraint: parsedCheckin.scheduleConstraint,
+          rawText: text,
+          parsed: {
+            ...parsedCheckin,
+            source_file: path.basename(filePath),
+            source_agent: "spartan",
+            source_key: sourceKey,
+          },
+        });
+        if (!checkin.ok) errors += 1;
       }
 
       const caffeine = extractCaffeineEvents(text, ts);

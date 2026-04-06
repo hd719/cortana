@@ -35,6 +35,7 @@ It does **not** replace:
 - [PRD template](./source/planning/templates/prd-template.md)
 - [Tech spec template](./source/planning/templates/techspec-template.md)
 - [Implementation plan template](./source/planning/templates/implementation-template.md)
+- [Spartan planning index](./source/planning/spartan/README.md)
 - [Memory engine design](./source/architecture/memory-engine-design.md)
 - [Runtime deploy model](./source/architecture/runtime-deploy-model.md)
 - [Sub-agent reliability runbook](./source/runbook/subagent-reliability-runbook.md)

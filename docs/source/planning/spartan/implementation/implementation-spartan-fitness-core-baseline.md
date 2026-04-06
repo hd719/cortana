@@ -47,16 +47,16 @@ Week 4: V6 (full regression pass, live validation, and rollout hardening)
 
 #### Jira
 
-- Sub-task 1: Update `/Users/hd/Developer/cortana-external/apps/external-service/src/whoop/service.ts` so `fetchWhoopCollection()` tracks `next_token` values, stops on repeated tokens, and deduplicates workout records by stable record ID before returning the collection.
-- Sub-task 2: Add a small internal helper in `/Users/hd/Developer/cortana-external/apps/external-service/src/whoop/service.ts` or a nearby module to normalize Whoop record IDs and build the top-level `quality` payload.
-- Sub-task 3: Ensure the persisted cache returned by `/Users/hd/Developer/cortana-external/apps/external-service/src/whoop/routes.ts` preserves the new `quality` object without breaking existing consumers.
-- Sub-task 4: Add `vitest` coverage in `/Users/hd/Developer/cortana-external/apps/external-service/src/__tests__/whoop-service.test.ts` and extend `/Users/hd/Developer/cortana-external/apps/external-service/src/__tests__/whoop-routes.test.ts` for duplicate IDs, repeated pagination tokens, and route serialization.
+- [x] Sub-task 1: Update `/Users/hd/Developer/cortana-external/apps/external-service/src/whoop/service.ts` so `fetchWhoopCollection()` tracks `next_token` values, stops on repeated tokens, and deduplicates workout records by stable record ID before returning the collection.
+- [x] Sub-task 2: Add a small internal helper in `/Users/hd/Developer/cortana-external/apps/external-service/src/whoop/service.ts` or a nearby module to normalize Whoop record IDs and build the top-level `quality` payload.
+- [x] Sub-task 3: Ensure the persisted cache returned by `/Users/hd/Developer/cortana-external/apps/external-service/src/whoop/routes.ts` preserves the new `quality` object without breaking existing consumers.
+- [x] Sub-task 4: Add `vitest` coverage in `/Users/hd/Developer/cortana-external/apps/external-service/src/__tests__/whoop-service.test.ts` and extend `/Users/hd/Developer/cortana-external/apps/external-service/src/__tests__/whoop-routes.test.ts` for duplicate IDs, repeated pagination tokens, and route serialization.
 
 #### Testing
 
-- A paginated fixture with repeated workout IDs returns only unique workout rows.
-- A fixture with a repeated `next_token` stops safely instead of looping or duplicating.
-- `/whoop/data` includes the `quality` block and existing sections still deserialize normally.
+- [x] A paginated fixture with repeated workout IDs returns only unique workout rows.
+- [x] A fixture with a repeated `next_token` stops safely instead of looping or duplicating.
+- [x] `/whoop/data` includes the `quality` block and existing sections still deserialize normally.
 
 ---
 
@@ -68,16 +68,16 @@ Week 4: V6 (full regression pass, live validation, and rollout hardening)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/tonal-movement-map.ts` with a typed map for the highest-frequency Tonal movement IDs and titles seen in the current cache.
-- Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/signal-utils.ts` to expose pure helpers for Tonal set extraction, load buckets, rep buckets, and movement-to-muscle resolution.
-- Sub-task 3: Add an explicit unmapped-movement path that returns low confidence and a flag instead of guessing muscle assignment.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-tonal-movement-map.test.ts` and update `/Users/hd/Developer/cortana/tests/cron/fitness-signal-utils.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/tonal-movement-map.ts` with a typed map for the highest-frequency Tonal movement IDs and titles seen in the current cache.
+- [x] Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/signal-utils.ts` to expose pure helpers for Tonal set extraction, load buckets, rep buckets, and movement-to-muscle resolution.
+- [x] Sub-task 3: Add an explicit unmapped-movement path that returns low confidence and a flag instead of guessing muscle assignment.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-tonal-movement-map.test.ts` and update `/Users/hd/Developer/cortana/tests/cron/fitness-signal-utils.test.ts`.
 
 #### Testing
 
-- Known Tonal movements map to the intended muscle family consistently.
-- Unmapped Tonal movements are surfaced as unmapped and lower confidence instead of being silently assigned.
-- Set buckets and daily muscle totals are deterministic from the same fixture payload.
+- [x] Known Tonal movements map to the intended muscle family consistently.
+- [x] Unmapped Tonal movements are surfaced as unmapped and lower confidence instead of being silently assigned.
+- [x] Set buckets and daily muscle totals are deterministic from the same fixture payload.
 
 ---
 
@@ -89,16 +89,16 @@ Week 4: V6 (full regression pass, live validation, and rollout hardening)
 
 #### Jira
 
-- Sub-task 1: Update `/Users/hd/Developer/cortana/tools/fitness/meal-log.ts` to parse hydration aliases such as `water=` and `hydration=` while preserving the existing `protein`, `calories`, `carbs`, and `fat` parsing contract.
-- Sub-task 2: Add typed phase defaults and protein/cut-rate targets in `/Users/hd/Developer/cortana/tools/fitness/spartan-defaults.ts`.
-- Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/coach-db.ts` to add schema fields and upsert support for calories, carbs, fats, hydration liters, meal count, confidence, and phase mode.
-- Sub-task 4: Extend `/Users/hd/Developer/cortana/tests/cron/fitness-meal-log.test.ts` and add `/Users/hd/Developer/cortana/tests/cron/fitness-coach-db.test.ts` if new SQL builders or helpers are introduced.
+- [x] Sub-task 1: Update `/Users/hd/Developer/cortana/tools/fitness/meal-log.ts` to parse hydration aliases such as `water=` and `hydration=` while preserving the existing `protein`, `calories`, `carbs`, and `fat` parsing contract.
+- [x] Sub-task 2: Add typed phase defaults and protein/cut-rate targets in `/Users/hd/Developer/cortana/tools/fitness/spartan-defaults.ts`.
+- [x] Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/coach-db.ts` to add schema fields and upsert support for calories, carbs, fats, hydration liters, meal count, confidence, and phase mode.
+- [x] Sub-task 4: Extend `/Users/hd/Developer/cortana/tests/cron/fitness-meal-log.test.ts` and add `/Users/hd/Developer/cortana/tests/cron/fitness-coach-db.test.ts` if new SQL builders or helpers are introduced.
 
 #### Testing
 
-- `#meal` lines with hydration fields are parsed into deterministic daily totals.
-- Existing meal-log inputs remain backward compatible.
-- New nutrition schema fields render valid SQL and persist nullable values safely.
+- [x] `#meal` lines with hydration fields are parsed into deterministic daily totals.
+- [x] Existing meal-log inputs remain backward compatible.
+- [x] New nutrition schema fields render valid SQL and persist nullable values safely.
 
 ---
 
@@ -112,10 +112,10 @@ Week 4: V6 (full regression pass, live validation, and rollout hardening)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/athlete-state-db.ts` with schema creation, upsert SQL builders, and query helpers for `cortana_fitness_athlete_state_daily` and `cortana_fitness_muscle_volume_daily`.
-- Sub-task 2: Create `/Users/hd/Developer/cortana/tools/fitness/athlete-state-data.ts` with a single exported builder that reads Whoop data, Tonal data, meal logs, coach nutrition rows, and defaults to produce a deterministic athlete-state payload for one day.
-- Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/facts-db.ts` only as needed for compatibility helpers, but keep `cortana_fitness_daily_facts` as a summary table rather than the new source of truth.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-athlete-state-db.test.ts` and `/Users/hd/Developer/cortana/tests/cron/fitness-athlete-state-data.test.ts` with fixture payloads that cover good data, duplicated data, missing nutrition, and unmapped Tonal movements.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/athlete-state-db.ts` with schema creation, upsert SQL builders, and query helpers for `cortana_fitness_athlete_state_daily` and `cortana_fitness_muscle_volume_daily`.
+- [x] Sub-task 2: Create `/Users/hd/Developer/cortana/tools/fitness/athlete-state-data.ts` with a single exported builder that reads Whoop data, Tonal data, meal logs, coach nutrition rows, and defaults to produce a deterministic athlete-state payload for one day.
+- [x] Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/facts-db.ts` only as needed for compatibility helpers, but keep `cortana_fitness_daily_facts` as a summary table rather than the new source of truth.
+- [x] Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/cron/fitness-athlete-state-db.test.ts` and `/Users/hd/Developer/cortana/tests/cron/fitness-athlete-state-data.test.ts` with fixture payloads that cover good data, duplicated data, missing nutrition, and unmapped Tonal movements.
 
 #### Important Planning Notes
 
@@ -125,9 +125,9 @@ Week 4: V6 (full regression pass, live validation, and rollout hardening)
 
 #### Testing
 
-- A known fixture creates exactly one athlete-state row for the target date.
-- The same fixture creates the expected muscle-volume rows by muscle family.
-- Missing or weak inputs produce quality flags and lower recommendation confidence instead of exceptions or fake certainty.
+- [x] A known fixture creates exactly one athlete-state row for the target date.
+- [x] The same fixture creates the expected muscle-volume rows by muscle family.
+- [x] Missing or weak inputs produce quality flags and lower recommendation confidence instead of exceptions or fake certainty.
 
 ---
 
@@ -141,12 +141,12 @@ Week 4: V6 (full regression pass, live validation, and rollout hardening)
 
 #### Jira
 
-- Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/training-engine.ts` with deterministic recommendation helpers for daily mode, weekly underdose/overdose calls, and confidence scoring.
-- Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts` to build or load athlete state first, then derive recommendation mode, top risk, and confidence from `training-engine.ts`.
-- Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts` to write nutrition and recovery fields that support the next athlete-state build.
-- Sub-task 4: Update `/Users/hd/Developer/cortana/tools/fitness/weekly-insights-data.ts` to query athlete-state and muscle-volume rows for weekly analysis instead of only parsing raw payloads.
-- Sub-task 5: Update `/Users/hd/Developer/cortana/tools/fitness/monthly-overview-data.ts` to report coverage, trend, and missing-signal reasons from athlete-state storage.
-- Sub-task 6: Extend or update `/Users/hd/Developer/cortana/tests/cron/fitness-morning-brief-data.test.ts`, `/Users/hd/Developer/cortana/tests/cron/fitness-evening-recap-data.test.ts`, `/Users/hd/Developer/cortana/tests/cron/fitness-weekly-insights-data.test.ts`, and `/Users/hd/Developer/cortana/tests/cron/fitness-monthly-overview-data.test.ts`.
+- [x] Sub-task 1: Create `/Users/hd/Developer/cortana/tools/fitness/training-engine.ts` with deterministic recommendation helpers for daily mode, weekly underdose/overdose calls, and confidence scoring.
+- [x] Sub-task 2: Update `/Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts` to build or load athlete state first, then derive recommendation mode, top risk, and confidence from `training-engine.ts`.
+- [x] Sub-task 3: Update `/Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts` to write nutrition and recovery fields that support the next athlete-state build.
+- [x] Sub-task 4: Update `/Users/hd/Developer/cortana/tools/fitness/weekly-insights-data.ts` to query athlete-state and muscle-volume rows for weekly analysis instead of only parsing raw payloads.
+- [x] Sub-task 5: Update `/Users/hd/Developer/cortana/tools/fitness/monthly-overview-data.ts` to report coverage, trend, and missing-signal reasons from athlete-state storage.
+- [x] Sub-task 6: Extend or update `/Users/hd/Developer/cortana/tests/cron/fitness-morning-brief-data.test.ts`, `/Users/hd/Developer/cortana/tests/cron/fitness-evening-recap-data.test.ts`, `/Users/hd/Developer/cortana/tests/cron/fitness-weekly-insights-data.test.ts`, and `/Users/hd/Developer/cortana/tests/cron/fitness-monthly-overview-data.test.ts`.
 
 #### Important Planning Notes
 
@@ -156,9 +156,9 @@ Week 4: V6 (full regression pass, live validation, and rollout hardening)
 
 #### Testing
 
-- Morning brief can render from athlete state and produces the expected recommendation mode for green, yellow, red, and unknown scenarios.
-- Weekly insights report muscle-family set totals and identify at least one underdosed or overdosed area from fixtures designed to trigger those cases.
-- Monthly overview distinguishes missing signal from zero signal and uses athlete-state coverage counts.
+- [x] Morning brief can render from athlete state and produces the expected recommendation mode for green, yellow, red, and unknown scenarios.
+- [x] Weekly insights report muscle-family set totals and identify at least one underdosed or overdosed area from fixtures designed to trigger those cases.
+- [x] Monthly overview distinguishes missing signal from zero signal and uses athlete-state coverage counts.
 
 ---
 
@@ -172,16 +172,16 @@ Week 4: V6 (full regression pass, live validation, and rollout hardening)
 
 #### Jira
 
-- Sub-task 1: Run `vitest` in `/Users/hd/Developer/cortana-external/apps/external-service` and `/Users/hd/Developer/cortana`.
-- Sub-task 2: Exercise live local endpoints `http://127.0.0.1:3033/whoop/data` and `http://127.0.0.1:3033/tonal/data?fresh=true` and verify cache integrity with spot checks on workout IDs and freshness metadata.
-- Sub-task 3: Run the morning, weekly, and monthly fitness scripts end to end against live local data and verify DB inserts using `psql`.
-- Sub-task 4: Update the roadmap or follow-up docs only if implementation discoveries materially change scope boundaries or ordering.
+- [x] Sub-task 1: Run `vitest` in `/Users/hd/Developer/cortana-external/apps/external-service` and `/Users/hd/Developer/cortana`.
+- [x] Sub-task 2: Exercise live local endpoints `http://127.0.0.1:3033/whoop/data` and `http://127.0.0.1:3033/tonal/data?fresh=true` and verify cache integrity with spot checks on workout IDs and freshness metadata.
+- [x] Sub-task 3: Run the morning, weekly, and monthly fitness scripts end to end against live local data and verify DB inserts using `psql`.
+- [x] Sub-task 4: Update the roadmap or follow-up docs only if implementation discoveries materially change scope boundaries or ordering.
 
 #### Testing
 
-- All new and updated tests pass in both repos.
-- Live local Whoop data no longer contains repeated workout IDs.
-- Live local artifacts render without regressing the existing cron contract.
+- [x] All new and updated tests pass in both repos.
+- [x] Live local Whoop data no longer contains repeated workout IDs.
+- [x] Live local artifacts render without regressing the existing cron contract.
 
 ---
 

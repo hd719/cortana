@@ -16,12 +16,17 @@
 - Spartan coaching tables in `cortana` DB:
   - `coach_conversation_log` (inbound/outbound coaching history)
   - `coach_decision_log` (readiness/longevity decisions + compliance)
+  - `coach_checkin_log` (structured natural-language check-ins)
+  - `coach_alert_log` (deduped coaching alerts and delivery state)
+  - `coach_outcome_eval_weekly` (weekly coaching outcome evaluation)
   - `coach_nutrition_log` (daily protein/hydration status)
   - `coach_weekly_score` (weekly age-100 alignment score)
 
 ## Operating Context
 - Weekly fitness markdown location:
   - /Users/hd/Developer/cortana/memory/fitness/weekly/
+- Daily mission artifact location:
+  - /Users/hd/Developer/cortana/memory/fitness/daily/
 - Longer-form analysis location:
   - /Users/hd/Developer/cortana/memory/fitness/analysis/
 - Active fitness automation cadence:
@@ -36,6 +41,7 @@
 - Prioritize readiness-informed programming over generic motivation.
 - Always provide a concrete next action for today.
 - Hamel should send natural-language updates; Spartan handles parsing, logging, and state tracking.
+- Morning coaching should ground the day in the structured today-mission artifact before freeform analysis.
 - Coaching should emphasize practical performance insight (what this means now) over metric recitation.
 - Use tactical check-ins during active days (state -> risk -> action -> fail condition) without requiring cron reconfiguration.
 
