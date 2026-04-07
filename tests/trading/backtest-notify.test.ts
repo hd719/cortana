@@ -155,7 +155,7 @@ describe("backtest notify delivery contract", () => {
       { mode: 0o755 },
     );
 
-    execSync(`BACKTEST_ROOT_DIR=${root} BACKTEST_NOTIFY_BIN=${notifyStub} MISSION_CONTROL_DATABASE_URL='postgresql://writer@localhost:5432/mission_control' PSQL_BIN='${psqlStub}' node --import tsx ./tools/trading/backtest-notify.ts`, {
+    execSync(`BACKTEST_ROOT_DIR=${root} BACKTEST_NOTIFY_BIN=${notifyStub} MISSION_CONTROL_DATABASE_URL='postgresql://writer@localhost:5432/mission_control' PSQL_BIN='${psqlStub}' TRADING_OPS_GUARD_DISABLE_ALERTS=1 node --import tsx ./tools/trading/backtest-notify.ts`, {
       cwd: process.cwd(),
       stdio: "pipe",
     });
@@ -178,7 +178,7 @@ describe("backtest notify delivery contract", () => {
       { mode: 0o755 },
     );
 
-    execSync(`BACKTEST_ROOT_DIR=${root} BACKTEST_NOTIFY_BIN=${notifyStub} node --import tsx ./tools/trading/backtest-notify.ts`, {
+    execSync(`BACKTEST_ROOT_DIR=${root} BACKTEST_NOTIFY_BIN=${notifyStub} TRADING_OPS_GUARD_DISABLE_ALERTS=1 node --import tsx ./tools/trading/backtest-notify.ts`, {
       cwd: process.cwd(),
       stdio: "pipe",
     });
@@ -225,7 +225,7 @@ describe("backtest notify delivery contract", () => {
 
     let exitCode = 0;
     try {
-      execSync(`BACKTEST_ROOT_DIR=${root} BACKTEST_NOTIFY_BIN=${notifyStub} node --import tsx ./tools/trading/backtest-notify.ts`, {
+      execSync(`BACKTEST_ROOT_DIR=${root} BACKTEST_NOTIFY_BIN=${notifyStub} TRADING_OPS_GUARD_DISABLE_ALERTS=1 node --import tsx ./tools/trading/backtest-notify.ts`, {
         cwd: process.cwd(),
         stdio: "pipe",
       });
