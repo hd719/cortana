@@ -13,6 +13,7 @@ import {
   type ParsedSignal,
   resolvePythonBin,
 } from "./trading-cron-alert";
+import { reportTradingRunSyncIncident } from "./trading-ops-guard";
 import {
   runTradingPipelineDetailed,
   runTradingStrategy,
@@ -728,6 +729,12 @@ async function main(): Promise<void> {
     process.stderr.write(
       `MISSION_CONTROL_TRADING_RUN_SYNC_${startedSync.mode.toUpperCase()} run_id=${id} stage=start reason=${startedSync.reason}\n`,
     );
+    reportTradingRunSyncIncident({
+      runId: id,
+      stage: "start",
+      mode: startedSync.mode,
+      reason: startedSync.reason,
+    });
   }
 
   const result = config.mode === "shell" ? runShellCommand(config) : await runPreset(config);
@@ -861,6 +868,12 @@ async function main(): Promise<void> {
     process.stderr.write(
       `MISSION_CONTROL_TRADING_RUN_SYNC_${finalSync.mode.toUpperCase()} run_id=${id} stage=finalize reason=${finalSync.reason}\n`,
     );
+    reportTradingRunSyncIncident({
+      runId: id,
+      stage: "finalize",
+      mode: finalSync.mode,
+      reason: finalSync.reason,
+    });
   }
 
   process.stdout.write(`${summaryPath}\n`);

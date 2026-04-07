@@ -4,6 +4,7 @@ import { existsSync, readFileSync, readdirSync, renameSync, writeFileSync } from
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { reportTradingRunSyncIncident } from "./trading-ops-guard";
 import { syncTradingRunFromArtifacts } from "./trading-run-state";
 
 type BacktestSummary = {
@@ -172,6 +173,12 @@ function markNotified(file: string, summary: BacktestSummary): BacktestSummary {
 function logTradingRunSync(result: ReturnType<typeof syncTradingRunFromArtifacts>, runId: string, stage: string): void {
   if (result.ok) return;
   console.error(`MISSION_CONTROL_TRADING_RUN_SYNC_${result.mode.toUpperCase()} run_id=${runId} stage=${stage} reason=${result.reason}`);
+  reportTradingRunSyncIncident({
+    runId,
+    stage,
+    mode: result.mode,
+    reason: result.reason,
+  });
 }
 
 function main(): void {
