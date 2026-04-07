@@ -302,7 +302,46 @@ function writeTradingRunStateRecord(record: TradingRunStateRecord, env: NodeJS.P
 
 function resolveMissionControlDatabaseUrl(env: NodeJS.ProcessEnv): string | null {
   const explicit = env.MISSION_CONTROL_DATABASE_URL?.trim();
-  return explicit && explicit.length > 0 ? explicit : null;
+  if (explicit && explicit.length > 0) return explicit;
+
+  const fallback = readEnvValue(
+    path.join(resolveCortanaExternalRepo(env), "apps", "mission-control", ".env.local"),
+    "DATABASE_URL",
+  );
+  return fallback && fallback.length > 0 ? fallback : null;
+}
+
+function resolveCortanaExternalRepo(env: NodeJS.ProcessEnv): string {
+  const explicit = env.CORTANA_EXTERNAL_REPO?.trim();
+  if (explicit && explicit.length > 0) return explicit;
+  const home = env.HOME?.trim() || os.homedir();
+  return path.join(home, "Developer", "cortana-external");
+}
+
+function readEnvValue(filePath: string, key: string): string | null {
+  try {
+    if (!existsSync(filePath)) return null;
+    const raw = readFileSync(filePath, "utf8");
+    for (const line of raw.split(/\r?\n/)) {
+      const trimmed = line.trim();
+      if (!trimmed || trimmed.startsWith("#")) continue;
+      const equals = trimmed.indexOf("=");
+      if (equals <= 0) continue;
+      if (trimmed.slice(0, equals).trim() !== key) continue;
+      const value = trimmed.slice(equals + 1).trim();
+      return stripOptionalQuotes(value);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function stripOptionalQuotes(value: string): string {
+  if (value.length >= 2 && ((value.startsWith("\"") && value.endsWith("\"")) || (value.startsWith("'") && value.endsWith("'")))) {
+    return value.slice(1, -1);
+  }
+  return value;
 }
 
 function deriveDeliveryStatus(status: string | null, notifiedAt: string | null): string | null {
