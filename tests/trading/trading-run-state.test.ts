@@ -130,7 +130,28 @@ describe("trading run state writer", () => {
     expect(String(runPsqlMock.mock.calls[0][0])).toContain("'notified'");
   });
 
+  it("falls back to Mission Control .env.local when explicit sync env is missing", () => {
+    const root = mkdtempSync(path.join(process.cwd(), "tmp-trading-run-state-"));
+    const externalRoot = mkdtempSync(path.join(process.cwd(), "tmp-cortana-external-"));
+    const envLocalPath = path.join(externalRoot, "apps", "mission-control", ".env.local");
+    const { summaryPath } = setupRunArtifacts(root, "20260407-171944");
+
+    mkdirSync(path.dirname(envLocalPath), { recursive: true });
+    writeFileSync(envLocalPath, "DATABASE_URL=postgresql://writer@localhost:5432/mission_control\n");
+
+    const result = syncTradingRunFromArtifacts(summaryPath, {
+      env: { ...process.env, CORTANA_EXTERNAL_REPO: externalRoot, MISSION_CONTROL_DATABASE_URL: "" },
+    });
+
+    expect(result).toEqual({ ok: true, mode: "written" });
+    expect(runPsqlMock).toHaveBeenCalledTimes(1);
+    expect(runPsqlMock.mock.calls[0][1]).toMatchObject({
+      db: "postgresql://writer@localhost:5432/mission_control",
+    });
+  });
+
   it("skips cleanly when Mission Control DB is not configured", () => {
+    const missingExternalRoot = path.join(process.cwd(), "tmp-cortana-external-missing");
     const result = syncTradingRunStarted({
       runId: "20260407-171942",
       strategy: "Trading market-session unified",
@@ -139,7 +160,7 @@ describe("trading run state writer", () => {
       summaryPath: "/tmp/run/summary.json",
       messagePath: "/tmp/run/message.txt",
       watchlistPath: "/tmp/run/watchlist-full.json",
-    }, { env: {} });
+    }, { env: { CORTANA_EXTERNAL_REPO: missingExternalRoot } });
 
     expect(result).toEqual({
       ok: false,
