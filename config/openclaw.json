@@ -51,15 +51,13 @@
       "model": {
         "primary": "openai-codex/gpt-5.3-codex",
         "fallbacks": [
-          "openai-codex/gpt-5.3-codex",
-          "openai-codex/gpt-5.2-codex"
+          "openai-codex/gpt-5.3-codex"
         ]
       },
       "models": {
         "openai-codex/gpt-5.3": {},
         "openai-codex/gpt-5.3-codex": {},
         "openai-codex/gpt-5.1": {},
-        "openai-codex/gpt-5.2-codex": {},
         "openai-codex/gpt-5.4": {}
       },
       "workspace": "/Users/hd/Developer/cortana",
@@ -128,8 +126,7 @@
         "model": {
           "primary": "openai-codex/gpt-5.4",
           "fallbacks": [
-            "openai-codex/gpt-5.3-codex",
-            "openai-codex/gpt-5.2-codex"
+            "openai-codex/gpt-5.3-codex"
           ]
         }
       },

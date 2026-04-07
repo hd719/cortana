@@ -528,7 +528,7 @@
       "payload": {
         "kind": "agentTurn",
         "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nNightly Memory Consolidation cycle.\n\n1) Review unconsolidated days:\n- Use cortana_memory_consolidation to find last successful run\n- Read memory/YYYY-MM-DD.md for unconsolidated days\n- Query recent cortana_feedback, cortana_patterns, cortana_events, cortana_tasks\n\n2) Distill: decisions/reasons, lessons, new preferences, behavior patterns, project progress.\nSkip routine heartbeats/transient/already-known data.\n\n3) Strengthen MEMORY.md (add/merge/reinforce; preserve structure).\n\n4) Prune cautiously from MEMORY.md (completed one-offs >7d, stale >30d, superseded prefs). Log what was pruned.\n\n5) Pattern queries:\nSELECT lesson, COUNT(*) as cnt FROM cortana_feedback WHERE timestamp > NOW() - INTERVAL '7 days' GROUP BY lesson HAVING COUNT(*) > 1;\nSELECT * FROM cortana_patterns WHERE timestamp > NOW() - INTERVAL '3 days' ORDER BY timestamp DESC;\nIf correction repeats 3+ times, strengthen rule in MEMORY.md or AGENTS.md.\n\n6) File safety rule (STRICT):\n- Never move/delete/rename tracked files in /Users/hd/Developer/cortana/memory/*.md\n- Do not run mv on memory daily files\n- If archival copies are needed, copy to /Users/hd/Developer/cortana/memory/archive/YYYY/MM/ and keep source files untouched\n\n7) Optional: add meaningful cross-domain insights to cortana_insights (0 is fine).\n\n8) Log run:\nINSERT INTO cortana_memory_consolidation (days_reviewed, items_distilled, items_strengthened, items_pruned, items_archived, dream_insights, summary, status, completed_at) VALUES (ARRAY['dates'], N, N, N, N, N, 'summary', 'completed', NOW());\n\nOUTPUT POLICY (STRICT):\n- If no substantive change, return NOTHING\n- If substantive change exists, send concise deltas only\n- Never claim 'no unconsolidated files' while also processing/archiving files in the same run\n\nRule: export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" before psql.",
-        "model": "openai-codex/gpt-5.2-codex",
+        "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 300
       },
       "delivery": {
@@ -674,7 +674,7 @@
       "payload": {
         "kind": "agentTurn",
         "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\n⚠️ DELIVERY: Do NOT rely on announce delivery. You MUST use the `message` tool (action=send, target=8171372724, channel=telegram) to send your final output. This is required because announce delivery is broken.\n\nRun the earnings checker for portfolio holdings:\n/Users/hd/Developer/cortana/tools/earnings/check-earnings.sh\n\nRules:\n- If holdings have earnings within 48h, send each one with symbol, date, and days until.\n- If no earnings upcoming, send: \"📊 Earnings Alert — No holdings reporting in the next 48h.\"\n- Always send via message tool, even for empty results.",
-        "model": "openai-codex/gpt-5.2-codex"
+        "model": "openai-codex/gpt-5.3-codex"
       },
       "delivery": {
         "mode": "none",
@@ -809,7 +809,7 @@
       "payload": {
         "kind": "agentTurn",
         "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: 🧭 Repo - Drift Watchdog\nDELIVERY: send via message tool (channel=telegram, target=8171372724) only on drift.\n\nRun: /Users/hd/Developer/cortana/tools/repo/drift-watchdog.sh\n- If exit code is 0: return NO_REPLY and do not send a message.\n- If exit code is non-zero: send the script output as a concise alert to Telegram, then return one-line confirmation.",
-        "model": "openai-codex/gpt-5.2-codex",
+        "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 90
       },
       "state": {
