@@ -4,6 +4,7 @@ import { existsSync, readFileSync, readdirSync, renameSync, writeFileSync } from
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { syncTradingRunFromArtifacts } from "./trading-run-state";
 
 type BacktestSummary = {
   schemaVersion: 1;
@@ -160,11 +161,17 @@ export function buildNotifyArgs(summary: BacktestSummary, message: string): stri
   ];
 }
 
-function markNotified(file: string, summary: BacktestSummary): void {
+function markNotified(file: string, summary: BacktestSummary): BacktestSummary {
   const updated = { ...summary, notifiedAt: new Date().toISOString() };
   const tmp = `${file}.tmp`;
   writeFileSync(tmp, JSON.stringify(updated, null, 2) + "\n");
   renameSync(tmp, file);
+  return updated;
+}
+
+function logTradingRunSync(result: ReturnType<typeof syncTradingRunFromArtifacts>, runId: string, stage: string): void {
+  if (result.ok) return;
+  console.error(`MISSION_CONTROL_TRADING_RUN_SYNC_${result.mode.toUpperCase()} run_id=${runId} stage=${stage} reason=${result.reason}`);
 }
 
 function main(): void {
@@ -195,16 +202,32 @@ function main(): void {
 
   if ((proc.status ?? 1) !== 0) {
     const err = (stderr || stdout || "telegram delivery failed").trim();
+    logTradingRunSync(
+      syncTradingRunFromArtifacts(picked.file, {
+        deliveryStatus: "failed",
+        lastError: err,
+      }),
+      picked.summary.runId,
+      "notify_failed",
+    );
     console.error(err);
     process.exit((proc.status ?? 1) || 1);
   }
 
   if (!delivered) {
+    logTradingRunSync(
+      syncTradingRunFromArtifacts(picked.file, {
+        deliveryStatus: mode ? String(mode) : "not_delivered",
+      }),
+      picked.summary.runId,
+      "notify_deferred",
+    );
     console.error(`telegram delivery not confirmed (mode=${mode || "unknown"})`);
     return;
   }
 
   markNotified(picked.file, picked.summary);
+  logTradingRunSync(syncTradingRunFromArtifacts(picked.file), picked.summary.runId, "notify_sent");
   console.log(`NOTIFIED ${picked.summary.runId}`);
 }
 
