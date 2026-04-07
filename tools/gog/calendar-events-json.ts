@@ -1,35 +1,10 @@
 #!/usr/bin/env -S npx tsx
-import { spawnSync } from "node:child_process";
-import { readMergedGatewayEnvSources } from "../openclaw/gateway-env.js";
+import { buildGogEnv, runGogWithEnv } from "./gog-with-env.js";
 
-export function buildGogEnv(
-  currentEnv: NodeJS.ProcessEnv = process.env,
-  plistEnv: Record<string, string> = {},
-): NodeJS.ProcessEnv {
-  if (typeof currentEnv.GOG_KEYRING_PASSWORD === "string" && currentEnv.GOG_KEYRING_PASSWORD.trim().length > 0) {
-    return currentEnv;
-  }
-  const inherited = plistEnv.GOG_KEYRING_PASSWORD;
-  if (typeof inherited !== "string" || inherited.trim().length === 0) {
-    return currentEnv;
-  }
-  return {
-    ...currentEnv,
-    GOG_KEYRING_PASSWORD: inherited,
-  };
-}
+export { buildGogEnv };
 
-export function runCalendarEventsJson(
-  args: string[],
-  env: NodeJS.ProcessEnv = process.env,
-  plistPath: string = process.env.OPENCLAW_GATEWAY_PLIST || `${process.env.HOME}/Library/LaunchAgents/ai.openclaw.gateway.plist`,
-) {
-  const mergedEnv = buildGogEnv(env, readMergedGatewayEnvSources(plistPath));
-  return spawnSync("gog", args, {
-    encoding: "utf8",
-    stdio: ["ignore", "pipe", "pipe"],
-    env: mergedEnv,
-  });
+export function runCalendarEventsJson(args: string[], env: NodeJS.ProcessEnv = process.env, plistPath?: string) {
+  return runGogWithEnv(args, env, plistPath);
 }
 
 export function main(argv = process.argv.slice(2)) {

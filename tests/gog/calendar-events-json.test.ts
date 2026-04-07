@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildGogEnv } from "../../tools/gog/calendar-events-json.ts";
+import { buildGogEnv } from "../../tools/gog/gog-with-env.ts";
 
 describe("buildGogEnv", () => {
   it("prefers the current env password when already present", () => {

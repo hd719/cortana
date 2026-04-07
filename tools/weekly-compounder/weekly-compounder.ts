@@ -12,6 +12,7 @@ const script = String.raw`set -euo pipefail
 ROOT="${WEEKLY_COMPOUNDER_ROOT:?missing WEEKLY_COMPOUNDER_ROOT}"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
+GOG_HELPER="$ROOT/tools/gog/gog-with-env.ts"
 
 NOW_ET="$(TZ=America/New_York date '+%Y-%m-%d %I:%M %p ET')"
 TODAY="$(date +%Y-%m-%d)"
@@ -28,9 +29,9 @@ MARKET_TXT="$TMP_DIR/market.txt"
 PORTFOLIO_JSON="$TMP_DIR/portfolio.json"
 
 # 1) Calendar load + deadlines (requested command first)
-if ! gog cal list "Clawdbot-Calendar" --from today --to "$WEEK_END" --plain >"$CAL_OUT" 2>/dev/null; then
+if ! npx tsx "$GOG_HELPER" cal list "Clawdbot-Calendar" --from today --to "$WEEK_END" --plain >"$CAL_OUT" 2>/dev/null; then
   CAL_ID="60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com"
-  gog calendar events "$CAL_ID" --from "$TODAY" --to "$WEEK_END" --json >"$CAL_OUT" 2>/dev/null || echo "(calendar unavailable)" >"$CAL_OUT"
+  npx tsx "$GOG_HELPER" calendar events "$CAL_ID" --from "$TODAY" --to "$WEEK_END" --json >"$CAL_OUT" 2>/dev/null || echo "(calendar unavailable)" >"$CAL_OUT"
 fi
 
 # 2) Whoop / Tonal trend data

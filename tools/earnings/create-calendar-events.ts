@@ -12,6 +12,8 @@ SCRIPT_DIR="$(cd "$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
 CHECK_SCRIPT="$SCRIPT_DIR/check-earnings.sh"
 CAL_NAME="Clawdbot-Calendar"
 
+GOG_HELPER="$SCRIPT_DIR/../gog/gog-with-env.ts"
+
 if ! command -v gog >/dev/null 2>&1; then
   echo "gog CLI not found" >&2
   exit 1
@@ -26,7 +28,7 @@ fi
 
 [[ -z "$json_input" ]] && exit 0
 
-existing="$(gog cal list "$CAL_NAME" --from today --plain 2>/dev/null || true)"
+existing="$(npx tsx "$GOG_HELPER" cal list "$CAL_NAME" --from today --plain 2>/dev/null || true)"
 
 jq -c '.[] | select(.earnings_date != null and .days_until != null and .days_until >= 0 and .days_until <= 2)' <<<"$json_input" \
 | while IFS= read -r row; do
@@ -40,7 +42,7 @@ jq -c '.[] | select(.earnings_date != null and .days_until != null and .days_unt
       continue
     fi
 
-    gog cal add "$CAL_NAME" \
+    npx tsx "$GOG_HELPER" cal add "$CAL_NAME" \
       --title "$title" \
       --when "$when_local" \
       --duration 60m \
