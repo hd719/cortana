@@ -19,6 +19,7 @@ import {
   type PipelineSnapshot,
   type TradingStrategyName,
 } from "./trading-pipeline";
+import { syncTradingRunFromArtifacts, syncTradingRunStarted } from "./trading-run-state";
 
 type BacktestStatus = "success" | "failed";
 type BacktestMetricValue = string | number | boolean | null;
@@ -713,6 +714,22 @@ async function main(): Promise<void> {
   const summaryTmpPath = path.join(outDir, "summary.tmp.json");
   const summaryPath = path.join(outDir, "summary.json");
 
+  const startedSync = syncTradingRunStarted({
+    runId: id,
+    strategy: config.strategy,
+    createdAt: startedAt,
+    startedAt,
+    artifactDirectory: outDir,
+    summaryPath,
+    messagePath,
+    watchlistPath: watchlistFullJsonPath,
+  });
+  if (!startedSync.ok) {
+    process.stderr.write(
+      `MISSION_CONTROL_TRADING_RUN_SYNC_${startedSync.mode.toUpperCase()} run_id=${id} stage=start reason=${startedSync.reason}\n`,
+    );
+  }
+
   const result = config.mode === "shell" ? runShellCommand(config) : await runPreset(config);
 
   writeFileSync(stdoutPath, result.stdout);
@@ -838,6 +855,13 @@ async function main(): Promise<void> {
 
   writeFileSync(summaryTmpPath, JSON.stringify(summary, null, 2) + "\n");
   renameSync(summaryTmpPath, summaryPath);
+
+  const finalSync = syncTradingRunFromArtifacts(summaryPath);
+  if (!finalSync.ok) {
+    process.stderr.write(
+      `MISSION_CONTROL_TRADING_RUN_SYNC_${finalSync.mode.toUpperCase()} run_id=${id} stage=finalize reason=${finalSync.reason}\n`,
+    );
+  }
 
   process.stdout.write(`${summaryPath}\n`);
   if (!success && summary.error) {

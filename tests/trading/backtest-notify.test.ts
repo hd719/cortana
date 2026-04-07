@@ -140,6 +140,8 @@ describe("backtest notify delivery contract", () => {
   it("stamps notified when guard confirms sent", () => {
     const root = mkdtempSync(path.join(process.cwd(), "tmp-notify-"));
     const notifyStub = path.join(root, "notify-stub.sh");
+    const psqlStub = path.join(root, "psql-stub.sh");
+    const psqlLog = path.join(root, "psql.log");
     const summaryPath = setupRun(root, "20260101-000000");
 
     writeFileSync(
@@ -147,14 +149,22 @@ describe("backtest notify delivery contract", () => {
       "#!/usr/bin/env bash\nprintf '{\"delivered\":true,\"mode\":\"sent\"}\\n'\nexit 0\n",
       { mode: 0o755 },
     );
+    writeFileSync(
+      psqlStub,
+      `#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> '${psqlLog}'\nexit 0\n`,
+      { mode: 0o755 },
+    );
 
-    execSync(`BACKTEST_ROOT_DIR=${root} BACKTEST_NOTIFY_BIN=${notifyStub} node --import tsx ./tools/trading/backtest-notify.ts`, {
+    execSync(`BACKTEST_ROOT_DIR=${root} BACKTEST_NOTIFY_BIN=${notifyStub} MISSION_CONTROL_DATABASE_URL='postgresql://writer@localhost:5432/mission_control' PSQL_BIN='${psqlStub}' node --import tsx ./tools/trading/backtest-notify.ts`, {
       cwd: process.cwd(),
       stdio: "pipe",
     });
 
     const updated = JSON.parse(readFileSync(summaryPath, "utf8"));
     expect(updated.notifiedAt).not.toBeNull();
+    const syncLog = readFileSync(psqlLog, "utf8");
+    expect(syncLog).toContain("mc_trading_runs");
+    expect(syncLog).toContain("'notified'");
   });
 
   it("does not stamp notified when guard returns deduped/suppressed", () => {

@@ -245,17 +245,24 @@ describe("backtest compute failure artifacts", () => {
   it("writes structured failure details and emits a concise stderr summary", () => {
     const root = mkdtempSync(path.join(process.cwd(), "tmp-backtest-compute-"));
     const scriptPath = path.join(root, "fail.sh");
+    const psqlStub = path.join(root, "psql-stub.sh");
+    const psqlLog = path.join(root, "psql.log");
     mkdirSync(path.join(root, "runs"), { recursive: true });
     writeFileSync(
       scriptPath,
       "#!/usr/bin/env bash\n>&2 echo 'Market regime refresh failed: transient provider cooldown while fetching SPY 90d.'\nexit 1\n",
       { mode: 0o755 },
     );
+    writeFileSync(
+      psqlStub,
+      `#!/usr/bin/env bash\nprintf '%s\\n' \"$*\" >> '${psqlLog}'\nexit 0\n`,
+      { mode: 0o755 },
+    );
 
     let stderr = "";
     try {
       execSync(
-        `BACKTEST_ROOT_DIR=${root} BACKTEST_CWD=${root} BACKTEST_COMPUTE_COMMAND='${scriptPath}' node --import tsx ./tools/trading/backtest-compute.ts`,
+        `BACKTEST_ROOT_DIR=${root} BACKTEST_CWD=${root} BACKTEST_COMPUTE_COMMAND='${scriptPath}' MISSION_CONTROL_DATABASE_URL='postgresql://writer@localhost:5432/mission_control' PSQL_BIN='${psqlStub}' node --import tsx ./tools/trading/backtest-compute.ts`,
         { cwd: process.cwd(), stdio: ["ignore", "pipe", "pipe"], encoding: "utf8" },
       );
     } catch (error: any) {
@@ -276,5 +283,9 @@ describe("backtest compute failure artifacts", () => {
     expect(message).toContain("Market regime refresh failed: transient SPY 90d provider cooldown blocked the scan.");
     expect(stderr).toContain("FAILED_BACKTEST_SUMMARY");
     expect(stderr).toContain("stage=market-regime");
+    const syncLog = readFileSync(psqlLog, "utf8");
+    expect(syncLog).toContain("mc_trading_runs");
+    expect(syncLog).toContain("'running'");
+    expect(syncLog).toContain("'failed'");
   });
 });
