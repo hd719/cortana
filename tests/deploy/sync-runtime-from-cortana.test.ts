@@ -63,8 +63,10 @@ function makeFixture() {
       auth: { token: "__GATEWAY_TOKEN__" },
     },
   });
+  fs.mkdirSync(path.join(source, "skills", "gog"), { recursive: true });
+  fs.writeFileSync(path.join(source, "skills", "gog", "SKILL.md"), "# Gog skill fixture\n", "utf8");
   fs.writeFileSync(path.join(source, "README.md"), "source v1\n", "utf8");
-  git(source, "add", "README.md", "config/cron/jobs.json", "config/openclaw.json");
+  git(source, "add", "README.md", "config/cron/jobs.json", "config/openclaw.json", "skills/gog/SKILL.md");
   git(source, "commit", "-m", "initial");
   git(source, "push", "-u", "origin", "main");
 
@@ -105,7 +107,7 @@ describe("sync-runtime-from-cortana.sh", () => {
       "bash",
       [script, "--source-repo", fixture.source, "--runtime-repo", fixture.runtime, "--runtime-home", fixture.home],
       process.cwd(),
-      { HOME: fixture.home, PATH: `${fixture.bin}:${process.env.PATH}` },
+      { HOME: fixture.home, PATH: `${fixture.bin}:${process.env.PATH}`, CORTANA_SOURCE_REPO: fixture.source },
     );
 
     const sourceHead = git(fixture.source, "rev-parse", "HEAD");
@@ -136,7 +138,12 @@ describe("sync-runtime-from-cortana.sh", () => {
       [script, "--source-repo", fixture.source, "--runtime-repo", fixture.runtime, "--runtime-home", fixture.home],
       {
         cwd: process.cwd(),
-        env: { ...process.env, HOME: fixture.home, PATH: `${fixture.bin}:${process.env.PATH}` },
+        env: {
+          ...process.env,
+          HOME: fixture.home,
+          PATH: `${fixture.bin}:${process.env.PATH}`,
+          CORTANA_SOURCE_REPO: fixture.source,
+        },
         encoding: "utf8",
       },
     );
