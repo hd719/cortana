@@ -153,6 +153,13 @@ npx tsx "$ROOT_DIR/tools/openclaw/runtime-config-sync.ts" \
   --source "$SOURCE_REPO/config/openclaw.json" \
   --runtime "$RUNTIME_HOME/.openclaw/openclaw.json" >/dev/null
 
+log "Installing gateway Gog shim into runtime bin"
+npx tsx "$ROOT_DIR/tools/gog/install-gog-shim.ts" \
+  --path "$RUNTIME_HOME/.openclaw/bin/gog" >/dev/null
+
+log "Syncing hardened Gog skill instructions into installed OpenClaw package"
+npx tsx "$ROOT_DIR/tools/openclaw/gog-skill-sync.ts" >/dev/null
+
 if [[ "$SKIP_CRON_SYNC" == false ]]; then
   log "Syncing repo cron config into runtime state"
   npx tsx "$ROOT_DIR/tools/cron/sync-cron-to-runtime.ts" \

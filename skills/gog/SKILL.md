@@ -12,6 +12,20 @@ metadata: {"clawdbot":{"emoji":"🎮","requires":{"bins":["gog"]},"install":[{"i
 
 Use `gog` for Gmail/Calendar/Drive/Contacts/Sheets/Docs. Requires OAuth setup.
 
+## Headless Rule
+
+Inside OpenClaw, cron jobs, or any other non-interactive/headless execution, **do not call raw `gog` directly** for Gmail or Calendar reads/writes.
+
+Use the env-aware wrapper instead:
+
+- `npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts ...`
+
+Why:
+- raw `gog` may prompt for the keyring password and fail with `no TTY available`
+- the wrapper injects `GOG_KEYRING_PASSWORD` from the durable gateway env sources
+
+If Gog is genuinely unauthenticated, tell Hamel to re-auth locally. Do **not** ask him to paste the keyring passphrase into chat.
+
 ## When NOT to Use This Skill
 
 ❌ "Add event to my iCloud calendar" → Use **caldav-calendar** skill
@@ -20,14 +34,16 @@ Use `gog` for Gmail/Calendar/Drive/Contacts/Sheets/Docs. Requires OAuth setup.
 ❌ "What's on my Outlook calendar?" → Not supported (use browser or web_fetch)
 
 Setup (once)
-- `gog auth credentials /path/to/client_secret.json`
-- `gog auth add you@gmail.com --services gmail,calendar,drive,contacts,sheets,docs`
-- `gog auth list`
+- Run these only in a local interactive terminal:
+  - `gog auth credentials /path/to/client_secret.json`
+  - `gog auth add you@gmail.com --services gmail,calendar,drive,contacts,sheets,docs`
+  - `gog auth list`
 
 Common commands
-- Gmail search: `gog gmail search 'newer_than:7d' --max 10`
-- Gmail send: `gog gmail send --to a@b.com --subject "Hi" --body "Hello"`
-- Calendar: `gog calendar events <calendarId> --from <iso> --to <iso>`
+- Headless/OpenClaw Gmail search: `npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts gmail search 'newer_than:7d' --max 10 --no-input`
+- Headless/OpenClaw Gmail send: `npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts gmail send --to a@b.com --subject "Hi" --body "Hello"`
+- Headless/OpenClaw Calendar list: `npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts calendar events <calendarId> --from <iso> --to <iso> --json --no-input`
+- Headless/OpenClaw Calendar create: `npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts calendar create <calendarId> --summary "Title" --from <iso> --to <iso>`
 - Drive search: `gog drive search "query" --max 10`
 - Contacts: `gog contacts list --max 20`
 - Sheets get: `gog sheets get <sheetId> "Tab!A1:D10" --json`
@@ -41,6 +57,7 @@ Common commands
 Notes
 - Set `GOG_ACCOUNT=you@gmail.com` to avoid repeating `--account`.
 - For scripting, prefer `--json` plus `--no-input`.
+- In OpenClaw sessions, use `tools/gog/gog-with-env.ts` for Gmail/Calendar commands instead of raw `gog`.
 - Sheets values can be passed via `--values-json` (recommended) or as inline rows.
 - Docs supports export/cat/copy. In-place edits require a Docs API client (not in gog).
 - Confirm before sending mail or creating events.
@@ -55,7 +72,8 @@ export GOG_ACCOUNT=hameldesai3@gmail.com
 
 # Clawdbot-Calendar ID (syncs to Google Calendar)
 CALENDAR_ID="60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com"
-gog calendar events "$CALENDAR_ID" --from 2026-02-12 --to 2026-02-14
+npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts \
+  calendar events "$CALENDAR_ID" --from 2026-02-12 --to 2026-02-14 --json --no-input
 ```
 
 **If auth expires:**

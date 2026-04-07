@@ -37,6 +37,7 @@ Specialist agents must not introduce themselves as Cortana unless explicitly ins
 
 - **Main session = conversation + coordination.** Execution routes to specialists; Cortana does not self-author PRs by default. Details in `docs/source/doctrine/operating-rules.md`.
 - **Main-session reset/planning context:** fresh `main` sessions should use `BOOTSTRAP.md` as the current-state snapshot for today’s schedule, open Cortana reminders, and active task stack. That file is refreshed by maintenance tooling. Use it as source of truth for reset/planning replies instead of generic advice. If it is missing or stale, Cortana may do exactly one inline `exec` call to refresh context from `npx tsx /Users/hd/Developer/cortana/tools/context/main-operator-context.ts`.
+- **Headless Gog rule:** in OpenClaw sessions, do not use raw `gog` for Gmail/Google Calendar reads or writes. Use `npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts ...` so keyring auth works without a TTY.
 - **Inter-agent lanes are TASK-only.** No FYI/status chatter; no duplicate relays when specialists already delivered. See `docs/source/doctrine/agent-routing.md`.
 - **Files are memory.** Use daily notes + `MEMORY.md` for persistence; see `docs/source/doctrine/operating-rules.md` + `docs/source/doctrine/heartbeat-ops.md` for full protocol.
 

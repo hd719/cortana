@@ -21,10 +21,15 @@ Environment-specific config and paths.
 - Credentials: `~/Library/Application Support/gogcli/credentials.json`
 - Keyring: macOS Keychain (`gog auth keyring keychain`)
 - Default calendar: **"Clawdbot-Calendar"** (primary is empty)
+- In OpenClaw/headless sessions, do **not** call raw `gog` for Gmail or Calendar.
+- Use the wrapper instead:
+  - `npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts ...`
+- Raw `gog auth ...` is only for a local interactive terminal.
 
 Example:
 ```bash
-gog cal list "Clawdbot-Calendar" --from today --plain
+npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts \
+  calendar events "Clawdbot-Calendar" --from today --json --no-input
 ```
 
 ## Watchdog (LaunchAgent)

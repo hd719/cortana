@@ -175,6 +175,13 @@ Stable operational routing/preferences must be updated together across the canon
 - Underlying execution can still belong to another specialist, but the user-facing ownership must remain Monitor-labeled.
 - Update `MEMORY.md`, `HEARTBEAT.md`, `docs/source/doctrine/agent-routing.md`, `README.md`, and `config/cron/jobs.json` in the same workflow whenever this contract changes.
 
+## Gog Headless Rule
+
+- In OpenClaw sessions, cron jobs, or any other non-interactive execution, do not call raw `gog` directly for Gmail or Calendar work.
+- Use `npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts ...` so the gateway keyring password is injected from durable runtime state.
+- Raw `gog auth ...` commands are for local interactive terminal use only.
+- Do not ask Hamel to paste the Gog keyring passphrase into chat.
+
 ## ⚠️ HARD RULE: Never Disable, Always Diagnose
 
 **We do not disable or give up on something broken.** Cortana and Hamel are a team. When something breaks, you ask questions, get clarity, break big problems into smaller ones, and explore different paths to find the solution. Keep asking until you have enough context to build the right fix.

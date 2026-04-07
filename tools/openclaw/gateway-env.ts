@@ -6,6 +6,9 @@ import { resolveHomePath } from "../lib/paths.js";
 export const PRESERVED_GATEWAY_ENV_KEYS = ["GOG_KEYRING_PASSWORD"] as const;
 export const DEFAULT_GATEWAY_ENV_STATE_PATH =
   process.env.OPENCLAW_GATEWAY_ENV_STATE_PATH ?? resolveHomePath(".openclaw", "state", "gateway-env.json");
+export const DEFAULT_GATEWAY_BIN_DIR =
+  process.env.OPENCLAW_GATEWAY_BIN_DIR ?? resolveHomePath(".openclaw", "bin");
+const DEFAULT_GATEWAY_PATH_FALLBACK = "/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin";
 
 type GatewayEnv = Partial<Record<(typeof PRESERVED_GATEWAY_ENV_KEYS)[number], string>>;
 
@@ -18,6 +21,16 @@ function plutil(args: string[]) {
 
 function nonEmpty(value: string | undefined | null): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+export function ensureGatewayPathPrefix(
+  currentPath: string | undefined,
+  prefix: string = DEFAULT_GATEWAY_BIN_DIR,
+): string {
+  const base = nonEmpty(currentPath) ? currentPath : DEFAULT_GATEWAY_PATH_FALLBACK;
+  const parts = base.split(":").filter(Boolean);
+  const withoutPrefix = parts.filter((part) => part !== prefix);
+  return [prefix, ...withoutPrefix].join(":");
 }
 
 export function computePreservedGatewayEnv(
@@ -115,6 +128,16 @@ export function reconcileGatewayPlistEnv(
     const result = plutil([action, `EnvironmentVariables.${key}`, "-string", value, plistPath]);
     if ((result.status ?? 1) !== 0) {
       throw new Error(`failed to persist ${key} into ${plistPath}: ${String(result.stderr || result.stdout).trim()}`);
+    }
+    updated = true;
+  }
+
+  const desiredPath = ensureGatewayPathPrefix(currentEnv.PATH ?? existing.PATH);
+  if (existing.PATH !== desiredPath) {
+    const action = existing.PATH ? "-replace" : "-insert";
+    const result = plutil([action, "EnvironmentVariables.PATH", "-string", desiredPath, plistPath]);
+    if ((result.status ?? 1) !== 0) {
+      throw new Error(`failed to persist PATH into ${plistPath}: ${String(result.stderr || result.stdout).trim()}`);
     }
     updated = true;
   }

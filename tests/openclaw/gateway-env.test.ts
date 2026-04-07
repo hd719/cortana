@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import {
   computePreservedGatewayEnv,
+  ensureGatewayPathPrefix,
   readGatewayEnvStateFile,
   writeGatewayEnvStateFile,
 } from "../../tools/openclaw/gateway-env.ts";
@@ -68,5 +69,10 @@ describe("gateway env preservation", () => {
     );
 
     expect(readGatewayEnvStateFile(statePath)).toEqual({ GOG_KEYRING_PASSWORD: "from-preserved-source" });
+  });
+
+  it("prepends the runtime bin dir to PATH exactly once", () => {
+    expect(ensureGatewayPathPrefix("/usr/bin:/bin", "/tmp/openclaw-bin")).toBe("/tmp/openclaw-bin:/usr/bin:/bin");
+    expect(ensureGatewayPathPrefix("/tmp/openclaw-bin:/usr/bin:/bin", "/tmp/openclaw-bin")).toBe("/tmp/openclaw-bin:/usr/bin:/bin");
   });
 });

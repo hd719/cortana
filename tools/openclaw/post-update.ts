@@ -103,6 +103,34 @@ function syncCronConfig(runtimeJobs: string, repoJobs: string): void {
   fs.copyFileSync(repoJobs, runtimeJobs);
 }
 
+function syncGogSkillOverlay(): void {
+  const syncTsScript = path.join(CANONICAL_REPO_ROOT, "tools", "openclaw", "gog-skill-sync.ts");
+  if (!fs.existsSync(syncTsScript)) {
+    throw new Error(`gog skill sync script missing: ${syncTsScript}`);
+  }
+  log("Syncing hardened Gog skill instructions into installed OpenClaw package");
+  const syncRes = spawnSync("npx", ["tsx", syncTsScript], {
+    stdio: "inherit",
+  });
+  if (syncRes.status !== 0) {
+    throw new Error(`gog skill sync failed with status ${syncRes.status ?? 1}`);
+  }
+}
+
+function installGogShim(): void {
+  const shimTsScript = path.join(CANONICAL_REPO_ROOT, "tools", "gog", "install-gog-shim.ts");
+  if (!fs.existsSync(shimTsScript)) {
+    throw new Error(`gog shim installer missing: ${shimTsScript}`);
+  }
+  log("Installing gateway Gog shim into ~/.openclaw/bin");
+  const syncRes = spawnSync("npx", ["tsx", shimTsScript], {
+    stdio: "inherit",
+  });
+  if (syncRes.status !== 0) {
+    throw new Error(`gog shim install failed with status ${syncRes.status ?? 1}`);
+  }
+}
+
 function ensureCompatShim(): void {
   const shimScript = path.join(CANONICAL_REPO_ROOT, "tools", "openclaw", "install-compat-shim.sh");
   if (!fs.existsSync(shimScript)) {
@@ -229,6 +257,9 @@ async function main(): Promise<number> {
   } else {
     log("Skipping gateway install (pass --install-gateway to enable).");
   }
+
+  installGogShim();
+  syncGogSkillOverlay();
 
   const gatewayEnvUpdate = reconcileGatewayPlistEnv(gatewayPlistPath, process.env, preservedGatewayEnv);
   if (gatewayEnvUpdate.updated) {
