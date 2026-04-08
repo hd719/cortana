@@ -6,6 +6,11 @@ This repo is **Cortana’s command brain** – memory, policy, orchestration, cr
 
 Documentation placement and authoring rules live in [`docs/source/architecture/documentation-authoring-guide.md`](docs/source/architecture/documentation-authoring-guide.md).
 
+Documentation follows a Karpathy-style LLM wiki split:
+- raw source material lives in `docs/source/` plus the repo's live doctrine/memory files
+- compiled current-truth wiki pages live in `knowledge/`
+- historical or low-signal material lives in `docs/archive/`
+
 Canonical source lives here at `~/Developer/cortana`. `~/openclaw` is now a compatibility shim path only; it is no longer the primary repo/workspace.
 
 If `~/Developer/cortana-external` is the runtime body (services + Mission Control), this repo is the **mind and nervous system**.

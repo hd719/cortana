@@ -1,12 +1,17 @@
 # Cortana Docs
 
-This directory holds durable source documentation for the `cortana` repo.
+This directory holds the raw source-document layer for the `cortana` repo.
 
 It does **not** replace:
 - root boot doctrine like `SOUL.md` and `MEMORY.md`
 - live continuity in `memory/`
 - agent namespace files in `identities/`
 - Covenant role scaffolds in `covenant/`
+
+In the LLM wiki model:
+- `docs/source/` = raw source material and durable artifacts
+- `knowledge/` = compiled current-truth wiki
+- `docs/archive/` = historical overflow kept out of the active front door
 
 ## Start Here
 
