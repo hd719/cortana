@@ -107,6 +107,7 @@ Main implementation areas in `cortana` will likely include:
 - a vacation incident ledger
 - a remediation policy table that defines which automatic actions are permitted
 - typed config describing the in-scope systems, required checks, and go / no-go logic
+- canonical vacation state stored in Postgres, with any runtime file mirrors treated as non-canonical execution caches only
 
 The system should explicitly support two phases:
 
@@ -415,6 +416,10 @@ Vacation-mode alerts must:
 
 #### Ledger requirements
 
+Vacation mode state and the vacation incident ledger must be stored canonically in Postgres.
+
+Repo or runtime files may mirror the currently active vacation window only to support local script execution, but those files must not be treated as the system of record.
+
 The ledger must record at minimum:
 
 - incident id
@@ -470,7 +475,7 @@ Tier 1 / user value and critical dependencies:
 - Schwab auth and quote smoke
 - backtester app health
 - GitHub machine identity consistency
-- browser CDP health if it underpins active flows
+- browser CDP health
 
 Tier 2 / valuable but not immediate no-go if degraded:
 - trading watchlist support flows
@@ -480,6 +485,31 @@ Tier 2 / valuable but not immediate no-go if degraded:
 
 Tier 3 / informational:
 - low-value informational scans or convenience outputs that do not affect away-from-keyboard trust
+
+#### Tier 2 freshness thresholds
+
+Tier 2 freshness must be class-based, not one universal timeout:
+
+- market / trading Tier 2
+  - `INFO` on first failure
+  - `WARN` if degradation persists for `30m` during market hours
+  - `WARN` if degradation persists into the final `60m` before the next market open
+  - `WARN` on `2` consecutive missed runs
+
+- fitness / news Tier 2
+  - `INFO` on first failure
+  - `WARN` on `2` consecutive failures
+  - `WARN` if stale for `24h`
+
+- background intel / secondary enrichments
+  - `INFO` on first failure
+  - `WARN` on `2` consecutive failures
+  - `WARN` if stale for `12h`
+
+Global freshness rule:
+
+- if a healthy verification result is newer than the degraded evidence, the degraded state must clear immediately
+- stale degraded evidence must never remain `WARN` after a fresh healthy verification succeeds
 
 ---
 
@@ -526,6 +556,6 @@ Observed operator requirements from this planning discussion:
 
 ### Open Questions
 
-- Should the system store vacation mode state only in repo/runtime files, or also in Postgres for stronger incident/history correlation?
-- What exact freshness thresholds should apply to Tier 2 degradations before they move from `INFO` to `WARN`?
-- Should browser CDP remain Tier 1 universally, or only when vacation-critical flows actively depend on it?
+- What should the default local morning and evening summary times be before user customization exists?
+- Should backtester app health initially rely on existing market-data / readiness surfaces, or should the implementation add a dedicated backtester health endpoint?
+- Which parts of the existing autonomy incident model should be reused directly vs wrapped by vacation-specific tables?
