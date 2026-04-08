@@ -25,14 +25,17 @@ function runDate(): string {
 
 async function main(): Promise<void> {
   const db = process.env.DB_NAME || "cortana";
+  const activeFeedbackFilter = `
+FROM mc_feedback_items m
+WHERE COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
+  AND COALESCE(m.details->>'validation_seed', 'false') <> 'true'`;
 
   const mcTotal = psql(db, ["-t", "-A", "-c", "SELECT COUNT(*) FROM mc_feedback_items;"]);
   const feedbackTasksTotal = psql(db, ["-t", "-A", "-c", "SELECT COUNT(*) FROM cortana_tasks WHERE source = 'feedback';"]);
   const feedbackLoopTasksTotal = psql(db, ["-t", "-A", "-c", "SELECT COUNT(*) FROM cortana_tasks WHERE source = 'feedback_loop';"]);
 
   const unlinkedCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
-FROM mc_feedback_items m
-WHERE COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
+${activeFeedbackFilter}
   AND NOT EXISTS (
     SELECT 1
     FROM cortana_tasks t
@@ -40,9 +43,8 @@ WHERE COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
   );`]);
 
   const stuckCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
-FROM mc_feedback_items m
-WHERE m.created_at < NOW() - INTERVAL '24 hours'
-  AND COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
+${activeFeedbackFilter}
+  AND m.created_at < NOW() - INTERVAL '24 hours'
   AND (
     NOT EXISTS (
       SELECT 1
@@ -53,9 +55,8 @@ WHERE m.created_at < NOW() - INTERVAL '24 hours'
   );`]);
 
   const stuckBacklogCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
-FROM mc_feedback_items m
-WHERE m.created_at < NOW() - INTERVAL '24 hours'
-  AND COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
+${activeFeedbackFilter}
+  AND m.created_at < NOW() - INTERVAL '24 hours'
   AND EXISTS (
     SELECT 1
     FROM cortana_tasks t
@@ -63,9 +64,8 @@ WHERE m.created_at < NOW() - INTERVAL '24 hours'
   );`]);
 
   const stuckBreakageCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
-FROM mc_feedback_items m
-WHERE m.created_at < NOW() - INTERVAL '24 hours'
-  AND COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
+${activeFeedbackFilter}
+  AND m.created_at < NOW() - INTERVAL '24 hours'
   AND NOT EXISTS (
     SELECT 1
     FROM cortana_tasks t
@@ -78,8 +78,7 @@ WHERE m.created_at < NOW() - INTERVAL '24 hours'
   COALESCE(m.category, '') AS category,
   COALESCE(m.severity, '') AS severity,
   LEFT(COALESCE(m.summary,''), 120) AS summary
-FROM mc_feedback_items m
-WHERE COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
+${activeFeedbackFilter}
   AND NOT EXISTS (
     SELECT 1
     FROM cortana_tasks t
@@ -99,9 +98,8 @@ LIMIT 10;`]);
     FROM cortana_tasks t
     WHERE t.metadata->>'feedback_id' = m.id::text
   ), '') AS linked_task_id
-FROM mc_feedback_items m
-WHERE m.created_at < NOW() - INTERVAL '24 hours'
-  AND COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
+${activeFeedbackFilter}
+  AND m.created_at < NOW() - INTERVAL '24 hours'
   AND (
     NOT EXISTS (
       SELECT 1
@@ -147,29 +145,34 @@ VALUES (
   });
   if ((ins.status ?? 1) !== 0) process.exit(ins.status ?? 1);
 
-  console.log("=== Feedback Pipeline Reconciliation ===");
-  console.log(`Generated: ${runDate()}`);
-  console.log("");
-  console.log("Stage counts:");
-  console.log(`- mc_feedback_items: ${mcTotal}`);
-  console.log(`- cortana_tasks (source='feedback'): ${feedbackTasksTotal}`);
-  console.log(`- cortana_tasks (source='feedback_loop'): ${feedbackLoopTasksTotal}`);
-  console.log("");
-  console.log("Gaps:");
-  console.log(`- Unlinked feedback items (missing task): ${unlinkedN}`);
-  console.log(`- Stuck >24h total: ${stuckN}`);
-  console.log(`  - Backlog (task linked, unresolved): ${stuckBacklogN}`);
-  console.log(`  - Breakage (missing linked task): ${stuckBreakageN}`);
-  console.log("");
-  console.log("Unlinked sample (up to 10):");
-  console.log("id\tcreated_et\tcategory\tseverity\tsummary");
-  console.log(unlinkedRows || "<none>");
-  console.log("");
-  console.log("Stuck sample (up to 10):");
-  console.log("id\tcreated_et\tstatus\tremediation_status\tsummary\tlinked_task_id");
-  console.log(stuckRows || "<none>");
-  console.log("");
-  console.log(`Logged cortana_events event_type='feedback_pipeline_reconciliation' severity='${severity}'.`);
+  if (unlinkedN === 0 && stuckN === 0) {
+    console.log("NO_REPLY");
+    return;
+  }
+
+  const latestUnlinked = (unlinkedRows || "").split("\n").map((line) => line.trim()).filter(Boolean)[0] ?? "";
+  const latestStuck = (stuckRows || "").split("\n").map((line) => line.trim()).filter(Boolean)[0] ?? "";
+
+  if (unlinkedN > 0) {
+    const [id = "", _createdEt = "", category = "", severityLabel = "", summary = ""] = latestUnlinked.split("\t");
+    console.log(
+      `Feedback pipeline: ${unlinkedN} unlinked item${unlinkedN === 1 ? "" : "s"}`
+      + (summary ? ` (${summary}${category || severityLabel ? `, ${category}/${severityLabel}` : ""})` : "")
+      + ".",
+    );
+    console.log(`Next: Link a task or mark handled in Mission Control${id ? ` (${id})` : ""}.`);
+    return;
+  }
+
+  const [id = "", _createdEt = "", status = "", remediationStatus = "", summary = "", linkedTaskId = ""] = latestStuck.split("\t");
+  console.log(
+    `Feedback pipeline: ${stuckN} stuck item${stuckN === 1 ? "" : "s"} >24h`
+    + (summary ? ` (${summary}${status || remediationStatus ? `, ${status}/${remediationStatus}` : ""})` : "")
+    + ".",
+  );
+  console.log(
+    `Next: Resume remediation${linkedTaskId ? ` on task ${linkedTaskId}` : ""} or close the item${id ? ` (${id})` : ""}.`,
+  );
 }
 
 main();
