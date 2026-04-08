@@ -33,16 +33,17 @@ async function main(): Promise<void> {
 
   const lagCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
 FROM cortana_feedback f
-WHERE NOT EXISTS (
-  SELECT 1
-  FROM mc_feedback_items m
-  WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
-     OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
-     OR (
-       COALESCE(m.summary,'') = COALESCE(f.context,'')
-       AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
-     )
-);`]);
+WHERE COALESCE(f.applied, FALSE) = FALSE
+  AND NOT EXISTS (
+    SELECT 1
+    FROM mc_feedback_items m
+    WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
+       OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
+       OR (
+         COALESCE(m.summary,'') = COALESCE(f.context,'')
+         AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+       )
+  );`]);
 
   const stuckCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
 FROM mc_feedback_items m
@@ -123,16 +124,17 @@ WHERE m.created_at < NOW() - INTERVAL '24 hours'
   to_char(f.timestamp AT TIME ZONE 'America/New_York', 'YYYY-MM-DD HH24:MI:SS') AS feedback_ts_et,
   LEFT(COALESCE(f.context,''), 120) AS context
 FROM cortana_feedback f
-WHERE NOT EXISTS (
-  SELECT 1
-  FROM mc_feedback_items m
-  WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
-     OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
-     OR (
-       COALESCE(m.summary,'') = COALESCE(f.context,'')
-       AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
-     )
-)
+WHERE COALESCE(f.applied, FALSE) = FALSE
+  AND NOT EXISTS (
+    SELECT 1
+    FROM mc_feedback_items m
+    WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
+       OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
+       OR (
+         COALESCE(m.summary,'') = COALESCE(f.context,'')
+         AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
+       )
+  )
 ORDER BY f.timestamp ASC
 LIMIT 10;`]);
 

@@ -43,4 +43,28 @@ describe("feedback pipeline reconciliation", () => {
     expect(String(insertCall?.[1]?.[insertCall[1].length - 1] ?? "")).toContain("'info'");
     expect(exitSpy).not.toHaveBeenCalledWith(1);
   });
+
+  it("ignores legacy applied cortana_feedback rows when computing lag", async () => {
+    const consoleCapture = captureConsole();
+
+    const scalarOut = ["51", "0", "0", "0", "0", "0", "0", "0"];
+    spawnSync.mockImplementation((cmd: string, args: string[]) => {
+      if (cmd === "date") return { status: 0, stdout: "2026-04-08 07:00:00 EDT" } as any;
+      if (args.includes("-F")) return { status: 0, stdout: "" } as any;
+      if (args.includes("INSERT INTO cortana_events")) return { status: 0, stdout: "" } as any;
+      return { status: 0, stdout: `${scalarOut.shift() ?? "0"}\n` } as any;
+    });
+
+    await importFresh("../../tools/feedback/pipeline-reconciliation.ts");
+
+    const output = consoleCapture.logs.join("\n");
+    expect(output).toContain("Lag (in cortana_feedback, missing in mc_feedback_items): 0");
+
+    const lagCountCall = spawnSync.mock.calls.find(([, args]) =>
+      String(args?.[args.length - 1] ?? "").includes("SELECT COUNT(*)\nFROM cortana_feedback f"),
+    );
+    expect(String(lagCountCall?.[1]?.[lagCountCall[1].length - 1] ?? "")).toContain(
+      "COALESCE(f.applied, FALSE) = FALSE",
+    );
+  });
 });
