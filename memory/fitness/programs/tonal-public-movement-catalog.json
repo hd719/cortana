@@ -1,6 +1,6 @@
 {
   "schema": "spartan.tonal_public_movement_catalog.v1",
-  "generatedAt": "2026-04-08T15:13:58.455Z",
+  "generatedAt": "2026-04-08T15:33:36.651Z",
   "source": {
     "baseUrl": "https://tonal.com/blogs/movements",
     "pagesScraped": 11
@@ -8,7 +8,7 @@
   "summary": {
     "publicMovementCount": 257,
     "mappedCount": 51,
-    "observedCount": 0,
+    "observedCount": 51,
     "metricReadyCount": 51,
     "pplCounts": {
       "push": 34,
@@ -181,17 +181,15 @@
       "publicPage": 10,
       "publicUrl": "https://tonal.com/blogs/movements?page=10",
       "mapped": true,
-      "movementId": null,
+      "movementId": "8edc0211-4594-4e5e-8e1b-b05dfc1d67c7",
       "canonicalKey": "bench press",
       "muscleGroup": "chest",
       "pattern": "press",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Alternating Bicep Curl",
@@ -243,17 +241,15 @@
       "publicPage": 10,
       "publicUrl": "https://tonal.com/blogs/movements?page=10",
       "mapped": true,
-      "movementId": null,
+      "movementId": "0c498470-12f9-4b8b-83e8-940e70f7b967",
       "canonicalKey": "neutral lat pulldown",
       "muscleGroup": "lats",
       "pattern": "pull_down",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Assisted Reverse Lunge",
@@ -305,17 +301,15 @@
       "publicPage": 11,
       "publicUrl": "https://tonal.com/blogs/movements?page=11",
       "mapped": true,
-      "movementId": null,
+      "movementId": "8edc0211-4594-4e5e-8e1b-b05dfc1d67c7",
       "canonicalKey": "bench press",
       "muscleGroup": "chest",
       "pattern": "press",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Barbell Bent Over Row",
@@ -325,17 +319,15 @@
       "publicPage": 10,
       "publicUrl": "https://tonal.com/blogs/movements?page=10",
       "mapped": true,
-      "movementId": null,
+      "movementId": "ec9edd5f-4745-45b7-b78b-b7368839ca38",
       "canonicalKey": "barbell bent over row",
       "muscleGroup": "back",
       "pattern": "row",
       "mappingConfidence": 0.98,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Barbell Bicep Curl",
@@ -387,17 +379,15 @@
       "publicPage": 11,
       "publicUrl": "https://tonal.com/blogs/movements?page=11",
       "mapped": true,
-      "movementId": null,
+      "movementId": "c7737825-dd6f-44b4-9b25-6ee66b43d07d",
       "canonicalKey": "split squat",
       "muscleGroup": "quads",
       "pattern": "lunge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Barbell Front Racked Reverse Lunge",
@@ -428,17 +418,15 @@
       "publicPage": 10,
       "publicUrl": "https://tonal.com/blogs/movements?page=10",
       "mapped": true,
-      "movementId": null,
+      "movementId": "5c740fbf-6d28-4fba-912d-040e4d1c92e1",
       "canonicalKey": "barbell front raise",
       "muscleGroup": "shoulders",
       "pattern": "raise",
       "mappingConfidence": 0.96,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Barbell Front Squat",
@@ -532,17 +520,15 @@
       "publicPage": 10,
       "publicUrl": "https://tonal.com/blogs/movements?page=10",
       "mapped": true,
-      "movementId": null,
+      "movementId": "ef5f1802-a99e-4e56-b473-32bbf353fb73",
       "canonicalKey": "barbell rdl",
       "muscleGroup": "hamstrings",
       "pattern": "hinge",
       "mappingConfidence": 0.98,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Barbell Seated Lat Pulldown",
@@ -552,17 +538,15 @@
       "publicPage": 9,
       "publicUrl": "https://tonal.com/blogs/movements?page=9",
       "mapped": true,
-      "movementId": null,
+      "movementId": "0c498470-12f9-4b8b-83e8-940e70f7b967",
       "canonicalKey": "neutral lat pulldown",
       "muscleGroup": "lats",
       "pattern": "pull_down",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Barbell Seated Overhead Press",
@@ -572,17 +556,15 @@
       "publicPage": 9,
       "publicUrl": "https://tonal.com/blogs/movements?page=9",
       "mapped": true,
-      "movementId": null,
+      "movementId": "a906fa8b-a55d-4acf-b350-c6b12f77bf40",
       "canonicalKey": "barbell seated overhead press",
       "muscleGroup": "shoulders",
       "pattern": "press",
       "mappingConfidence": 0.97,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Barbell Single Leg RDL",
@@ -592,17 +574,15 @@
       "publicPage": 9,
       "publicUrl": "https://tonal.com/blogs/movements?page=9",
       "mapped": true,
-      "movementId": null,
+      "movementId": "ef5f1802-a99e-4e56-b473-32bbf353fb73",
       "canonicalKey": "barbell rdl",
       "muscleGroup": "hamstrings",
       "pattern": "hinge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Barbell Skull Crusher",
@@ -654,17 +634,15 @@
       "publicPage": 9,
       "publicUrl": "https://tonal.com/blogs/movements?page=9",
       "mapped": true,
-      "movementId": null,
+      "movementId": "f94f667d-5fe2-4bf7-b87e-ca705d5b627d",
       "canonicalKey": "barbell straight arm pulldown",
       "muscleGroup": "lats",
       "pattern": "pull_down",
       "mappingConfidence": 0.97,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Bear Hold",
@@ -716,17 +694,15 @@
       "publicPage": 9,
       "publicUrl": "https://tonal.com/blogs/movements?page=9",
       "mapped": true,
-      "movementId": null,
+      "movementId": "8edc0211-4594-4e5e-8e1b-b05dfc1d67c7",
       "canonicalKey": "bench press",
       "muscleGroup": "chest",
       "pattern": "press",
       "mappingConfidence": 0.98,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Bent Hollow Rock",
@@ -778,17 +754,15 @@
       "publicPage": 9,
       "publicUrl": "https://tonal.com/blogs/movements?page=9",
       "mapped": true,
-      "movementId": null,
+      "movementId": "ec9edd5f-4745-45b7-b78b-b7368839ca38",
       "canonicalKey": "barbell bent over row",
       "muscleGroup": "back",
       "pattern": "row",
       "mappingConfidence": 0.98,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Bicep Curl",
@@ -861,17 +835,15 @@
       "publicPage": 8,
       "publicUrl": "https://tonal.com/blogs/movements?page=8",
       "mapped": true,
-      "movementId": null,
+      "movementId": "c7737825-dd6f-44b4-9b25-6ee66b43d07d",
       "canonicalKey": "split squat",
       "muscleGroup": "quads",
       "pattern": "lunge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Bodyweight Single Leg RDL",
@@ -881,17 +853,15 @@
       "publicPage": 8,
       "publicUrl": "https://tonal.com/blogs/movements?page=8",
       "mapped": true,
-      "movementId": null,
+      "movementId": "ef5f1802-a99e-4e56-b473-32bbf353fb73",
       "canonicalKey": "barbell rdl",
       "muscleGroup": "hamstrings",
       "pattern": "hinge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Bodyweight Split Squat",
@@ -901,17 +871,15 @@
       "publicPage": 8,
       "publicUrl": "https://tonal.com/blogs/movements?page=8",
       "mapped": true,
-      "movementId": null,
+      "movementId": "c7737825-dd6f-44b4-9b25-6ee66b43d07d",
       "canonicalKey": "split squat",
       "muscleGroup": "quads",
       "pattern": "lunge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Bodyweight Squat",
@@ -984,17 +952,15 @@
       "publicPage": 8,
       "publicUrl": "https://tonal.com/blogs/movements?page=8",
       "mapped": true,
-      "movementId": null,
+      "movementId": "c7737825-dd6f-44b4-9b25-6ee66b43d07d",
       "canonicalKey": "split squat",
       "muscleGroup": "quads",
       "pattern": "lunge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Bulgarian Split Squat + Hip IR",
@@ -1004,17 +970,15 @@
       "publicPage": 8,
       "publicUrl": "https://tonal.com/blogs/movements?page=8",
       "mapped": true,
-      "movementId": null,
+      "movementId": "c7737825-dd6f-44b4-9b25-6ee66b43d07d",
       "canonicalKey": "split squat",
       "muscleGroup": "quads",
       "pattern": "lunge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Burp",
@@ -1171,17 +1135,15 @@
       "publicPage": 6,
       "publicUrl": "https://tonal.com/blogs/movements?page=6",
       "mapped": true,
-      "movementId": null,
+      "movementId": "8edc0211-4594-4e5e-8e1b-b05dfc1d67c7",
       "canonicalKey": "bench press",
       "muscleGroup": "chest",
       "pattern": "press",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Crunch",
@@ -1233,17 +1195,15 @@
       "publicPage": 6,
       "publicUrl": "https://tonal.com/blogs/movements?page=6",
       "mapped": true,
-      "movementId": null,
+      "movementId": "f4d78bdf-f70c-4f3c-bccb-78e9ff80f9fb",
       "canonicalKey": "decline chest fly",
       "muscleGroup": "chest",
       "pattern": "fly",
       "mappingConfidence": 0.97,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Draw A Sword",
@@ -1400,17 +1360,15 @@
       "publicPage": 6,
       "publicUrl": "https://tonal.com/blogs/movements?page=6",
       "mapped": true,
-      "movementId": null,
+      "movementId": "5c740fbf-6d28-4fba-912d-040e4d1c92e1",
       "canonicalKey": "barbell front raise",
       "muscleGroup": "shoulders",
       "pattern": "raise",
       "mappingConfidence": 0.96,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Glute Bridge",
@@ -1525,17 +1483,15 @@
       "publicPage": 5,
       "publicUrl": "https://tonal.com/blogs/movements?page=5",
       "mapped": true,
-      "movementId": null,
+      "movementId": "eabcfa09-599a-4efd-8997-de107832de01",
       "canonicalKey": "standing barbell overhead press",
       "muscleGroup": "shoulders",
       "pattern": "press",
       "mappingConfidence": 0.89,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Half Kneeling Chop",
@@ -1587,17 +1543,15 @@
       "publicPage": 5,
       "publicUrl": "https://tonal.com/blogs/movements?page=5",
       "mapped": true,
-      "movementId": null,
+      "movementId": "eabcfa09-599a-4efd-8997-de107832de01",
       "canonicalKey": "standing barbell overhead press",
       "muscleGroup": "shoulders",
       "pattern": "press",
       "mappingConfidence": 0.89,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Half Kneeling Pallof Press",
@@ -1628,17 +1582,15 @@
       "publicPage": 5,
       "publicUrl": "https://tonal.com/blogs/movements?page=5",
       "mapped": true,
-      "movementId": null,
+      "movementId": "eabcfa09-599a-4efd-8997-de107832de01",
       "canonicalKey": "standing barbell overhead press",
       "muscleGroup": "shoulders",
       "pattern": "press",
       "mappingConfidence": 0.89,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Half Kneeling Vertical Push-Pull",
@@ -1837,17 +1789,15 @@
       "publicPage": 5,
       "publicUrl": "https://tonal.com/blogs/movements?page=5",
       "mapped": true,
-      "movementId": null,
+      "movementId": "f99ab88a-190a-42bb-b145-298b83b39233",
       "canonicalKey": "incline chest fly",
       "muscleGroup": "chest",
       "pattern": "fly",
       "mappingConfidence": 0.97,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Incline Pillar Bridge",
@@ -1941,17 +1891,15 @@
       "publicPage": 4,
       "publicUrl": "https://tonal.com/blogs/movements?page=4",
       "mapped": true,
-      "movementId": null,
+      "movementId": "c7737825-dd6f-44b4-9b25-6ee66b43d07d",
       "canonicalKey": "split squat",
       "muscleGroup": "quads",
       "pattern": "lunge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "ISO Split Squat Chop",
@@ -1961,17 +1909,15 @@
       "publicPage": 4,
       "publicUrl": "https://tonal.com/blogs/movements?page=4",
       "mapped": true,
-      "movementId": null,
+      "movementId": "c7737825-dd6f-44b4-9b25-6ee66b43d07d",
       "canonicalKey": "split squat",
       "muscleGroup": "quads",
       "pattern": "lunge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "ISO Split Squat Lift",
@@ -1981,17 +1927,15 @@
       "publicPage": 4,
       "publicUrl": "https://tonal.com/blogs/movements?page=4",
       "mapped": true,
-      "movementId": null,
+      "movementId": "b68dd564-eb27-4b76-904f-67e25cf6de8c",
       "canonicalKey": "iso split squat lift",
       "muscleGroup": "core",
       "pattern": "rotation",
       "mappingConfidence": 0.93,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "ISO Split Squat Pallof Press",
@@ -2001,17 +1945,15 @@
       "publicPage": 3,
       "publicUrl": "https://tonal.com/blogs/movements?page=3",
       "mapped": true,
-      "movementId": null,
+      "movementId": "c7737825-dd6f-44b4-9b25-6ee66b43d07d",
       "canonicalKey": "split squat",
       "muscleGroup": "quads",
       "pattern": "lunge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "ISO Squat Hold",
@@ -2210,17 +2152,15 @@
       "publicPage": 3,
       "publicUrl": "https://tonal.com/blogs/movements?page=3",
       "mapped": true,
-      "movementId": null,
+      "movementId": "d509c836-0e78-48d5-8daf-3900add72be4",
       "canonicalKey": "lateral bridge w row",
       "muscleGroup": "core",
       "pattern": "anti_rotation",
       "mappingConfidence": 0.95,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Lateral Crawl",
@@ -2251,17 +2191,15 @@
       "publicPage": 1,
       "publicUrl": "https://tonal.com/blogs/movements",
       "mapped": true,
-      "movementId": null,
+      "movementId": "f8bad1ec-c502-4379-b2f4-e9198245e534",
       "canonicalKey": "resisted lateral lunge",
       "muscleGroup": "glutes",
       "pattern": "lunge",
       "mappingConfidence": 0.96,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Lateral Mountain Climber",
@@ -2523,17 +2461,15 @@
       "publicPage": 2,
       "publicUrl": "https://tonal.com/blogs/movements?page=2",
       "mapped": true,
-      "movementId": null,
+      "movementId": "e12dd59c-f1c3-4e2d-bc54-593863b643d0",
       "canonicalKey": "middle chest fly",
       "muscleGroup": "chest",
       "pattern": "fly",
       "mappingConfidence": 0.97,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Mini Sumo Squat",
@@ -2627,17 +2563,15 @@
       "publicPage": 2,
       "publicUrl": "https://tonal.com/blogs/movements?page=2",
       "mapped": true,
-      "movementId": null,
+      "movementId": "0c498470-12f9-4b8b-83e8-940e70f7b967",
       "canonicalKey": "neutral lat pulldown",
       "muscleGroup": "lats",
       "pattern": "pull_down",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Neutral Single Arm Straight Arm Pulldown",
@@ -2647,17 +2581,15 @@
       "publicPage": 2,
       "publicUrl": "https://tonal.com/blogs/movements?page=2",
       "mapped": true,
-      "movementId": null,
+      "movementId": "f94f667d-5fe2-4bf7-b87e-ca705d5b627d",
       "canonicalKey": "barbell straight arm pulldown",
       "muscleGroup": "lats",
       "pattern": "pull_down",
       "mappingConfidence": 0.89,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Ninety Ninety Arm Sweep",
@@ -3066,17 +2998,15 @@
       "publicPage": 10,
       "publicUrl": "https://tonal.com/blogs/movements?page=10",
       "mapped": true,
-      "movementId": null,
+      "movementId": "c7737825-dd6f-44b4-9b25-6ee66b43d07d",
       "canonicalKey": "split squat",
       "muscleGroup": "quads",
       "pattern": "lunge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Racked Offset Squat",
@@ -3170,17 +3100,15 @@
       "publicPage": 3,
       "publicUrl": "https://tonal.com/blogs/movements?page=3",
       "mapped": true,
-      "movementId": null,
+      "movementId": "ef5f1802-a99e-4e56-b473-32bbf353fb73",
       "canonicalKey": "barbell rdl",
       "muscleGroup": "hamstrings",
       "pattern": "hinge",
       "mappingConfidence": 0.98,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Reach and Rotate",
@@ -3400,17 +3328,15 @@
       "publicPage": 4,
       "publicUrl": "https://tonal.com/blogs/movements?page=4",
       "mapped": true,
-      "movementId": null,
+      "movementId": "f8bad1ec-c502-4379-b2f4-e9198245e534",
       "canonicalKey": "resisted lateral lunge",
       "muscleGroup": "glutes",
       "pattern": "lunge",
       "mappingConfidence": 0.96,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Resisted Leg Lowering",
@@ -3840,17 +3766,15 @@
       "publicPage": 5,
       "publicUrl": "https://tonal.com/blogs/movements?page=5",
       "mapped": true,
-      "movementId": null,
+      "movementId": "0c498470-12f9-4b8b-83e8-940e70f7b967",
       "canonicalKey": "neutral lat pulldown",
       "muscleGroup": "lats",
       "pattern": "pull_down",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Seated Overhead Press",
@@ -3860,17 +3784,15 @@
       "publicPage": 5,
       "publicUrl": "https://tonal.com/blogs/movements?page=5",
       "mapped": true,
-      "movementId": null,
+      "movementId": "a906fa8b-a55d-4acf-b350-c6b12f77bf40",
       "canonicalKey": "barbell seated overhead press",
       "muscleGroup": "shoulders",
       "pattern": "press",
       "mappingConfidence": 0.97,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Seated Pallof Press",
@@ -3922,17 +3844,15 @@
       "publicPage": 6,
       "publicUrl": "https://tonal.com/blogs/movements?page=6",
       "mapped": true,
-      "movementId": null,
+      "movementId": "0c498470-12f9-4b8b-83e8-940e70f7b967",
       "canonicalKey": "neutral lat pulldown",
       "muscleGroup": "lats",
       "pattern": "pull_down",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Seated Single Arm Overhead Press",
@@ -3942,17 +3862,15 @@
       "publicPage": 6,
       "publicUrl": "https://tonal.com/blogs/movements?page=6",
       "mapped": true,
-      "movementId": null,
+      "movementId": "eabcfa09-599a-4efd-8997-de107832de01",
       "canonicalKey": "standing barbell overhead press",
       "muscleGroup": "shoulders",
       "pattern": "press",
       "mappingConfidence": 0.89,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Serve A Tray",
@@ -4067,17 +3985,15 @@
       "publicPage": 7,
       "publicUrl": "https://tonal.com/blogs/movements?page=7",
       "mapped": true,
-      "movementId": null,
+      "movementId": "8edc0211-4594-4e5e-8e1b-b05dfc1d67c7",
       "canonicalKey": "bench press",
       "muscleGroup": "chest",
       "pattern": "press",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Single Arm Bent Over Row",
@@ -4087,17 +4003,15 @@
       "publicPage": 7,
       "publicUrl": "https://tonal.com/blogs/movements?page=7",
       "mapped": true,
-      "movementId": null,
+      "movementId": "ec9edd5f-4745-45b7-b78b-b7368839ca38",
       "canonicalKey": "barbell bent over row",
       "muscleGroup": "back",
       "pattern": "row",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Single Arm Decline Fly",
@@ -4107,17 +4021,15 @@
       "publicPage": 7,
       "publicUrl": "https://tonal.com/blogs/movements?page=7",
       "mapped": true,
-      "movementId": null,
+      "movementId": "f4d78bdf-f70c-4f3c-bccb-78e9ff80f9fb",
       "canonicalKey": "decline chest fly",
       "muscleGroup": "chest",
       "pattern": "fly",
       "mappingConfidence": 0.89,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Single Arm Lateral Leg Swing",
@@ -4190,17 +4102,15 @@
       "publicPage": 7,
       "publicUrl": "https://tonal.com/blogs/movements?page=7",
       "mapped": true,
-      "movementId": null,
+      "movementId": "ef5f1802-a99e-4e56-b473-32bbf353fb73",
       "canonicalKey": "barbell rdl",
       "muscleGroup": "hamstrings",
       "pattern": "hinge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Single Arm Squat to Row",
@@ -4336,17 +4246,15 @@
       "publicPage": 7,
       "publicUrl": "https://tonal.com/blogs/movements?page=7",
       "mapped": true,
-      "movementId": null,
+      "movementId": "ef5f1802-a99e-4e56-b473-32bbf353fb73",
       "canonicalKey": "barbell rdl",
       "muscleGroup": "hamstrings",
       "pattern": "hinge",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Single Leg Standing Chest Press",
@@ -4566,17 +4474,15 @@
       "publicPage": 8,
       "publicUrl": "https://tonal.com/blogs/movements?page=8",
       "mapped": true,
-      "movementId": null,
+      "movementId": "eabcfa09-599a-4efd-8997-de107832de01",
       "canonicalKey": "standing barbell overhead press",
       "muscleGroup": "shoulders",
       "pattern": "press",
       "mappingConfidence": 0.97,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Standing Chest Press",
@@ -4607,17 +4513,15 @@
       "publicPage": 8,
       "publicUrl": "https://tonal.com/blogs/movements?page=8",
       "mapped": true,
-      "movementId": null,
+      "movementId": "596e7a05-1086-4045-84fb-2b8a2edc88dd",
       "canonicalKey": "standing chop",
       "muscleGroup": "core",
       "pattern": "rotation",
       "mappingConfidence": 0.95,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Standing Decline Chest Press",
@@ -4795,17 +4699,15 @@
       "publicPage": 8,
       "publicUrl": "https://tonal.com/blogs/movements?page=8",
       "mapped": true,
-      "movementId": null,
+      "movementId": "eabcfa09-599a-4efd-8997-de107832de01",
       "canonicalKey": "standing barbell overhead press",
       "muscleGroup": "shoulders",
       "pattern": "press",
       "mappingConfidence": 0.89,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Standing Pallof Press",
@@ -4920,17 +4822,15 @@
       "publicPage": 8,
       "publicUrl": "https://tonal.com/blogs/movements?page=8",
       "mapped": true,
-      "movementId": null,
+      "movementId": "f94f667d-5fe2-4bf7-b87e-ca705d5b627d",
       "canonicalKey": "barbell straight arm pulldown",
       "muscleGroup": "lats",
       "pattern": "pull_down",
       "mappingConfidence": 0.97,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "Suitcase Deadlift",
@@ -5297,17 +5197,15 @@
       "publicPage": 10,
       "publicUrl": "https://tonal.com/blogs/movements?page=10",
       "mapped": true,
-      "movementId": null,
+      "movementId": "8edc0211-4594-4e5e-8e1b-b05dfc1d67c7",
       "canonicalKey": "bench press",
       "muscleGroup": "chest",
       "pattern": "press",
       "mappingConfidence": 0.9,
       "mappingConfidenceLabel": "high",
-      "observedOnMachine": false,
+      "observedOnMachine": true,
       "metricReady": true,
-      "notes": [
-        "not_seen_in_local_workout_history"
-      ]
+      "notes": []
     },
     {
       "title": "X Pulldown",

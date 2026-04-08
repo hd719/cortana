@@ -84,6 +84,7 @@ describe("fitness tonal public movement catalog", () => {
 
   it("builds a metric-ready catalog using local mappings and observed movement lookup", () => {
     const observedLookup = new Map([
+      ["id:8edc0211-4594-4e5e-8e1b-b05dfc1d67c7", { movementId: "8edc0211-4594-4e5e-8e1b-b05dfc1d67c7", canonicalKey: "bench press", sampleTitle: null }],
       ["lateral lunge", { movementId: "obs-lunge", canonicalKey: "lateral lunge", sampleTitle: "Lateral Lunge" }],
     ]);
     const catalog = buildTonalPublicMovementCatalog({
@@ -93,7 +94,7 @@ describe("fitness tonal public movement catalog", () => {
 
     expect(catalog.summary.publicMovementCount).toBe(4);
     expect(catalog.summary.mappedCount).toBeGreaterThanOrEqual(2);
-    expect(catalog.summary.observedCount).toBe(1);
+    expect(catalog.summary.observedCount).toBe(2);
     expect(catalog.summary.metricReadyCount).toBeGreaterThanOrEqual(3);
     expect(catalog.summary.pplCounts.push).toBeGreaterThanOrEqual(1);
     expect(catalog.summary.pplCounts.pull).toBeGreaterThanOrEqual(1);
@@ -103,6 +104,7 @@ describe("fitness tonal public movement catalog", () => {
     expect(benchPress?.mapped).toBe(true);
     expect(benchPress?.metricReady).toBe(true);
     expect(benchPress?.pplBucket).toBe("push");
+    expect(benchPress?.observedOnMachine).toBe(true);
 
     const lateralLunge = catalog.movements.find((movement) => movement.title === "Lateral Lunge");
     expect(lateralLunge?.observedOnMachine).toBe(true);

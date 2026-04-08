@@ -166,6 +166,13 @@ export function loadObservedTonalMovementLookup(catalogPath = OBSERVED_CATALOG_P
       movements?: Array<{ movementId?: string | null; canonicalKey?: string | null; sampleTitle?: string | null }>;
     };
     for (const movement of raw.movements ?? []) {
+      if (typeof movement.movementId === "string" && movement.movementId.length > 0) {
+        lookup.set(`id:${movement.movementId}`, {
+          movementId: movement.movementId,
+          canonicalKey: movement.canonicalKey ?? null,
+          sampleTitle: movement.sampleTitle ?? null,
+        });
+      }
       const candidates = [movement.sampleTitle, movement.canonicalKey]
         .map((value) => normalizeTonalMovementKey(String(value ?? "")))
         .filter(Boolean);
@@ -201,7 +208,8 @@ export function buildTonalPublicMovementCatalog(input: {
   const movements: TonalPublicMovement[] = parsed.map((movement) => {
     const normalizedKey = normalizeTonalMovementKey(movement.title);
     const resolution = resolveTonalMovement({ movementTitle: movement.title });
-    const observed = observedLookup.get(normalizedKey);
+    const observed = observedLookup.get(normalizedKey)
+      ?? (resolution.movementId ? observedLookup.get(`id:${resolution.movementId}`) : undefined);
     const pplBucket = inferTonalPplBucket({
       title: movement.title,
       publicCategory: movement.publicCategory,

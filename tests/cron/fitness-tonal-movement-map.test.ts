@@ -24,6 +24,7 @@ describe("fitness tonal movement map", () => {
 
     expect(resolution.mapped).toBe(true);
     expect(resolution.movementKey).toBe("decline chest fly");
+    expect(resolution.movementId).toBe("f4d78bdf-f70c-4f3c-bccb-78e9ff80f9fb");
     expect(resolution.muscleGroup).toBe("chest");
     expect(resolution.pattern).toBe("fly");
     expect(resolution.aliases).toContain("Decline Fly");

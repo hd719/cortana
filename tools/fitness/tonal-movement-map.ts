@@ -442,7 +442,7 @@ export function resolveTonalMovement(input: TonalMovementInput): TonalMovementRe
 
   return {
     movementKey,
-    movementId,
+    movementId: movementId ?? resolved.definition.movementIds[0] ?? null,
     movementTitle,
     muscleGroup: resolved.definition.muscleGroup,
     pattern: resolved.definition.pattern,
