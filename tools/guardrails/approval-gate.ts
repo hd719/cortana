@@ -2,8 +2,8 @@
 
 import path from "node:path";
 import os from "node:os";
-import crypto from "node:crypto";
 import { readJsonFile } from "../lib/json-file.js";
+import { createApprovalRequest, recordApprovalDecision } from "../lib/mission-control-ledger.js";
 
 const DEFAULT_CONFIG = path.join(os.homedir(), ".openclaw", "openclaw.json");
 
@@ -21,6 +21,7 @@ const HIGH_RISK_KEYWORDS = [
 type ApprovalResult = {
   approved: boolean;
   reason: string;
+  approvalId?: string;
 };
 
 async function httpJson(url: string, payload?: Record<string, unknown>): Promise<any> {
@@ -75,13 +76,13 @@ async function sendApprovalMessage(
   chatId: string,
   actionDesc: string,
   risk: string,
-  reqId: string,
+  approvalId: string,
 ): Promise<number> {
   const text =
-    `\ud83d\uded1 Approval required\n` +
+    `🛑 Approval required\n` +
     `Risk: ${risk.toUpperCase()}\n` +
     `Action: ${actionDesc}\n\n` +
-    `Request ID: ${reqId}\n` +
+    `Request ID: ${approvalId}\n` +
     "Choose Approve or Reject.";
   const payload = {
     chat_id: chatId,
@@ -89,8 +90,8 @@ async function sendApprovalMessage(
     reply_markup: {
       inline_keyboard: [
         [
-          { text: "\u2705 Approve", callback_data: `approve:${reqId}` },
-          { text: "\u274c Reject", callback_data: `reject:${reqId}` },
+          { text: "✅ Approve", callback_data: `approve:${approvalId}` },
+          { text: "❌ Reject", callback_data: `reject:${approvalId}` },
         ],
       ],
     },
@@ -119,7 +120,7 @@ async function stripKeyboard(token: string, chatId: string, messageId: number, s
 
 async function pollDecision(
   token: string,
-  reqId: string,
+  approvalId: string,
   timeoutSec: number,
   startOffset = 0,
 ): Promise<[boolean | null, string, number]> {
@@ -145,11 +146,11 @@ async function pollDecision(
       const cb = upd?.callback_query;
       if (!cb) continue;
       const data = String(cb?.data ?? "");
-      if (data === `approve:${reqId}`) {
+      if (data === `approve:${approvalId}`) {
         await answerCallback(token, cb.id, "Approved");
         return [true, "approved", offset];
       }
-      if (data === `reject:${reqId}`) {
+      if (data === `reject:${approvalId}`) {
         await answerCallback(token, cb.id, "Rejected");
         return [false, "rejected", offset];
       }
@@ -178,26 +179,62 @@ async function requestApproval(
     return { approved: true, reason: "not_high_risk" };
   }
 
-  const tok = token ?? telegramToken(configPath);
-  const resolvedChat = chatId ?? process.env.TELEGRAM_CHAT_ID ?? (await inferChatId(tok));
-  if (!resolvedChat) return { approved: false, reason: "no_chat_id" };
+  const approvalId = createApprovalRequest({
+    agentId: process.env.OPENCLAW_AGENT_ID ?? process.env.AGENT_ID ?? "cortana",
+    actionType: "high_risk_action",
+    proposal: {
+      action: actionDesc,
+      risk,
+      source: "approval-gate",
+    },
+    rationale: "High-risk action requires explicit Telegram approval before execution.",
+    riskLevel: risk || "high",
+    autoApprovable: false,
+    status: "pending",
+    expiresAtHours: Math.max(1, Math.ceil(timeoutS / 3600)),
+    resumePayload: { action: actionDesc, risk },
+  });
 
-  const reqId = crypto.randomUUID().replace(/-/g, "").slice(0, 12);
-  const msgId = await sendApprovalMessage(tok, resolvedChat, actionDesc, risk, reqId);
-  const [decided, reason] = await pollDecision(tok, reqId, timeoutS);
+  const tok = token ?? telegramToken(configPath);
+  let resolvedChat: string | null = chatId ?? process.env.TELEGRAM_CHAT_ID ?? null;
+  if (!resolvedChat) {
+    try {
+      resolvedChat = await inferChatId(tok);
+    } catch {
+      recordApprovalDecision(approvalId, "rejected", "system", "chat_lookup_failed");
+      return { approved: false, reason: "chat_lookup_failed", approvalId };
+    }
+  }
+  if (!resolvedChat) {
+    recordApprovalDecision(approvalId, "rejected", "system", "no_chat_id");
+    return { approved: false, reason: "no_chat_id", approvalId };
+  }
+
+  let msgId = 0;
+  try {
+    msgId = await sendApprovalMessage(tok, resolvedChat, actionDesc, risk, approvalId);
+  } catch {
+    recordApprovalDecision(approvalId, "rejected", "system", "telegram_send_failed");
+    return { approved: false, reason: "telegram_send_failed", approvalId };
+  }
+
+  const [decided] = await pollDecision(tok, approvalId, timeoutS);
 
   if (decided === true) {
-    await stripKeyboard(tok, resolvedChat, msgId, `\u2705 Approved: ${actionDesc}`);
-    return { approved: true, reason: "approved" };
+    recordApprovalDecision(approvalId, "approved", "user", "telegram_approve");
+    await stripKeyboard(tok, resolvedChat, msgId, `✅ Approved: ${actionDesc}`);
+    return { approved: true, reason: "approved", approvalId };
   }
 
   if (decided === false) {
-    await stripKeyboard(tok, resolvedChat, msgId, `\u274c Rejected: ${actionDesc}`);
-    return { approved: false, reason: "rejected" };
+    recordApprovalDecision(approvalId, "rejected", "user", "telegram_reject");
+    await stripKeyboard(tok, resolvedChat, msgId, `❌ Rejected: ${actionDesc}`);
+    return { approved: false, reason: "rejected", approvalId };
   }
 
-  await stripKeyboard(tok, resolvedChat, msgId, `\u23f1\ufe0f Approval timed out: ${actionDesc}`);
-  return { approved: false, reason: "timeout" };
+  recordApprovalDecision(approvalId, "expired", "system", "timeout");
+  await stripKeyboard(tok, resolvedChat, msgId, `⏱️ Approval timed out: ${actionDesc}`);
+  return { approved: false, reason: "timeout", approvalId };
 }
 
 function parseArgs(argv: string[]) {

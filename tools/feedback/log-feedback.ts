@@ -1,16 +1,9 @@
 #!/usr/bin/env npx tsx
 
-import { randomUUID } from "node:crypto";
-import { spawnSync } from "node:child_process";
-import { withPostgresPath } from "../lib/db.js";
-import { PSQL_BIN } from "../lib/paths.js";
+import { insertFeedbackItem } from "../lib/mission-control-ledger.js";
 
 function isUuid(value: string): boolean {
   return /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/.test(value);
-}
-
-function esc(v: string): string {
-  return v.replace(/'/g, "''");
 }
 
 function lessonFromDetails(raw: string): string {
@@ -32,6 +25,12 @@ function recurrenceKey(detailsJson: string, summary: string): string {
   return base.toLowerCase().trim().replace(/\s+/g, " ").replace(/[^a-z0-9 ]/g, "").slice(0, 50).trim();
 }
 
+function legacyFeedbackType(category: string, severity: string): string {
+  if (category === "preference") return "preference";
+  if (category === "policy") return severity === "low" ? "approval" : "rejection";
+  return "correction";
+}
+
 async function main(): Promise<void> {
   const args = process.argv.slice(2);
   if (args.length < 3) {
@@ -45,54 +44,32 @@ async function main(): Promise<void> {
   const detailsJson = args[3] && args[3].length > 0 ? args[3] : "{}";
   const agentId = args[4] ?? "";
   const taskId = args[5] ?? "";
-  const source = "user";
-  const status = "new";
-  const feedbackId = randomUUID();
+  const recurrence = recurrenceKey(detailsJson, summary);
 
-  let feedbackType = "correction";
-  if (category === "preference") feedbackType = "preference";
-  if (category === "policy") feedbackType = severity === "low" ? "approval" : "rejection";
+  let parsedDetails: Record<string, unknown> = {};
+  try {
+    parsedDetails = JSON.parse(detailsJson) as Record<string, unknown>;
+  } catch {
+    parsedDetails = { raw_details: detailsJson };
+  }
 
-  const lesson = lessonFromDetails(detailsJson);
-  const key = recurrenceKey(detailsJson, summary);
-
-  const taskSql = taskId && isUuid(taskId) ? `'${taskId}'::uuid` : "NULL";
-  const agentSql = agentId ? `'${esc(agentId)}'` : "NULL";
-  const recurrenceSql = key ? `'${esc(key)}'` : "NULL";
-
-  const sql1 = `
-INSERT INTO mc_feedback_items (id, task_id, agent_id, source, category, severity, summary, details, recurrence_key, status)
-VALUES (
-  '${feedbackId}'::uuid,
-  ${taskSql},
-  ${agentSql},
-  '${source}',
-  '${category}',
-  '${severity}',
-  '${esc(summary)}',
-  '${esc(detailsJson)}'::jsonb,
-  ${recurrenceSql},
-  '${status}'
-);
-`;
-
-  const sql2 = `
-INSERT INTO cortana_feedback (feedback_type, context, lesson, applied)
-VALUES (
-  '${feedbackType}',
-  '${esc(summary)}',
-  '${esc(lesson)}',
-  FALSE
-);
-`;
-
-  const r = spawnSync(PSQL_BIN, ["cortana", "-q", "-c", sql1, "-q", "-c", sql2], {
-    encoding: "utf8",
-    stdio: ["ignore", "ignore", "inherit"],
-    env: withPostgresPath(process.env),
+  const feedbackId = insertFeedbackItem({
+    source: "user",
+    category,
+    severity,
+    summary,
+    details: {
+      ...parsedDetails,
+      lesson: lessonFromDetails(detailsJson),
+      feedback_type: legacyFeedbackType(category, severity),
+      applied: false,
+    },
+    recurrenceKey: recurrence || null,
+    status: "new",
+    taskId: taskId && isUuid(taskId) ? taskId : null,
+    agentId: agentId || null,
   });
 
-  if ((r.status ?? 1) !== 0) process.exit(r.status ?? 1);
   console.log(feedbackId);
 }
 

@@ -19,7 +19,7 @@ When Hamel corrects you, **don't just acknowledge — LEARN and UPDATE.**
 **Step 2: Log to database**
 ```bash
 export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
-psql cortana -c "INSERT INTO cortana_feedback (feedback_type, context, lesson, applied) VALUES ('<type>', '<what_happened>', '<rule_learned>', true);"
+npx tsx /Users/hd/Developer/cortana/tools/feedback/log-feedback.ts <category> <severity> "<summary>" '{"lesson":"<rule_learned>"}'
 ```
 
 Feedback types: `correction`, `preference`, `fact`, `behavior`, `tone`

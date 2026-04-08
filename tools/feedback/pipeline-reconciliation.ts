@@ -26,68 +26,36 @@ function runDate(): string {
 async function main(): Promise<void> {
   const db = process.env.DB_NAME || "cortana";
 
-  const feedbackTotal = psql(db, ["-t", "-A", "-c", "SELECT COUNT(*) FROM cortana_feedback;"]);
   const mcTotal = psql(db, ["-t", "-A", "-c", "SELECT COUNT(*) FROM mc_feedback_items;"]);
   const feedbackTasksTotal = psql(db, ["-t", "-A", "-c", "SELECT COUNT(*) FROM cortana_tasks WHERE source = 'feedback';"]);
   const feedbackLoopTasksTotal = psql(db, ["-t", "-A", "-c", "SELECT COUNT(*) FROM cortana_tasks WHERE source = 'feedback_loop';"]);
 
-  const lagCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
-FROM cortana_feedback f
-WHERE COALESCE(f.applied, FALSE) = FALSE
+  const unlinkedCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
+FROM mc_feedback_items m
+WHERE COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
   AND NOT EXISTS (
     SELECT 1
-    FROM mc_feedback_items m
-    WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
-       OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
-       OR (
-         COALESCE(m.summary,'') = COALESCE(f.context,'')
-         AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
-       )
+    FROM cortana_tasks t
+    WHERE t.metadata->>'feedback_id' = m.id::text
   );`]);
 
   const stuckCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
 FROM mc_feedback_items m
-LEFT JOIN LATERAL (
-  SELECT f.id, f.applied
-  FROM cortana_feedback f
-  WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
-     OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
-     OR (
-       COALESCE(f.context,'') = COALESCE(m.summary,'')
-       AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
-     )
-  ORDER BY ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) ASC
-  LIMIT 1
-) cf ON TRUE
 WHERE m.created_at < NOW() - INTERVAL '24 hours'
   AND COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
   AND (
-    COALESCE(cf.applied, FALSE) = FALSE
-    OR NOT EXISTS (
+    NOT EXISTS (
       SELECT 1
       FROM cortana_tasks t
       WHERE t.metadata->>'feedback_id' = m.id::text
     )
+    OR COALESCE(m.status, 'new') IN ('new', 'triaged', 'verified')
   );`]);
 
   const stuckBacklogCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
 FROM mc_feedback_items m
-LEFT JOIN LATERAL (
-  SELECT f.id, f.applied
-  FROM cortana_feedback f
-  WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
-     OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
-     OR (
-       COALESCE(f.context,'') = COALESCE(m.summary,'')
-       AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
-     )
-  ORDER BY ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) ASC
-  LIMIT 1
-) cf ON TRUE
 WHERE m.created_at < NOW() - INTERVAL '24 hours'
   AND COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
-  AND COALESCE(cf.id, 0) <> 0
-  AND COALESCE(cf.applied, FALSE) = FALSE
   AND EXISTS (
     SELECT 1
     FROM cortana_tasks t
@@ -96,46 +64,28 @@ WHERE m.created_at < NOW() - INTERVAL '24 hours'
 
   const stuckBreakageCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
 FROM mc_feedback_items m
-LEFT JOIN LATERAL (
-  SELECT f.id, f.applied
-  FROM cortana_feedback f
-  WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
-     OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
-     OR (
-       COALESCE(f.context,'') = COALESCE(m.summary,'')
-       AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
-     )
-  ORDER BY ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) ASC
-  LIMIT 1
-) cf ON TRUE
 WHERE m.created_at < NOW() - INTERVAL '24 hours'
   AND COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
-  AND (
-    COALESCE(cf.id, 0) = 0
-    OR NOT EXISTS (
-      SELECT 1
-      FROM cortana_tasks t
-      WHERE t.metadata->>'feedback_id' = m.id::text
-    )
-  );`]);
-
-  const lagRows = psql(db, ["-t", "-A", "-F", "\t", "-c", `SELECT
-  f.id::text,
-  to_char(f.timestamp AT TIME ZONE 'America/New_York', 'YYYY-MM-DD HH24:MI:SS') AS feedback_ts_et,
-  LEFT(COALESCE(f.context,''), 120) AS context
-FROM cortana_feedback f
-WHERE COALESCE(f.applied, FALSE) = FALSE
   AND NOT EXISTS (
     SELECT 1
-    FROM mc_feedback_items m
-    WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
-       OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
-       OR (
-         COALESCE(m.summary,'') = COALESCE(f.context,'')
-         AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
-       )
+    FROM cortana_tasks t
+    WHERE t.metadata->>'feedback_id' = m.id::text
+  );`]);
+
+  const unlinkedRows = psql(db, ["-t", "-A", "-F", "\t", "-c", `SELECT
+  m.id::text,
+  to_char(m.created_at AT TIME ZONE 'America/New_York', 'YYYY-MM-DD HH24:MI:SS') AS created_et,
+  COALESCE(m.category, '') AS category,
+  COALESCE(m.severity, '') AS severity,
+  LEFT(COALESCE(m.summary,''), 120) AS summary
+FROM mc_feedback_items m
+WHERE COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
+  AND NOT EXISTS (
+    SELECT 1
+    FROM cortana_tasks t
+    WHERE t.metadata->>'feedback_id' = m.id::text
   )
-ORDER BY f.timestamp ASC
+ORDER BY m.created_at ASC
 LIMIT 10;`]);
 
   const stuckRows = psql(db, ["-t", "-A", "-F", "\t", "-c", `SELECT
@@ -150,52 +100,39 @@ LIMIT 10;`]);
     WHERE t.metadata->>'feedback_id' = m.id::text
   ), '') AS linked_task_id
 FROM mc_feedback_items m
-LEFT JOIN LATERAL (
-  SELECT f.id, f.applied
-  FROM cortana_feedback f
-  WHERE m.recurrence_key = ('cortana_feedback:' || f.id::text)
-     OR COALESCE(m.details->>'source_feedback_id','') = f.id::text
-     OR (
-       COALESCE(f.context,'') = COALESCE(m.summary,'')
-       AND ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) <= 300
-     )
-  ORDER BY ABS(EXTRACT(EPOCH FROM (m.created_at - f.timestamp))) ASC
-  LIMIT 1
-) cf ON TRUE
 WHERE m.created_at < NOW() - INTERVAL '24 hours'
   AND COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
   AND (
-    COALESCE(cf.applied, FALSE) = FALSE
-    OR NOT EXISTS (
+    NOT EXISTS (
       SELECT 1
       FROM cortana_tasks t
       WHERE t.metadata->>'feedback_id' = m.id::text
     )
+    OR COALESCE(m.status, 'new') IN ('new', 'triaged', 'verified')
   )
 ORDER BY m.created_at ASC
 LIMIT 10;`]);
 
-  const lagN = Number(lagCount || "0");
+  const unlinkedN = Number(unlinkedCount || "0");
   const stuckN = Number(stuckCount || "0");
   const stuckBacklogN = Number(stuckBacklogCount || "0");
   const stuckBreakageN = Number(stuckBreakageCount || "0");
 
   const severity = stuckBreakageN > 0 ? "warning" : "info";
-  const message = `pipeline reconciliation: feedback=${feedbackTotal}, mc_feedback_items=${mcTotal}, tasks_source_feedback=${feedbackTasksTotal}, lag=${lagN}, stuck=${stuckN}, stuck_backlog=${stuckBacklogN}, stuck_breakage=${stuckBreakageN}`;
+  const message = `pipeline reconciliation: mc_feedback_items=${mcTotal}, tasks_source_feedback=${feedbackTasksTotal}, unlinked=${unlinkedN}, stuck=${stuckN}, stuck_backlog=${stuckBacklogN}, stuck_breakage=${stuckBreakageN}`;
 
   const insertSql = `
 INSERT INTO cortana_events (event_type, source, severity, message, metadata)
 VALUES (
   'feedback_pipeline_reconciliation',
   'pipeline-reconciliation.sh',
-  '${severity}',
+  '${esc(severity)}',
   '${esc(message)}',
   jsonb_build_object(
-    'feedback_total', ${feedbackTotal || 0},
     'mc_feedback_items_total', ${mcTotal || 0},
     'cortana_tasks_source_feedback_total', ${feedbackTasksTotal || 0},
     'cortana_tasks_source_feedback_loop_total', ${feedbackLoopTasksTotal || 0},
-    'lag_count', ${lagN},
+    'unlinked_count', ${unlinkedN},
     'stuck_count', ${stuckN},
     'stuck_backlog_count', ${stuckBacklogN},
     'stuck_breakage_count', ${stuckBreakageN},
@@ -214,20 +151,19 @@ VALUES (
   console.log(`Generated: ${runDate()}`);
   console.log("");
   console.log("Stage counts:");
-  console.log(`- cortana_feedback: ${feedbackTotal}`);
   console.log(`- mc_feedback_items: ${mcTotal}`);
   console.log(`- cortana_tasks (source='feedback'): ${feedbackTasksTotal}`);
   console.log(`- cortana_tasks (source='feedback_loop'): ${feedbackLoopTasksTotal}`);
   console.log("");
   console.log("Gaps:");
-  console.log(`- Lag (in cortana_feedback, missing in mc_feedback_items): ${lagN}`);
+  console.log(`- Unlinked feedback items (missing task): ${unlinkedN}`);
   console.log(`- Stuck >24h total: ${stuckN}`);
-  console.log(`  - Backlog (matched + task linked, waiting apply): ${stuckBacklogN}`);
-  console.log(`  - Breakage (missing match and/or missing linked task): ${stuckBreakageN}`);
+  console.log(`  - Backlog (task linked, unresolved): ${stuckBacklogN}`);
+  console.log(`  - Breakage (missing linked task): ${stuckBreakageN}`);
   console.log("");
-  console.log("Lag sample (up to 10):");
-  console.log("id\tfeedback_ts_et\tcontext");
-  console.log(lagRows || "<none>");
+  console.log("Unlinked sample (up to 10):");
+  console.log("id\tcreated_et\tcategory\tseverity\tsummary");
+  console.log(unlinkedRows || "<none>");
   console.log("");
   console.log("Stuck sample (up to 10):");
   console.log("id\tcreated_et\tstatus\tremediation_status\tsummary\tlinked_task_id");

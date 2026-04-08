@@ -39,7 +39,6 @@ model cortana_agent_feedback {
   active             Boolean           @default(true)
   created_at         DateTime          @default(now()) @db.Timestamptz(6)
   updated_at         DateTime          @default(now()) @db.Timestamptz(6)
-  cortana_feedback   cortana_feedback? @relation(fields: [source_feedback_id], references: [id], onUpdate: NoAction)
   cortana_tasks      cortana_tasks?    @relation(fields: [source_task_id], references: [id], onUpdate: NoAction)
 
   @@index([active], map: "idx_cortana_agent_feedback_active")
@@ -310,19 +309,6 @@ model cortana_events {
   @@index([source], map: "idx_events_source")
   @@index([timestamp], map: "idx_events_timestamp")
   @@index([event_type], map: "idx_events_type")
-}
-
-model cortana_feedback {
-  id                     Int                      @id @default(autoincrement())
-  timestamp              DateTime?                @default(now()) @db.Timestamptz(6)
-  feedback_type          String?                  @db.VarChar(50)
-  context                String?
-  lesson                 String?
-  applied                Boolean?                 @default(false)
-  cortana_agent_feedback cortana_agent_feedback[]
-
-  @@index([applied], map: "idx_feedback_applied")
-  @@index([feedback_type], map: "idx_feedback_type")
 }
 
 model cortana_feedback_signals {

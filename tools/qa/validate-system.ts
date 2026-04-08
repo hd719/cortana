@@ -29,7 +29,6 @@ const REQUIRED_DB_TABLES = [
   "cortana_events",
   "cortana_tasks",
   "cortana_epics",
-  "cortana_feedback",
   "cortana_patterns",
   "cortana_self_model",
 ];

@@ -178,6 +178,15 @@ async function main(): Promise<void> {
     return;
   }
 
+  const relkindRows = runPsqlCsv(
+    "SELECT c.relkind FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'public' AND c.relname = 'cortana_feedback'"
+  );
+  const relkind = relkindRows[0]?.relkind ?? "";
+  if (relkind && relkind !== "r") {
+    console.log("Legacy cortana_feedback table has been retired; nothing to sync.");
+    return;
+  }
+
   const feedbackRows = runPsqlCsv(
     "SELECT id, feedback_type, context, lesson, applied, timestamp FROM cortana_feedback ORDER BY id"
   );
