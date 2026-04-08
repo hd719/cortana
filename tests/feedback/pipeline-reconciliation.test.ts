@@ -36,16 +36,15 @@ describe("feedback pipeline reconciliation", () => {
     await importFresh("../../tools/feedback/pipeline-reconciliation.ts");
 
     const output = consoleCapture.logs.join("\n");
-    expect(output).toContain("Unlinked feedback items (missing task): 0");
-    expect(output).toContain("Backlog (task linked, unresolved): 22");
-    expect(output).toContain("Breakage (missing linked task): 0");
+    expect(output).toContain("Feedback pipeline: 22 stuck items >24h");
+    expect(output).toContain("Next: Resume remediation");
 
     const insertCall = spawnSync.mock.calls.find(([, args]) => String(args?.[args.length - 1] ?? "").includes("INSERT INTO cortana_events"));
     expect(String(insertCall?.[1]?.[insertCall[1].length - 1] ?? "")).toContain("'info'");
     expect(exitSpy).not.toHaveBeenCalledWith(1);
   });
 
-  it("reports zero gaps when feedback pipeline is clean", async () => {
+  it("returns NO_REPLY when feedback pipeline is clean", async () => {
     const consoleCapture = captureConsole();
 
     const scalarOut = ["0", "0", "0", "0", "0", "0", "0"];
@@ -59,7 +58,24 @@ describe("feedback pipeline reconciliation", () => {
     await importFresh("../../tools/feedback/pipeline-reconciliation.ts");
 
     const output = consoleCapture.logs.join("\n");
-    expect(output).toContain("Unlinked feedback items (missing task): 0");
-    expect(output).toContain("Stuck >24h total: 0");
+    expect(output.trim()).toBe("NO_REPLY");
+  });
+
+  it("ignores validation-seed feedback rows when reporting actionable gaps", async () => {
+    const exitSpy = vi.spyOn(process, "exit").mockImplementation(((code?: number) => code as never) as never);
+    const consoleCapture = captureConsole();
+
+    const scalarOut = ["1", "0", "0", "0", "0", "0", "0"];
+    spawnSync.mockImplementation((cmd: string, args: string[]) => {
+      if (cmd === "date") return { status: 0, stdout: "2026-04-08 09:55:00 EDT" } as any;
+      if (args.includes("-F")) return { status: 0, stdout: "" } as any;
+      if (String(args?.[args.length - 1] ?? "").includes("INSERT INTO cortana_events")) return { status: 0, stdout: "" } as any;
+      return { status: 0, stdout: `${scalarOut.shift() ?? "0"}\n` } as any;
+    });
+
+    await importFresh("../../tools/feedback/pipeline-reconciliation.ts");
+
+    expect(consoleCapture.logs.join("\n").trim()).toBe("NO_REPLY");
+    expect(exitSpy).not.toHaveBeenCalledWith(1);
   });
 });
