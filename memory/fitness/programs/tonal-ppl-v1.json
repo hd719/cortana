@@ -1,6 +1,6 @@
 {
   "schema": "spartan.tonal_ppl_v1",
-  "generatedAt": "2026-04-08T15:33:36.980Z",
+  "generatedAt": "2026-04-08T16:30:39.055Z",
   "source": {
     "publicCatalogPath": "/Users/hd/Developer/cortana/memory/fitness/programs/tonal-public-movement-catalog.json",
     "observedCatalogPath": "/Users/hd/Developer/cortana/memory/fitness/programs/current-tonal-catalog.json"
@@ -16,7 +16,11 @@
   "notes": [
     "This is a v1 hypertrophy-oriented PPL built only from Tonal-supported movements that are locally mapped and validated by the public library, your own machine history, or both.",
     "Use your recent average load as a reference point, not a hard prescription. Let the target rep range and 1-2 RIR drive the final load on the day.",
-    "If recovery is yellow or red, trim one accessory slot before you trim the main lift."
+    "If recovery is yellow or red, trim one accessory slot before you trim the main lift.",
+    "Weekly hard-set volume matters more than whether the split is labeled PPL or full body. If schedule allows, run this as a rolling split so muscles are exposed roughly twice every 7-10 days instead of only once per week.",
+    "Keep compounds mostly 1-2 RIR and accessories 0-2 RIR. You do not need routine failure work on presses, rows, split squats, or RDLs to grow.",
+    "Rest 2-3 minutes on the main compound lifts and 60-120 seconds on fly, raise, curl, triceps, and trunk accessories so the quality of the hard sets stays high.",
+    "Because you also run, keep hard running and the legs day separated by about 24 hours when possible, or reduce one accessory slot on the lower day if the run load was already high."
   ],
   "days": {
     "push": {

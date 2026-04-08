@@ -38,13 +38,20 @@ config/cron/*.bak*
 # Runtime fitness data (pulled live from Whoop/Tonal APIs)
 memory/fitness/*.json
 memory/fitness/daily/
-memory/fitness/plans/
-memory/fitness/programs/
+memory/fitness/plans/*
+memory/fitness/programs/*
 memory/fitness/weekly/*.md
 !memory/fitness/README.md
 !memory/fitness/insights.md
 !memory/fitness/analysis/
 !memory/fitness/analysis/.gitkeep
+!memory/fitness/plans/8-week-ppl-block-v1.md
+!memory/fitness/programs/current-tonal-catalog.json
+!memory/fitness/programs/tonal-public-movement-catalog.json
+!memory/fitness/programs/tonal-public-movement-catalog.md
+!memory/fitness/programs/tonal-ppl-v1.json
+!memory/fitness/programs/tonal-ppl-v1.md
+!memory/fitness/programs/tonal-ppl-v1-research-audit.md
 
 # Identity runtime state (keep repo clean; do not ignore TOOLS.md)
 identities/*/.openclaw/
