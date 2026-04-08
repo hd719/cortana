@@ -10,6 +10,7 @@ describe("fitness refresh current tonal catalog", () => {
   it("builds and persists a current-tonal-catalog snapshot from a Tonal payload", () => {
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "spartan-tonal-catalog-"));
     const outputPath = path.join(tempDir, "current-tonal-catalog.json");
+    const markdownPath = path.join(tempDir, "current-tonal-catalog.md");
     const payload = {
       profile: { userId: "user-1", totalWorkouts: 2 },
       workouts: {
@@ -42,15 +43,20 @@ describe("fitness refresh current tonal catalog", () => {
       strength_scores: null,
     };
 
-    const { catalog, write } = buildAndPersistCurrentTonalCatalog(payload, outputPath);
+    const { catalog, write } = buildAndPersistCurrentTonalCatalog(payload, { outputPath, markdownPath });
 
     expect(write.ok).toBe(true);
     expect(fs.existsSync(outputPath)).toBe(true);
+    expect(fs.existsSync(markdownPath)).toBe(true);
     expect(catalog.summary.workoutsSeen).toBe(2);
     expect(catalog.summary.movementsSeen).toBe(3);
 
     const persisted = JSON.parse(fs.readFileSync(outputPath, "utf8")) as { summary: { workoutsSeen: number; movementsSeen: number } };
     expect(persisted.summary.workoutsSeen).toBe(2);
     expect(persisted.summary.movementsSeen).toBe(3);
+
+    const markdown = fs.readFileSync(markdownPath, "utf8");
+    expect(markdown).toContain("# Current Tonal Catalog");
+    expect(markdown).toContain("Workouts seen: 2");
   });
 });

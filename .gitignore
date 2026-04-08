@@ -51,6 +51,7 @@ memory/fitness/weekly/*.md
 !memory/fitness/programs/json/current-tonal-catalog.json
 !memory/fitness/programs/json/tonal-public-movement-catalog.json
 !memory/fitness/programs/json/tonal-ppl-v1.json
+!memory/fitness/programs/md/current-tonal-catalog.md
 !memory/fitness/programs/md/tonal-public-movement-catalog.md
 !memory/fitness/programs/md/tonal-ppl-v1.md
 !memory/fitness/programs/md/tonal-ppl-v1-research-audit.md
