@@ -49,13 +49,23 @@ function telegramToken(configPath: string): string {
   const envToken = process.env.TELEGRAM_BOT_TOKEN;
   if (envToken) return envToken;
   const cfg = loadOpenclawConfig(configPath);
-  const token = cfg?.channels?.telegram?.botToken;
+  const token = cfg?.channels?.telegram?.botToken
+    ?? cfg?.channels?.telegram?.accounts?.default?.botToken;
   if (!token) {
     throw new Error(
-      "Telegram bot token not found. Set TELEGRAM_BOT_TOKEN or channels.telegram.botToken in ~/.openclaw/openclaw.json",
+      "Telegram bot token not found. Set TELEGRAM_BOT_TOKEN or configure channels.telegram.accounts.default.botToken in ~/.openclaw/openclaw.json",
     );
   }
   return String(token);
+}
+
+function configuredChatId(configPath: string): string | null {
+  if (process.env.TELEGRAM_CHAT_ID) return String(process.env.TELEGRAM_CHAT_ID);
+  const cfg = loadOpenclawConfig(configPath);
+  const telegram = cfg?.channels?.telegram;
+  const allowFrom = Array.isArray(telegram?.allowFrom) ? telegram.allowFrom : [];
+  const candidate = allowFrom.find((value: unknown) => value !== undefined && value !== null && String(value).trim());
+  return candidate !== undefined ? String(candidate) : null;
 }
 
 async function inferChatId(token: string): Promise<string | null> {
@@ -196,7 +206,7 @@ async function requestApproval(
   });
 
   const tok = token ?? telegramToken(configPath);
-  let resolvedChat: string | null = chatId ?? process.env.TELEGRAM_CHAT_ID ?? null;
+  let resolvedChat: string | null = chatId ?? configuredChatId(configPath);
   if (!resolvedChat) {
     try {
       resolvedChat = await inferChatId(tok);

@@ -57,6 +57,7 @@ describe("approval-gate", () => {
     const exitSpy = mockExit();
     const consoleCapture = captureConsole();
     process.env.TELEGRAM_BOT_TOKEN = "token";
+    readJsonFile.mockReturnValue({ channels: { telegram: {} } });
     const fetchSpy = vi.fn(async () => {
       throw new Error("fetch failed");
     });
@@ -80,6 +81,7 @@ describe("approval-gate", () => {
     const exitSpy = mockExit();
     const consoleCapture = captureConsole();
     process.env.TELEGRAM_BOT_TOKEN = "token";
+    readJsonFile.mockReturnValue({ channels: { telegram: {} } });
     const fetchSpy = vi.fn(async () => ({
       ok: true,
       json: async () => ({ ok: true, result: [] }),
