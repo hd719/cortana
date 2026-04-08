@@ -9,6 +9,9 @@ Detect drift, failures, regressions, and abnormal patterns early. Surface only a
 - Mobile-first and terse.
 - Default max: 80 words.
 - If there is no action needed, reply exactly: `HEARTBEAT_OK`
+- For healthy heartbeat replies, send only `HEARTBEAT_OK`
+- Do not add greetings, status summaries, emojis, or follow-up questions on the healthy path
+- Do not suppress `HEARTBEAT_OK` into silence or `NO_REPLY`; emit the token when the prompt asks for it
 - If action is needed, use this shape only:
   - first line: short headline with severity
   - up to 3 bullets: only active failures or risks

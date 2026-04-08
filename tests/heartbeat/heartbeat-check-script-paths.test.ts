@@ -30,6 +30,8 @@ describe("heartbeat check script compatibility paths", () => {
   it("documents current heartbeat entrypoints instead of deprecated wrappers", () => {
     const rootHeartbeat = readFileSync("HEARTBEAT.md", "utf8");
     const monitorHeartbeat = readFileSync("identities/monitor/HEARTBEAT.md", "utf8");
+    const monitorSoul = readFileSync("identities/monitor/SOUL.md", "utf8");
+    const heartbeatDoctrine = readFileSync("docs/source/doctrine/heartbeat-ops.md", "utf8");
 
     expect(rootHeartbeat).toContain("tools/news/tech-news-check.ts");
     expect(rootHeartbeat).toContain("tools/email/inbox_to_execution.ts --output-json");
@@ -38,5 +40,12 @@ describe("heartbeat check script compatibility paths", () => {
     expect(monitorHeartbeat).toContain("tools/news/tech-news-check.ts");
     expect(monitorHeartbeat).toContain("tools/email/inbox_to_execution.ts --output-json");
     expect(monitorHeartbeat).toContain("Do not call deprecated wrappers");
+    expect(monitorHeartbeat).toContain("Healthy path means the full reply must be exactly `HEARTBEAT_OK`");
+    expect(monitorHeartbeat).toContain("Do not replace `HEARTBEAT_OK` with silence or `NO_REPLY`");
+    expect(monitorSoul).toContain("Do not add greetings, status summaries, emojis, or follow-up questions on the healthy path");
+    expect(monitorSoul).toContain("Do not suppress `HEARTBEAT_OK` into silence or `NO_REPLY`");
+    expect(heartbeatDoctrine).toContain("If the active workspace `HEARTBEAT.md` defines an explicit healthy-path token");
+    expect(heartbeatDoctrine).toContain("Exact-token precedence");
+    expect(heartbeatDoctrine).toContain("Do not silently suppress an explicit healthy-path token");
   });
 });

@@ -4,12 +4,17 @@ This file captures full heartbeat logic, check rotation, proactive intelligence,
 
 ## 💓 Heartbeats - Be Proactive!
 
-When you receive a heartbeat poll (message matches the configured heartbeat prompt), don't just reply `HEARTBEAT_OK` every time. Use heartbeats productively and keep them lean — one tight message that earns its tokens.
+When you receive a heartbeat poll (message matches the configured heartbeat prompt), run the requested checks and follow the active workspace `HEARTBEAT.md` contract exactly.
+
+If the active workspace `HEARTBEAT.md` defines an explicit healthy-path token such as `HEARTBEAT_OK` or `NO_REPLY`, use that exact token with no greeting, summary, emoji, or follow-up question.
+Do not silently suppress an explicit healthy-path token. `HEARTBEAT_OK` and `NO_REPLY` are different contracts.
 
 Default heartbeat prompt:
 `Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK.`
 
 **Queued-message precedence:** if queued/direct user messages arrive with or right after the heartbeat poll, answer the user request instead of sending a standalone `HEARTBEAT_OK`. Heartbeat silence applies only when the heartbeat poll is the only thing awaiting a reply.
+
+**Exact-token precedence:** if the heartbeat prompt itself says `reply exactly X`, obey that exact-token contract when the healthy path applies. Do not add conversational filler.
 
 You are free to edit `HEARTBEAT.md` with a short checklist or reminders. Keep it small to limit token burn.
 

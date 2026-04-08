@@ -2,6 +2,9 @@
 
 Report only meaningful risk/health deltas.
 If no action is needed, reply exactly: HEARTBEAT_OK
+Healthy path means the full reply must be exactly `HEARTBEAT_OK`
+Do not add greetings, summaries, emojis, or follow-up questions on the healthy path
+Do not replace `HEARTBEAT_OK` with silence or `NO_REPLY`
 If action is needed:
 - keep it under 80 words when possible
 - no section headers
