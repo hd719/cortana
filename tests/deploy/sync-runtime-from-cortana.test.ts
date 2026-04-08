@@ -63,10 +63,26 @@ function makeFixture() {
       auth: { token: "__GATEWAY_TOKEN__" },
     },
   });
+  writeJson(path.join(source, "config", "system-routing.json"), {
+    telegram: {
+      approvals: {
+        accountId: "default",
+        chatId: "8171372724",
+      },
+    },
+  });
   fs.mkdirSync(path.join(source, "skills", "gog"), { recursive: true });
   fs.writeFileSync(path.join(source, "skills", "gog", "SKILL.md"), "# Gog skill fixture\n", "utf8");
   fs.writeFileSync(path.join(source, "README.md"), "source v1\n", "utf8");
-  git(source, "add", "README.md", "config/cron/jobs.json", "config/openclaw.json", "skills/gog/SKILL.md");
+  git(
+    source,
+    "add",
+    "README.md",
+    "config/cron/jobs.json",
+    "config/openclaw.json",
+    "config/system-routing.json",
+    "skills/gog/SKILL.md",
+  );
   git(source, "commit", "-m", "initial");
   git(source, "push", "-u", "origin", "main");
 
