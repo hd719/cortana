@@ -2,6 +2,7 @@
 
 import path from "node:path";
 import os from "node:os";
+import { pathToFileURL } from "node:url";
 import { readJsonFile } from "../lib/json-file.js";
 import { createApprovalRequest, recordApprovalDecision } from "../lib/mission-control-ledger.js";
 
@@ -45,17 +46,39 @@ function loadOpenclawConfig(configPath: string): Record<string, any> {
   return cfg;
 }
 
+function approvalRouting(configPath: string): { accountId: string; chatId: string | null } {
+  const cfg = loadOpenclawConfig(configPath);
+  const approvals = cfg?.channels?.telegram?.systemRouting?.approvals;
+  const accountId = String(approvals?.accountId || "default");
+  const chatId = approvals?.chatId !== undefined && approvals?.chatId !== null ? String(approvals.chatId) : null;
+  return { accountId, chatId };
+}
+
 function telegramToken(configPath: string): string {
   const envToken = process.env.TELEGRAM_BOT_TOKEN;
   if (envToken) return envToken;
   const cfg = loadOpenclawConfig(configPath);
-  const token = cfg?.channels?.telegram?.botToken;
+  const routing = approvalRouting(configPath);
+  const token = cfg?.channels?.telegram?.botToken
+    ?? cfg?.channels?.telegram?.accounts?.[routing.accountId]?.botToken
+    ?? cfg?.channels?.telegram?.accounts?.default?.botToken;
   if (!token) {
     throw new Error(
-      "Telegram bot token not found. Set TELEGRAM_BOT_TOKEN or channels.telegram.botToken in ~/.openclaw/openclaw.json",
+      `Telegram bot token not found. Set TELEGRAM_BOT_TOKEN or configure channels.telegram.accounts.${routing.accountId}.botToken in ~/.openclaw/openclaw.json`,
     );
   }
   return String(token);
+}
+
+function configuredChatId(configPath: string): string | null {
+  if (process.env.TELEGRAM_CHAT_ID) return String(process.env.TELEGRAM_CHAT_ID);
+  const routing = approvalRouting(configPath);
+  if (routing.chatId) return routing.chatId;
+  const cfg = loadOpenclawConfig(configPath);
+  const telegram = cfg?.channels?.telegram;
+  const allowFrom = Array.isArray(telegram?.allowFrom) ? telegram.allowFrom : [];
+  const candidate = allowFrom.find((value: unknown) => value !== undefined && value !== null && String(value).trim());
+  return candidate !== undefined ? String(candidate) : null;
 }
 
 async function inferChatId(token: string): Promise<string | null> {
@@ -167,7 +190,7 @@ function isHighRisk(actionDesc: string, risk: string): boolean {
   return HIGH_RISK_KEYWORDS.some((k) => low.includes(k));
 }
 
-async function requestApproval(
+export async function requestApproval(
   actionDesc: string,
   risk: string,
   timeoutS = 300,
@@ -196,7 +219,7 @@ async function requestApproval(
   });
 
   const tok = token ?? telegramToken(configPath);
-  let resolvedChat: string | null = chatId ?? process.env.TELEGRAM_CHAT_ID ?? null;
+  let resolvedChat: string | null = chatId ?? configuredChatId(configPath);
   if (!resolvedChat) {
     try {
       resolvedChat = await inferChatId(tok);
@@ -264,7 +287,7 @@ function parseArgs(argv: string[]) {
   return args;
 }
 
-async function main(): Promise<number> {
+export async function main(): Promise<number> {
   const args = parseArgs(process.argv.slice(2));
   if (!args.action || !args.risk) {
     console.error("--action and --risk are required");
@@ -282,9 +305,17 @@ async function main(): Promise<number> {
   return 1;
 }
 
-main()
-  .then((code) => process.exit(code))
-  .catch((err) => {
-    console.error(err instanceof Error ? err.message : String(err));
-    process.exit(1);
-  });
+function isEntrypoint(): boolean {
+  const entry = process.argv[1];
+  if (!entry) return false;
+  return pathToFileURL(entry).href === import.meta.url;
+}
+
+if (isEntrypoint()) {
+  main()
+    .then((code) => process.exit(code))
+    .catch((err) => {
+      console.error(err instanceof Error ? err.message : String(err));
+      process.exit(1);
+    });
+}
