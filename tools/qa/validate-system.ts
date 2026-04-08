@@ -6,6 +6,7 @@ import path from "path";
 import { spawnSync } from "child_process";
 import { HEARTBEAT_MAX_AGE_MS, validateHeartbeatState } from "../lib/heartbeat-schema.js";
 import { PSQL_BIN, resolveRepoPath } from "../lib/paths.js";
+import { normalizeRuntimeCronConfig, splitRuntimeOnlyJobs } from "../lib/runtime-cron-jobs.js";
 import { evaluateAgentProfileSync } from "./validate-agent-profile-sync.js";
 
 type Check = {
@@ -139,7 +140,17 @@ function checkRuntimeCronState(fix: boolean): Check {
   try {
     const repoJobs = JSON.parse(fs.readFileSync(REPO_JOBS, "utf8"));
     const runtimeJobs = JSON.parse(fs.readFileSync(RUNTIME_JOBS, "utf8"));
-    details.semantic_match = JSON.stringify(stripVolatile(repoJobs)) === JSON.stringify(stripVolatile(runtimeJobs));
+    const normalizedRuntimeJobs = normalizeRuntimeCronConfig(repoJobs, runtimeJobs);
+    const { approvedManagedRuntimeOnlyJobs, unexpectedRuntimeOnlyJobs } = splitRuntimeOnlyJobs(repoJobs, runtimeJobs);
+    details.semantic_match = JSON.stringify(stripVolatile(repoJobs)) === JSON.stringify(stripVolatile(normalizedRuntimeJobs));
+    details.preserved_managed_runtime_only_jobs = approvedManagedRuntimeOnlyJobs.map((job) => ({
+      id: String(job.id ?? ""),
+      name: String(job.name ?? ""),
+    }));
+    details.unexpected_runtime_only_jobs = unexpectedRuntimeOnlyJobs.map((job) => ({
+      id: String(job.id ?? ""),
+      name: String(job.name ?? ""),
+    }));
     if (!details.semantic_match) {
       if (fix) {
         const [rc, out, err] = run([
@@ -158,7 +169,8 @@ function checkRuntimeCronState(fix: boolean): Check {
           fail(check, "Runtime cron sync fix failed");
         } else {
           const refreshed = JSON.parse(fs.readFileSync(RUNTIME_JOBS, "utf8"));
-          details.semantic_match = JSON.stringify(stripVolatile(repoJobs)) === JSON.stringify(stripVolatile(refreshed));
+          const normalizedRefreshed = normalizeRuntimeCronConfig(repoJobs, refreshed);
+          details.semantic_match = JSON.stringify(stripVolatile(repoJobs)) === JSON.stringify(stripVolatile(normalizedRefreshed));
           if (!details.semantic_match) {
             fail(check, "Runtime cron sync fix completed but semantic drift remains");
           }

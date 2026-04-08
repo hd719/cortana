@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { normalizeRuntimeCronConfig, splitRuntimeOnlyJobs } from "../lib/runtime-cron-jobs.js";
 
 type CronJob = Record<string, unknown>;
 type CronConfig = {
@@ -70,6 +71,7 @@ function mergeRuntimeState(repoConfig: CronConfig, runtimeConfig: CronConfig): C
   const repoJobs = Array.isArray(repoConfig.jobs) ? repoConfig.jobs : [];
   const runtimeJobs = Array.isArray(runtimeConfig.jobs) ? runtimeConfig.jobs : [];
   const runtimeById = new Map(runtimeJobs.map((job) => [String(job.id ?? ""), job]));
+  const { approvedManagedRuntimeOnlyJobs } = splitRuntimeOnlyJobs(repoConfig, runtimeConfig);
 
   const mergedJobs = repoJobs.map((repoJob) => {
     const jobId = String(repoJob.id ?? "");
@@ -84,7 +86,7 @@ function mergeRuntimeState(repoConfig: CronConfig, runtimeConfig: CronConfig): C
     return merged;
   });
 
-  return { ...repoConfig, jobs: mergedJobs };
+  return { ...repoConfig, jobs: [...mergedJobs, ...approvedManagedRuntimeOnlyJobs] };
 }
 
 function stableDigest(value: unknown): string {
@@ -106,17 +108,19 @@ function main(): void {
   const repoConfig = readJson(repoFile);
   const runtimeConfig = readJson(runtimeFile);
   const merged = mergeRuntimeState(repoConfig, runtimeConfig);
+  const normalizedRuntimeConfig = normalizeRuntimeCronConfig(repoConfig, runtimeConfig);
+  const { approvedManagedRuntimeOnlyJobs, unexpectedRuntimeOnlyJobs } = splitRuntimeOnlyJobs(repoConfig, runtimeConfig);
 
-  const repoJobs = Array.isArray(repoConfig.jobs) ? repoConfig.jobs : [];
-  const runtimeJobs = Array.isArray(runtimeConfig.jobs) ? runtimeConfig.jobs : [];
-  const repoIds = new Set(repoJobs.map((job) => String(job.id ?? "")));
-  const droppedRuntimeOnlyJobs = runtimeJobs
+  const droppedRuntimeOnlyJobs = unexpectedRuntimeOnlyJobs
     .map((job) => String(job.id ?? ""))
-    .filter((jobId) => jobId && !repoIds.has(jobId));
+    .filter(Boolean);
+  const preservedManagedRuntimeOnlyJobs = approvedManagedRuntimeOnlyJobs
+    .map((job) => String(job.id ?? ""))
+    .filter(Boolean);
 
   const currentDigest = JSON.stringify(runtimeConfig);
   const mergedDigest = JSON.stringify(merged);
-  const semanticMatch = stableDigest(repoConfig) === stableDigest(runtimeConfig);
+  const semanticMatch = stableDigest(repoConfig) === stableDigest(normalizedRuntimeConfig);
   const changed = currentDigest !== mergedDigest;
 
   const payload = {
@@ -126,6 +130,7 @@ function main(): void {
     changed,
     semanticMatch,
     droppedRuntimeOnlyJobs,
+    preservedManagedRuntimeOnlyJobs,
   };
 
   if (args.check) {
