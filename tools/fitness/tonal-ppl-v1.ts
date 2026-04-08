@@ -5,10 +5,10 @@ import path from "node:path";
 
 import { TONAL_MOVEMENT_DEFINITIONS, type TonalMuscleGroup, type TonalMovementPattern } from "./tonal-movement-map.js";
 
-const PUBLIC_CATALOG_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/tonal-public-movement-catalog.json";
-const OBSERVED_CATALOG_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/current-tonal-catalog.json";
-const OUTPUT_JSON_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/tonal-ppl-v1.json";
-const OUTPUT_MARKDOWN_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/tonal-ppl-v1.md";
+const PUBLIC_CATALOG_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/json/tonal-public-movement-catalog.json";
+const OBSERVED_CATALOG_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/json/current-tonal-catalog.json";
+const OUTPUT_JSON_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/json/tonal-ppl-v1.json";
+const OUTPUT_MARKDOWN_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/md/tonal-ppl-v1.md";
 
 type ValidationSource = "public_library" | "observed_history";
 type DayKey = "push" | "pull" | "legs";

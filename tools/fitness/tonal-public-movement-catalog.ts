@@ -6,9 +6,9 @@ import path from "node:path";
 import { normalizeTonalMovementKey, resolveTonalMovement, type TonalMuscleGroup, type TonalMovementPattern } from "./tonal-movement-map.js";
 
 const TONAL_MOVEMENTS_BASE_URL = "https://tonal.com/blogs/movements";
-const DEFAULT_OUTPUT_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/tonal-public-movement-catalog.json";
-const DEFAULT_MARKDOWN_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/tonal-public-movement-catalog.md";
-const OBSERVED_CATALOG_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/current-tonal-catalog.json";
+const DEFAULT_OUTPUT_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/json/tonal-public-movement-catalog.json";
+const DEFAULT_MARKDOWN_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/md/tonal-public-movement-catalog.md";
+const OBSERVED_CATALOG_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/json/current-tonal-catalog.json";
 
 export type TonalPublicCategory = "upper" | "lower" | "core" | "top_moves" | "unknown";
 export type TonalPplBucket = "push" | "pull" | "legs" | "core" | "other";

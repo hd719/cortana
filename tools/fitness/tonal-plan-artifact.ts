@@ -83,7 +83,7 @@ export function tonalPlanPaths(
     sandboxMarkdownPath: path.join(sandboxRoot, `${dateLocal}-tomorrow-session.md`),
     repoJsonPath: path.join(repoRoot, `${dateLocal}-tomorrow-session.json`),
     repoMarkdownPath: path.join(repoRoot, `${dateLocal}-tomorrow-session.md`),
-    repoCatalogPath: path.join(roots?.programRoot ?? "/Users/hd/Developer/cortana/memory/fitness/programs", "current-tonal-catalog.json"),
+    repoCatalogPath: path.join(roots?.programRoot ?? "/Users/hd/Developer/cortana/memory/fitness/programs/json", "current-tonal-catalog.json"),
   };
 }
 

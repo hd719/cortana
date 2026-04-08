@@ -126,7 +126,7 @@ Audit the structured Tonal planner output for tomorrow and explain whether it ma
 
 Load first:
 - ~/Developer/cortana/memory/fitness/plans/YYYY-MM-DD-tomorrow-session.json
-- ~/Developer/cortana/memory/fitness/programs/current-tonal-catalog.json
+- ~/Developer/cortana/memory/fitness/programs/json/current-tonal-catalog.json
 - ~/Developer/cortana/memory/fitness/daily/YYYY-MM-DD.json
 
 Fetch if needed:
@@ -147,7 +147,7 @@ Create: ~/Developer/cortana/memory/fitness/analysis/tomorrow-tonal-plan-audit.md
 Inspect the normalized Tonal catalog and look for mapping or payload drift.
 
 Load first:
-- ~/Developer/cortana/memory/fitness/programs/current-tonal-catalog.json
+- ~/Developer/cortana/memory/fitness/programs/json/current-tonal-catalog.json
 
 Fetch if needed:
 - curl -s http://localhost:3033/tonal/data?fresh=true

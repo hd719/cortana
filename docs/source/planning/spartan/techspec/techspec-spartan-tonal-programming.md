@@ -171,7 +171,7 @@ Artifact locations:
 
 - `memory/fitness/plans/YYYY-MM-DD-tomorrow-session.json`
 - `memory/fitness/plans/YYYY-MM-DD-tomorrow-session.md`
-- `memory/fitness/programs/current-tonal-catalog.json`
+- `memory/fitness/programs/json/current-tonal-catalog.json`
 
 LLM-agnostic requirement:
 

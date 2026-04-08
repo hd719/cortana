@@ -1,6 +1,6 @@
 # Tonal PPL v1
 
-- Generated: 2026-04-08T16:30:39.055Z
+- Generated: 2026-04-08T16:38:10.013Z
 - Workouts analyzed: 83
 - Mapped movements seen: 19
 - Latest workout at: 2026-04-07T10:37:55.805493Z

@@ -6,7 +6,7 @@ import path from "node:path";
 import { buildTonalProgramCatalog, type TonalProgramCatalog } from "./tonal-program-catalog.js";
 
 const DEFAULT_TONAL_URL = "http://127.0.0.1:3033/tonal/data";
-const DEFAULT_OUTPUT_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/current-tonal-catalog.json";
+const DEFAULT_OUTPUT_PATH = "/Users/hd/Developer/cortana/memory/fitness/programs/json/current-tonal-catalog.json";
 
 export function persistCurrentTonalCatalog(
   catalog: TonalProgramCatalog,

@@ -1,9 +1,9 @@
 {
   "schema": "spartan.tonal_ppl_v1",
-  "generatedAt": "2026-04-08T16:30:39.055Z",
+  "generatedAt": "2026-04-08T16:38:10.013Z",
   "source": {
-    "publicCatalogPath": "/Users/hd/Developer/cortana/memory/fitness/programs/tonal-public-movement-catalog.json",
-    "observedCatalogPath": "/Users/hd/Developer/cortana/memory/fitness/programs/current-tonal-catalog.json"
+    "publicCatalogPath": "/Users/hd/Developer/cortana/memory/fitness/programs/json/tonal-public-movement-catalog.json",
+    "observedCatalogPath": "/Users/hd/Developer/cortana/memory/fitness/programs/json/current-tonal-catalog.json"
   },
   "summary": {
     "workoutsSeen": 83,
