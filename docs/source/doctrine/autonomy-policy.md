@@ -85,8 +85,6 @@ Triggers:
   - Goal: one DB-backed incident lifecycle (`open` -> `resolved`) instead of scattered script-local state.
   - Repeated unchanged failures should not keep paging; state-change and verified recovery are the meaningful operator signals.
 - Browser/CDP bounded recovery is active through `tools/monitoring/browser-cdp-watchdog.ts` and `tools/monitoring/autonomy-remediation.ts` (one `openclaw node restart`, then verify endpoint health, then escalate).
-- Vacation-mode fragile-job quarantine is active through `tools/monitoring/vacation-mode-guard.ts` and `tools/monitoring/autonomy-remediation.ts` when `config/autonomy-lanes.json -> vacationMode.enabled=true`.
-  - Vacation mode intentionally tightens alerting and quarantines fragile cron jobs sooner (first consecutive error by default).
 - Operator visibility: run `npx tsx tools/monitoring/autonomy-status.ts` for a compact executive summary of what was auto-fixed, what failed then recovered, what still needs Hamel, and what exceeded authority or was deferred.
 - Operator surface: run `npx tsx tools/monitoring/autonomy-ops.ts` for one clean operator view across status, rollout state, family-critical handling, and blocked/deferred attention items. It suppresses unchanged repeat chatter so stale copies do not keep paging.
 - Daily executive digest: run `npx tsx tools/monitoring/autonomy-daily-digest.ts` for the compact once-daily operator digest covering auto-fixes, recovered degradation, human-needed items, authority blocks, and family-critical lane status.

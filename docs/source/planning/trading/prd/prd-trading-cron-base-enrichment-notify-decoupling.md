@@ -1,6 +1,6 @@
 # PRD: Trading Cron Base / Enrichment / Notify Decoupling
 
-**Status:** Draft  
+**Status:** Done  
 **Owner:** Cortana / OpenClaw trading workflow  
 **Primary repos:** `cortana`, `cortana-external`  
 **Intent:** Make the trading cron architecture reliable, fast, and operationally simple by separating production-critical compute from optional enrichments and final notification delivery.

@@ -1,6 +1,7 @@
 # Spartan Fitness Program Index
 
 Date: 2026-04-04
+Status: Done
 
 ## Purpose
 

@@ -31,12 +31,6 @@ This is the operator runbook for vacation/weekend incidents when direct desktop 
 
 Do not loop retries for these. Alert once with the exact manual step needed.
 
-## Vacation Mode
-- Toggle in `config/autonomy-lanes.json`:
-  - `vacationMode.enabled=true`
-- Guard runs via `tools/monitoring/vacation-mode-guard.ts` and quarantines fragile jobs sooner.
-- Use only during unattended windows; revert to `false` when back.
-
 ## Exit Criteria
 - `openclaw status` healthy
 - `check-cron-delivery.ts` passes

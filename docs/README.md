@@ -18,9 +18,6 @@ It does **not** replace:
 - `source/doctrine/` - durable operating rules and behavior doctrine
 - `source/architecture/` - system design, internal mechanics, and structural docs
 - `source/runbook/` - operator playbooks and recovery procedures
-- `source/research/` - investigations and analytical writeups
-- `source/reference/` - compact reference docs
-- `source/prompts/` - reusable prompt artifacts
 - `source/planning/` - PRDs, tech specs, implementation plans, and roadmaps
 - `source/planning/templates/` - shared planning templates for PRDs, tech specs, and implementation plans
 - `archive/` - historical or low-signal docs kept for reference but not treated as current reading
@@ -39,5 +36,4 @@ It does **not** replace:
 - [Spartan planning index](./source/planning/spartan/README.md)
 - [Memory engine design](./source/architecture/memory-engine-design.md)
 - [Runtime deploy model](./source/architecture/runtime-deploy-model.md)
-- [Sub-agent reliability runbook](./source/runbook/subagent-reliability-runbook.md)
 - [Archive guide](./archive/README.md)

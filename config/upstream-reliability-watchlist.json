@@ -27,8 +27,8 @@
           "path": "tools/task-board/auto-executor.ts"
         },
         {
-          "name": "subagent reliability runbook",
-          "path": "docs/source/runbook/subagent-reliability-runbook.md"
+          "name": "subagent reliability triage",
+          "path": "docs/source/doctrine/agent-routing.md"
         }
       ]
     },
