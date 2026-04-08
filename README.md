@@ -582,7 +582,6 @@ Key files:
 - `docs/source/doctrine/heartbeat-ops.md` – heartbeat rotation, quiet hours, proactive checks
 - `docs/source/doctrine/task-board.md` – Postgres-backed task board + auto-executor
 - `docs/source/doctrine/learning-loop.md` – feedback protocol + self-improvement
-- `docs/source/reference/heartbeat-sql-reference.md` – canonical SQL snippets for heartbeats
 - `docs/source/architecture/memory-compression.md` – guardrails and retention policy for memory compression
 - `docs/source/runbook/subagent-reliability-runbook.md` – incident runbook for sub-agent abort/timeout recovery
 - `docs/source/architecture/runtime-deploy-model.md` – source repo + compatibility shim deploy contract
@@ -855,7 +854,6 @@ The current autonomy stabilization work gives Cortana:
 - `IDENTITY.md` – short identity summary
 - `MEMORY.md` – curated long‑term memory (MAIN session only)
 - `HEARTBEAT.md` – heartbeat rotation + proactive ops
-- `docs/source/reference/heartbeat-sql-reference.md` – SQL reference for heartbeats
 - `docs/source/doctrine/autonomy-policy.md` – autonomy doctrine, boundaries, remediation model, rollout/drill entrypoints
 - `docs/source/architecture/autonomy-stabilization-overview.md` – plain-English map of the autonomy stack built across Steps 1–11
 - `TOOLS.md` – environment‑specific notes and deploy paths
@@ -917,7 +915,6 @@ Representative highlights that are already live:
 - **gog OAuth health** cron‑safe refresh health script
 - **Task board stale detector** with auto‑cleanup + audit events
 - **Tools audit** inventory of tool scripts and references
-- **Heartbeat SQL reference** moved to `docs/source/reference/heartbeat-sql-reference.md`
 - **Meta‑monitor + earnings‑alert merge** across heartbeats + alerting
 - **Spawn pre‑flight validator** for sub‑agent launch safety
 - **Doc gardener** automated documentation maintenance workflow
