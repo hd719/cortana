@@ -12,6 +12,5 @@ Primary source docs:
 Planning structure:
 
 - `roadmap/` - roadmap and cross-epic sequencing
-- `prd/` - product requirements by epic
-- `techspec/` - engineering specs by epic
-- `implementation/` - implementation plans by epic
+- `usage/` - operator guide for the current system
+- `docs/archive/planning/spartan/` - implemented PRD / Tech Spec / Implementation triplets retained as historical design references

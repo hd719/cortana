@@ -117,7 +117,13 @@ Follow `docs/source/doctrine/autonomy-policy.md` for decision authority on break
 - ❌ Spawn without identifying which agent role applies
 
 ## Review Chains
-After any builder sub-agent completes non-trivial work, consult `docs/source/doctrine/review-chains.md` for the appropriate reviewer chain.
+After any builder sub-agent completes non-trivial work, use these reviewer chains:
+
+- Huragok (code/infra) -> Librarian (docs review) + Monitor (health validation)
+- Librarian (docs) -> Monitor (docs-vs-reality validation)
+- Researcher (analysis) -> Oracle (strategic review of findings)
+
+Skip reviewer chaining for trivial work or pure one-off informational replies.
 
 ## Git Branch Hygiene (MANDATORY)
 

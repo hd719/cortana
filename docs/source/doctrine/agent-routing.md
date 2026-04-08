@@ -54,7 +54,7 @@ For Researcher lane identity and operating details, see `identities/researcher/`
 ## Monitor/Covenant Telegram troubleshooting
 
 If Monitor cannot see Covenant group messages, use:
-- `docs/source/runbook/monitor-covenant-telegram-troubleshooting.md`
+- `docs/archive/runbook/monitor-covenant-telegram-troubleshooting.md`
 
 This covers routing keys, account bindings, group mention policy, and Telegram privacy/admin checks.
 

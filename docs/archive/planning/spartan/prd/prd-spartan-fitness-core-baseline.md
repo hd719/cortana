@@ -213,7 +213,7 @@ Research themes already synthesized in the roadmap:
 
 Reference roadmap:
 
-- [Ultimate Fitness Trainer Roadmap](../roadmap/fitness-trainer-roadmap-2026-04-04.md)
+- [Ultimate Fitness Trainer Roadmap](../../../../source/planning/spartan/roadmap/fitness-trainer-roadmap-2026-04-04.md)
 
 ### Open Questions
 

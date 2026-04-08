@@ -192,9 +192,9 @@ Current-state justification:
 
 Related docs:
 
-- [Program Index](../roadmap/spartan-fitness-program-index.md)
+- [Program Index](../../../../source/planning/spartan/roadmap/spartan-fitness-program-index.md)
 - [Core Baseline PRD](./prd-spartan-fitness-core-baseline.md)
-- [Ultimate Fitness Trainer Roadmap](../roadmap/fitness-trainer-roadmap-2026-04-04.md)
+- [Ultimate Fitness Trainer Roadmap](../../../../source/planning/spartan/roadmap/fitness-trainer-roadmap-2026-04-04.md)
 
 ### Open Questions
 
