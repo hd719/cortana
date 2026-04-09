@@ -3,6 +3,7 @@ import { captureConsole, flushModuleSideEffects, importFresh, resetProcess, setA
 
 const readFileSync = vi.hoisted(() => vi.fn());
 const existsSync = vi.hoisted(() => vi.fn(() => true));
+const reconcileMissionControlFeedbackSignal = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
 
 vi.mock("node:fs", () => ({
   default: {
@@ -10,11 +11,16 @@ vi.mock("node:fs", () => ({
     existsSync,
   },
 }));
+vi.mock("../../tools/feedback/mission-control-feedback-signal.js", () => ({
+  reconcileMissionControlFeedbackSignal,
+}));
 
 describe("ops-routing-drift-check", () => {
   beforeEach(() => {
     readFileSync.mockReset();
     existsSync.mockReset();
+    reconcileMissionControlFeedbackSignal.mockReset();
+    reconcileMissionControlFeedbackSignal.mockResolvedValue({ ok: true });
     existsSync.mockReturnValue(true);
   });
 
@@ -87,6 +93,12 @@ describe("ops-routing-drift-check", () => {
 
     const output = await runScript(["--repo-root", "/repo"]);
     expect(output).toContain("NO_REPLY");
+    expect(reconcileMissionControlFeedbackSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recurrenceKey: "ops:routing-drift",
+        signalState: "cleared",
+      }),
+    );
   });
 
   it("flags prompt-owner drift and missing quiet healthy path", async () => {
@@ -122,6 +134,12 @@ describe("ops-routing-drift-check", () => {
           jobId: "newsletter",
         }),
       ]),
+    );
+    expect(reconcileMissionControlFeedbackSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recurrenceKey: "ops:routing-drift",
+        signalState: "active",
+      }),
     );
   });
 

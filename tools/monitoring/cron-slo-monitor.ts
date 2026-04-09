@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { reconcileMissionControlFeedbackSignal } from "../feedback/mission-control-feedback-signal.js";
 
 type Job = {
   id?: string;
@@ -80,10 +81,20 @@ function top(arr: Job[]): string {
   return arr.slice(0, 5).map(label).join(", ");
 }
 
-function main() {
+async function main() {
   const now = Date.now();
   const jobs = readJobs().filter((j) => j.enabled !== false);
   if (!jobs.length) {
+    await reconcileMissionControlFeedbackSignal({
+      category: "ops.cron_delivery",
+      severity: "low",
+      summary: "Cron SLO monitor cleared.",
+      recurrenceKey: "ops:cron-slo-monitor",
+      signalState: "cleared",
+      actor: "cron-slo-monitor",
+      owner: "monitor",
+      details: { jobs: 0 },
+    });
     console.log("NO_REPLY");
     return;
   }
@@ -102,7 +113,28 @@ function main() {
     return isCritical(j) || consecutiveErrors >= 1 || hasDeliveryProblem(j);
   });
 
-  if (!actionableErroring.length && !actionableNearTimeout.length && !actionableMissed.length) {
+  const hasActionable = Boolean(actionableErroring.length || actionableNearTimeout.length || actionableMissed.length);
+
+  await reconcileMissionControlFeedbackSignal({
+    category: "ops.cron_delivery",
+    severity: actionableErroring.length || actionableMissed.length ? "high" : hasActionable ? "medium" : "low",
+    summary: hasActionable
+      ? `Cron delivery drift: ${actionableErroring.length} erroring, ${actionableMissed.length} missed, ${actionableNearTimeout.length} near-timeout jobs.`
+      : "Cron delivery state healthy.",
+    recurrenceKey: "ops:cron-slo-monitor",
+    signalState: hasActionable ? "active" : "cleared",
+    actor: "cron-slo-monitor",
+    owner: "monitor",
+    details: {
+      actionable_erroring: actionableErroring.map(label),
+      actionable_missed: actionableMissed.map(label),
+      actionable_near_timeout: actionableNearTimeout.map(label),
+      noisy_erroring: noisyErroring.map(label),
+      noisy_missed: noisyMissed.map(label),
+    },
+  });
+
+  if (!hasActionable) {
     console.log("NO_REPLY");
     return;
   }
@@ -120,4 +152,4 @@ function main() {
   console.log(lines.join("\n"));
 }
 
-main();
+void main();

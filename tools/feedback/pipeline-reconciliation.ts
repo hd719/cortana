@@ -3,6 +3,7 @@
 import { spawnSync } from "node:child_process";
 import { withPostgresPath } from "../lib/db.js";
 import { PSQL_BIN } from "../lib/paths.js";
+import { reconcileMissionControlFeedbackSignal } from "./mission-control-feedback-signal.js";
 
 function psql(db: string, args: string[]): string {
   const r = spawnSync(PSQL_BIN, [db, "-v", "ON_ERROR_STOP=1", ...args], {
@@ -25,6 +26,15 @@ function runDate(): string {
 
 async function main(): Promise<void> {
   const db = process.env.DB_NAME || "cortana";
+  const recentSignalNoiseFilter = `
+  AND NOT (
+    m.source = 'system'
+    AND (
+      COALESCE(m.details->>'producer_kind', '') = 'signal'
+      OR m.category LIKE 'ops.%'
+    )
+    AND m.created_at >= NOW() - INTERVAL '24 hours'
+  )`;
   const activeFeedbackFilter = `
 FROM mc_feedback_items m
 WHERE COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
@@ -36,6 +46,7 @@ WHERE COALESCE(m.remediation_status, 'open') NOT IN ('resolved', 'wont_fix')
 
   const unlinkedCount = psql(db, ["-t", "-A", "-c", `SELECT COUNT(*)
 ${activeFeedbackFilter}
+${recentSignalNoiseFilter}
   AND NOT EXISTS (
     SELECT 1
     FROM cortana_tasks t
@@ -79,6 +90,7 @@ ${activeFeedbackFilter}
   COALESCE(m.severity, '') AS severity,
   LEFT(COALESCE(m.summary,''), 120) AS summary
 ${activeFeedbackFilter}
+${recentSignalNoiseFilter}
   AND NOT EXISTS (
     SELECT 1
     FROM cortana_tasks t
@@ -115,6 +127,36 @@ LIMIT 10;`]);
   const stuckN = Number(stuckCount || "0");
   const stuckBacklogN = Number(stuckBacklogCount || "0");
   const stuckBreakageN = Number(stuckBreakageCount || "0");
+
+  await reconcileMissionControlFeedbackSignal({
+    category: "ops.feedback_pipeline",
+    severity: "medium",
+    summary: `Feedback pipeline has ${unlinkedN} unlinked item${unlinkedN === 1 ? "" : "s"}.`,
+    recurrenceKey: "ops:feedback-pipeline:unlinked",
+    signalState: unlinkedN > 0 ? "active" : "cleared",
+    actor: "pipeline-reconciliation",
+    owner: "monitor",
+    details: {
+      unlinked_count: unlinkedN,
+      latest_unlinked: unlinkedRows,
+    },
+  });
+
+  await reconcileMissionControlFeedbackSignal({
+    category: "ops.feedback_pipeline",
+    severity: stuckBreakageN > 0 ? "high" : "medium",
+    summary: `Feedback pipeline has ${stuckN} stuck item${stuckN === 1 ? "" : "s"} >24h.`,
+    recurrenceKey: "ops:feedback-pipeline:stuck",
+    signalState: stuckN > 0 ? "active" : "cleared",
+    actor: "pipeline-reconciliation",
+    owner: "monitor",
+    details: {
+      stuck_count: stuckN,
+      stuck_backlog_count: stuckBacklogN,
+      stuck_breakage_count: stuckBreakageN,
+      latest_stuck: stuckRows,
+    },
+  });
 
   const severity = stuckBreakageN > 0 ? "warning" : "info";
   const message = `pipeline reconciliation: mc_feedback_items=${mcTotal}, tasks_source_feedback=${feedbackTasksTotal}, unlinked=${unlinkedN}, stuck=${stuckN}, stuck_backlog=${stuckBacklogN}, stuck_breakage=${stuckBreakageN}`;

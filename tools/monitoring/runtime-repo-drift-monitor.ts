@@ -1,6 +1,7 @@
 #!/usr/bin/env -S npx tsx
 import fs from "node:fs";
 import { execSync } from "node:child_process";
+import { reconcileMissionControlFeedbackSignal } from "../feedback/mission-control-feedback-signal.js";
 
 type Args = {
   dryRun: boolean;
@@ -252,7 +253,7 @@ function assessRuntime(state: RepoState, source: RepoState, expectedBranch: stri
   return findings;
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const args = parseArgs();
   void args.dryRun;
 
@@ -273,6 +274,16 @@ function main(): void {
   }
 
   if (missing.length) {
+    await reconcileMissionControlFeedbackSignal({
+      category: "ops.runtime_repo_drift",
+      severity: "high",
+      summary: "Runtime deploy drift: source or runtime repo is missing.",
+      recurrenceKey: "ops:runtime-repo-drift",
+      signalState: "active",
+      actor: "runtime-repo-drift-monitor",
+      owner: "monitor",
+      details: { missing },
+    });
     const payload = { status: "needs_action", actionable: [], suppressed: [], missing };
     if (args.json) {
       console.log(JSON.stringify(payload));
@@ -285,6 +296,23 @@ function main(): void {
   const sourceState = collectRepoState(args.sourceRepo, args.sourceBranch);
   if (isShimmedRuntime(args.sourceRepo, args.runtimeRepo)) {
     const actionable = assessSource(sourceState, args.sourceBranch);
+    await reconcileMissionControlFeedbackSignal({
+      category: "ops.runtime_repo_drift",
+      severity: actionable.length ? "high" : "low",
+      summary: actionable.length
+        ? `Runtime deploy drift: ${actionable.length} source repo issue${actionable.length === 1 ? "" : "s"} detected.`
+        : "Runtime deploy drift cleared.",
+      recurrenceKey: "ops:runtime-repo-drift",
+      signalState: actionable.length ? "active" : "cleared",
+      actor: "runtime-repo-drift-monitor",
+      owner: "monitor",
+      details: {
+        source_repo: args.sourceRepo,
+        runtime_repo: args.runtimeRepo,
+        source_of_truth: args.sourceRepo === DEFAULT_DEPLOY_REPO ? "deploy-worktree" : "primary-worktree",
+        actionable,
+      },
+    });
     const payload = {
       status: actionable.length ? "needs_action" : "healthy",
       sourceRepo: args.sourceRepo,
@@ -326,6 +354,23 @@ function main(): void {
     ...assessRuntime(runtimeState, sourceState, args.runtimeBranch),
   ];
 
+  await reconcileMissionControlFeedbackSignal({
+    category: "ops.runtime_repo_drift",
+    severity: actionable.length ? "high" : "low",
+    summary: actionable.length
+      ? `Runtime deploy drift: ${actionable.length} actionable mismatch${actionable.length === 1 ? "" : "es"} detected.`
+      : "Runtime deploy drift cleared.",
+    recurrenceKey: "ops:runtime-repo-drift",
+    signalState: actionable.length ? "active" : "cleared",
+    actor: "runtime-repo-drift-monitor",
+    owner: "monitor",
+    details: {
+      source_repo: args.sourceRepo,
+      runtime_repo: args.runtimeRepo,
+      actionable,
+    },
+  });
+
   const payload = {
     status: actionable.length ? "needs_action" : "healthy",
     sourceRepo: args.sourceRepo,
@@ -353,4 +398,4 @@ function main(): void {
   console.log(lines.join("\n"));
 }
 
-main();
+void main();

@@ -4,6 +4,7 @@ import { captureConsole, flushModuleSideEffects, importFresh, resetProcess, setA
 const execSync = vi.hoisted(() => vi.fn());
 const existsSync = vi.hoisted(() => vi.fn(() => true));
 const realpathSync = vi.hoisted(() => vi.fn((p: string) => p));
+const reconcileMissionControlFeedbackSignal = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
 
 vi.mock("node:child_process", () => ({ execSync }));
 vi.mock("node:fs", () => ({
@@ -11,6 +12,9 @@ vi.mock("node:fs", () => ({
     existsSync,
     realpathSync,
   },
+}));
+vi.mock("../../tools/feedback/mission-control-feedback-signal.js", () => ({
+  reconcileMissionControlFeedbackSignal,
 }));
 
 type RepoMockState = {
@@ -28,6 +32,8 @@ describe("runtime-repo-drift-monitor", () => {
     execSync.mockReset();
     existsSync.mockReset();
     realpathSync.mockReset();
+    reconcileMissionControlFeedbackSignal.mockReset();
+    reconcileMissionControlFeedbackSignal.mockResolvedValue({ ok: true });
     existsSync.mockImplementation((filePath: string) => {
       const value = String(filePath);
       return !value.includes("/Users/hd/Developer/cortana-deploy/.git") &&
@@ -99,6 +105,12 @@ describe("runtime-repo-drift-monitor", () => {
 
     const output = await runMonitor(["--source-repo", "/source", "--runtime-repo", "/runtime"]);
     expect(output).toContain("NO_REPLY");
+    expect(reconcileMissionControlFeedbackSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recurrenceKey: "ops:runtime-repo-drift",
+        signalState: "cleared",
+      }),
+    );
   });
 
   it("defaults runtime repo to the source repo when no runtime override is provided", async () => {
@@ -184,6 +196,12 @@ describe("runtime-repo-drift-monitor", () => {
           reason: "runtime repo is behind the source deploy commit",
         }),
       ]),
+    );
+    expect(reconcileMissionControlFeedbackSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recurrenceKey: "ops:runtime-repo-drift",
+        signalState: "active",
+      }),
     );
   });
 

@@ -3,6 +3,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRepoPath } from "../lib/paths.js";
+import { reconcileMissionControlFeedbackSignal } from "../feedback/mission-control-feedback-signal.js";
 
 type RequiredDoc = {
   path: string;
@@ -234,7 +235,7 @@ function checkJobs(repoRoot: string, config: Config): Finding[] {
   return findings;
 }
 
-function main(): void {
+async function main(): Promise<void> {
   const args = parseArgs();
   const configPath = path.join(args.repoRoot, "config", "ops-hygiene-rules.json");
   const config = readJson<Config>(configPath);
@@ -250,6 +251,21 @@ function main(): void {
           other.jobId === finding.jobId,
       ) === index,
   );
+
+  await reconcileMissionControlFeedbackSignal({
+    category: "ops.routing_drift",
+    severity: deduped.length ? "medium" : "low",
+    summary: deduped.length
+      ? `Ops routing drift: ${deduped.length} finding${deduped.length === 1 ? "" : "s"} need attention.`
+      : "Ops routing drift cleared.",
+    recurrenceKey: "ops:routing-drift",
+    signalState: deduped.length ? "active" : "cleared",
+    actor: "ops-routing-drift-check",
+    owner: "monitor",
+    details: {
+      findings: deduped,
+    },
+  });
 
   if (args.json) {
     console.log(
@@ -280,4 +296,4 @@ function main(): void {
   console.log(lines.join("\n"));
 }
 
-main();
+void main();
