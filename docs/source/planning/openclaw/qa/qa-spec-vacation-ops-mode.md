@@ -39,8 +39,8 @@ It does not assume prior knowledge of the implementation beyond the linked plann
 
 Related docs:
 
-- [PRD](/Users/hd/Developer/cortana/docs/source/planning/openclaw/prd/prd-vacation-ops-mode.md)
-- [Tech Spec](/Users/hd/Developer/cortana/docs/source/planning/openclaw/techspec/techspec-vacation-ops-mode.md)
+- [PRD](../prd/prd-vacation-ops-mode.md)
+- [Tech Spec](../techspec/techspec-vacation-ops-mode.md)
 
 ---
 

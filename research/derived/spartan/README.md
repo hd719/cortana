@@ -28,8 +28,8 @@ Promote from this layer when a conclusion is:
 - specific enough to change Spartan behavior
 
 Current promotion targets:
-- [Spartan overview](/Users/hd/Developer/cortana/knowledge/domains/spartan/overview.md)
-- [Spartan current state](/Users/hd/Developer/cortana/knowledge/domains/spartan/current-state.md)
-- [Spartan coaching rules](/Users/hd/Developer/cortana/knowledge/domains/spartan/coaching-rules.md)
+- [Spartan overview](../../../knowledge/domains/spartan/overview.md)
+- [Spartan current state](../../../knowledge/domains/spartan/current-state.md)
+- [Spartan coaching rules](../../../knowledge/domains/spartan/coaching-rules.md)
 - Spartan roadmap and operator guide
 - `cortana-external/apps/external-service/knowledge/spartan/`

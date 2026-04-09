@@ -35,6 +35,5 @@ That boundary exists to prevent research tasks from being silently misrouted as 
 
 ## Primary Source Docs
 
-- [Covenant README](../../../covenant/README.md)
 - [Covenant orchestration](../../../docs/source/architecture/covenant-orchestration-v2.md)
 - [Covenant integration strategy](../../../docs/source/architecture/covenant-integration-strategy.md)

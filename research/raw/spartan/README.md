@@ -25,9 +25,9 @@ In the LLM wiki workflow:
 
 1. Use [corpus-inventory.md](./corpus-inventory.md) as the lookup table for future LLM research passes.
 2. Write topic syntheses into:
-   - [strength-hypertrophy-and-progression.md](/Users/hd/Developer/cortana/research/derived/spartan/strength-hypertrophy-and-progression.md)
-   - [recovery-readiness-and-fatigue.md](/Users/hd/Developer/cortana/research/derived/spartan/recovery-readiness-and-fatigue.md)
-   - [nutrition-and-body-composition.md](/Users/hd/Developer/cortana/research/derived/spartan/nutrition-and-body-composition.md)
-   - [conditioning-and-athletic-performance.md](/Users/hd/Developer/cortana/research/derived/spartan/conditioning-and-athletic-performance.md)
-   - [velocity-based-training-and-autoregulation.md](/Users/hd/Developer/cortana/research/derived/spartan/velocity-based-training-and-autoregulation.md)
+   - [strength-hypertrophy-and-progression.md](../../derived/spartan/strength-hypertrophy-and-progression.md)
+   - [recovery-readiness-and-fatigue.md](../../derived/spartan/recovery-readiness-and-fatigue.md)
+   - [nutrition-and-body-composition.md](../../derived/spartan/nutrition-and-body-composition.md)
+   - [conditioning-and-athletic-performance.md](../../derived/spartan/conditioning-and-athletic-performance.md)
+   - [velocity-based-training-and-autoregulation.md](../../derived/spartan/velocity-based-training-and-autoregulation.md)
 3. Consolidate durable findings later into Spartan knowledge pages once those pages exist.
