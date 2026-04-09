@@ -17,8 +17,8 @@ Use this area when the work is still exploratory, comparative, or synthesis-heav
 
 ## Active Topics
 
-- [Spartan raw corpus](/Users/hd/Developer/cortana/research/raw/spartan/README.md)
-- [Spartan derived research](/Users/hd/Developer/cortana/research/derived/spartan/README.md)
+- [Spartan raw corpus](./raw/spartan/README.md)
+- [Spartan derived research](./derived/spartan/README.md)
 
 ## Promotion Rule
 

@@ -16,4 +16,4 @@ Rules:
 - do not treat this folder as canonical truth
 
 Current topic entrypoint:
-- [Spartan raw corpus](/Users/hd/Developer/cortana/research/raw/spartan/README.md)
+- [Spartan raw corpus](./spartan/README.md)

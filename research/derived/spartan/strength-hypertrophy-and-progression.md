@@ -17,7 +17,7 @@ These papers are the best fit for improving:
 - strength
 - selected general-athletic-performance papers that directly inform resistance training outcomes
 
-The full source list is indexed in [corpus-inventory.md](/Users/hd/Developer/cortana/research/raw/spartan/corpus-inventory.md).
+The full source list is indexed in [corpus-inventory.md](../../raw/spartan/corpus-inventory.md).
 
 ## Main Questions To Answer
 

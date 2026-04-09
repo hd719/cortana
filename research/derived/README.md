@@ -16,4 +16,4 @@ Rules:
 - if an output becomes a durable source artifact, move it into `docs/source/`
 
 Current topic entrypoint:
-- [Spartan derived research](/Users/hd/Developer/cortana/research/derived/spartan/README.md)
+- [Spartan derived research](./spartan/README.md)
