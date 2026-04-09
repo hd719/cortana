@@ -41,7 +41,7 @@ Usage:
 Without flags, prints a report to stdout only.
 With --auto-fix, tries to:
   - Annotate broken paths in TOOLS.md with a "(BROKEN?)" marker
-  - Append an "Orphan docs" section to docs/source/runbook/system-hygiene-sweep.md
+  - Append an "Orphan docs" section to docs/archive/runbook/system-hygiene-sweep.md
   - Commit those changes if the git working tree was clean before the run
 EOF
       exit 0
@@ -62,7 +62,7 @@ MEMORY_FILE="$REPO_ROOT/MEMORY.md"
 TOOLS_FILE="$REPO_ROOT/TOOLS.md"
 AGENTS_FILE="$REPO_ROOT/AGENTS.md"
 DOCS_DIR="$REPO_ROOT/docs"
-HYGIENE_DOC="$DOCS_DIR/source/runbook/system-hygiene-sweep.md"
+HYGIENE_DOC="$DOCS_DIR/archive/runbook/system-hygiene-sweep.md"
 
 NOW_ISO=$(date +%Y-%m-%dT%H:%M:%S%z)
 TODAY=$(date +%Y-%m-%d)

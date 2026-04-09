@@ -1,6 +1,6 @@
 # Cortana Docs
 
-This directory holds durable source documentation for the `cortana` repo.
+This directory holds the raw source-document layer for the `cortana` repo.
 
 It does **not** replace:
 - root boot doctrine like `SOUL.md` and `MEMORY.md`
@@ -8,9 +8,16 @@ It does **not** replace:
 - agent namespace files in `identities/`
 - Covenant role scaffolds in `covenant/`
 
+In the LLM wiki model:
+- `research/` = exploration, collected inputs, and derived outputs
+- `docs/source/` = raw source material and durable artifacts
+- `knowledge/` = compiled current-truth wiki
+- `docs/archive/` = historical overflow kept out of the active front door
+
 ## Start Here
 
 - [Documentation authoring guide](./source/architecture/documentation-authoring-guide.md)
+- [Research workspace](../research/README.md)
 - [Canonical knowledge index](../knowledge/indexes/systems.md)
 
 ## Layout
@@ -18,11 +25,11 @@ It does **not** replace:
 - `source/doctrine/` - durable operating rules and behavior doctrine
 - `source/architecture/` - system design, internal mechanics, and structural docs
 - `source/runbook/` - operator playbooks and recovery procedures
-- `source/research/` - investigations and analytical writeups
-- `source/reference/` - compact reference docs
-- `source/prompts/` - reusable prompt artifacts
 - `source/planning/` - PRDs, tech specs, implementation plans, and roadmaps
 - `source/planning/templates/` - shared planning templates for PRDs, tech specs, and implementation plans
+- `archive/` - historical or low-signal docs kept for reference but not treated as current reading
+
+Use `research/` when the material is still exploratory and should not yet become canonical or a durable source artifact.
 
 ## Most Important Source Docs
 
@@ -38,4 +45,4 @@ It does **not** replace:
 - [Spartan planning index](./source/planning/spartan/README.md)
 - [Memory engine design](./source/architecture/memory-engine-design.md)
 - [Runtime deploy model](./source/architecture/runtime-deploy-model.md)
-- [Sub-agent reliability runbook](./source/runbook/subagent-reliability-runbook.md)
+- [Archive guide](./archive/README.md)

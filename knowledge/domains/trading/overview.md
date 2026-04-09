@@ -2,8 +2,10 @@
 
 Trading in `cortana` covers planning, cron architecture, portfolio constraints, and related market-intelligence docs.
 
-Primary source docs:
+Primary source docs for trading strategy/planning now live in `cortana-external/backtester/docs/source/prd/`.
 
-- [Portfolio config](../../../docs/source/reference/portfolio-config.md)
-- [Trading cron architecture](../../../docs/source/planning/trading/architecture/trading-cron-architecture.md)
-- [Polymarket market intelligence PRD](../../../docs/source/planning/trading/prd/prd-polymarket-market-intelligence.md)
+Key source artifacts there include:
+- `prd-polymarket-market-intelligence.md`
+- `prd-trading-cron-base-enrichment-notify-decoupling.md`
+
+Archived trading constraints and historical notes live under `docs/archive/reference/` and `docs/archive/planning/trading/`.

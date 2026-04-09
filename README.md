@@ -6,6 +6,12 @@ This repo is **Cortana’s command brain** – memory, policy, orchestration, cr
 
 Documentation placement and authoring rules live in [`docs/source/architecture/documentation-authoring-guide.md`](docs/source/architecture/documentation-authoring-guide.md).
 
+Documentation follows a Karpathy-style LLM wiki split:
+- exploratory research lives in `research/`
+- raw source material lives in `docs/source/` plus the repo's live doctrine/memory files
+- compiled current-truth wiki pages live in `knowledge/`
+- historical or low-signal material lives in `docs/archive/`
+
 Canonical source lives here at `~/Developer/cortana`. `~/openclaw` is now a compatibility shim path only; it is no longer the primary repo/workspace.
 
 If `~/Developer/cortana-external` is the runtime body (services + Mission Control), this repo is the **mind and nervous system**.
@@ -583,7 +589,7 @@ Key files:
 - `docs/source/doctrine/task-board.md` – Postgres-backed task board + auto-executor
 - `docs/source/doctrine/learning-loop.md` – feedback protocol + self-improvement
 - `docs/source/architecture/memory-compression.md` – guardrails and retention policy for memory compression
-- `docs/source/runbook/subagent-reliability-runbook.md` – incident runbook for sub-agent abort/timeout recovery
+- `docs/source/doctrine/agent-routing.md` – routing doctrine plus sub-agent reliability triage
 - `docs/source/architecture/runtime-deploy-model.md` – source repo + compatibility shim deploy contract
 
 ### 3.2 `config/`
@@ -777,9 +783,9 @@ Cortana includes a dedicated sub-agent watchdog to catch silent execution failur
 
 ### 4.8 Sub-agent reliability incident runbook
 
-For `Request was aborted` / `runtime_exceeded` incidents and stale `aborted_last_run` watchdog re-alerts, use:
+For `Request was aborted` / `runtime_exceeded` incidents and stale `aborted_last_run` watchdog re-alerts, use the sub-agent reliability triage section in:
 
-- `docs/source/runbook/subagent-reliability-runbook.md`
+- `docs/source/doctrine/agent-routing.md`
 
 It includes exact diagnostics commands, ordered remediation, verification criteria, and security guardrails.
 

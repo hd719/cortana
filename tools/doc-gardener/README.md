@@ -47,7 +47,7 @@ From the repo root (`~/Developer/cortana`):
 
 - `--auto-fix`
   - Annotates broken paths in `TOOLS.md` with a `"(BROKEN? doc-gardener YYYY-MM-DD)"` marker next to the path
-  - Appends an **orphan docs snapshot** section to `docs/source/runbook/system-hygiene-sweep.md` listing currently-unreferenced docs
+  - Appends an **orphan docs snapshot** section to `docs/archive/runbook/system-hygiene-sweep.md` listing currently-unreferenced docs
   - If the git working tree was **clean before the run**, stages those files and creates a commit:
     - `"chore: doc-gardener auto-fix (YYYY-MM-DD)"`
   - If the working tree was **already dirty**, it still applies the file edits but **skips the commit**, leaving changes for manual review
@@ -99,14 +99,14 @@ Specifically, when `--auto-fix` is enabled:
    - This makes it easy for a human (or Librarian agent) to search for `BROKEN?` and clean or update the entry.
 
 2. **System hygiene doc**
-   - `docs/source/runbook/system-hygiene-sweep.md` is created if missing with a basic header
+   - `docs/archive/runbook/system-hygiene-sweep.md` is created if missing with a basic header
    - An `"Orphan docs snapshot - TIMESTAMP"` section is appended, containing:
      - A bullet list of orphaned docs detected in this run, or
      - A single `"(no orphan docs detected at this run)"` line
 
 3. **Git commit policy**
    - If `git status --porcelain` was empty at the start of the run (clean tree):
-     - `TOOLS.md` and `docs/source/runbook/system-hygiene-sweep.md` are staged
+     - `TOOLS.md` and `docs/archive/runbook/system-hygiene-sweep.md` are staged
      - A single commit is created: `"chore: doc-gardener auto-fix (YYYY-MM-DD)"`
    - If the tree was **not clean**, the script **does not commit**:
      - It prints a note and leaves edits unstaged or staged according to normal git behavior

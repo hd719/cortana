@@ -1,51 +1,25 @@
 # Knowledge Index
 
-Master index of accumulated knowledge. Updated by Librarian.
+This file is the registry-style front door for the compiled wiki.
 
-Canonical current-truth pages now live under:
+The active current-truth entrypoint is:
 
 - [Systems index](./indexes/systems.md)
+
+Key domain pages:
+
 - [Cortana core overview](./domains/cortana-core/overview.md)
 - [Memory system overview](./domains/memory-system/overview.md)
 - [Covenant overview](./domains/covenant/overview.md)
-
-## Research (Huragok)
-
-*Deep-dive analyses and due diligence reports.*
-
-| Date | Topic | Status | Path |
-|------|-------|--------|------|
-| — | — | — | — |
-
-## Patterns (Monitor)
-
-*Behavioral patterns and correlations identified.*
-
-| Date | Pattern | Confidence | Path |
-|------|---------|------------|------|
-| — | — | — | — |
-
-## Topics (Librarian)
-
-### Finance & Markets
-- *(none yet)*
-
-### Technology
-- *(none yet)*
-
-### Health & Fitness
+- [OpenClaw overview](./domains/openclaw/overview.md)
 - [Spartan overview](./domains/spartan/overview.md)
-- [Spartan roadmap](./domains/spartan/roadmap.md)
+- [Trading overview](./domains/trading/overview.md)
 
-### Career & Industry
-- *(none yet)*
+Related repo layers:
 
-## Predictions (Oracle)
+- [Docs root](../docs/README.md)
+- [Research root](../research/README.md)
+- [Knowledge README](./README.md)
 
-| Date | Prediction | Timeframe | Outcome | Path |
-|------|------------|-----------|---------|------|
-| — | — | — | — | — |
-
----
-
-*Last updated: 2026-02-13*
+This file is intentionally minimal.
+The detailed navigable current-truth surface now lives under `indexes/` and `domains/`.

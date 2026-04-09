@@ -1,25 +1,15 @@
-# Knowledge Base
+# Knowledge Layer
 
-Cortana's second brain.
+This directory is the compiled wiki layer for `cortana`.
 
-This directory now contains two layers:
+In the Karpathy-style workflow:
+- exploratory intake and generated research outputs live in `research/`
+- raw source material lives in `docs/source/`
+- live doctrine and continuity still live at the repo root, `memory/`, and `identities/`
+- `knowledge/` is where the LLM-maintained current-truth summaries should live
 
-1. Covenant-produced knowledge artifacts
-2. Canonical current-truth domain pages
-
-## Structure
-
-```text
-knowledge/
-├── README.md              # This file
-├── INDEX.md               # Legacy knowledge registry
-├── indexes/               # Canonical navigation pages
-├── domains/               # Current-truth domain pages
-├── research/              # Huragok outputs
-├── patterns/              # Monitor outputs
-├── topics/                # Librarian outputs
-└── predictions/           # Oracle outputs
-```
+The goal is not to duplicate every raw doc.
+The goal is to compile the important parts into a smaller set of canonical pages that are easier to browse, query, and maintain.
 
 ## Start Here
 
@@ -27,24 +17,41 @@ knowledge/
 - [Cortana core overview](./domains/cortana-core/overview.md)
 - [Memory system overview](./domains/memory-system/overview.md)
 - [Covenant overview](./domains/covenant/overview.md)
+- [Spartan overview](./domains/spartan/overview.md)
+- [Trading overview](./domains/trading/overview.md)
 
-## Conventions
+## Working Rule
 
-- **Filenames**: `YYYY-MM-DD-slug.md` for dated content, `slug.md` for evergreen
-- **Frontmatter**: Include source, confidence, freshness date
-- **Cross-links**: use relative markdown links for canonical domain pages; older Covenant notes may still use wiki-style conventions
-- **Tags**: Use consistent tags for discoverability
+Use `knowledge/` for:
+- current truth
+- cross-document summaries
+- stable domain overviews
+- navigation pages and indexes
 
-## Freshness
+Use `docs/source/` for:
+- PRDs
+- tech specs
+- implementation plans
+- runbooks
+- architecture notes
+- doctrine source material
 
-Knowledge decays. Each note should include:
-- `created`: When this was written
-- `updated`: Last modification
-- `review_by`: When this should be re-evaluated (optional)
+Use `research/` for:
+- collected source material
+- exploratory derived outputs
+- topic work that has not yet been promoted into the compiled wiki
 
-## Quality Tiers
+Use `docs/archive/` when a document is still worth keeping in git but no longer belongs in the active reading path.
 
-- **Verified**: Multiple reliable sources, high confidence
-- **Probable**: Good sources, reasonable confidence
-- **Speculative**: Limited sources, flag uncertainty
-- **Stale**: Needs re-evaluation
+## Current Structure
+
+```text
+knowledge/
+├── README.md
+├── INDEX.md
+├── indexes/
+└── domains/
+```
+
+`INDEX.md` is legacy.
+`indexes/` and `domains/` are the active compiled-wiki entrypoints.

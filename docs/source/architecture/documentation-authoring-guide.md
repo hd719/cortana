@@ -8,14 +8,17 @@ It is intentionally model-agnostic.
 
 Do not treat every markdown file in this repo as the same kind of thing.
 
-`cortana` has four different information layers:
+`cortana` has five different information layers:
 
 1. Boot doctrine
 2. Working memory
 3. Agent namespace doctrine
-4. Durable source docs and canonical knowledge
+4. Research workspace
+5. Durable source docs and canonical knowledge
 
 Only the last layer belongs under `docs/` and `knowledge/`.
+
+`docs/archive/` is for historical material that should remain accessible but should not read as current truth.
 
 ## What Stays Outside `docs/`
 
@@ -60,9 +63,33 @@ These are identity/runtime files, not general docs.
 
 Use `covenant/` for Covenant-specific role instructions and knowledge contracts.
 
-## The Two-Layer Documentation Model
+### Research workspace
 
-### 1. Source docs
+Use `research/` for exploratory knowledge work that is not yet canonical.
+
+This is the Karpathy-style intake and synthesis layer:
+
+- `research/raw/` for collected source material
+- `research/derived/` for generated outputs such as briefs, comparisons, slides, and Q&A artifacts
+
+`research/` is not the same as `memory/`.
+It is for topic exploration, not daily continuity.
+
+## The Three-Layer Knowledge Model
+
+### 1. Research workspace
+
+Research is the exploratory layer.
+
+Use it for:
+- clipped source material
+- imported notes
+- topic packets
+- derived analysis that is not yet canonical
+
+This lives under `research/`.
+
+### 2. Source docs
 
 Source docs are the durable raw artifacts.
 
@@ -80,7 +107,7 @@ Examples:
 
 These live under `docs/source/`.
 
-### 2. Canonical knowledge
+### 3. Canonical knowledge
 
 Canonical knowledge is the compiled "current truth" layer.
 
@@ -114,17 +141,13 @@ Use for system design and internal mechanics.
 
 Use for operator playbooks, incident recovery, and maintenance procedures.
 
-### `docs/source/research/`
+### `research/raw/`
 
-Use for investigations, comparative analysis, or analytical writeups that are not canonical current truth.
+Use for source material collected for investigation.
 
-### `docs/source/reference/`
+### `research/derived/`
 
-Use for compact reference material.
-
-### `docs/source/prompts/`
-
-Use for reusable prompt artifacts that should be versioned.
+Use for generated analysis outputs that are still exploratory.
 
 ### `docs/source/planning/`
 
@@ -133,8 +156,8 @@ Use for planning artifacts and roadmaps.
 Current planning domains:
 
 - `spartan/`
-- `trading/`
-- `openclaw/`
+
+Trading planning docs are now owned by `cortana-external/backtester/docs/source/prd/`, not by `cortana/docs/source/planning/`.
 
 Within a planning domain, use typed subfolders when appropriate:
 
@@ -154,6 +177,16 @@ Current shared templates:
 - `prd-template.md`
 - `techspec-template.md`
 - `implementation-template.md`
+
+### `docs/archive/`
+
+Use for:
+
+- old research
+- implementation notes that are no longer front-door material
+- superseded or low-signal design docs you do not want in the main docs tree
+
+Do not create new active docs here.
 
 ## Knowledge Layer Rules
 
@@ -217,19 +250,24 @@ If you create a new planning family, keep the same three-document shape unless t
 
 ## Recommended Authoring Flow
 
-1. Decide whether the change belongs in root doctrine, memory, identities, docs, or knowledge.
-2. If it is a durable source doc, place it in the correct `docs/source/` area.
-3. If it changes current truth, update the matching `knowledge/domains/...` page too.
-4. Update relevant README/index files if discoverability changes.
-5. Verify markdown links before finishing.
+1. Decide whether the change belongs in root doctrine, memory, identities, research, docs, or knowledge.
+2. If it is exploratory, place it in `research/raw/` or `research/derived/`.
+3. If it is a durable source doc, place it in the correct `docs/source/` area.
+4. If it changes current truth, update the matching `knowledge/domains/...` page too.
+5. Update relevant README/index files if discoverability changes.
+6. Verify markdown links before finishing.
+
+If a doc is still useful but no longer belongs in the active reading path, move it to `docs/archive/` instead of leaving it in `docs/source/`.
 
 ## Anti-Patterns
 
 Avoid these:
 
 - using `docs/` as a dumping ground
+- using `research/` as an unbounded dumping ground
 - copying planning docs into multiple locations
 - putting session memory into `docs/`
 - putting identity doctrine into `knowledge/`
 - creating canonical summary pages inside raw planning folders
+- treating archived docs as current source-of-truth docs
 - leaving config or tests pointed at deleted doc paths

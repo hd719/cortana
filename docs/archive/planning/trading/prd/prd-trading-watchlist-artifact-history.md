@@ -1,5 +1,7 @@
 # PRD: Full Watchlist Artifacts for Trading Alerts
 
+**Status:** Done
+
 ## Summary
 
 Keep Telegram trading alerts compact, but persist the full `BUY` / `WATCH` / `NO_BUY` candidate sets as durable run artifacts so the operator can inspect the complete watchlist after each run and retain useful historical context over time.

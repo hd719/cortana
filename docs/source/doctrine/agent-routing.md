@@ -54,9 +54,38 @@ For Researcher lane identity and operating details, see `identities/researcher/`
 ## Monitor/Covenant Telegram troubleshooting
 
 If Monitor cannot see Covenant group messages, use:
-- `docs/source/runbook/monitor-covenant-telegram-troubleshooting.md`
+- `docs/archive/runbook/monitor-covenant-telegram-troubleshooting.md`
 
 This covers routing keys, account bindings, group mention policy, and Telegram privacy/admin checks.
+
+## Sub-agent Reliability Triage
+
+If sub-agents start aborting, timing out, or re-firing stale watchdog failures, treat it as a routing/runtime reliability issue first.
+
+Primary signals:
+- `Request was aborted` in sub-agent output or logs
+- `runtime_exceeded` in failed runs
+- repeated stale `aborted_last_run` watchdog alerts
+
+Primary checks:
+
+```bash
+openclaw subagents list --json
+openclaw sessions --all-agents --active 60 --json
+/Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900
+openclaw sessions cleanup --all-agents --enforce --json
+```
+
+Escalation path:
+- clean stale sessions first
+- inspect oversized session artifacts before deleting anything manually
+- tune `config/openclaw.json` only if cleanup does not stabilize the lane
+- restart the gateway only after confirming the failure is not just stale-session noise
+
+Verification:
+- one manual sub-agent run completes successfully
+- watchdog reports no fresh actionable failures
+- no new `Request was aborted` or `runtime_exceeded` incidents over the next 4 heartbeats
 
 ## Known Pitfall: Reply Routing
 
