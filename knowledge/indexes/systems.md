@@ -11,6 +11,9 @@
 - [Memory System Overview](../domains/memory-system/overview.md)
 - [Covenant Overview](../domains/covenant/overview.md)
 - [OpenClaw Overview](../domains/openclaw/overview.md)
+- [Spartan Overview](../domains/spartan/overview.md)
+- [Spartan Current State](../domains/spartan/current-state.md)
+- [Spartan Coaching Rules](../domains/spartan/coaching-rules.md)
 
 ## Source Material
 

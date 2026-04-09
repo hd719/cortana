@@ -14,3 +14,6 @@ Rules:
 - organize by topic, not by date-only naming
 - keep files as close to source form as practical
 - do not treat this folder as canonical truth
+
+Current topic entrypoint:
+- [Spartan raw corpus](/Users/hd/Developer/cortana/research/raw/spartan/README.md)

@@ -14,6 +14,11 @@ Use this area when the work is still exploratory, comparative, or synthesis-heav
 - `raw/` - clipped articles, imported notes, source documents, image references, and rough inputs
 - `derived/` - generated briefs, comparisons, slide decks, Q&A outputs, and temporary synthesis artifacts
 
+## Active Topics
+
+- [Spartan raw corpus](/Users/hd/Developer/cortana/research/raw/spartan/README.md)
+- [Spartan derived research](/Users/hd/Developer/cortana/research/derived/spartan/README.md)
+
 ## Promotion Rule
 
 Use `research/` for exploration.

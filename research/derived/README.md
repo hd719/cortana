@@ -14,3 +14,6 @@ Rules:
 - derived outputs should point back to the relevant material in `research/raw/`
 - if an output becomes durable current truth, promote it into `knowledge/`
 - if an output becomes a durable source artifact, move it into `docs/source/`
+
+Current topic entrypoint:
+- [Spartan derived research](/Users/hd/Developer/cortana/research/derived/spartan/README.md)

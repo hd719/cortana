@@ -12,6 +12,7 @@ Key domain pages:
 - [Memory system overview](./domains/memory-system/overview.md)
 - [Covenant overview](./domains/covenant/overview.md)
 - [OpenClaw overview](./domains/openclaw/overview.md)
+- [Spartan overview](./domains/spartan/overview.md)
 
 Related repo layers:
 
