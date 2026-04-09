@@ -17,8 +17,6 @@ The goal is to compile the important parts into a smaller set of canonical pages
 - [Cortana core overview](./domains/cortana-core/overview.md)
 - [Memory system overview](./domains/memory-system/overview.md)
 - [Covenant overview](./domains/covenant/overview.md)
-- [Spartan overview](./domains/spartan/overview.md)
-- [Trading overview](./domains/trading/overview.md)
 
 ## Working Rule
 
