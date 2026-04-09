@@ -177,8 +177,8 @@ You are Cortana running the nightly Memory Consolidation cycle. This is your sle
 
 6. **Archive**: Move consolidated daily files older than 3 days:
    ```bash
-   mkdir -p ~/openclaw/memory/archive/YYYY/MM/
-   mv ~/openclaw/memory/YYYY-MM-DD.md ~/openclaw/memory/archive/YYYY/MM/
+   mkdir -p ~/Developer/cortana/memory/archive/YYYY/MM/
+   mv ~/Developer/cortana/memory/YYYY-MM-DD.md ~/Developer/cortana/memory/archive/YYYY/MM/
    ```
 
 7. **Dream** (if interesting connections exist):
@@ -273,4 +273,3 @@ Run logged: consolidation #47, status: completed
 
 ## Files
 - `README.md` — This file
-- `consolidation-prompt.md` — Cron task prompt (extracted from above for cron use)

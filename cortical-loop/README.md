@@ -30,11 +30,11 @@ Real-time model of Hamel's state: awake/asleep, energy level, focus mode, commun
 ### Watchers (`watchers/`)
 | Watcher | Interval | Source |
 |---------|----------|--------|
-| email-watcher.sh | 2 min | Gmail via gog |
-| calendar-watcher.sh | 5 min | Google Calendar via gog |
-| health-watcher.sh | 15 min | Whoop via localhost:3033 |
-| portfolio-watcher.sh | 10 min | Stock analysis (market hours only) |
-| chief-state.sh | 5 min | Session files + calendar + sitrep |
+| email-watcher.ts | 2 min | Gmail via gog |
+| calendar-watcher.ts | 5 min | Google Calendar via gog |
+| health-watcher.ts | 15 min | Whoop via localhost:3033 |
+| portfolio-watcher.ts | 10 min | Stock analysis (market hours only) |
+| chief-state.ts | 5 min | Session files + calendar + sitrep |
 
 ### Wake Rules (`cortana_wake_rules`)
 Configurable rules that match events to wake decisions. Each rule has:
@@ -43,13 +43,13 @@ Configurable rules that match events to wake decisions. Each rule has:
 - **weight**: 0.0-1.0, decays with negative feedback
 - **suppress_when**: conditions to skip (e.g., chief asleep)
 
-### Evaluator (`evaluator.sh`)
+### Evaluator (`evaluator.ts`)
 Runs every 5 min. Processes unprocessed events against rules. If matched, wakes the LLM with full context (chief model + sitrep + feedback).
 
 ## Kill Switch
 
 ```bash
-bash ~/Developer/cortana/cortical-loop/toggle.sh  # Toggle on/off
+bash ~/Developer/cortana/cortical-loop/toggle.ts  # Toggle on/off
 ```
 
 Also auto-disables when daily wake cap (default: 10) is reached.
@@ -70,9 +70,7 @@ VALUES ('my_rule', 'Description', 'source_name', 'event_type', '{"key": "value"}
 
 ## Logs
 
-All in `~/Developer/cortana/cortical-loop/logs/`:
-- `email-watcher.log`, `calendar-watcher.log`, etc.
-- `evaluator.log`
+Watcher and evaluator output goes to stdout/stderr and is captured by the cron/session runner.
 
 ## State Files
 
@@ -107,7 +105,7 @@ Closes the learning loop. Cortana adapts behavior based on three signal types:
      cortana_feedback_signals    cortana_feedback
                 │                 │
                 ▼                 ▼
-          feedback-handler.sh   learning-loop.sh
+          feedback-handler.ts   learning-loop.ts
                 │                 │
                 ▼                 ▼
         cortana_wake_rules     AGENTS.md / MEMORY.md
@@ -131,9 +129,9 @@ Closes the learning loop. Cortana adapts behavior based on three signal types:
 - **Auto-suppress:** 3+ negatives AND weight < 0.3 → rule disabled + Hamel notified
 
 ### Components
-- `feedback-handler.sh` — processes feedback_signals, adjusts wake rule weights
-- `watchers/behavioral-watcher.sh` — detects implicit signals (latency, engagement) every 30 min
-- `learning-loop.sh` — daily pipeline (11 PM ET): applies corrections to AGENTS.md/MEMORY.md, detects repeated lessons
+- `feedback-handler.ts` — processes feedback_signals, adjusts wake rule weights
+- `watchers/behavioral-watcher.ts` — detects implicit signals (latency, engagement) every 30 min
+- `learning-loop.ts` — daily pipeline (11 PM ET): applies corrections to AGENTS.md/MEMORY.md, detects repeated lessons
 
 ### Manual Weight Adjustment
 ```sql

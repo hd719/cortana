@@ -242,14 +242,10 @@ CREATE TABLE cortana_throttle_log (
 ## Integration
 
 ### ← Watchdog (Absorbed)
-The existing `~/Desktop/services/watchdog/watchdog.sh` is fully absorbed:
-- Cron health check → `cron-health.sh`
-- Tool smoke tests → `tool-prober.sh`
-- Budget guard → `budget-tracker.sh`
-- Heartbeat pileup check → `cron-health.sh`
-- Telegram alerting → preserved, unified in `self-model.sh`
-
-After migration, watchdog.sh becomes a thin wrapper calling proprioception scripts, then is retired.
+The legacy watchdog has been fully absorbed into proprioception:
+- Cron health checks → `run_health_checks.ts`
+- Budget and efficiency → `efficiency_precompute.ts`
+- Autonomy scoring → `autonomy_scorecard.ts`
 
 ### → SAE (Consumer)
 SAE's world-state builder adds a **"system" domain** reading from `cortana_self_model`:
@@ -328,10 +324,7 @@ status:
 ## Files
 
 - `README.md` — This file
-- `budget-tracker.sh` — OpenAI spend tracking (Anthropic fallback)
-- `cron-health.sh` — Cron state monitoring + silent failure detection
-- `tool-prober.sh` — External API health checks + self-heal
-- `self-model.sh` — Aggregator, writes cortana_self_model + alerts
-- `efficiency.sh` — Daily cost analysis and engagement metrics
-- `throttle.sh` — Auto-throttle tier management
-- `schema.sql` — PostgreSQL table definitions
+- `run_health_checks.ts` — Runtime health checks (cron, tools, budget)
+- `efficiency_precompute.ts` — Token cost and engagement precompute pipeline
+- `autonomy_scorecard.ts` — Trust metrics and autonomy incident review
+- `state/` — Runtime state (heartbeat remediation JSON)

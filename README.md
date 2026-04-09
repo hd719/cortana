@@ -452,15 +452,15 @@ For high-impact decisions, Cortana now runs a formal governance layer:
   - Risk-scored actions route through explicit approval requirements
   - Telegram inline buttons support approve/reject with operator-in-the-loop flow
   - Resume workflow + CLI operators:
-    - `tools/approvals/check-approval.sh`
-    - `tools/approvals/poll-approval.sh`
-    - `tools/approvals/resume-approval.sh`
+    - `tools/approvals/check-approval.ts`
+    - `tools/approvals/poll-approval.ts`
+    - `tools/approvals/resume-approval.ts`
 
 - **Feedback loop hardening**
   - Corrections are tracked, remediations are attached, and recurrence is detected
   - Operator tooling:
-    - `tools/feedback/log-feedback.sh`
-    - `tools/feedback/add-feedback-action.sh`
+    - `tools/feedback/log-feedback.ts`
+    - `tools/feedback/add-feedback-action.ts`
     - `tools/feedback/sync-feedback.ts`
 
 ### 2.4 Memory & cognition
@@ -566,17 +566,14 @@ graph TD
 ├── skills/             # Installed OpenClaw skills
 ├── memory/             # Curated notes + selected generated summaries
 ├── covenant/           # Covenant agent framework + role docs
-├── cortical-loop/      # World/SAE/council-style reasoning artifacts
+├── cortical-loop/      # Event-driven nervous system (watchers, evaluator, wake rules)
 ├── immune-system/      # Immune/incident/playbook scripts and notes
 ├── proprioception/     # Self-model, budget, throttle logic
 ├── sae/                # Situational awareness engine assets
 ├── knowledge/          # Canonical domain pages + Covenant knowledge outputs
-├── learning/           # Feedback + learning loop assets
 ├── migrations/         # Database migrations for cortana DB
-├── reports/            # Generated reports, briefings, analyses
-├── projects/, plans/   # Higher-level epics and plan docs
 ├── agents/, canvas/    # Agent harness support + Canvas configs
-└── tmp/, logs/, ...    # Scratch + operational logs
+└── tmp/, var/, ...     # Scratch + operational state
 ```
 
 ### 3.1 `docs/`
@@ -619,10 +616,10 @@ Internal operator scripts, grouped by domain. Highlights:
 - **Memory & reflection**
   - `tools/memory/` – ingestion, quality gates, consolidation
   - `tools/memory/vector-health-gate.ts` + `tools/memory/safe-memory-search.ts` – safety gates for semantic recall quality
-  - `tools/memory/compact-memory.sh` – controlled memory compaction workflow
+  - `tools/memory/compact-memory.ts` – controlled memory compaction workflow
   - `tools/reflection/` – repeated‑correction analysis, learning loops
-  - `tools/feedback/` – correction logging, remediation actions, recurrence sync (`log-feedback.sh`, `add-feedback-action.sh`, `sync-feedback.ts`)
-  - `tools/feedback/pipeline-reconciliation.sh` – feedback pipeline consistency check/reconcile
+  - `tools/feedback/` – correction logging, remediation actions, recurrence sync (`log-feedback.ts`, `add-feedback-action.ts`, `sync-feedback.ts`)
+  - `tools/feedback/pipeline-reconciliation.ts` – feedback pipeline consistency check/reconcile
 - **Proactive intelligence**
   - `tools/proactive/` – cross‑signal detection & calibration
   - `tools/briefing/` – daily brief / news / market intel wiring
@@ -687,7 +684,7 @@ Defines the Covenant roles, responsibilities, and routing contracts used by the 
 ### 3.7 `tests/`
 
 - `tests/` contains lightweight regression coverage for hardening-critical scripts.
-- Current suite includes vector memory health-gate coverage (`tests/test_vector_health_gate.ts`).
+- Current suite includes vector memory health-gate coverage (`tests/memory/vector-health-gate.test.ts`).
 
 ---
 

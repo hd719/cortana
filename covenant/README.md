@@ -59,22 +59,22 @@ Cortana routes missions to the right Covenant identity, then spawns via `session
 
 Route workflow (single agent or enforced chain):
 ```bash
-python3 /Users/hd/Developer/cortana/tools/covenant/route_workflow.py --plan /path/to/routing-request.json
+npx tsx /Users/hd/Developer/cortana/tools/covenant/route_workflow.ts --plan /path/to/routing-request.json
 ```
 
 Handle timeout/failure playbook decisions:
 ```bash
-python3 /Users/hd/Developer/cortana/tools/covenant/route_workflow.py --failure /path/to/failure-event.json
+npx tsx /Users/hd/Developer/cortana/tools/covenant/route_workflow.ts --failure /path/to/failure-event.json
 ```
 
 Then prepare spawn artifacts via identity-v1 tooling:
 
 ```bash
-python3 /Users/hd/Developer/cortana/tools/covenant/prepare_spawn.py /path/to/handshake.json --output-dir /tmp/covenant-spawn
+npx tsx /Users/hd/Developer/cortana/tools/covenant/prepare_spawn.ts /path/to/handshake.json --output-dir /tmp/covenant-spawn
 # optional compatibility shim for legacy payload shape
-python3 /Users/hd/Developer/cortana/tools/covenant/prepare_spawn.py /path/to/legacy.json --legacy-shim --output-dir /tmp/covenant-spawn
+npx tsx /Users/hd/Developer/cortana/tools/covenant/prepare_spawn.ts /path/to/legacy.json --legacy-shim --output-dir /tmp/covenant-spawn
 # optional: auto-route missing agent_identity_id from objective/intents
-python3 /Users/hd/Developer/cortana/tools/covenant/prepare_spawn.py /path/to/handshake-without-agent.json --auto-route --output-dir /tmp/covenant-spawn
+npx tsx /Users/hd/Developer/cortana/tools/covenant/prepare_spawn.ts /path/to/handshake-without-agent.json --auto-route --output-dir /tmp/covenant-spawn
 ```
 
 ```javascript
@@ -91,9 +91,9 @@ Sub-agents must emit machine-parseable lines in their response:
 
 Validate payloads (or extracted output) before accepting completion:
 ```bash
-python3 /Users/hd/Developer/cortana/tools/covenant/validate_agent_protocol.py --type status /path/to/status.json
-python3 /Users/hd/Developer/cortana/tools/covenant/validate_agent_protocol.py --type completion /path/to/completion.json
-python3 /Users/hd/Developer/cortana/tools/covenant/validate_agent_protocol.py --extract /path/to/subagent-output.txt
+npx tsx /Users/hd/Developer/cortana/tools/covenant/validate_agent_protocol.ts --type status /path/to/status.json
+npx tsx /Users/hd/Developer/cortana/tools/covenant/validate_agent_protocol.ts --type completion /path/to/completion.json
+npx tsx /Users/hd/Developer/cortana/tools/covenant/validate_agent_protocol.ts --extract /path/to/subagent-output.txt
 ```
 
 ---
