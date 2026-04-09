@@ -2,17 +2,51 @@
 
 The `cortana` repo is the command brain for Hamel's agent system.
 
-Current shape:
+## Repo Role
 
-- root files define identity, operator preferences, and boot doctrine
-- `memory/` stores continuity and recent operational history
-- `identities/` stores per-agent identity files
-- `docs/source/` stores durable source docs
-- `knowledge/domains/` stores canonical current-truth summaries
-- older Covenant knowledge outputs remain under `knowledge/research/`, `patterns/`, `topics/`, and `predictions/`
+`cortana` owns the mind-side of the system:
 
-Start here:
+- identity and operator doctrine
+- routing and delegation rules
+- memory and continuity policy
+- cron prompts and command-layer automation
+- compiled knowledge pages that summarize current truth
+
+It is not the primary home for external product/runtime implementation. That work mostly lives in `cortana-external`.
+
+## Current Layout
+
+- root files (`SOUL.md`, `USER.md`, `IDENTITY.md`, `MEMORY.md`) define live boot doctrine
+- `memory/` stores continuity, daily notes, and generated runtime state
+- `identities/` stores specialist-agent doctrine
+- `docs/source/` stores durable source docs, planning artifacts, and architecture notes
+- `docs/archive/` stores historical or low-signal docs that should not stay in the active reading path
+- `research/` stores raw and derived exploration that has not yet been promoted
+- `knowledge/` stores the compiled wiki layer for current truth
+
+## Operating Model
+
+The current operating model is dispatcher-first:
+
+- Cortana owns coordination, verification, and synthesis
+- specialist lanes own execution
+- code and infra work route to Huragok
+- research work routes to Researcher
+- market and strategic analysis route to Oracle
+- runtime health and cron operations route to Monitor
+
+## Start Here
+
+1. [Cortana core overview](./overview.md)
+2. [Routing](./routing.md)
+3. [Heartbeat](./heartbeat.md)
+4. [Task board](./task-board.md)
+5. [Systems index](../../indexes/systems.md)
+
+## Primary Source Docs
 
 - [Root README](../../../README.md)
-- [Docs index](../../../docs/README.md)
 - [Operating rules](../../../docs/source/doctrine/operating-rules.md)
+- [Agent routing](../../../docs/source/doctrine/agent-routing.md)
+- [Heartbeat ops](../../../docs/source/doctrine/heartbeat-ops.md)
+- [Task board](../../../docs/source/doctrine/task-board.md)

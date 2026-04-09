@@ -12,7 +12,6 @@
 - [Covenant Overview](../domains/covenant/overview.md)
 - [Spartan Overview](../domains/spartan/overview.md)
 - [Spartan Roadmap](../domains/spartan/roadmap.md)
-- [Spartan Planning Index](../../docs/source/planning/spartan/README.md)
 - [Trading Overview](../domains/trading/overview.md)
 - [Trading Roadmap](../domains/trading/roadmap.md)
 - [OpenClaw Overview](../domains/openclaw/overview.md)
@@ -20,5 +19,6 @@
 ## Source Material
 
 - [Docs index](../../docs/README.md)
+- [Research root](../../research/README.md)
 - [Knowledge base root](../README.md)
 - [Knowledge registry](../INDEX.md)
