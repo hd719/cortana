@@ -10,7 +10,7 @@ describe("CANSLIM trading alert cron routing", () => {
       jobs: Array<{
         id?: string;
         delivery?: { accountId?: string };
-        payload?: { message?: string };
+        payload?: { message?: string; timeoutSeconds?: number };
       }>;
     };
 
@@ -26,5 +26,6 @@ describe("CANSLIM trading alert cron routing", () => {
     expect(message).not.toContain("accountId: oracle");
     expect(message).not.toContain("canslim_alert.py --limit 8 --min-score 6");
     expect(message).not.toContain("Use the `message` tool");
+    expect(job?.payload?.timeoutSeconds).toBe(900);
   });
 });

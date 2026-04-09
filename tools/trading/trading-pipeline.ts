@@ -10,6 +10,8 @@ import { parseSignals, runTradingCouncil, type CouncilVerdict, type TradingSigna
 
 const DEFAULT_SCAN_LIMIT = 120;
 export const BACKTESTER_CWD = "/Users/hd/Developer/cortana-external/backtester";
+const DEFAULT_CANSLIM_SCAN_TIMEOUT_MS = 360_000;
+const DEFAULT_DIPBUYER_SCAN_TIMEOUT_MS = 360_000;
 const BACKTESTER_ENV_PATH = resolve(BACKTESTER_CWD, ".env");
 const SHARED_EXTERNAL_ENV_PATH = "/Users/hd/Developer/cortana-external/.env";
 const DEFAULT_BUY_DECISION_CALIBRATION_PATH = resolve(
@@ -63,6 +65,8 @@ interface StrategyRunResult {
   output: string;
   payload: StrategyAlertPayload | null;
 }
+
+type SettledStrategyRunResult = PromiseSettledResult<StrategyRunResult>;
 
 type DecisionState = "BUY" | "WATCH" | "NO_TRADE";
 
@@ -341,6 +345,108 @@ function parseStrategyAlertPayload(raw: string): StrategyAlertPayload | null {
   }
 }
 
+function strategyIdentifier(name: TradingStrategyName): StructuredStrategyName {
+  return name === "CANSLIM" ? "canslim" : "dip_buyer";
+}
+
+function fallbackStrategyMarketRegime(raw: string | undefined): string {
+  return raw && raw.trim() ? raw.trim() : "unknown";
+}
+
+function isDegradedSafeStrategyFailure(error: unknown): boolean {
+  const message =
+    error instanceof Error ? error.message : typeof error === "string" ? error : "";
+  const normalized = message.toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized.includes("timed out") ||
+    normalized.includes("provider_cooldown") ||
+    normalized.includes("cooldown") ||
+    normalized.includes("http 503") ||
+    normalized.includes("schwab rest cooldown open") ||
+    normalized.includes("quote smoke")
+  );
+}
+
+function normalizeStrategyFailureReason(name: TradingStrategyName, error: unknown): string {
+  const message =
+    error instanceof Error ? error.message.trim() : typeof error === "string" ? error.trim() : "strategy execution failed";
+  if (/timed out/i.test(message)) {
+    return `${name} scanner timed out under degraded market-data conditions`;
+  }
+  if (/provider_cooldown|cooldown|http 503|quote smoke|schwab rest cooldown open/i.test(message)) {
+    return `${name} scanner skipped live enrichment because market data is in provider cooldown`;
+  }
+  return `${name} scanner degraded-safe fallback: ${message}`;
+}
+
+function buildDegradedStrategyFallback(
+  name: TradingStrategyName,
+  reason: string,
+  marketRegime?: string,
+): StrategyRunResult {
+  const resolvedRegime = fallbackStrategyMarketRegime(marketRegime);
+  const payload: StrategyAlertPayload = {
+    artifact_family: "strategy_alert",
+    schema_version: 1,
+    producer: "cortana.trading_pipeline",
+    status: "degraded",
+    degraded_status: "degraded_risky",
+    outcome_class: "analysis_failed",
+    strategy: strategyIdentifier(name),
+    summary: {
+      scanned: 0,
+      evaluated: 0,
+      threshold_passed: 0,
+      buy_count: 0,
+      watch_count: 0,
+      no_buy_count: 0,
+    },
+    signals: [],
+    market: {
+      regime: resolvedRegime,
+      position_sizing: 0,
+      notes: reason,
+      status: "degraded",
+      data_source: "mixed",
+      snapshot_age_seconds: 0,
+    },
+    render_lines: [
+      `${name} Scan`,
+      `Market: ${resolvedRegime} | Position Sizing: 0%`,
+      "Status: degraded | outcome_class=analysis_failed | degraded=degraded_risky",
+      `Summary: scanned 0 | evaluated 0 | threshold-passed 0 | BUY 0 | WATCH 0 | NO_BUY 0`,
+      `Blockers: ${reason}`,
+    ],
+  };
+
+  return {
+    output: payload.render_lines?.join("\n").trim() ?? renderStrategyPayload(payload),
+    payload,
+  };
+}
+
+function inferSettledMarketRegime(result: SettledStrategyRunResult): string | undefined {
+  if (result.status !== "fulfilled") return undefined;
+  return parseMarketLine(result.value.output).marketRegime;
+}
+
+function resolveSettledStrategyRun(
+  name: TradingStrategyName,
+  result: SettledStrategyRunResult,
+  fallbackMarketRegime?: string,
+): StrategyRunResult {
+  if (result.status === "fulfilled") {
+    return result.value;
+  }
+
+  if (isDegradedSafeStrategyFailure(result.reason)) {
+    return buildDegradedStrategyFallback(name, normalizeStrategyFailureReason(name, result.reason), fallbackMarketRegime);
+  }
+
+  throw result.reason;
+}
+
 function payloadStrategyName(payload: StrategyAlertPayload): TradingStrategyName {
   return payload.strategy === "canslim" ? "CANSLIM" : "Dip Buyer";
 }
@@ -571,8 +677,8 @@ async function runChunkedStrategy(
   const chunkSize = Math.min(getChunkSize(name) || scanLimit, scanLimit);
   const timeoutMs = Number(
     name === "CANSLIM"
-      ? process.env.TRADING_SCAN_TIMEOUT_MS_CANSLIM ?? 360_000
-      : process.env.TRADING_SCAN_TIMEOUT_MS_DIP ?? 180_000,
+      ? process.env.TRADING_SCAN_TIMEOUT_MS_CANSLIM ?? DEFAULT_CANSLIM_SCAN_TIMEOUT_MS
+      : process.env.TRADING_SCAN_TIMEOUT_MS_DIP ?? DEFAULT_DIPBUYER_SCAN_TIMEOUT_MS,
   );
 
   if (chunkSize <= 0 || scanLimit <= chunkSize) {
@@ -862,6 +968,9 @@ function applyCorrectionGuards(scans: ScanResult[]): ScanResult[] {
 function topBlocker(scan: ScanResult): string {
   const emitted = scan.signals.filter((s) => s.action !== "NO_BUY").length;
   if (emitted > 0) return "n/a";
+  if (scan.blockerLine) {
+    return scan.blockerLine.replace(/^Blockers:\s*/i, "").trim() || "All candidates were NO_BUY.";
+  }
 
   if (scan.candidatesEvaluated === 0) {
     return "No symbols passed scanner threshold.";
@@ -1112,10 +1221,12 @@ export async function runTradingPipelineDetailed(
   const canslimLimit = getScanLimit("CANSLIM");
   const dipLimit = getScanLimit("Dip Buyer");
 
-  const [canslimRun, dipRun] = await Promise.all([
+  const [canslimSettled, dipSettled] = await Promise.allSettled([
     runChunkedStrategy("CANSLIM", "canslim_alert.py", 8, { runCommand, getUniverse }),
     runChunkedStrategy("Dip Buyer", "dipbuyer_alert.py", 8, { runCommand, getUniverse }),
   ]);
+  const canslimRun = resolveSettledStrategyRun("CANSLIM", canslimSettled, inferSettledMarketRegime(dipSettled));
+  const dipRun = resolveSettledStrategyRun("Dip Buyer", dipSettled, inferSettledMarketRegime(canslimSettled));
   const canslimOutput = canslimRun.output;
   const dipOutput = dipRun.output;
 

@@ -494,7 +494,7 @@
         "kind": "agentTurn",
         "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nThis is Cron A for the unified CANSLIM + Dip Buyer market-session pipeline.\nMonitor is the user-facing owner lane for trading alert scans.\nIt performs compute only and must NOT send Telegram messages directly.\n\nRun exactly:\nBACKTEST_PRESET='trading-unified' \\\nBACKTEST_STRATEGY='Trading market-session unified' \\\nbash /Users/hd/Developer/cortana/tools/trading/run-backtest-compute.sh\n\nRules:\n- Compute only: write artifacts + atomic summary.json under /Users/hd/Developer/cortana/var/backtests/runs.\n- Do not use the message tool.\n- Do not rewrite alert copy.\n- If the compute wrapper exits 0, return exactly: backtest-compute complete\n- If the wrapper exits non-zero, return the wrapper stderr only.",
         "model": "openai-codex/gpt-5.3-codex",
-        "timeoutSeconds": 660
+        "timeoutSeconds": 900
       },
       "delivery": {
         "mode": "none",

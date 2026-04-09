@@ -392,6 +392,21 @@ Summary: 1 candidates | BUY 0 | WATCH 0 | NO_BUY 1
     expect(dipCall).toContain("90");
   });
 
+  it("uses the unified default timeout budget for Dip Buyer scans", async () => {
+    const calls: Array<{ args: string[]; timeoutMs?: number }> = [];
+
+    await runTradingPipeline({
+      runCommand: (_cmd, args, options) => {
+        calls.push({ args, timeoutMs: options?.timeoutMs });
+        return args[0] === "canslim_alert.py" ? CANSLIM_NO_BUY : DIP_NO_BUY;
+      },
+      council: async () => ({ verdicts: [] }),
+    });
+
+    const dipCall = calls.find((call) => call.args[0] === "dipbuyer_alert.py");
+    expect(dipCall?.timeoutMs).toBe(360_000);
+  });
+
   it("preserves merged chunk summaries so combined CANSLIM output is parsed correctly", async () => {
     process.env.TRADING_SCAN_LIMIT_CANSLIM = "4";
     process.env.TRADING_SCAN_CHUNK_SIZE_CANSLIM = "2";
@@ -565,6 +580,39 @@ Summary: scanned 2 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY
     expect(snapshot.strategies.canslim.signals.map((signal) => signal.ticker)).toEqual(["AAPL", "MSFT"]);
     expect(report).toContain("CANSLIM: scanned 4 | evaluated 2 | threshold-passed 2 | emitted BUY 0 / WATCH 2 / NO_BUY 0");
     expect(report).toContain("Summary: BUY 0 | WATCH 3 | NO_BUY 0");
+  });
+
+  it("degrades safely when Dip Buyer times out and still returns a unified snapshot", async () => {
+    const { report, snapshot } = await runTradingPipelineDetailed({
+      runCommand: (_cmd, args) => {
+        if (args[0] === "canslim_alert.py") {
+          return JSON.stringify(
+            buildStrategyPayload("canslim", {
+              summary: { scanned: 120, evaluated: 1, threshold_passed: 1, buy_count: 0, watch_count: 1, no_buy_count: 0 },
+              signals: [{ symbol: "AAPL", score: 7, action: "WATCH", reason: "Watch setup", data_source: "schwab", data_staleness_seconds: 0 }],
+              render_lines: [
+                "CANSLIM Scan",
+                "Market: confirmed_uptrend | Position Sizing: 100%",
+                "Status: Trend healthy.",
+                "Summary: scanned 120 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 1 | NO_BUY 0",
+                "• AAPL (7/12) → WATCH",
+              ],
+            }),
+          );
+        }
+        throw new Error("Dip Buyer scan timed out after 360000ms");
+      },
+      council: async () => ({ verdicts: [] }),
+    });
+
+    expect(snapshot.decision).toBe("WATCH");
+    expect(snapshot.strategies.canslim.watch).toBe(1);
+    expect(snapshot.strategies.dipBuyer.outcomeClass).toBe("analysis_failed");
+    expect(snapshot.strategies.dipBuyer.watch).toBe(0);
+    expect(report).toContain("Dip Buyer: scanned 120 | evaluated 0 | threshold-passed 0 | emitted BUY 0 / WATCH 0 / NO_BUY 0");
+    expect(report).toContain("Blockers: Dip Buyer scanner timed out under degraded market-data conditions");
+    expect(report).toContain("Top blocker: Dip Buyer scanner timed out under degraded market-data conditions");
+    expect(report).toContain("Summary: BUY 0 | WATCH 1 | NO_BUY 0");
   });
 
   it("enforces CANSLIM correction hard gate and skips council when blocked", async () => {
