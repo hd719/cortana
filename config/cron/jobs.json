@@ -18,7 +18,7 @@
       "payload": {
         "kind": "agentTurn",
         "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRouting owner:\n- Cron-comms owns the morning brief delivery lane.\n- The script is source of truth for content and Telegram delivery.\n\nExecution contract:\n- First action must be one `exec` tool call.\n- Do not read files, search the repo, inspect skills, or use any other tool before that exec call.\n- Use this exact command and settings, non-interactively:\n  command: bash /Users/hd/Developer/cortana/tools/morning-brief/run-morning-brief.sh\n  workdir: /Users/hd/.openclaw/workspaces/cron-comms\n  host: gateway\n  security: full\n  ask: off\n  timeout: 120\n  yieldMs: 20000\n\nPolicy:\n- Morning Brief must be built from real data: Google Calendar schedule, open Apple Reminders in the Cortana list, weather, concise news, and concise market snapshot.\n- Do not invent generic filler such as `Top 3 priorities for today` or `One concrete career-advancing task`.\n- The script already sends the Telegram message. Do not send a second copy from the agent.\n- If exec exits 0: return exactly `Morning brief sent.`\n- If exec fails: return a one-line failure summary only.",
-        "model": "openai-codex/gpt-5.1",
+        "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 120
       },
       "state": {
@@ -86,7 +86,7 @@
       "payload": {
         "kind": "agentTurn",
         "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRouting owner:\n- Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.\n- Healthy/no-reminder path must stay silent as NO_REPLY.\n\nPREFIX: ⏰ Calendar - Event Reminder\nDELIVERY: send via message tool (action=send, channel=telegram, target=8171372724).\nTimezone: America/New_York.\n\nRun exactly:\nnpx tsx /Users/hd/Developer/cortana/tools/gog/calendar-events-json.ts --account hameldesai3@gmail.com calendar events \"60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com\" --from today --to tomorrow --json\n\nRules:\n- The helper inherits GOG_KEYRING_PASSWORD from the durable OpenClaw gateway env state or the gateway plist when the cron environment is headless.\n- Use only events that start TODAY (ET). Skip tomorrow/later and all-day events.\n- Compute minutes-until-start from now.\n- Send only when in reminder windows: 55-65 (60-min) or 25-35 (30-min).\n- Deduplicate using memory/calendar-reminders-sent.json.\n- If that file does not exist yet, treat it as an empty list and create it on first successful reminder write.\n- Format: ⏰ [Event Title] in [X] minutes\\nWhen: HH:MM AM/PM ET\n- If no reminders are due: return exactly NO_REPLY and do not send a message.\n- If the calendar read fails: return exactly NO_REPLY unless there is an actionable Monitor-owned maintenance alert.\n\nAfter generating output, send it with message tool. If nothing to report, return NO_REPLY and do not send.",
-        "model": "openai-codex/gpt-5.1",
+        "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 90
       },
       "state": {
@@ -121,7 +121,7 @@
       "payload": {
         "kind": "agentTurn",
         "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRouting owner:\n- Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.\n- Healthy/no-reminder path must stay silent as NO_REPLY.\n\nExecution contract:\n- First action must be one `exec` tool call.\n- Do not read files, search the repo, inspect skills, or use any other tool before that exec call.\n- Use this exact command and settings, non-interactively:\n  command: bash /Users/hd/Developer/cortana/tools/reminders/run-apple-reminders-monitor.sh\n  workdir: /Users/hd/.openclaw/workspaces/cron-comms\n  host: gateway\n  security: full\n  ask: off\n  timeout: 90\n  yieldMs: 20000\n\nPolicy:\n- Watch all Apple Reminders lists.\n- Alert on overdue reminders and reminders due in the next 60 minutes only.\n- No morning digest in this lane.\n- Deduplicate using memory/apple-reminders-sent.json.\n- If script outputs exactly NO_REPLY: return exactly NO_REPLY and do not send a message.\n- If script outputs alert text: send it exactly once via message tool to telegram target 8171372724 with accountId monitor.\n- Keep healthy/empty paths silent.",
-        "model": "openai-codex/gpt-5.1",
+        "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 90
       },
       "state": {
