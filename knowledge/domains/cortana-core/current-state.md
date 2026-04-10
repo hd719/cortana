@@ -1,6 +1,7 @@
 # Cortana Core Current State
 
 The `cortana` repo is the command brain for Hamel's agent system.
+The runtime body and trading surfaces live in `cortana-external`.
 
 ## Repo Role
 
@@ -13,6 +14,10 @@ The `cortana` repo is the command brain for Hamel's agent system.
 - compiled knowledge pages that summarize current truth
 
 It is not the primary home for external product/runtime implementation. That work mostly lives in `cortana-external`.
+Read first if you are unsure about ownership:
+
+1. [Repo split map](../../../docs/source/architecture/repo-split-map.md)
+2. [Runtime deploy model](../../../docs/source/architecture/runtime-deploy-model.md)
 
 ## Current Layout
 
@@ -23,6 +28,18 @@ It is not the primary home for external product/runtime implementation. That wor
 - `docs/archive/` stores historical or low-signal docs that should not stay in the active reading path
 - `research/` stores raw and derived exploration that has not yet been promoted
 - `knowledge/` stores the compiled wiki layer for current truth
+
+Examples of things that stay in `cortana`:
+
+- routing and delegation rules
+- cron prompts and command-layer automation
+- memory and continuity policy
+
+Examples of things that usually stay in `cortana-external`:
+
+- Mission Control and other runtime UIs
+- external service endpoints
+- trading/backtester runtime code
 
 ## Operating Model
 

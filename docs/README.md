@@ -1,6 +1,7 @@
 # Cortana Docs
 
 This directory holds the raw source-document layer for the `cortana` repo.
+It documents the command brain, not the runtime body. Runtime and trading surfaces live in `cortana-external`.
 
 It does **not** replace:
 - root boot doctrine like `SOUL.md` and `MEMORY.md`
@@ -16,6 +17,7 @@ In the LLM wiki model:
 
 ## Start Here
 
+- [Repo split map](./source/architecture/repo-split-map.md)
 - [Documentation authoring guide](./source/architecture/documentation-authoring-guide.md)
 - [Research workspace](../research/README.md)
 - [Canonical knowledge index](../knowledge/indexes/systems.md)
@@ -30,6 +32,7 @@ In the LLM wiki model:
 - `archive/` - historical or low-signal docs kept for reference but not treated as current reading
 
 Use `research/` when the material is still exploratory and should not yet become canonical or a durable source artifact.
+Use `docs/source/` for durable source docs about the command brain.
 
 ## Most Important Source Docs
 

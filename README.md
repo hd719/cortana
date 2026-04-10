@@ -6,6 +6,13 @@ This repo is **Cortana’s command brain** – memory, policy, orchestration, cr
 
 Documentation placement and authoring rules live in [`docs/source/architecture/documentation-authoring-guide.md`](docs/source/architecture/documentation-authoring-guide.md).
 
+## Repo Split
+
+- `cortana` = command brain: doctrine, routing, memory, cron prompts, and compiled knowledge.
+- `cortana-external` = runtime body: Mission Control, external service code, trading/backtester runtime, and operator-facing runtime surfaces.
+- If work crosses both repos, update the source docs here and the runtime implementation there together.
+- Start with [`docs/source/architecture/repo-split-map.md`](docs/source/architecture/repo-split-map.md) when the ownership boundary is unclear.
+
 Documentation follows a Karpathy-style LLM wiki split:
 - exploratory research lives in `research/`
 - raw source material lives in `docs/source/` plus the repo's live doctrine/memory files
@@ -630,9 +637,9 @@ Internal operator scripts, grouped by domain. Highlights:
   - `tools/alerting/emit-alert-intent.sh` – normalized alert-intent event emission
   - `tools/immune/` + `immune-system/` – incident capture + playbooks
 - **Finance/market**
-  - `tools/market-intel/` – unified quote + X sentiment + portfolio overlay
+  - `tools/market-intel/` – market-intel refreshes and supporting artifact generation for the external trading runtime
   - `tools/trade-alerts/`, `tools/earnings-alert/` – trading/earnings pipelines
-  - `tools/trading/` – unified market-session scans, chunked full-universe backtest automation, notifier artifacts
+  - `tools/trading/` – production trading pipeline: compute artifacts, notify delivery, and bounded rechecks
 - **Fitness/behavioral**
   - `tools/fitness/` – Whoop/Tonal pipelines (via external fitness service)
   - `tools/behavioral-twin/` – pattern modeling for routines/sleep/etc.
@@ -699,7 +706,7 @@ Heartbeat rules live in `HEARTBEAT.md` and related docs/scripts:
   - Email (Gmail), calendar (CalDAV + Google), newsletters
   - Fitness: Whoop/Tonal sync and recovery/strain analysis
   - Market/news: stock market open/close, CANSLIM scans, earnings
-  - Trading automation supports a two-stage artifact flow (`tools/trading/run-backtest-compute.sh` -> `tools/trading/run-backtest-notify.sh`) for long-running or delayed-delivery scans without changing the current one-stage market-session alert by default
+  - Trading automation now uses a production two-stage artifact flow (`tools/trading/run-backtest-compute.sh` -> `tools/trading/run-backtest-notify.sh`) with a bounded recheck lane for the current BUY/WATCH set
   - Memory consolidation, reflection, and learning
   - Cron health, tool health, budget, and proprioception
   - SAE Cross-Domain Reasoner re-enabled as a scheduled layer 15 minutes after World State Builder (7:15am, 1:15pm, 9:15pm ET) to connect sleep/work/markets into actionable insights
