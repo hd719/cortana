@@ -60,6 +60,17 @@ describe("openai-cron-auth-guard", () => {
           ],
         };
       }
+      if (filePath.includes(".openclaw/openclaw.json")) {
+        return {
+          models: {
+            providers: { openai: { apiKey: "live-key" } },
+            available: {
+              "openai-codex/gpt-5.1": {},
+              "openai-codex/gpt-5.3-codex": {},
+            },
+          },
+        };
+      }
       if (filePath.endsWith("config/openclaw.json")) {
         return {
           models: {
@@ -113,6 +124,9 @@ describe("openai-cron-auth-guard", () => {
           ],
         };
       }
+      if (filePath.includes(".openclaw/openclaw.json")) {
+        return { models: { providers: { openai: { apiKey: "live-key" } }, available: {} } };
+      }
       if (filePath.endsWith("config/openclaw.json")) {
         return { models: { providers: { openai: { apiKey: "test-key" } }, available: {} } };
       }
@@ -149,6 +163,9 @@ describe("openai-cron-auth-guard", () => {
             },
           ],
         };
+      }
+      if (filePath.includes(".openclaw/openclaw.json")) {
+        return { models: { providers: { openai: { apiKey: "live-key" } }, available: {} } };
       }
       if (filePath.endsWith("config/openclaw.json")) {
         return { models: { providers: { openai: { apiKey: "test-key" } }, available: {} } };
@@ -200,6 +217,9 @@ describe("openai-cron-auth-guard", () => {
             },
           ],
         };
+      }
+      if (filePath.includes(".openclaw/openclaw.json")) {
+        return { models: { providers: { openai: { apiKey: "live-key" } }, available: { "openai-codex/gpt-5.3-codex": {} } } };
       }
       if (filePath.endsWith("config/openclaw.json")) {
         return { models: { providers: { openai: { apiKey: "test-key" } }, available: { "openai-codex/gpt-5.3-codex": {} } } };
@@ -269,5 +289,98 @@ describe("openai-cron-auth-guard", () => {
       expect.objectContaining({ encoding: "utf8" })
     );
     expect(exitSpy).toHaveBeenCalledWith(1);
+  });
+
+  it("bypasses a stale fatal_auth circuit and clears it after a successful live probe", async () => {
+    const exitSpy = mockExit();
+    setArgv(["preflight"]);
+    useFixedTime("2026-04-10T13:20:00Z");
+    const openedAt = Math.floor(Date.parse("2026-04-10T13:00:00Z") / 1000);
+
+    readJsonFile.mockImplementation((filePath: string) => {
+      if (filePath.includes(".openclaw/cron/jobs.json")) {
+        return {
+          jobs: [
+            {
+              id: "job-1",
+              name: "☀️ Morning brief (Hamel)",
+              enabled: true,
+              payload: { model: "openai-codex/gpt-5.1" },
+            },
+          ],
+        };
+      }
+      if (filePath.includes(".openclaw/openclaw.json")) {
+        return {
+          models: {
+            providers: { openai: { apiKey: "live-key" } },
+            available: {
+              "openai-codex/gpt-5.1": {},
+              "openai-codex/gpt-5.3-codex": {},
+            },
+          },
+        };
+      }
+      if (filePath.endsWith("config/openclaw.json")) {
+        return {
+          models: {
+            providers: { openai: { apiKey: "REDACTED_USE_LIVE_CONFIG" } },
+            available: {},
+          },
+        };
+      }
+      if (filePath.includes("provider-fallback-policy.json")) {
+        return { providers: { codex: { fallback_order: ["opus", "sonnet"] } } };
+      }
+      if (filePath.includes("circuit-breaker-state.json")) {
+        return {
+          version: 2,
+          updated_at: "2026-04-10T13:19:00Z",
+          config: {},
+          providers: {
+            codex: {
+              provider: "codex",
+              circuit: "open",
+              opened_at: openedAt,
+              half_open_since: null,
+              consecutive_successes: 0,
+              needs_human_page: true,
+              last_error_code: 401,
+              last_error_kind: "fatal",
+              last_trip_reason: "fatal_auth",
+              last_trip_at: "2026-04-10T13:00:00Z",
+              error_burst: {
+                active: false,
+                count: 1,
+                threshold: 3,
+                window_seconds: 120,
+                started_at: openedAt,
+                last_error_at: openedAt,
+                last_status_code: 401,
+                last_triggered_at: null,
+              },
+              updated_at: "2026-04-10T13:00:00Z",
+              metrics: { total: 1, retryable: 0, retryable_rate: 0, non_retryable: 0, fatal: 1, success: 0, non_retryable_rate: 0 },
+              window: [{ ts: openedAt, status_code: 401, kind: "fatal" }],
+            },
+          },
+        };
+      }
+      return null;
+    });
+    fsMock.existsSync.mockImplementation((filePath: string) =>
+      filePath.includes("provider-fallback-policy.json") || filePath.includes("circuit-breaker-state.json")
+    );
+
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, status: 200, text: async () => "ok" });
+    (globalThis as any).fetch = fetchMock;
+
+    await importFresh("../../tools/alerting/openai-cron-auth-guard.ts");
+    await flushModuleSideEffects();
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(spawnSync).not.toHaveBeenCalled();
+    expect(fsMock.writeFileSync).toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(0);
   });
 });

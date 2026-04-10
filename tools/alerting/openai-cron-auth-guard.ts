@@ -16,6 +16,7 @@ import {
 } from "../guardrails/provider-health.js";
 
 const JOBS_FILE = resolveHomePath(".openclaw", "cron", "jobs.json");
+const LIVE_CONFIG_FILE = resolveHomePath(".openclaw", "openclaw.json");
 const CONFIG_FILE = path.join(process.cwd(), "config", "openclaw.json");
 const TELEGRAM_GUARD = path.join(process.cwd(), "tools", "notifications", "telegram-delivery-guard.sh");
 const TARGET = process.env.TELEGRAM_CHAT_ID ?? "8171372724";
@@ -88,24 +89,47 @@ function criticalJobs(jobs: Job[]): Job[] {
   return jobs.filter((job) => job.enabled !== false && CRITICAL_JOB_NAMES.includes(String(job.name ?? "")));
 }
 
+function isPlaceholderApiKey(value: string): boolean {
+  return !value || value === "__OPENCLAW_REDACTED__" || value === "REDACTED_USE_LIVE_CONFIG";
+}
+
+function loadConfig(): JsonMap | null {
+  return readJsonFile<JsonMap>(LIVE_CONFIG_FILE) ?? readJsonFile<JsonMap>(CONFIG_FILE);
+}
+
 function readOpenAIKey(): string {
-  const cfg = readJsonFile<JsonMap>(CONFIG_FILE);
+  const cfg = loadConfig();
   const provider = isRecord(cfg?.models) && isRecord((cfg.models as JsonMap).providers)
     ? ((cfg.models as JsonMap).providers as JsonMap).openai
     : null;
   const apiKey = isRecord(provider) ? String(provider.apiKey ?? "") : "";
-  if (apiKey && apiKey !== "__OPENCLAW_REDACTED__") return apiKey;
+  if (!isPlaceholderApiKey(apiKey)) return apiKey;
   return String(process.env.OPENAI_API_KEY ?? "");
 }
 
 function configuredOpenAIModels(): Set<string> {
-  const cfg = readJsonFile<JsonMap>(CONFIG_FILE);
+  const cfg = loadConfig();
   const models = isRecord(cfg?.models) && isRecord((cfg.models as JsonMap).available)
     ? ((cfg.models as JsonMap).available as JsonMap)
     : {};
   const allowed = Object.keys(models).filter((model) => model.startsWith("openai-codex/"));
   allowed.push(STANDARD_MODEL);
   return new Set(allowed);
+}
+
+function clearProviderAuthCircuit(): void {
+  const policy = loadProviderRoutePolicy();
+  const state = loadProviderHealthState(policy);
+  const provider = getProviderHealthState(state, OPENAI_PROVIDER);
+  provider.circuit = "closed";
+  provider.opened_at = null;
+  provider.half_open_since = null;
+  provider.consecutive_successes = 0;
+  provider.needs_human_page = false;
+  provider.last_error_code = null;
+  provider.last_error_kind = null;
+  provider.last_trip_reason = null;
+  saveProviderHealthState(state);
 }
 
 function sleep(ms: number): Promise<void> {
@@ -160,6 +184,9 @@ async function probeOpenAIAuth(): Promise<{ ok: boolean; detail: string; kind: "
   for (let attempt = 1; attempt <= AUTH_PROBE_ATTEMPTS; attempt += 1) {
     const gate = checkProviderCircuit();
     if (!gate.availability.attempt_allowed) {
+      if (gate.provider.last_trip_reason === "fatal_auth") {
+        // Auth may have been repaired out-of-band; probe anyway instead of staying latched open forever.
+      } else {
       const fallback = gate.route.fallback_provider ? `; fallback=${gate.route.fallback_provider}` : "";
       const reason = gate.route.circuit_reason ? `; reason=${gate.route.circuit_reason}` : "";
       return {
@@ -167,6 +194,7 @@ async function probeOpenAIAuth(): Promise<{ ok: boolean; detail: string; kind: "
         detail: `OpenAI provider circuit ${gate.availability.circuit}; probe skipped${fallback}${reason}${burstSuffix(gate.provider)}`,
         kind: "transient",
       };
+      }
     }
 
     const controller = new AbortController();
@@ -179,6 +207,7 @@ async function probeOpenAIAuth(): Promise<{ ok: boolean; detail: string; kind: "
       });
       if (res.ok) {
         recordProviderProbe(res.status);
+        clearProviderAuthCircuit();
         return { ok: true, detail: `models probe ok (${res.status})`, kind: "auth" };
       }
       const body = (await res.text()).slice(0, 200);
