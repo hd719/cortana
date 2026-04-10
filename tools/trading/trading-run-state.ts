@@ -291,8 +291,9 @@ function writeTradingRunStateRecord(record: TradingRunStateRecord, env: NodeJS.P
   }
 
   const sql = buildTradingRunUpsertSql(record);
-  const dbEnv = withPostgresPath({ ...env, DATABASE_URL: databaseUrl });
-  const result = runPsql(sql, { db: databaseUrl, env: dbEnv });
+  const psqlDatabaseUrl = sanitizePsqlDatabaseUrl(databaseUrl);
+  const dbEnv = withPostgresPath({ ...env, DATABASE_URL: psqlDatabaseUrl });
+  const result = runPsql(sql, { db: psqlDatabaseUrl, env: dbEnv });
   if ((result.status ?? 1) !== 0) {
     const message = String(result.stderr || result.stdout || "psql failed").trim();
     return { ok: false, mode: "failed", reason: message };
@@ -342,6 +343,18 @@ function stripOptionalQuotes(value: string): string {
     return value.slice(1, -1);
   }
   return value;
+}
+
+function sanitizePsqlDatabaseUrl(databaseUrl: string): string {
+  try {
+    const parsed = new URL(databaseUrl);
+    for (const key of ["connection_limit", "pool_timeout", "schema", "pgbouncer"]) {
+      parsed.searchParams.delete(key);
+    }
+    return parsed.toString();
+  } catch {
+    return databaseUrl;
+  }
 }
 
 function deriveDeliveryStatus(status: string | null, notifiedAt: string | null): string | null {

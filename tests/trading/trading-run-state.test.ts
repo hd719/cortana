@@ -130,6 +130,28 @@ describe("trading run state writer", () => {
     expect(String(runPsqlMock.mock.calls[0][0])).toContain("'notified'");
   });
 
+  it("strips Prisma-only query params before invoking psql", () => {
+    const root = mkdtempSync(path.join(process.cwd(), "tmp-trading-run-state-"));
+    const { summaryPath } = setupRunArtifacts(root, "20260407-171945");
+
+    const result = syncTradingRunFromArtifacts(summaryPath, {
+      env: {
+        ...process.env,
+        MISSION_CONTROL_DATABASE_URL:
+          "postgresql://writer@localhost:5432/mission_control?connection_limit=10&pool_timeout=20&sslmode=disable",
+      },
+    });
+
+    expect(result).toEqual({ ok: true, mode: "written" });
+    expect(runPsqlMock).toHaveBeenCalledTimes(1);
+    expect(runPsqlMock.mock.calls[0][1]).toMatchObject({
+      db: "postgresql://writer@localhost:5432/mission_control?sslmode=disable",
+      env: expect.objectContaining({
+        DATABASE_URL: "postgresql://writer@localhost:5432/mission_control?sslmode=disable",
+      }),
+    });
+  });
+
   it("falls back to Mission Control .env.local when explicit sync env is missing", () => {
     const root = mkdtempSync(path.join(process.cwd(), "tmp-trading-run-state-"));
     const externalRoot = mkdtempSync(path.join(process.cwd(), "tmp-cortana-external-"));
@@ -147,6 +169,32 @@ describe("trading run state writer", () => {
     expect(runPsqlMock).toHaveBeenCalledTimes(1);
     expect(runPsqlMock.mock.calls[0][1]).toMatchObject({
       db: "postgresql://writer@localhost:5432/mission_control",
+    });
+  });
+
+  it("sanitizes fallback Mission Control .env.local URLs for psql", () => {
+    const root = mkdtempSync(path.join(process.cwd(), "tmp-trading-run-state-"));
+    const externalRoot = mkdtempSync(path.join(process.cwd(), "tmp-cortana-external-"));
+    const envLocalPath = path.join(externalRoot, "apps", "mission-control", ".env.local");
+    const { summaryPath } = setupRunArtifacts(root, "20260407-171946");
+
+    mkdirSync(path.dirname(envLocalPath), { recursive: true });
+    writeFileSync(
+      envLocalPath,
+      "DATABASE_URL=postgresql://writer@localhost:5432/mission_control?connection_limit=10&pool_timeout=20&sslmode=disable\n",
+    );
+
+    const result = syncTradingRunFromArtifacts(summaryPath, {
+      env: { ...process.env, CORTANA_EXTERNAL_REPO: externalRoot, MISSION_CONTROL_DATABASE_URL: "" },
+    });
+
+    expect(result).toEqual({ ok: true, mode: "written" });
+    expect(runPsqlMock).toHaveBeenCalledTimes(1);
+    expect(runPsqlMock.mock.calls[0][1]).toMatchObject({
+      db: "postgresql://writer@localhost:5432/mission_control?sslmode=disable",
+      env: expect.objectContaining({
+        DATABASE_URL: "postgresql://writer@localhost:5432/mission_control?sslmode=disable",
+      }),
     });
   });
 
