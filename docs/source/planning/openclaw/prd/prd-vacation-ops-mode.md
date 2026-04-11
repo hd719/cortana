@@ -255,6 +255,8 @@ Tier 0 (`NO-GO` if broken):
 - green baseline
 - critical synthetic probe
 
+Mission Control and Tailscale are treated as local-readiness and tailnet-viability proxies only. They prove the operator can reach the local control plane and tailnet, not internet-wide remote reachability.
+
 Tier 1 (`NO-GO` if broken after allowed remediation):
 - Gog headless auth
 - Calendar reminders end-to-end
@@ -263,9 +265,9 @@ Tier 1 (`NO-GO` if broken after allowed remediation):
 - Gmail / inbox triage
 - fitness service
 - Schwab auth / quote smoke
-- backtester app health if it underpins remote watchlist review
+- backtester app health using existing readiness / market-data surfaces plus the local app probe path in v1
 - GitHub machine identity consistency (`cortana-hd`)
-- browser CDP if it is required by Tier 0 or Tier 1 paths
+- browser CDP watchdog path
 
 Tier 2 (`WARN` if broken):
 - market scans
@@ -283,6 +285,19 @@ Tier 3 (`INFO` only):
 - `WARN` if Tier 0 and Tier 1 are green but one or more Tier 2 systems are degraded.
 - `PASS` only if Tier 0 and Tier 1 are green and no unresolved Tier 2 issue exceeds the configured warning threshold.
 
+#### Readiness decision matrix
+
+The readiness command must evaluate in this order and stop as soon as the highest-severity terminal condition is known:
+
+1. Any Tier 0 red result immediately yields `NO-GO`.
+2. Any Tier 1 red result triggers the full deterministic remediation ladder for that system.
+3. If a Tier 1 system is still red after remediation and verification, the overall result is `NO-GO`.
+4. If readiness execution cannot complete or cannot produce evidence for a required check, the overall result is `FAIL`.
+5. If all Tier 0 and Tier 1 checks are green but one or more Tier 2 checks are degraded past their configured threshold, the overall result is `WARN`.
+6. Only when Tier 0 and Tier 1 are green and Tier 2 has not crossed its warning threshold may the result be `PASS`.
+
+Stale degraded evidence must be overwritten by newer healthy verification for the same system before the final result is computed. The command must never blend stale red evidence with newer green evidence into an ambiguous intermediate state.
+
 ---
 
 ### Requirement 2 - Pre-Vacation Prep Workflow
@@ -299,11 +314,14 @@ Tier 3 (`INFO` only):
 
 - Prep must be manually triggerable by command.
 - Prep must also be triggerable by natural language intent such as “I leave tomorrow for 10 days”.
-- Prep may recommend an ideal audit window using travel/flight calendar context.
+- Natural-language activation is an edge wrapper over deterministic CLI/state transitions only; it may request recommendation or prep, but it must not mutate vacation state directly.
+- Prep may recommend an ideal audit window using travel/flight calendar context, but the recommendation must be advisory only.
+- Prep timing must be deterministic: compute the preferred prep start in Hamel’s travel timezone when available, otherwise fall back to the configured operator timezone, and default the recommendation to approximately `24` hours before departure.
 - Prep must be allowed to request Hamel’s approval for interactive reauth where needed.
 - Prep must not auto-perform interactive reauth without Hamel’s explicit involvement.
 - Prep must record which auth or approval steps were completed.
 - Prep must re-run verification after any manual auth refresh step.
+- Prep must mark any still-pending interactive auth dependency explicitly as `AUTH_REQUIRED` rather than silently passing it.
 
 ---
 
@@ -327,6 +345,28 @@ While active, vacation mode must:
 - preserve bounded self-heal
 - prevent autonomous interactive reauth
 - maintain morning and evening operator summaries to `monitor`
+
+Vacation mode enable semantics:
+
+- enable may happen only after a readiness run returns `PASS` or `WARN`
+- `PASS` means all Tier 0 and Tier 1 checks are green and Tier 2 is within threshold
+- `WARN` means Tier 0 and Tier 1 are green, and the operator accepts the remaining Tier 2 degradation
+- enable must persist the canonical vacation window, write the runtime mirror, and disable `Daily Auto-Update` in that order
+- enable must not run if any Tier 0 or unresolved Tier 1 check is red
+
+Vacation mode disable semantics:
+
+- disable may be manual or automatic
+- manual disable must be idempotent and safe when vacation mode is already inactive
+- auto-expire must trigger at the configured `end_at` and must be the same code path used to restore paused state
+- disable must restore `Daily Auto-Update` before emitting the `normal ops resumed` summary
+- disable must close out the vacation ledger window and preserve the historical audit trail
+
+Vacation mode auto-expire semantics:
+
+- auto-expire must only use the stored `end_at` from the canonical vacation window
+- auto-expire must not depend on wall-clock heuristics or best-effort polling alone
+- if the process restarts after the end time, the next guard or summary run must observe the expired state and complete disablement
 
 Auto-disable must:
 
@@ -382,7 +422,8 @@ Additional rules:
 The daily vacation summary must:
 
 - send to `monitor`
-- run morning and evening in Hamel’s timezone
+- run morning and evening in Hamel’s configured local timezone
+- default to `08:00` and `20:00` local time until user customization exists
 - be compact and mobile-readable
 - include overall state (`GREEN`, `YELLOW`, `RED`)
 - include grouped status for:
@@ -392,6 +433,25 @@ The daily vacation summary must:
 - include self-heal count in the last `24h`
 - include human-required blockers count
 - include at most one short line describing any active degradation
+- follow a fixed operator-first text template so the same state always renders the same shape
+
+The machine-readable summary payload must include at minimum:
+
+- `window_id`
+- `period`
+- `generated_at`
+- `timezone`
+- `overall_state`
+- `control_plane_state`
+- `reminders_state`
+- `market_fitness_news_state`
+- `self_heal_count_24h`
+- `human_required_blockers`
+- `active_degradation`
+- `next_action`
+- `delivery_channel`
+
+The text message should be derived from that payload and stay short enough to read on mobile without scrolling a long paragraph.
 
 The summary must not become a large heartbeat essay.
 
@@ -417,6 +477,23 @@ Vacation-mode alerts must:
 #### Ledger requirements
 
 Vacation mode state and the vacation incident ledger must be stored canonically in Postgres.
+
+Vacation mode uses its own canonical vacation tables and incident ledger. It may reuse autonomy taxonomy, system keys, and `incident_key` references where helpful, but it does not write directly into autonomy tables.
+
+The canonical incident model must be first-class, not implied through check or action rows. Each vacation-window incident should capture:
+
+- incident id
+- window id
+- first observed time
+- last observed time
+- system / component key
+- tier
+- current status (`open`, `degraded`, `human_required`, `resolved`)
+- whether human action is required
+- latest check evidence
+- latest action evidence
+- resolution reason
+- resolution time
 
 Repo or runtime files may mirror the currently active vacation window only to support local script execution, but those files must not be treated as the system of record.
 
@@ -554,8 +631,10 @@ Observed operator requirements from this planning discussion:
 - Hamel wants daily morning and evening vacation summaries sent to `monitor`.
 - Hamel wants the system to auto-disable vacation mode at the configured end date and send a `normal ops resumed` summary.
 
-### Open Questions
+### Resolved Decisions
 
-- What should the default local morning and evening summary times be before user customization exists?
-- Should backtester app health initially rely on existing market-data / readiness surfaces, or should the implementation add a dedicated backtester health endpoint?
-- Which parts of the existing autonomy incident model should be reused directly vs wrapped by vacation-specific tables?
+- Default morning and evening summary times are `08:00` and `20:00` in the vacation window's configured local timezone until user customization exists.
+- Backtester app health in v1 relies on existing readiness and market-data surfaces plus the existing local app probe path; a new dedicated endpoint is out of scope for v1.
+- Vacation mode uses its own canonical vacation tables and incident ledger; autonomy taxonomy, system keys, and `incident_key` references may be reused, but vacation mode does not write directly into autonomy tables.
+- Mission Control and Tailscale are accepted as local-readiness and tailnet proxies only, not proof of Internet-wide reachability.
+- Natural-language activation remains allowed only as an edge wrapper over deterministic CLI/state transitions.

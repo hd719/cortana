@@ -62,13 +62,16 @@ If multiple agents are used:
   - Add `cortana_vacation_windows`.
   - Add `cortana_vacation_runs`.
   - Add `cortana_vacation_check_results`.
+  - Add `cortana_vacation_incidents` as the canonical incident ledger.
   - Add `cortana_vacation_actions`.
-  - Add indexes for active window uniqueness, run lookup, check lookup by system/tier, and action lookup by incident and window.
+  - Add indexes for active window uniqueness, run lookup, check lookup by system/tier, incident lookup by system/window/state, and action lookup by incident and window.
 - Sub-task 2: Create `/Users/hd/Developer/cortana/config/vacation-ops.json`.
   - Encode Tier 0 / Tier 1 / Tier 2 / Tier 3 system keys.
   - Encode Tier 2 class-based thresholds.
   - Encode allowed remediation ladder.
-  - Encode default summary times.
+  - Encode default summary times as `08:00` and `20:00` in the configured local timezone until user customization exists.
+  - Encode the readiness freshness gate used by `enable` so stale readiness runs are rejected instead of reused.
+  - Default the authorization freshness window to `6h` unless config explicitly overrides it.
   - Encode paused job ids including `af9e1570-3ba2-4d10-a807-91cdfc2df18b` for `Daily Auto-Update`.
 - Sub-task 3: Create `/Users/hd/Developer/cortana/tools/vacation/types.ts`.
   - Centralize shared TypeScript types for window state, run type, check result, action row, and summary payloads.
@@ -80,6 +83,8 @@ If multiple agents are used:
 - Use stable `system_key` values from day one; avoid later renames that would fragment history.
 - The migration must be additive and safe against repeated execution.
 - Postgres is canonical. No runtime file may be treated as a source of truth.
+- The incident ledger must be first-class, not inferred from check rows after the fact.
+- Vacation mode owns its own canonical vacation tables and incident ledger; autonomy taxonomy, system keys, and `incident_key` references are compatibility references only and must not be written to autonomy tables.
 
 #### Testing
 
@@ -106,6 +111,7 @@ If multiple agents are used:
 - Sub-task 2: Create `/Users/hd/Developer/cortana/tools/vacation/vacation-ops.ts`.
   - Add subcommands: `recommend`, `prep`, `readiness`, `enable`, `disable`, `summary`, `status`.
   - Support `--json`, `--window-id`, `--start`, `--end`, `--timezone`, `--period`, `--reason`.
+  - `enable` must reject stale readiness results even if they were previously healthy.
 - Sub-task 3: Add a small command-dispatch contract test in `/Users/hd/Developer/cortana/tests/vacation/vacation-ops.test.ts`.
 - Sub-task 4: Add runtime mirror reconciliation tests in `/Users/hd/Developer/cortana/tests/vacation/vacation-state.test.ts`.
 
@@ -144,6 +150,7 @@ If multiple agents are used:
   - Apply freshness rules.
   - Apply Tier 2 class-specific thresholds.
   - Derive `PASS`, `WARN`, `FAIL`, `NO-GO`.
+  - Preserve the freshest result per system and reject stale ready-to-enable state when a newer run supersedes it.
 - Sub-task 3: Reuse deterministic existing checks where possible rather than rewriting everything.
   - `green-baseline.sh`
   - `critical-synthetic-probe.ts`
@@ -183,6 +190,7 @@ Tier 1:
 #### Important Planning Notes
 
 - Freshness-aware scoring is mandatory. A newer healthy verification must suppress older degraded state.
+- A stale readiness result cannot be reused for activation if its freshness window has expired or if a newer run exists.
 - Do not parse human-oriented message text if a deterministic signal already exists.
 - The readiness engine must emit machine-readable reasoning for every final decision.
 - `FAIL` should mean the readiness run itself was incomplete or inconclusive, not just that a system is red.
@@ -216,6 +224,7 @@ Tier 1:
     5. stale session rotation
     6. rerun exact smoke
 - Sub-task 2: Integrate remediation results into `cortana_vacation_actions`.
+  - Link repairs back to `cortana_vacation_incidents` so one incident can carry many repair attempts without losing identity.
 - Sub-task 3: Connect remediation to existing deterministic utilities where they already exist.
   - runtime sync script
   - gateway env/plist reconciliation
@@ -248,7 +257,7 @@ Tier 1:
 #### Jira
 
 - Sub-task 1: Implement `enable` in `/Users/hd/Developer/cortana/tools/vacation/vacation-ops.ts`.
-  - Require a recent acceptable readiness result.
+  - Require a current acceptable readiness result that is both in the allowed state and inside the configured freshness window.
   - Create/update the active window row.
   - Write runtime mirror state.
   - Disable `Daily Auto-Update` by stable job id `af9e1570-3ba2-4d10-a807-91cdfc2df18b`.
@@ -257,8 +266,13 @@ Tier 1:
   - Update canonical state.
   - Clear or archive runtime mirror.
   - Send `normal ops resumed` summary.
-- Sub-task 3: Update `/Users/hd/Developer/cortana/tools/monitoring/vacation-mode-guard.ts` to read canonical state and behave as a policy enforcer, not the system of record.
-- Sub-task 4: Add tests in `/Users/hd/Developer/cortana/tests/vacation/vacation-state-machine.test.ts`.
+- Sub-task 3: Define the exact state-transition ordering for `enable`, `disable`, and `auto-expire`.
+  - `enable` order: verify freshness gate, lock/create active window, persist canonical state, write runtime mirror, pause `Daily Auto-Update`, emit activation summary, release lock.
+  - `disable` order: mark window closing, restore paused jobs, persist terminal state, clear or archive runtime mirror, emit resume summary, release lock.
+  - `auto-expire` order: mark expired, restore paused jobs, persist terminal state, clear or archive runtime mirror, emit `normal ops resumed`, release lock.
+  - If summary delivery fails, the state transition and restore steps still complete.
+- Sub-task 4: Update `/Users/hd/Developer/cortana/tools/monitoring/vacation-mode-guard.ts` to read canonical state and behave as a policy enforcer, not the system of record.
+- Sub-task 5: Add tests in `/Users/hd/Developer/cortana/tests/vacation/vacation-state-machine.test.ts`.
 
 #### Important Planning Notes
 
@@ -266,11 +280,15 @@ Tier 1:
 - Restore actions must occur even if summary delivery fails.
 - If pause/restore of `Daily Auto-Update` fails, the failure must be explicit and logged.
 - There must never be more than one active vacation window.
+- `enable` must never succeed from a stale readiness result, even if the underlying checks were once healthy.
+- The default enable freshness window is `6h`; older readiness results are rejected even if they were once healthy.
 
 #### Testing
 
 - `enable` fails when readiness is `NO-GO` or `FAIL`.
 - `enable` succeeds when readiness is `PASS` or allowed `WARN`.
+- `enable` fails when the most recent readiness result is older than the configured freshness window.
+- `enable` fails when the most recent readiness result is older than `6h` by default.
 - `Daily Auto-Update` pauses on enable and restores on disable.
 - Auto-expire restores state and emits `normal ops resumed` once.
 - Duplicate enable attempts fail safely.
@@ -290,6 +308,9 @@ Tier 1:
 - Sub-task 1: Create `/Users/hd/Developer/cortana/tools/vacation/vacation-summary.ts`.
   - Build compact `monitor` summaries.
   - Include overall state, grouped subsystem rollup, self-heal count, human-required count, and one-line degradation text.
+  - Emit a strict summary payload contract that the text renderer consumes without extra inference.
+  - The payload must at minimum carry `window_id`, `period`, `overall_status`, `readiness_outcome`, `active_incident_count`, `resolved_incident_count`, `human_required_count`, `paused_job_ids`, `last_transition_at`, and `latest_readiness_run_id`.
+  - The text renderer must never infer status from freeform prose when a structured field exists.
 - Sub-task 2: Update `/Users/hd/Developer/cortana/config/cron/jobs.json`.
   - Add or wire morning summary cron.
   - Add or wire evening summary cron.
@@ -304,6 +325,8 @@ Tier 1:
 - Summaries must not become giant heartbeat essays.
 - Vacation alerts and summaries are separate products; do not merge them.
 - Summary generation must not mutate readiness state except for run logging.
+- The summary payload is canonical; summary text is a deterministic rendering of that payload.
+- Summary content must reflect the current incident ledger, not just the last check result.
 
 #### Testing
 
@@ -311,6 +334,7 @@ Tier 1:
 - Morning and evening summaries route to `monitor` only.
 - Summary text is compact and stable.
 - Recovered incidents do not remain in summary rollups once newer healthy evidence exists.
+- Summary output rejects stale readiness-backed state if a newer run has superseded it.
 
 ---
 
@@ -332,8 +356,8 @@ Tier 1:
   - validate morning/evening summaries
   - simulate at least one allowed self-heal
   - validate auto-disable and restore
-- Sub-task 2: Validate Mission Control and Tailscale checks against real local and remote-ready surfaces.
-- Sub-task 3: Validate backtester/market-data checks against existing readiness surfaces and watchlist usage needs.
+- Sub-task 2: Validate Mission Control and Tailscale checks as local-readiness and tailnet proxy surfaces only.
+- Sub-task 3: Validate backtester app health against existing readiness / market-data surfaces plus the local app probe path in v1; no dedicated endpoint is in scope.
 - Sub-task 4: Patch any deterministic gaps discovered during rehearsal without expanding scope into unrelated feature work.
 
 #### Important Planning Notes
@@ -408,7 +432,7 @@ The rehearsal phase must exercise the real operator-facing output, not just the 
 
 - `~/.openclaw/cron/jobs.json`
 - `~/.openclaw/state/vacation-mode.json`
-- `cortana_autonomy_incidents`
+- `cortana_vacation_incidents`
 - Mission Control at `http://127.0.0.1:3000/api/heartbeat-status`
 - Tailscale via `tailscale status --json`
 - runtime integrity / green baseline / synthetic probe / reminders / morning brief / market-data smoke helpers
@@ -432,4 +456,4 @@ The smallest credible delivery order is:
 Do not invert that order.
 
 - **Biggest risks:** stale-state false positives, summary noise, hidden interactive-auth dependencies, and pause/restore drift on `Daily Auto-Update`.
-- **Assumptions:** Postgres remains available, existing check helpers are stable enough to reuse, and Mission Control / market-data surfaces in `cortana-external` stay compatible with the checks defined in `cortana`.
+- **Assumptions:** Postgres remains available, existing check helpers are stable enough to reuse, Mission Control and Tailscale are proxy checks only, and existing backtester / market-data surfaces in `cortana-external` stay compatible with the checks defined in `cortana`.
