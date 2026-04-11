@@ -86,4 +86,27 @@ describe("vacation state", () => {
     expect(updated.jobs[0].enabled).toBe(true);
     expect(updated.jobs[1].enabled).toBe(false);
   });
+
+  it("updates an existing incident when resolving instead of inserting duplicates", async () => {
+    runPsql.mockReturnValue({ status: 0, stdout: "", stderr: "" });
+    const mod = await import("../../tools/vacation/vacation-state.ts");
+
+    mod.upsertVacationIncident({
+      vacationWindowId: 42,
+      runId: 9,
+      systemKey: "market_scans",
+      tier: 2,
+      status: "resolved",
+      humanRequired: false,
+      observedAt: "2026-04-11T12:30:00.000Z",
+      resolutionReason: "healthy",
+      detail: { status: "green" },
+    });
+
+    const sql = String(runPsql.mock.calls[0]?.[0] ?? "");
+    expect(sql).toContain("WITH existing AS");
+    expect(sql).toContain("UPDATE cortana_vacation_incidents");
+    expect(sql).toContain("ORDER BY CASE WHEN status IN ('open', 'degraded', 'human_required') THEN 0 ELSE 1 END");
+    expect(sql).not.toContain("ON CONFLICT");
+  });
 });

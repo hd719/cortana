@@ -16,6 +16,11 @@ import {
 } from "./vacation-state.js";
 import type { VacationOpsConfig, VacationRunRow, VacationWindowRow } from "./types.js";
 
+function snapshotJobIds(window: VacationWindowRow | null | undefined, key: string): string[] {
+  const value = window?.state_snapshot?.[key];
+  return Array.isArray(value) ? value.map((item) => String(item)) : [];
+}
+
 function activeStatusForDisable(reason: string): VacationWindowRow["status"] {
   if (reason === "expired") return "expired";
   if (reason === "cancelled") return "cancelled";
@@ -71,9 +76,6 @@ export function enableVacationMode(params: {
   });
 
   const pausedJobIds = setRuntimeCronJobsEnabled(config.pausedJobIds, false);
-  if (pausedJobIds.length !== config.pausedJobIds.length) {
-    throw new Error("Failed to pause one or more configured vacation-mode cron jobs.");
-  }
 
   window = updateVacationWindow(window.id, {
     status: "active",
@@ -81,6 +83,7 @@ export function enableVacationMode(params: {
     stateSnapshot: {
       ...(window.state_snapshot ?? {}),
       paused_job_ids: pausedJobIds,
+      quarantined_job_ids: snapshotJobIds(window, "quarantined_job_ids"),
       latest_readiness_run_id: latestReadiness.id,
     },
   });
@@ -115,10 +118,8 @@ export function disableVacationMode(params: {
     runType: "disable",
     triggerSource: params.reason === "expired" ? "auto_expire" : "manual_command",
   });
-  const restoredJobIds = setRuntimeCronJobsEnabled(config.pausedJobIds, true);
-  if (restoredJobIds.length !== config.pausedJobIds.length) {
-    throw new Error("Failed to restore one or more paused vacation-mode cron jobs.");
-  }
+  const pausedJobIds = snapshotJobIds(active, "paused_job_ids");
+  const restoredJobIds = pausedJobIds.length ? setRuntimeCronJobsEnabled(pausedJobIds, true) : [];
 
   const window = updateVacationWindow(active.id, {
     status: activeStatusForDisable(params.reason),
@@ -126,6 +127,7 @@ export function disableVacationMode(params: {
     disableReason: params.reason,
     stateSnapshot: {
       ...(active.state_snapshot ?? {}),
+      paused_job_ids: [],
       restored_job_ids: restoredJobIds,
     },
   });

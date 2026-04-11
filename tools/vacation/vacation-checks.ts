@@ -2,6 +2,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
+import { getMarketSessionInfo } from "../../skills/markets/check_market_status.ts";
 import { externalRepoRoot, resolveRuntimeStatePath, sourceRepoRoot } from "../lib/paths.js";
 import { runGogWithEnv } from "../gog/gog-with-env.js";
 import type { VacationCheckResultRow, VacationCheckStatus, VacationOpsConfig } from "./types.js";
@@ -58,6 +59,10 @@ function compact(text: string, max = 220): string {
   return normalized.length <= max ? normalized : `${normalized.slice(0, max - 1)}…`;
 }
 
+function currentTime(env: VacationCheckEnvironment): Date {
+  return (env.now ?? (() => new Date()))();
+}
+
 function buildResult(
   config: VacationOpsConfig,
   systemKey: string,
@@ -73,6 +78,19 @@ function buildResult(
     freshness_at: freshnessAt ?? null,
     detail,
   };
+}
+
+function minutesBeforeNextMarketOpen(now: Date): number | null {
+  const session = getMarketSessionInfo(now);
+  if (session.phase === "OPEN") return 0;
+  const maxLookaheadMinutes = 7 * 24 * 60;
+  for (let offset = 1; offset <= maxLookaheadMinutes; offset += 1) {
+    const candidate = new Date(now.getTime() + offset * 60 * 1000);
+    if (getMarketSessionInfo(candidate).phase === "OPEN") {
+      return offset;
+    }
+  }
+  return null;
 }
 
 function readJson<T>(filePath: string): T | null {
@@ -294,16 +312,20 @@ function checkBrowserCdp(config: VacationOpsConfig, env: VacationCheckEnvironmen
 
 function marketTier2Check(config: VacationOpsConfig, env: VacationCheckEnvironment, systemKey: string, name: string): VacationCheckResultRow {
   const base = cronCheck(config, env, systemKey, name);
-  const staleHours = base.freshness_at ? (Date.now() - Date.parse(base.freshness_at)) / (1000 * 60 * 60) : null;
+  const now = currentTime(env);
+  const session = getMarketSessionInfo(now);
+  const staleHours = base.freshness_at ? (now.getTime() - Date.parse(base.freshness_at)) / (1000 * 60 * 60) : null;
   return {
     ...base,
     detail: {
       ...base.detail,
       consecutiveFailures: Number(base.detail.consecutiveFailures ?? 0),
-      marketHours: true,
+      marketHours: session.phase === "OPEN",
+      marketPhase: session.phase,
+      marketSessionLabel: session.label,
       staleHours,
       staleMinutes: staleHours == null ? null : staleHours * 60,
-      minutesBeforeNextOpen: 60,
+      minutesBeforeNextOpen: minutesBeforeNextMarketOpen(now),
     },
   };
 }

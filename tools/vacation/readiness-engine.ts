@@ -69,13 +69,17 @@ function evaluateTier2(result: VacationCheckResultRow, config: VacationOpsConfig
   const staleHours = Number(detail.staleHours ?? 0);
   const staleMinutes = Number(detail.staleMinutes ?? 0);
   const marketHours = Boolean(detail.marketHours);
-  const minutesBeforeNextOpen = Number(detail.minutesBeforeNextOpen ?? Number.POSITIVE_INFINITY);
+  const rawMinutesBeforeNextOpen = detail.minutesBeforeNextOpen;
+  const minutesBeforeNextOpen =
+    rawMinutesBeforeNextOpen == null || rawMinutesBeforeNextOpen === ""
+      ? Number.POSITIVE_INFINITY
+      : Number(rawMinutesBeforeNextOpen);
   if (cls === "market_trading") {
     const thresholds = config.tier2Thresholds.market_trading;
     const warn =
       consecutiveFailures >= thresholds.warnAfterConsecutiveFailures ||
       (marketHours && staleMinutes >= thresholds.warnAfterMinutesMarketHours) ||
-      minutesBeforeNextOpen <= thresholds.warnBeforeNextOpenMinutes;
+      (!marketHours && minutesBeforeNextOpen <= thresholds.warnBeforeNextOpenMinutes);
     return { warn, reason: warn ? "market_trading_threshold" : "market_trading_info_only" };
   }
   if (cls === "fitness_news") {

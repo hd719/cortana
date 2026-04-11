@@ -45,14 +45,63 @@ describe("vacation state machine", () => {
     })).toThrow(/stale/);
   });
 
+  it("records only the jobs actually paused during enable", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-11T13:00:00.000Z"));
+    try {
+      getLatestReadinessRun.mockReturnValue({
+        id: 7,
+        readiness_outcome: "pass",
+        completed_at: "2026-04-11T12:00:00.000Z",
+      });
+      getActiveVacationWindow.mockReturnValue(null);
+      createVacationWindow.mockReturnValue({
+        id: 1,
+        label: "vacation-2026-04-20",
+        state_snapshot: {},
+      });
+      startVacationRun.mockReturnValue({ id: 9 });
+      setRuntimeCronJobsEnabled.mockReturnValue(["job-a"]);
+      updateVacationWindow.mockReturnValue({
+        id: 1,
+        label: "vacation-2026-04-20",
+        state_snapshot: { paused_job_ids: ["job-a"] },
+      });
+      finishVacationRun.mockReturnValue({ id: 9 });
+
+      const { enableVacationMode } = await import("../../tools/vacation/vacation-state-machine.ts");
+      const result = enableVacationMode({
+        config: {
+          readinessFreshnessHours: 6,
+          timezone: "America/New_York",
+          pausedJobIds: ["job-a", "job-b"],
+        } as any,
+        startAt: "2026-04-20T12:00:00.000Z",
+        endAt: "2026-04-30T12:00:00.000Z",
+      });
+
+      expect(result.pausedJobIds).toEqual(["job-a"]);
+      expect(updateVacationWindow).toHaveBeenCalledWith(1, expect.objectContaining({
+        stateSnapshot: expect.objectContaining({
+          paused_job_ids: ["job-a"],
+          latest_readiness_run_id: 7,
+        }),
+      }));
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("restores paused jobs on disable", async () => {
     getActiveVacationWindow.mockReturnValue({
       id: 1,
       label: "vacation-2026-04-20",
-      state_snapshot: {},
+      state_snapshot: {
+        paused_job_ids: ["af9e1570-3ba2-4d10-a807-91cdfc2df18b", "fragile-job"],
+      },
     });
     startVacationRun.mockReturnValue({ id: 4 });
-    setRuntimeCronJobsEnabled.mockReturnValue(["af9e1570-3ba2-4d10-a807-91cdfc2df18b"]);
+    setRuntimeCronJobsEnabled.mockReturnValue(["af9e1570-3ba2-4d10-a807-91cdfc2df18b", "fragile-job"]);
     updateVacationWindow.mockReturnValue({ id: 1, label: "vacation-2026-04-20" });
     finishVacationRun.mockReturnValue({ id: 4 });
     archiveVacationMirror.mockReturnValue("/tmp/vacation-mode.json.bak");
@@ -61,6 +110,10 @@ describe("vacation state machine", () => {
       config: { pausedJobIds: ["af9e1570-3ba2-4d10-a807-91cdfc2df18b"] } as any,
       reason: "manual",
     });
-    expect(result.restoredJobIds).toEqual(["af9e1570-3ba2-4d10-a807-91cdfc2df18b"]);
+    expect(result.restoredJobIds).toEqual(["af9e1570-3ba2-4d10-a807-91cdfc2df18b", "fragile-job"]);
+    expect(setRuntimeCronJobsEnabled).toHaveBeenCalledWith(
+      ["af9e1570-3ba2-4d10-a807-91cdfc2df18b", "fragile-job"],
+      true,
+    );
   });
 });

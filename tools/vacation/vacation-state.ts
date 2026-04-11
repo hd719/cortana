@@ -449,13 +449,59 @@ export function upsertVacationIncident(input: {
   resolutionReason?: string | null;
 }): void {
   const resolved = input.status === "resolved";
+  const assignments = [
+    `run_id = ${input.runId == null ? "NULL" : Number(input.runId)}`,
+    `latest_check_result_id = ${input.latestCheckResultId == null ? "NULL" : Number(input.latestCheckResultId)}`,
+    `latest_action_id = ${input.latestActionId == null ? "latest_action_id" : Number(input.latestActionId)}`,
+    `tier = ${Number(input.tier)}`,
+    `status = '${sqlEscape(input.status)}'`,
+    `human_required = ${input.humanRequired ? "TRUE" : "FALSE"}`,
+    `last_observed_at = TIMESTAMPTZ '${sqlEscape(input.observedAt)}'`,
+    `resolved_at = ${resolved ? `TIMESTAMPTZ '${sqlEscape(input.observedAt)}'` : "NULL"}`,
+    `resolution_reason = ${input.resolutionReason ? `'${sqlEscape(input.resolutionReason)}'` : "NULL"}`,
+    `symptom = ${input.symptom ? `'${sqlEscape(input.symptom)}'` : "NULL"}`,
+    `detail = ${jsonSql(input.detail ?? {})}`,
+    "updated_at = NOW()",
+  ];
+
+  if (resolved) {
+    void queryText(`
+WITH existing AS (
+  SELECT id
+  FROM cortana_vacation_incidents
+  WHERE vacation_window_id = ${Number(input.vacationWindowId)}
+    AND system_key = '${sqlEscape(input.systemKey)}'
+  ORDER BY CASE WHEN status IN ('open', 'degraded', 'human_required') THEN 0 ELSE 1 END, updated_at DESC
+  LIMIT 1
+)
+UPDATE cortana_vacation_incidents
+SET ${assignments.join(", ")}
+WHERE id = (SELECT id FROM existing);
+`);
+    return;
+  }
+
   void queryText(`
+WITH existing AS (
+  SELECT id
+  FROM cortana_vacation_incidents
+  WHERE vacation_window_id = ${Number(input.vacationWindowId)}
+    AND system_key = '${sqlEscape(input.systemKey)}'
+    AND status IN ('open', 'degraded', 'human_required')
+  LIMIT 1
+),
+updated AS (
+  UPDATE cortana_vacation_incidents
+  SET ${assignments.join(", ")}
+  WHERE id = (SELECT id FROM existing)
+  RETURNING id
+)
 INSERT INTO cortana_vacation_incidents (
   vacation_window_id, run_id, latest_check_result_id, latest_action_id,
   system_key, tier, status, human_required, first_observed_at, last_observed_at,
   resolved_at, resolution_reason, symptom, detail
 )
-VALUES (
+SELECT
   ${Number(input.vacationWindowId)},
   ${input.runId == null ? "NULL" : Number(input.runId)},
   ${input.latestCheckResultId == null ? "NULL" : Number(input.latestCheckResultId)},
@@ -466,25 +512,11 @@ VALUES (
   ${input.humanRequired ? "TRUE" : "FALSE"},
   TIMESTAMPTZ '${sqlEscape(input.observedAt)}',
   TIMESTAMPTZ '${sqlEscape(input.observedAt)}',
-  ${resolved ? `TIMESTAMPTZ '${sqlEscape(input.observedAt)}'` : "NULL"},
+  NULL,
   ${input.resolutionReason ? `'${sqlEscape(input.resolutionReason)}'` : "NULL"},
   ${input.symptom ? `'${sqlEscape(input.symptom)}'` : "NULL"},
   ${jsonSql(input.detail ?? {})}
-)
-ON CONFLICT (vacation_window_id, system_key) WHERE status IN ('open', 'degraded', 'human_required')
-DO UPDATE SET
-  run_id = EXCLUDED.run_id,
-  latest_check_result_id = EXCLUDED.latest_check_result_id,
-  latest_action_id = COALESCE(EXCLUDED.latest_action_id, cortana_vacation_incidents.latest_action_id),
-  tier = EXCLUDED.tier,
-  status = EXCLUDED.status,
-  human_required = EXCLUDED.human_required,
-  last_observed_at = EXCLUDED.last_observed_at,
-  resolved_at = EXCLUDED.resolved_at,
-  resolution_reason = EXCLUDED.resolution_reason,
-  symptom = EXCLUDED.symptom,
-  detail = EXCLUDED.detail,
-  updated_at = NOW();
+WHERE NOT EXISTS (SELECT 1 FROM updated);
 `);
 }
 
