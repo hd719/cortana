@@ -346,6 +346,7 @@ Acceptance criteria:
 - each required Tier 1 system appears in result rows
 - each check has evidence and status
 - `GitHub identity` explicitly verifies `cortana-hd`
+- backtester app health uses the existing readiness / market-data surfaces plus the local app probe path in v1; no dedicated endpoint is required
 
 Severity if failed: P1
 
@@ -682,7 +683,19 @@ Acceptance criteria:
 
 Severity if failed: P2
 
-#### QA Story K2 - Summary reflects current truth, not stale historical state
+#### QA Story K2 - Summary jobs default to 08:00 and 20:00 in the configured local timezone
+
+As Hamel, I want the morning and evening summaries to have stable defaults before I customize them so that the schedule is predictable from the first vacation window.
+
+Acceptance criteria:
+- morning summary defaults to `08:00`
+- evening summary defaults to `20:00`
+- both times are interpreted in the vacation window's configured local timezone
+- user customization overrides the defaults without changing the underlying timezone interpretation
+
+Severity if failed: P2
+
+#### QA Story K3 - Summary reflects current truth, not stale historical state
 
 As Hamel, I want the summary to describe what is currently wrong, not what was wrong earlier in the day and already recovered.
 
@@ -764,6 +777,7 @@ Acceptance criteria:
 - the incident ledger records one incident per ongoing degradation class/window combination
 - multiple failed checks and remediation attempts can attach to the same incident
 - the incident closes only when newer healthy evidence supersedes the degraded state
+- the vacation ledger uses its own canonical vacation tables and does not write directly into autonomy tables; autonomy keys are references only
 
 Severity if failed: P1
 

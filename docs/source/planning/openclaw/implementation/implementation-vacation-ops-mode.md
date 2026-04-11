@@ -69,7 +69,7 @@ If multiple agents are used:
   - Encode Tier 0 / Tier 1 / Tier 2 / Tier 3 system keys.
   - Encode Tier 2 class-based thresholds.
   - Encode allowed remediation ladder.
-  - Encode default summary times.
+  - Encode default summary times as `08:00` and `20:00` in the configured local timezone until user customization exists.
   - Encode the readiness freshness gate used by `enable` so stale readiness runs are rejected instead of reused.
   - Default the authorization freshness window to `6h` unless config explicitly overrides it.
   - Encode paused job ids including `af9e1570-3ba2-4d10-a807-91cdfc2df18b` for `Daily Auto-Update`.
@@ -84,6 +84,7 @@ If multiple agents are used:
 - The migration must be additive and safe against repeated execution.
 - Postgres is canonical. No runtime file may be treated as a source of truth.
 - The incident ledger must be first-class, not inferred from check rows after the fact.
+- Vacation mode owns its own canonical vacation tables and incident ledger; autonomy taxonomy, system keys, and `incident_key` references are compatibility references only and must not be written to autonomy tables.
 
 #### Testing
 
@@ -355,8 +356,8 @@ Tier 1:
   - validate morning/evening summaries
   - simulate at least one allowed self-heal
   - validate auto-disable and restore
-- Sub-task 2: Validate Mission Control and Tailscale checks against real local and remote-ready surfaces.
-- Sub-task 3: Validate backtester/market-data checks against existing readiness surfaces and watchlist usage needs.
+- Sub-task 2: Validate Mission Control and Tailscale checks as local-readiness and tailnet proxy surfaces only.
+- Sub-task 3: Validate backtester app health against existing readiness / market-data surfaces plus the local app probe path in v1; no dedicated endpoint is in scope.
 - Sub-task 4: Patch any deterministic gaps discovered during rehearsal without expanding scope into unrelated feature work.
 
 #### Important Planning Notes
@@ -455,4 +456,4 @@ The smallest credible delivery order is:
 Do not invert that order.
 
 - **Biggest risks:** stale-state false positives, summary noise, hidden interactive-auth dependencies, and pause/restore drift on `Daily Auto-Update`.
-- **Assumptions:** Postgres remains available, existing check helpers are stable enough to reuse, and Mission Control / market-data surfaces in `cortana-external` stay compatible with the checks defined in `cortana`.
+- **Assumptions:** Postgres remains available, existing check helpers are stable enough to reuse, Mission Control and Tailscale are proxy checks only, and existing backtester / market-data surfaces in `cortana-external` stay compatible with the checks defined in `cortana`.

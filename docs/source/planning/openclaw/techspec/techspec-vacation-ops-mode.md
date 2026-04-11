@@ -27,6 +27,14 @@ After the change:
 - All failures, repair attempts, verification results, and unresolved degradations are written to a structured vacation ledger in Postgres.
 - Vacation mode auto-disables at the configured end time, restores the paused auto-update job, and sends a `normal ops resumed` summary.
 
+Locked product decisions for this build:
+
+- Default morning and evening summary times are `08:00` and `20:00` in the configured local timezone until user customization exists.
+- Backtester app health in v1 uses existing readiness and market-data surfaces plus the existing local app probe path; a dedicated endpoint is out of scope for v1.
+- Vacation mode writes only to its own canonical vacation tables and incident ledger; autonomy taxonomy, system keys, and `incident_key` references are read-only compatibility references, not write targets.
+- Mission Control and Tailscale are local-readiness and tailnet proxies only.
+- Natural-language activation is an edge wrapper over deterministic CLI/state transitions only.
+
 Affected repos and services:
 
 - Primary repo: `cortana`
@@ -144,8 +152,8 @@ Notes:
 | `NULL` | `freshness_at` | `TIMESTAMPTZ` | evidence timestamp used for freshness reasoning |
 | `NOT NULL DEFAULT FALSE` | `remediation_attempted` | `BOOLEAN` | whether the run attempted repair |
 | `NOT NULL DEFAULT FALSE` | `remediation_succeeded` | `BOOLEAN` | whether repair succeeded |
-| `NULL` | `autonomy_incident_id` | `BIGINT` | optional FK to `cortana_autonomy_incidents(id)` |
-| `NULL` | `incident_key` | `TEXT` | optional stable autonomy incident key |
+| `NULL` | `autonomy_incident_id` | `BIGINT` | optional read-only reference to `cortana_autonomy_incidents(id)` |
+| `NULL` | `incident_key` | `TEXT` | optional stable autonomy incident key reference |
 | `NOT NULL DEFAULT '{}'::jsonb` | `detail` | `JSONB` | raw evidence, thresholds, durations, command metadata, endpoint metadata |
 
 Notes:
@@ -164,8 +172,8 @@ Notes:
 | `PRIMARY KEY` | `id` | `BIGSERIAL` | action id |
 | `REFERENCES cortana_vacation_windows(id) NOT NULL` | `vacation_window_id` | `BIGINT` | parent window |
 | `REFERENCES cortana_vacation_runs(id)` | `run_id` | `BIGINT` | originating run |
-| `NULL` | `autonomy_incident_id` | `BIGINT` | optional incident link |
-| `NULL` | `incident_key` | `TEXT` | optional stable incident key |
+| `NULL` | `autonomy_incident_id` | `BIGINT` | optional read-only reference to an autonomy incident |
+| `NULL` | `incident_key` | `TEXT` | optional stable incident key reference |
 | `NOT NULL` | `system_key` | `TEXT` | same naming as check results |
 | `NOT NULL` | `step_order` | `SMALLINT` | remediation ladder order |
 | `NOT NULL` | `action_kind` | `TEXT` | `retry`, `restart_service`, `reload_launchd`, `runtime_sync`, `restore_env`, `rotate_session`, `rerun_smoke`, `alert_only` |
@@ -242,7 +250,7 @@ If the process restarts after `end_at`, the next status or guard evaluation must
 
 ---
 
-## Infrastructure Changes (if any?)
+## Infrastructure Changes
 
 ### SNS Topic Changes
 
@@ -487,7 +495,7 @@ Call out workflow, cron, operator, or rollout changes.
 - `disable` or auto-expire restores paused jobs, clears or archives the runtime mirror, records the closeout in Postgres, and sends `normal ops resumed`.
 - The retrospective can query vacation runs, check results, and actions directly from Postgres after Hamel returns.
 
-Recommended default summary schedule:
+Default summary schedule until user customization exists:
 
 - `08:00` local timezone for morning summary
 - `20:00` local timezone for evening summary
@@ -536,8 +544,8 @@ Success means:
 
 ---
 
-## Risks / Open Questions
+## Operational Assumptions
 
-- Mission Control and Tailscale are good operational proxies, but they still do not prove Internet-wide reachability from a remote island; they prove local readiness and tailnet viability only.
-- Backtester health may initially need to rely on existing readiness artifacts and market-data surfaces until a dedicated app health endpoint exists.
+- Mission Control and Tailscale are accepted as local-readiness and tailnet proxies only; they are not treated as proof of Internet-wide reachability from a remote island.
+- Backtester app health in v1 relies on existing readiness and market-data artifacts plus the existing local app probe path; a dedicated endpoint is not part of this build.
 - Natural-language activation remains LLM-mediated at the edge; the implementation must ensure the edge can only call deterministic CLI/state transitions and cannot bypass them.

@@ -255,6 +255,8 @@ Tier 0 (`NO-GO` if broken):
 - green baseline
 - critical synthetic probe
 
+Mission Control and Tailscale are treated as local-readiness and tailnet-viability proxies only. They prove the operator can reach the local control plane and tailnet, not internet-wide remote reachability.
+
 Tier 1 (`NO-GO` if broken after allowed remediation):
 - Gog headless auth
 - Calendar reminders end-to-end
@@ -263,7 +265,7 @@ Tier 1 (`NO-GO` if broken after allowed remediation):
 - Gmail / inbox triage
 - fitness service
 - Schwab auth / quote smoke
-- backtester app health
+- backtester app health using existing readiness / market-data surfaces plus the local app probe path in v1
 - GitHub machine identity consistency (`cortana-hd`)
 - browser CDP watchdog path
 
@@ -312,6 +314,7 @@ Stale degraded evidence must be overwritten by newer healthy verification for th
 
 - Prep must be manually triggerable by command.
 - Prep must also be triggerable by natural language intent such as “I leave tomorrow for 10 days”.
+- Natural-language activation is an edge wrapper over deterministic CLI/state transitions only; it may request recommendation or prep, but it must not mutate vacation state directly.
 - Prep may recommend an ideal audit window using travel/flight calendar context, but the recommendation must be advisory only.
 - Prep timing must be deterministic: compute the preferred prep start in Hamel’s travel timezone when available, otherwise fall back to the configured operator timezone, and default the recommendation to approximately `24` hours before departure.
 - Prep must be allowed to request Hamel’s approval for interactive reauth where needed.
@@ -419,7 +422,8 @@ Additional rules:
 The daily vacation summary must:
 
 - send to `monitor`
-- run morning and evening in Hamel’s timezone
+- run morning and evening in Hamel’s configured local timezone
+- default to `08:00` and `20:00` local time until user customization exists
 - be compact and mobile-readable
 - include overall state (`GREEN`, `YELLOW`, `RED`)
 - include grouped status for:
@@ -473,6 +477,8 @@ Vacation-mode alerts must:
 #### Ledger requirements
 
 Vacation mode state and the vacation incident ledger must be stored canonically in Postgres.
+
+Vacation mode uses its own canonical vacation tables and incident ledger. It may reuse autonomy taxonomy, system keys, and `incident_key` references where helpful, but it does not write directly into autonomy tables.
 
 The canonical incident model must be first-class, not implied through check or action rows. Each vacation-window incident should capture:
 
@@ -625,8 +631,10 @@ Observed operator requirements from this planning discussion:
 - Hamel wants daily morning and evening vacation summaries sent to `monitor`.
 - Hamel wants the system to auto-disable vacation mode at the configured end date and send a `normal ops resumed` summary.
 
-### Open Questions
+### Resolved Decisions
 
-- What should the default local morning and evening summary times be before user customization exists?
-- Should backtester app health initially rely on existing market-data / readiness surfaces, or should the implementation add a dedicated backtester health endpoint?
-- Which parts of the existing autonomy incident model should be reused directly vs wrapped by vacation-specific tables?
+- Default morning and evening summary times are `08:00` and `20:00` in the vacation window's configured local timezone until user customization exists.
+- Backtester app health in v1 relies on existing readiness and market-data surfaces plus the existing local app probe path; a new dedicated endpoint is out of scope for v1.
+- Vacation mode uses its own canonical vacation tables and incident ledger; autonomy taxonomy, system keys, and `incident_key` references may be reused, but vacation mode does not write directly into autonomy tables.
+- Mission Control and Tailscale are accepted as local-readiness and tailnet proxies only, not proof of Internet-wide reachability.
+- Natural-language activation remains allowed only as an edge wrapper over deterministic CLI/state transitions.
