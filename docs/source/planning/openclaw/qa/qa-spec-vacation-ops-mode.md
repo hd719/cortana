@@ -312,6 +312,17 @@ Acceptance criteria:
 
 Severity if failed: P1
 
+#### QA Story B5 - Stale readiness results are rejected for enable
+
+As Hamel, I want `enable` to reject a readiness result that is outside the configured freshness window so that an old green run cannot authorize unattended mode.
+
+Acceptance criteria:
+- a readiness result older than the default `6h` freshness window is treated as stale
+- `enable` fails even if that older result was previously `PASS`
+- the failure explains that a newer or fresher readiness run is required
+
+Severity if failed: P0
+
 ---
 
 ### Section C - Readiness Coverage of Required Systems
@@ -373,6 +384,17 @@ Acceptance criteria:
 - contains all systems checked
 - contains timestamps, tier, status, freshness, and remediation flags
 - schema is stable and typed
+
+Severity if failed: P1
+
+#### QA Story D3 - Summary contract is exact and payload-driven
+
+As an implementing agent, I want the vacation summary payload to be the source of truth so that text rendering is deterministic and does not infer missing state.
+
+Acceptance criteria:
+- summary payload includes the active window id, period, overall status, readiness outcome, incident counts, self-heal count, human-required count, and pause/restore status
+- summary text is a direct rendering of that payload
+- summary wording does not depend on scraping prior Telegram text or freeform check prose
 
 Severity if failed: P1
 
@@ -455,6 +477,18 @@ Acceptance criteria:
 
 Severity if failed: P1
 
+#### QA Story F4 - Enable transition ordering is deterministic
+
+As Hamel, I want the activation sequence to happen in a fixed order so that a partial failure cannot leave vacation mode half-enabled.
+
+Acceptance criteria:
+- the implementation records readiness verification before state mutation
+- the active window is persisted before the mirror and cron pause
+- cron pause happens before activation summary delivery
+- if summary delivery fails, the active window and paused-job state remain committed
+
+Severity if failed: P1
+
 ---
 
 ### Section G - Active Vacation Operation
@@ -531,6 +565,17 @@ Acceptance criteria:
 - includes whether restore actions succeeded
 
 Severity if failed: P2
+
+#### QA Story H4 - Auto-expire follows the same ordered teardown and is idempotent
+
+As Hamel, I want auto-expire to follow the same safe cleanup order as manual disable so that expiration cannot skip restoration work.
+
+Acceptance criteria:
+- auto-expire restores paused jobs before final completion
+- the runtime mirror is cleared or archived after restore is committed
+- the resume summary is emitted once even if the expiry job retries
+
+Severity if failed: P1
 
 ---
 
@@ -708,6 +753,17 @@ Acceptance criteria:
 - every step in the ladder creates a `cortana_vacation_actions` row
 - `action_status` and `verification_status` are accurate
 - records remain queryable after the vacation window closes
+
+Severity if failed: P1
+
+#### QA Story M4 - One incident can span multiple checks and actions
+
+As Hamel, I want a single incident to remain the identity for repeated failures and repairs so that the ledger reads like an operational story instead of a pile of unrelated rows.
+
+Acceptance criteria:
+- the incident ledger records one incident per ongoing degradation class/window combination
+- multiple failed checks and remediation attempts can attach to the same incident
+- the incident closes only when newer healthy evidence supersedes the degraded state
 
 Severity if failed: P1
 
