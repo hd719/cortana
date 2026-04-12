@@ -1,11 +1,24 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const { spawnSyncMock } = vi.hoisted(() => ({
+  spawnSyncMock: vi.fn(),
+}));
+
+vi.mock("node:child_process", () => ({
+  spawnSync: spawnSyncMock,
+}));
 
 import identityNamespaceBootstrapHook from "../../hooks/identity-namespace-bootstrap/handler.js";
 
 describe("identity namespace bootstrap hook", () => {
+  beforeEach(() => {
+    spawnSyncMock.mockReset();
+    spawnSyncMock.mockReturnValue({ status: 0, stdout: "", stderr: "" });
+  });
+
   it("replaces path-qualified bootstrap entries for namespaced identity files", async () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "identity-bootstrap-hook-"));
 
@@ -63,5 +76,47 @@ describe("identity namespace bootstrap hook", () => {
     expect(toolsEntry.path).toBe(path.join(workspace, "identities", "monitor", "TOOLS.md"));
     expect(toolsEntry.content).toBe("# Monitor tools\n");
     expect(toolsEntry.missing).toBe(false);
+  });
+
+  it("appends generated AGENT_FEEDBACK.md when compiled feedback exists", async () => {
+    const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "identity-bootstrap-feedback-"));
+
+    fs.mkdirSync(path.join(workspace, "config"), { recursive: true });
+    fs.mkdirSync(path.join(workspace, "tools", "covenant"), { recursive: true });
+    fs.writeFileSync(path.join(workspace, "tools", "covenant", "feedback_compiler.ts"), "// test stub\n", "utf8");
+    fs.writeFileSync(
+      path.join(workspace, "config", "identity-namespaces.json"),
+      JSON.stringify(
+        {
+          defaultNamespace: "main",
+          namespaces: { main: "main" },
+        },
+        null,
+        2,
+      ),
+      "utf8",
+    );
+
+    spawnSyncMock.mockReturnValue({
+      status: 0,
+      stdout: "## Agent Feedback Lessons\n1. Test lesson",
+      stderr: "",
+    });
+
+    const event = {
+      event: "agent:bootstrap",
+      context: {
+        agentId: "main",
+        workspaceDir: workspace,
+        bootstrapFiles: [],
+      },
+    };
+
+    await identityNamespaceBootstrapHook(event as any);
+
+    const feedbackEntry = event.context.bootstrapFiles.find((file: any) => file.name === "AGENT_FEEDBACK.md");
+    expect(feedbackEntry).toBeTruthy();
+    expect(feedbackEntry.content).toBe("## Agent Feedback Lessons\n1. Test lesson\n");
+    expect(spawnSyncMock).toHaveBeenCalled();
   });
 });

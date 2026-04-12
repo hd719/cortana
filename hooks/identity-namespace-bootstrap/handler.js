@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 
 const FILES = ["SOUL.md", "USER.md", "IDENTITY.md", "HEARTBEAT.md", "MEMORY.md", "TOOLS.md"];
+const DYNAMIC_FEEDBACK_FILE = "AGENT_FEEDBACK.md";
 
 function normalizeBootstrapEntryName(entryFile) {
   if (!entryFile || typeof entryFile !== "object") return "";
@@ -39,6 +41,38 @@ function resolveNamespace(agentId, config) {
   return fallback || "main";
 }
 
+function buildAgentFeedbackEntry(workspaceDir, namespace, agentId) {
+  const scriptPath = path.resolve(workspaceDir, "tools", "covenant", "feedback_compiler.ts");
+  if (!fs.existsSync(scriptPath)) return null;
+
+  const result = spawnSync(
+    "npx",
+    ["tsx", scriptPath, "inject", agentId, "--limit", "6"],
+    {
+      cwd: workspaceDir,
+      encoding: "utf8",
+      env: process.env,
+      stdio: "pipe",
+    },
+  );
+
+  if ((result.status ?? 1) !== 0) {
+    const detail = String(result.stderr || result.stdout || "unknown error").trim();
+    console.warn(`[identity-namespace-bootstrap] failed dynamic agent feedback for agent=${agentId}: ${detail}`);
+    return null;
+  }
+
+  const content = String(result.stdout || "").trim();
+  if (!content) return null;
+
+  return {
+    name: DYNAMIC_FEEDBACK_FILE,
+    path: path.resolve(workspaceDir, "identities", namespace, `${DYNAMIC_FEEDBACK_FILE}.generated`),
+    content: `${content.trim()}\n`,
+    missing: false,
+  };
+}
+
 export default async function identityNamespaceBootstrapHook(event) {
   if (event?.event !== "agent:bootstrap" || !event.context) return;
 
@@ -69,6 +103,16 @@ export default async function identityNamespaceBootstrapHook(event) {
       files[idx] = { ...files[idx], name, path: candidate, content, missing: false };
     } else {
       files.push({ name, path: candidate, content, missing: false });
+    }
+  }
+
+  const feedbackEntry = buildAgentFeedbackEntry(workspaceDir, namespace, agentId);
+  if (feedbackEntry) {
+    const idx = files.findIndex((entryFile) => normalizeBootstrapEntryName(entryFile) === DYNAMIC_FEEDBACK_FILE);
+    if (idx >= 0) {
+      files[idx] = feedbackEntry;
+    } else {
+      files.push(feedbackEntry);
     }
   }
 
