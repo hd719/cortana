@@ -80,6 +80,65 @@ function greenBaselineSpawn() {
   }) as any;
 }
 
+function githubAuthSpawn() {
+  return ((cmd: string, args: string[]) => {
+    if (cmd !== "gh") return { status: 1, stdout: "", stderr: "unexpected command" } as any;
+    if (args.join(" ") === "auth status --show-token") {
+      return {
+        status: 0,
+        stdout: [
+          "github.com",
+          "  ✓ Logged in to github.com account cortana-hd (/Users/hd/.config/gh/hosts.yml)",
+          "  - Active account: true",
+          "  - Git operations protocol: ssh",
+          "  - Token: gho_ABC123456789XYZ",
+          "  - Token scopes: 'admin:public_key', 'gist', 'repo'",
+        ].join("\n"),
+        stderr: "",
+      } as any;
+    }
+    return { status: 1, stdout: "", stderr: "unsupported gh command" } as any;
+  }) as any;
+}
+
+function financialServicesSpawn() {
+  return ((cmd: string, args: string[]) => {
+    if (cmd !== "curl") return { status: 1, stdout: "", stderr: "unexpected command" } as any;
+    const url = args[args.length - 1];
+    if (url.endsWith("/alpaca/health")) {
+      return {
+        status: 0,
+        stdout: JSON.stringify({
+          status: "unhealthy",
+          error: "alpaca API error 401: unauthorized",
+        }),
+        stderr: "",
+      } as any;
+    }
+    if (url.endsWith("/market-data/ops")) {
+      return {
+        status: 0,
+        stdout: JSON.stringify({
+          status: "ok",
+          providerMode: "schwab_primary",
+          providerModeReason: "Ops reporting is reflecting the current primary service lanes.",
+          degradedReason: null,
+          data: {
+            health: {
+              providers: {
+                coinmarketcap: "configured",
+                fred: "configured",
+              },
+            },
+          },
+        }),
+        stderr: "",
+      } as any;
+    }
+    return { status: 1, stdout: "", stderr: `unexpected url ${url}` } as any;
+  }) as any;
+}
+
 function writeSessionStore(agentId: string, entries: Record<string, unknown>) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), `vacation-${agentId}-sessions-`));
   const sessionsDir = path.join(home, ".openclaw", "agents", agentId, "sessions");
@@ -262,5 +321,62 @@ describe("vacation tier0 delivery checks", () => {
     }, "green_baseline");
 
     expect(result.status).toBe("green");
+  });
+});
+
+describe("vacation structured detail checks", () => {
+  it("returns structured github identity detail", () => {
+    const result = runSystemCheck(config, {
+      spawn: githubAuthSpawn(),
+    }, "github_identity");
+
+    expect(result.status).toBe("green");
+    expect(result.detail.account).toBe("cortana-hd");
+    expect(result.detail.gitProtocol).toBe("ssh");
+    expect(String(result.detail.tokenRedacted)).toMatch(/^gho_\*+9XYZ$/);
+    expect(result.detail.scopes).toEqual(["admin:public_key", "gist", "repo"]);
+  });
+
+  it("returns structured gog headless auth detail", () => {
+    const result = runSystemCheck(config, {
+      gogAuthList: () => ({
+        status: 0,
+        stdout: JSON.stringify({
+          accounts: [
+            {
+              email: "hameldesai3@gmail.com",
+              client: "default",
+              services: ["calendar", "gmail"],
+              scopes: ["email", "openid"],
+              created_at: "2026-03-10T14:40:47Z",
+              auth: "oauth",
+            },
+          ],
+        }),
+        stderr: "",
+      }),
+    }, "gog_headless_auth");
+
+    expect(result.status).toBe("green");
+    expect(result.detail.accountCount).toBeGreaterThan(0);
+    expect(Array.isArray(result.detail.accounts)).toBe(true);
+    expect((result.detail.accounts as any[])[0]?.email).toBe("hameldesai3@gmail.com");
+  });
+
+  it("groups financial external services without making degradation a hard failure", () => {
+    const result = runSystemCheck(config, {
+      spawn: financialServicesSpawn(),
+      marketDataBaseUrl: "http://127.0.0.1:3033",
+    }, "financial_external_services");
+
+    expect(result.status).toBe("yellow");
+    expect(result.detail.summary).toContain("Alpaca");
+    expect((result.detail.services as any[]).map((service) => service.key)).toEqual([
+      "alpaca",
+      "coinmarketcap",
+      "fred",
+    ]);
+    expect((result.detail.services as any[])[0]?.status).toBe("yellow");
+    expect((result.detail.services as any[])[1]?.status).toBe("green");
   });
 });

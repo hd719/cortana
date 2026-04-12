@@ -208,6 +208,16 @@
         "rerun_smoke"
       ]
     },
+    "financial_external_services": {
+      "tier": 1,
+      "required": false,
+      "probe": "http://127.0.0.1:3033/market-data/ops + http://127.0.0.1:3033/alpaca/health",
+      "freshnessSource": "http_probe",
+      "remediation": [
+        "retry",
+        "rerun_smoke"
+      ]
+    },
     "backtester_app": {
       "tier": 1,
       "required": true,

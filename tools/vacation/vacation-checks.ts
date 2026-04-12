@@ -47,6 +47,12 @@ type SessionStoreEntry = {
 export type VacationCheckEnvironment = {
   now?: () => Date;
   spawn?: typeof spawnSync;
+  gogAuthList?: () => {
+    status: number;
+    stdout: string;
+    stderr: string;
+    error?: unknown;
+  };
   runtimeCronFile?: string;
   runtimeCronRunsDir?: string;
   lanesConfigFile?: string;
@@ -83,6 +89,19 @@ function compact(text: string, max = 220): string {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (!normalized) return "unknown";
   return normalized.length <= max ? normalized : `${normalized.slice(0, max - 1)}…`;
+}
+
+function redactToken(token: string | null | undefined): string | null {
+  if (!token) return null;
+  const normalized = token.trim();
+  if (!normalized) return null;
+  if (normalized.includes("*")) return normalized;
+  if (normalized.length <= 8) return `${normalized.slice(0, 2)}****`;
+  return `${normalized.slice(0, 4)}${"*".repeat(Math.max(8, normalized.length - 8))}${normalized.slice(-4)}`;
+}
+
+function parseQuotedList(text: string): string[] {
+  return Array.from(text.matchAll(/'([^']+)'/g), (match) => match[1]).filter(Boolean);
 }
 
 function currentTime(env: VacationCheckEnvironment): Date {
@@ -414,6 +433,10 @@ function httpProbe(env: VacationCheckEnvironment, url: string): { ok: boolean; d
   }
 }
 
+function summarizeProviderStatus(label: string, status: string, extra?: string | null): string {
+  return extra ? `${label}: ${status} (${extra})` : `${label}: ${status}`;
+}
+
 function checkGateway(config: VacationOpsConfig, env: VacationCheckEnvironment): VacationCheckResultRow {
   const result = run(env, "openclaw", ["gateway", "status", "--no-probe"]);
   return buildResult(config, "gateway_service", result.status === 0 ? "green" : "red", {
@@ -498,11 +521,48 @@ function checkCriticalSyntheticProbe(config: VacationOpsConfig, env: VacationChe
   });
 }
 
-function checkGogHeadlessAuth(config: VacationOpsConfig): VacationCheckResultRow {
-  const result = execResult(runGogWithEnv(["auth", "list", "--json", "--no-input"]));
-  return buildResult(config, "gog_headless_auth", result.status === 0 ? "green" : "red", {
-    detail: compact(result.stderr || result.stdout),
-  });
+function checkGogHeadlessAuth(config: VacationOpsConfig, env: VacationCheckEnvironment): VacationCheckResultRow {
+  const result = env.gogAuthList?.() ?? execResult(runGogWithEnv(["auth", "list", "--json", "--no-input"]));
+  if (result.status !== 0) {
+    return buildResult(config, "gog_headless_auth", "red", {
+      detail: compact(result.stderr || result.stdout),
+      raw: compact(result.stdout || result.stderr, 600),
+    });
+  }
+
+  try {
+    const parsed = JSON.parse(result.stdout || "{}") as {
+      accounts?: Array<{
+        email?: string;
+        client?: string;
+        services?: string[];
+        scopes?: string[];
+        created_at?: string;
+        auth?: string;
+      }>;
+    };
+    const accounts = (parsed.accounts ?? []).map((account) => ({
+      email: String(account.email ?? "unknown"),
+      client: String(account.client ?? "unknown"),
+      services: Array.isArray(account.services) ? account.services.map((service) => String(service)) : [],
+      scopes: Array.isArray(account.scopes) ? account.scopes.map((scope) => String(scope)) : [],
+      createdAt: typeof account.created_at === "string" ? account.created_at : null,
+      auth: typeof account.auth === "string" ? account.auth : null,
+    }));
+    const primary = accounts[0] ?? null;
+    return buildResult(config, "gog_headless_auth", "green", {
+      summary: primary
+        ? `${primary.email} · ${primary.services.join(", ") || "no services"}`
+        : "No Gog accounts returned",
+      accountCount: accounts.length,
+      accounts,
+    });
+  } catch {
+    return buildResult(config, "gog_headless_auth", "red", {
+      detail: "invalid_json",
+      raw: compact(result.stdout || result.stderr, 600),
+    });
+  }
 }
 
 function checkGmailInbox(config: VacationOpsConfig): VacationCheckResultRow {
@@ -543,11 +603,106 @@ function checkBacktesterApp(config: VacationOpsConfig, env: VacationCheckEnviron
 }
 
 function checkGithubIdentity(config: VacationOpsConfig, env: VacationCheckEnvironment): VacationCheckResultRow {
-  const result = run(env, "gh", ["auth", "status"]);
-  const ok = result.status === 0 && /Logged in|github\.com/i.test(result.stdout || result.stderr);
+  const result = run(env, "gh", ["auth", "status", "--show-token"]);
+  const merged = `${result.stdout}\n${result.stderr}`.trim();
+  const safeMerged = merged.replace(/(Token:\s*)([^\n]+)/i, (_, prefix: string, token: string) => `${prefix}${redactToken(token) ?? "unknown"}`);
+  const host = merged.match(/^(github\.com)$/m)?.[1] ?? "github.com";
+  const accountMatch = merged.match(/Logged in to [^\s]+ account ([^\s]+) \(([^)]+)\)/);
+  const activeMatch = merged.match(/Active account:\s*(true|false)/i);
+  const protocolMatch = merged.match(/Git operations protocol:\s*([^\n]+)/i);
+  const tokenMatch = merged.match(/Token:\s*([^\n]+)/i);
+  const scopesMatch = merged.match(/Token scopes:\s*([^\n]+)/i);
+
+  const detail = {
+    host,
+    account: accountMatch?.[1] ?? null,
+    configPath: accountMatch?.[2] ?? null,
+    activeAccount: activeMatch ? activeMatch[1].toLowerCase() === "true" : null,
+    gitProtocol: protocolMatch?.[1]?.trim() ?? null,
+    tokenRedacted: redactToken(tokenMatch?.[1] ?? null),
+    scopes: parseQuotedList(scopesMatch?.[1] ?? ""),
+    summary: accountMatch?.[1]
+      ? `${accountMatch[1]} · ${protocolMatch?.[1]?.trim() ?? "unknown protocol"} · ${parseQuotedList(scopesMatch?.[1] ?? "").length} scopes`
+      : compact(safeMerged),
+  };
+  const ok = result.status === 0 && Boolean(detail.account);
   return buildResult(config, "github_identity", ok ? "green" : "red", {
-    detail: compact(result.stdout || result.stderr),
+    ...detail,
+    detail: compact(safeMerged),
   });
+}
+
+function checkFinancialExternalServices(config: VacationOpsConfig, env: VacationCheckEnvironment): VacationCheckResultRow {
+  const baseUrl = env.marketDataBaseUrl ?? "http://127.0.0.1:3033";
+  const alpaca = httpProbe(env, `${baseUrl}/alpaca/health`);
+  const marketOps = httpProbe(env, `${baseUrl}/market-data/ops`);
+  const observedAt = marketOps.freshnessAt || alpaca.freshnessAt || nowIso(env);
+
+  const marketOpsPayload = ((marketOps.detail.payload ?? {}) as Record<string, unknown>);
+  const providers = ((((marketOpsPayload.data ?? {}) as Record<string, unknown>).health ?? {}) as Record<string, unknown>).providers as Record<string, unknown> | undefined;
+  const coinMarketCapStatus = typeof providers?.coinmarketcap === "string" ? providers.coinmarketcap : "unknown";
+  const fredStatus = typeof providers?.fred === "string" ? providers.fred : "unknown";
+  const alpacaPayload = (alpaca.detail.payload ?? {}) as Record<string, unknown>;
+  const alpacaServiceStatus = typeof alpacaPayload.status === "string" ? alpacaPayload.status : (alpaca.ok ? "ok" : "unhealthy");
+  const alpacaDetail = typeof alpacaPayload.error === "string"
+    ? compact(alpacaPayload.error, 180)
+    : typeof alpaca.detail.error === "string"
+      ? compact(alpaca.detail.error, 180)
+      : null;
+
+  const services = [
+    {
+      key: "alpaca",
+      label: "Alpaca",
+      status: alpaca.ok ? "green" : "yellow",
+      summary: summarizeProviderStatus("Alpaca", alpaca.ok ? "healthy" : "degraded", alpacaDetail),
+      freshnessAt: alpaca.freshnessAt,
+      detail: {
+        status: alpacaServiceStatus,
+        error: alpacaDetail,
+      },
+    },
+    {
+      key: "coinmarketcap",
+      label: "CoinMarketCap",
+      status: coinMarketCapStatus === "configured" ? "green" : "yellow",
+      summary: summarizeProviderStatus("CoinMarketCap", coinMarketCapStatus),
+      freshnessAt: marketOps.freshnessAt,
+      detail: {
+        status: coinMarketCapStatus,
+      },
+    },
+    {
+      key: "fred",
+      label: "FRED",
+      status: fredStatus === "configured" ? "green" : "yellow",
+      summary: summarizeProviderStatus("FRED", fredStatus),
+      freshnessAt: marketOps.freshnessAt,
+      detail: {
+        status: fredStatus,
+      },
+    },
+  ];
+
+  const degraded = services.filter((service) => service.status !== "green");
+  const status = !marketOps.ok
+    ? "red"
+    : degraded.length > 0
+      ? "yellow"
+      : "green";
+
+  return buildResult(config, "financial_external_services", status, {
+    summary: degraded.length > 0
+      ? degraded.map((service) => service.summary).join(" · ")
+      : "Alpaca, CoinMarketCap, and FRED are healthy or configured.",
+    services,
+    marketDataOps: {
+      status: typeof marketOpsPayload.status === "string" ? marketOpsPayload.status : "unknown",
+      providerMode: typeof marketOpsPayload.providerMode === "string" ? marketOpsPayload.providerMode : null,
+      providerModeReason: typeof marketOpsPayload.providerModeReason === "string" ? marketOpsPayload.providerModeReason : null,
+      degradedReason: typeof marketOpsPayload.degradedReason === "string" ? marketOpsPayload.degradedReason : null,
+    },
+  }, observedAt);
 }
 
 function checkBrowserCdp(config: VacationOpsConfig, env: VacationCheckEnvironment): VacationCheckResultRow {
@@ -602,7 +757,7 @@ export function runSystemCheck(config: VacationOpsConfig, env: VacationCheckEnvi
     case "critical_synthetic_probe":
       return checkCriticalSyntheticProbe(config, env);
     case "gog_headless_auth":
-      return checkGogHeadlessAuth(config);
+      return checkGogHeadlessAuth(config, env);
     case "calendar_reminders_e2e":
       return cronCheck(config, env, systemKey, "📅 Calendar reminders → Telegram (ALL calendars)");
     case "apple_reminders_e2e":
@@ -615,6 +770,8 @@ export function runSystemCheck(config: VacationOpsConfig, env: VacationCheckEnvi
       return checkFitnessService(config, env);
     case "schwab_quote_smoke":
       return checkSchwabQuoteSmoke(config, env);
+    case "financial_external_services":
+      return checkFinancialExternalServices(config, env);
     case "backtester_app":
       return checkBacktesterApp(config, env);
     case "github_identity":
