@@ -604,6 +604,7 @@ Key files:
   - enables `memory-core` dreaming plus `memory-wiki` in isolated mode
   - `memory-wiki` vault path: `~/.openclaw/wiki/cortana`
   - Dreaming can inspect imported chats and compiled wiki pages through `Imported Insights` and `Memory Palace`
+  - repo-native wiki refresh command: `tools/openclaw/sync-memory-wiki.sh`
 
 ### 3.3 `tools/`
 
@@ -649,6 +650,11 @@ Internal operator scripts, grouped by domain. Highlights:
   - `tools/behavioral-twin/` – pattern modeling for routines/sleep/etc.
 
 Shared shell helpers now live in `tools/lib/` (notably `idempotency.sh`) to keep operational scripts replay-safe.
+
+OpenClaw runtime helpers:
+
+- `tools/openclaw/sync-memory-wiki.sh` – refreshes the isolated `memory-wiki` vault from curated docs in `cortana` and `cortana-external`
+- `tools/openclaw/post-update.sh` – post-update runtime repair/sync steps after OpenClaw upgrades
 
 ### 3.4 `skills/`
 
