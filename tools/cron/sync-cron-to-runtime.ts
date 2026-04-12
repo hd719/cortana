@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { normalizeRuntimeCronConfig, splitRuntimeOnlyJobs } from "../lib/runtime-cron-jobs.js";
+import { normalizeRuntimeCronConfig, splitRuntimeOnlyJobs, stableCronSemanticDigest } from "../lib/runtime-cron-jobs.js";
 
 type CronJob = Record<string, unknown>;
 type CronConfig = {
@@ -16,23 +16,6 @@ type Args = {
   repoRoot: string;
   runtimeHome: string;
 };
-
-const VOLATILE_KEYS = new Set([
-  "state",
-  "updatedAtMs",
-  "lastRunAtMs",
-  "nextRunAtMs",
-  "lastStatus",
-  "lastRunStatus",
-  "lastDurationMs",
-  "lastDeliveryStatus",
-  "lastDelivered",
-  "consecutiveErrors",
-  "reconciledAt",
-  "reconciledReason",
-  "runningAtMs",
-  "lastError",
-]);
 
 function parseArgs(argv: string[]): Args {
   let check = false;
@@ -55,18 +38,6 @@ function readJson(filePath: string): CronConfig {
   return JSON.parse(fs.readFileSync(filePath, "utf8")) as CronConfig;
 }
 
-function stripVolatile(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(stripVolatile);
-  if (!value || typeof value !== "object") return value;
-
-  const out: Record<string, unknown> = {};
-  for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
-    if (VOLATILE_KEYS.has(key)) continue;
-    out[key] = stripVolatile(inner);
-  }
-  return out;
-}
-
 function mergeRuntimeState(repoConfig: CronConfig, runtimeConfig: CronConfig): CronConfig {
   const repoJobs = Array.isArray(repoConfig.jobs) ? repoConfig.jobs : [];
   const runtimeJobs = Array.isArray(runtimeConfig.jobs) ? runtimeConfig.jobs : [];
@@ -80,17 +51,28 @@ function mergeRuntimeState(repoConfig: CronConfig, runtimeConfig: CronConfig): C
 
     const merged: CronJob = { ...repoJob };
     for (const [key, value] of Object.entries(runtimeJob)) {
-      if (!VOLATILE_KEYS.has(key)) continue;
+      if (![
+        "state",
+        "updatedAtMs",
+        "lastRunAtMs",
+        "nextRunAtMs",
+        "lastStatus",
+        "lastRunStatus",
+        "lastDurationMs",
+        "lastDeliveryStatus",
+        "lastDelivered",
+        "consecutiveErrors",
+        "reconciledAt",
+        "reconciledReason",
+        "runningAtMs",
+        "lastError",
+      ].includes(key)) continue;
       merged[key] = value;
     }
     return merged;
   });
 
   return { ...repoConfig, jobs: [...mergedJobs, ...approvedManagedRuntimeOnlyJobs] };
-}
-
-function stableDigest(value: unknown): string {
-  return JSON.stringify(stripVolatile(value));
 }
 
 function main(): void {
@@ -120,7 +102,7 @@ function main(): void {
 
   const currentDigest = JSON.stringify(runtimeConfig);
   const mergedDigest = JSON.stringify(merged);
-  const semanticMatch = stableDigest(repoConfig) === stableDigest(normalizedRuntimeConfig);
+  const semanticMatch = stableCronSemanticDigest(repoConfig) === stableCronSemanticDigest(normalizedRuntimeConfig);
   const changed = currentDigest !== mergedDigest;
 
   const payload = {

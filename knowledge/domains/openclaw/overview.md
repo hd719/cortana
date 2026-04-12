@@ -21,12 +21,16 @@ Tracked config should come from `cortana`, while runtime-owned generated state s
 
 ## Documentation Rule
 
-There are no active OpenClaw planning docs in `cortana` right now.
-If new OpenClaw planning work starts again, place it under:
+Active OpenClaw planning docs in `cortana` live under:
 
 - `docs/source/planning/openclaw/prd/`
 - `docs/source/planning/openclaw/techspec/`
 - `docs/source/planning/openclaw/implementation/`
+- `docs/source/planning/openclaw/qa/`
+
+The front door for that planning set is:
+
+- [OpenClaw planning index](../../../docs/source/planning/openclaw/README.md)
 
 ## Primary Source Docs
 

@@ -288,6 +288,7 @@ flowchart TB
 | Monitor | `agent:monitor:main` | `monitor` | runtime checks, cron delivery reliability, drift and watchdog checks, incident verification | Cortana for operator escalation |
 
 **Contract:** if task maps cleanly to one specialist lane, Cortana routes there first.
+**Telegram delivery contract:** owner-labeled alerts must send with the matching Telegram `accountId`. Monitor-owned alerts use `monitor`; approval prompts and direct operator conversation stay on `default`. `tools/notifications/telegram-delivery-guard.ts` enforces this mapping and falls back to `default` only when no owner-specific account exists.
 
 ### B) `sessions_send` TASK message schema (required)
 

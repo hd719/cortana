@@ -33,6 +33,7 @@ Monitor is the user-facing owner lane for inbox/email ops and operational mainte
 Monitor is the user-facing owner lane for trading alert scans.
 Quiet maintenance watchers should return exactly `NO_REPLY` on healthy paths.
 Approval requests that require Hamel's explicit decision are main-owned and should route through the `default` Telegram account, not Monitor.
+Owner-labeled Telegram alerts must send with the matching `accountId`; do not let Monitor-owned alerts drift onto the `default` bot. The notification guard should resolve `owner -> accountId` and only fall back to `default` when no owner-specific account exists.
 
 - Another specialist can still execute the underlying work.
 - The user-facing delivery account, prompt ownership language, and cron routing should still point to Monitor.

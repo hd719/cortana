@@ -6,7 +6,7 @@ import path from "path";
 import { spawnSync } from "child_process";
 import { HEARTBEAT_MAX_AGE_MS, validateHeartbeatState } from "../lib/heartbeat-schema.js";
 import { PSQL_BIN, resolveRepoPath } from "../lib/paths.js";
-import { normalizeRuntimeCronConfig, splitRuntimeOnlyJobs } from "../lib/runtime-cron-jobs.js";
+import { normalizeRuntimeCronConfig, splitRuntimeOnlyJobs, stableCronSemanticDigest } from "../lib/runtime-cron-jobs.js";
 import { evaluateAgentProfileSync } from "./validate-agent-profile-sync.js";
 
 type Check = {
@@ -33,23 +33,6 @@ const REQUIRED_DB_TABLES = [
   "cortana_patterns",
   "cortana_self_model",
 ];
-
-const VOLATILE_CRON_KEYS = new Set([
-  "state",
-  "updatedAtMs",
-  "lastRunAtMs",
-  "nextRunAtMs",
-  "lastStatus",
-  "lastRunStatus",
-  "lastDurationMs",
-  "lastDeliveryStatus",
-  "lastDelivered",
-  "consecutiveErrors",
-  "reconciledAt",
-  "reconciledReason",
-  "runningAtMs",
-  "lastError",
-]);
 
 const REQUIRED_TOOLS = [
   "tools/subagent-watchdog/check-subagents.sh",
@@ -98,18 +81,6 @@ function isSymlink(filePath: string): boolean {
   }
 }
 
-function stripVolatile(value: any): any {
-  if (Array.isArray(value)) return value.map(stripVolatile);
-  if (!value || typeof value !== "object") return value;
-
-  const out: Record<string, any> = {};
-  for (const [key, inner] of Object.entries(value)) {
-    if (VOLATILE_CRON_KEYS.has(key)) continue;
-    out[key] = stripVolatile(inner);
-  }
-  return out;
-}
-
 function checkRuntimeCronState(fix: boolean): Check {
   const check = makeCheck("runtime_cron_state");
   const exists = fs.existsSync(RUNTIME_JOBS) || isSymlink(RUNTIME_JOBS);
@@ -142,7 +113,7 @@ function checkRuntimeCronState(fix: boolean): Check {
     const runtimeJobs = JSON.parse(fs.readFileSync(RUNTIME_JOBS, "utf8"));
     const normalizedRuntimeJobs = normalizeRuntimeCronConfig(repoJobs, runtimeJobs);
     const { approvedManagedRuntimeOnlyJobs, unexpectedRuntimeOnlyJobs } = splitRuntimeOnlyJobs(repoJobs, runtimeJobs);
-    details.semantic_match = JSON.stringify(stripVolatile(repoJobs)) === JSON.stringify(stripVolatile(normalizedRuntimeJobs));
+    details.semantic_match = stableCronSemanticDigest(repoJobs) === stableCronSemanticDigest(normalizedRuntimeJobs);
     details.preserved_managed_runtime_only_jobs = approvedManagedRuntimeOnlyJobs.map((job) => ({
       id: String(job.id ?? ""),
       name: String(job.name ?? ""),
@@ -170,7 +141,7 @@ function checkRuntimeCronState(fix: boolean): Check {
         } else {
           const refreshed = JSON.parse(fs.readFileSync(RUNTIME_JOBS, "utf8"));
           const normalizedRefreshed = normalizeRuntimeCronConfig(repoJobs, refreshed);
-          details.semantic_match = JSON.stringify(stripVolatile(repoJobs)) === JSON.stringify(stripVolatile(normalizedRefreshed));
+          details.semantic_match = stableCronSemanticDigest(repoJobs) === stableCronSemanticDigest(normalizedRefreshed);
           if (!details.semantic_match) {
             fail(check, "Runtime cron sync fix completed but semantic drift remains");
           }

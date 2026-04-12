@@ -1,0 +1,285 @@
+{
+  "version": 1,
+  "timezone": "America/New_York",
+  "summaryTimes": {
+    "morning": "08:00",
+    "evening": "20:00"
+  },
+  "readinessFreshnessHours": 6,
+  "authorizationFreshnessHours": 6,
+  "pausedJobIds": [
+    "af9e1570-3ba2-4d10-a807-91cdfc2df18b"
+  ],
+  "remediationLadder": [
+    "retry",
+    "restart_service",
+    "runtime_sync",
+    "restore_env",
+    "rotate_session",
+    "rerun_smoke"
+  ],
+  "guard": {
+    "fragileCronMatchers": [
+      "🐦 X session healthcheck (bird)",
+      "📈 Stock Market Brief (daily)",
+      "🧠 Polymarket Market Intel Refresh"
+    ],
+    "quarantineAfterConsecutiveErrors": 1
+  },
+  "tier2Thresholds": {
+    "market_trading": {
+      "warnAfterMinutesMarketHours": 30,
+      "warnBeforeNextOpenMinutes": 60,
+      "warnAfterConsecutiveFailures": 2
+    },
+    "fitness_news": {
+      "warnAfterConsecutiveFailures": 2,
+      "warnAfterStaleHours": 24
+    },
+    "background_intel": {
+      "warnAfterConsecutiveFailures": 2,
+      "warnAfterStaleHours": 12
+    }
+  },
+  "systems": {
+    "gateway_service": {
+      "tier": 0,
+      "required": true,
+      "probe": "openclaw gateway status --no-probe",
+      "freshnessSource": "immediate_probe",
+      "remediation": [
+        "restart_service",
+        "restore_env",
+        "rerun_smoke"
+      ]
+    },
+    "telegram_delivery": {
+      "tier": 0,
+      "required": true,
+      "probe": "openclaw status",
+      "freshnessSource": "immediate_probe",
+      "remediation": [
+        "retry",
+        "runtime_sync",
+        "rerun_smoke"
+      ]
+    },
+    "main_agent_delivery": {
+      "tier": 0,
+      "required": true,
+      "probe": "session_store:main",
+      "freshnessSource": "runtime_state",
+      "remediation": [
+        "rotate_session",
+        "rerun_smoke"
+      ]
+    },
+    "monitor_agent_delivery": {
+      "tier": 0,
+      "required": true,
+      "probe": "session_store:monitor",
+      "freshnessSource": "runtime_state",
+      "remediation": [
+        "rotate_session",
+        "rerun_smoke"
+      ]
+    },
+    "mission_control": {
+      "tier": 0,
+      "required": true,
+      "probe": "http://127.0.0.1:3000/api/heartbeat-status",
+      "freshnessSource": "heartbeat_status",
+      "remediation": [
+        "restart_service",
+        "rerun_smoke"
+      ]
+    },
+    "tailscale_remote_access": {
+      "tier": 0,
+      "required": true,
+      "probe": "tailscale status --json",
+      "freshnessSource": "immediate_probe",
+      "remediation": [
+        "restart_service",
+        "rerun_smoke"
+      ]
+    },
+    "runtime_integrity": {
+      "tier": 0,
+      "required": true,
+      "probe": "tools/openclaw/runtime-integrity-check.ts",
+      "freshnessSource": "immediate_probe",
+      "remediation": [
+        "restore_env",
+        "rerun_smoke"
+      ]
+    },
+    "green_baseline": {
+      "tier": 0,
+      "required": true,
+      "probe": "tools/qa/green-baseline.sh",
+      "freshnessSource": "immediate_probe",
+      "remediation": [
+        "runtime_sync",
+        "rerun_smoke"
+      ]
+    },
+    "critical_synthetic_probe": {
+      "tier": 0,
+      "required": true,
+      "probe": "tools/monitoring/critical-synthetic-probe.ts",
+      "freshnessSource": "immediate_probe",
+      "remediation": [
+        "retry",
+        "rotate_session",
+        "rerun_smoke"
+      ]
+    },
+    "gog_headless_auth": {
+      "tier": 1,
+      "required": true,
+      "probe": "tools/gog/gog-with-env.ts auth list --json --no-input",
+      "freshnessSource": "immediate_probe",
+      "remediation": [
+        "restore_env",
+        "rotate_session",
+        "rerun_smoke"
+      ]
+    },
+    "calendar_reminders_e2e": {
+      "tier": 1,
+      "required": true,
+      "probe": "runtime_cron:📅 Calendar reminders → Telegram (ALL calendars)",
+      "freshnessSource": "cron_run",
+      "remediation": [
+        "runtime_sync",
+        "rerun_smoke"
+      ]
+    },
+    "apple_reminders_e2e": {
+      "tier": 1,
+      "required": true,
+      "probe": "runtime_cron:⏰ Apple Reminders alerts → Telegram (Monitor)",
+      "freshnessSource": "cron_run",
+      "remediation": [
+        "restart_service",
+        "rerun_smoke"
+      ]
+    },
+    "morning_brief_e2e": {
+      "tier": 1,
+      "required": true,
+      "probe": "runtime_cron:☀️ Morning brief (Hamel)",
+      "freshnessSource": "cron_run",
+      "remediation": [
+        "runtime_sync",
+        "rerun_smoke"
+      ]
+    },
+    "gmail_inbox_triage": {
+      "tier": 1,
+      "required": true,
+      "probe": "tools/gog/gog-with-env.ts --account hameldesai3@gmail.com gmail search in:inbox --max 1 --json",
+      "freshnessSource": "immediate_probe",
+      "remediation": [
+        "restore_env",
+        "rotate_session",
+        "rerun_smoke"
+      ]
+    },
+    "fitness_service": {
+      "tier": 1,
+      "required": true,
+      "probe": "http://127.0.0.1:3033/health",
+      "freshnessSource": "http_probe",
+      "remediation": [
+        "restart_service",
+        "rerun_smoke"
+      ]
+    },
+    "schwab_quote_smoke": {
+      "tier": 1,
+      "required": true,
+      "probe": "http://127.0.0.1:3033/market-data/ready",
+      "freshnessSource": "http_probe",
+      "remediation": [
+        "restart_service",
+        "rotate_session",
+        "rerun_smoke"
+      ]
+    },
+    "backtester_app": {
+      "tier": 1,
+      "required": true,
+      "probe": "backtester_runtime_health",
+      "freshnessSource": "artifact_and_http",
+      "remediation": [
+        "restart_service",
+        "runtime_sync",
+        "rerun_smoke"
+      ]
+    },
+    "github_identity": {
+      "tier": 1,
+      "required": true,
+      "probe": "gh auth status",
+      "freshnessSource": "immediate_probe",
+      "remediation": [
+        "rotate_session",
+        "rerun_smoke"
+      ]
+    },
+    "browser_cdp": {
+      "tier": 1,
+      "required": true,
+      "probe": "tools/monitoring/browser-cdp-watchdog.ts",
+      "freshnessSource": "immediate_probe",
+      "remediation": [
+        "restart_service",
+        "rerun_smoke"
+      ]
+    },
+    "market_scans": {
+      "tier": 2,
+      "required": false,
+      "tier2Class": "market_trading",
+      "probe": "runtime_cron:📈 Stock Market Brief (daily)",
+      "freshnessSource": "cron_run",
+      "remediation": [
+        "runtime_sync",
+        "rerun_smoke"
+      ]
+    },
+    "trading_watchlist_refresh": {
+      "tier": 2,
+      "required": false,
+      "tier2Class": "market_trading",
+      "probe": "runtime_cron:📈 Stock Market Brief (collect)",
+      "freshnessSource": "cron_run",
+      "remediation": [
+        "runtime_sync",
+        "rerun_smoke"
+      ]
+    },
+    "secondary_dashboard_enrichments": {
+      "tier": 2,
+      "required": false,
+      "tier2Class": "background_intel",
+      "probe": "http://127.0.0.1:3000/api/heartbeat-status",
+      "freshnessSource": "http_probe",
+      "remediation": [
+        "retry",
+        "rerun_smoke"
+      ]
+    },
+    "low_value_info_scans": {
+      "tier": 3,
+      "required": false,
+      "probe": "runtime_state:informational",
+      "freshnessSource": "runtime_state",
+      "remediation": [
+        "retry"
+      ]
+    }
+  }
+}

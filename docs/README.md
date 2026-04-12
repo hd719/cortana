@@ -50,6 +50,7 @@ Use `docs/source/` for durable source docs about the command brain.
 - [Tech spec template](./source/planning/templates/techspec-template.md)
 - [Implementation plan template](./source/planning/templates/implementation-template.md)
 - [Spartan planning index](./source/planning/spartan/README.md)
+- [OpenClaw planning index](./source/planning/openclaw/README.md)
 - [Memory engine design](./source/architecture/memory-engine-design.md)
 - [Runtime deploy model](./source/architecture/runtime-deploy-model.md)
 - [Archive guide](./archive/README.md)
