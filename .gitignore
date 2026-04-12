@@ -68,6 +68,9 @@ identities/main/IDENTITY.md
 
 # Archived memory (already consolidated into MEMORY.md)
 memory/archive/
+memory/.dreams/
+DREAMS.md
+identities/*/DREAMS.md
 
 memory/*-sent.json
 memory/circuit-breaker-state.json

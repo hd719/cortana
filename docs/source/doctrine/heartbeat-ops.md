@@ -90,7 +90,8 @@ Periodically (every few days), use a heartbeat to:
 
 Memory hygiene rules:
 - Treat curated Markdown (`MEMORY.md`, daily notes, research/playbooks, evergreen fitness notes) as durable memory.
-- Treat generated state under `memory/` (`*-sent.json`, heartbeat/cache snapshots, archive copies, fitness payloads/weekly summaries/plans/catalogs) as runtime-only.
+- Treat generated state under `memory/` (`*-sent.json`, heartbeat/cache snapshots, archive copies, fitness payloads/weekly summaries/plans/catalogs, `memory/.dreams/`) as runtime-only.
+- Treat generated dream diaries (`DREAMS.md`, `identities/*/DREAMS.md`) as runtime artifacts by default unless you are intentionally curating one for review.
 - Runtime-only memory artifacts are not commit-worthy and should stay untracked.
 
 Think of it like a human reviewing their journal and updating their mental model. Daily files are raw notes; MEMORY.md is curated wisdom.

@@ -670,12 +670,15 @@ Installed OpenClaw skills (non‑exhaustive):
   - Evergreen fitness notes: `memory/fitness/README.md`, `memory/fitness/insights.md`
 - Runtime/generated memory artifacts:
   - sent markers, heartbeat/cache snapshots, and other machine-written JSON
+  - dream runtime state under `memory/.dreams/`
+  - generated dream diaries (`DREAMS.md`, `identities/*/DREAMS.md`) unless you intentionally curate them for review
   - fitness payloads, weekly summaries, and next-session plans under `memory/fitness/`
   - archive copies under `memory/archive/YYYY/MM/`
 
 Policy:
 - Curated Markdown can be reviewed and committed.
 - Generated JSON/state under `memory/` is runtime-only and should stay out of Git.
+- Generated dream artifacts should stay out of Git by default.
 - Archive copies are consolidation byproducts, not reviewable source-of-truth.
 
 Cortana treats curated notes plus `MEMORY.md` as durable memory, with consolidation into Postgres + embeddings.
