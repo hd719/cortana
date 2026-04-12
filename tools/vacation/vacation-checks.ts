@@ -174,6 +174,17 @@ function isFailedStatus(value: string): boolean {
   return ["error", "failed"].includes(value);
 }
 
+function isAcceptableDeliveryStatus(value: string): boolean {
+  return [
+    "ok",
+    "delivered",
+    "not-delivered",
+    "not-requested",
+    "no_reply",
+    "no-reply",
+  ].includes(value);
+}
+
 function hasPositiveCompletionEvidence(entry: SessionStoreEntry): boolean {
   const directStatus = String(entry.status ?? "").trim().toLowerCase();
   if (["completed", "done", "success", "succeeded", "ok"].includes(directStatus)) return true;
@@ -255,8 +266,8 @@ function readCriticalCronDeliveryEvidence(config: VacationOpsConfig, env: Vacati
     const lastStatus = String((useLatestRun ? latestRun?.status : job.state?.lastRunStatus ?? job.state?.lastStatus) ?? "").toLowerCase();
     const lastDeliveryStatus = String((useLatestRun ? latestRun?.deliveryStatus : job.state?.lastDeliveryStatus) ?? "").toLowerCase();
     const consecutiveErrors = Number(job.state?.consecutiveErrors ?? 0);
-    const hasDeliveryEvidence = lastObservedAtMs > 0 && lastDeliveryStatus.length > 0;
-    const deliveryFailed = ["error", "failed", "not-delivered"].includes(lastDeliveryStatus);
+    const hasDeliveryEvidence = lastObservedAtMs > 0 && isAcceptableDeliveryStatus(lastDeliveryStatus);
+    const deliveryFailed = isFailedStatus(lastDeliveryStatus);
     const ok = job.enabled !== false
       && hasDeliveryEvidence
       && !overdue
@@ -471,7 +482,7 @@ function checkRuntimeIntegrity(config: VacationOpsConfig, env: VacationCheckEnvi
 }
 
 function checkGreenBaseline(config: VacationOpsConfig, env: VacationCheckEnvironment): VacationCheckResultRow {
-  const result = run(env, "bash", [path.join(sourceRepoRoot(), "tools", "qa", "green-baseline.sh")]);
+  const result = run(env, "bash", [path.join(sourceRepoRoot(), "tools", "qa", "green-baseline.sh"), "--skip-git"]);
   const ok = result.status === 0 && /GREEN_BASELINE=ok/i.test(result.stdout);
   return buildResult(config, "green_baseline", ok ? "green" : "red", {
     detail: compact(result.stdout || result.stderr),

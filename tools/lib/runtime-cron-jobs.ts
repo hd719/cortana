@@ -4,6 +4,23 @@ type CronConfig = {
   [key: string]: unknown;
 };
 
+const VOLATILE_CRON_KEYS = new Set([
+  "state",
+  "updatedAtMs",
+  "lastRunAtMs",
+  "nextRunAtMs",
+  "lastStatus",
+  "lastRunStatus",
+  "lastDurationMs",
+  "lastDeliveryStatus",
+  "lastDelivered",
+  "consecutiveErrors",
+  "reconciledAt",
+  "reconciledReason",
+  "runningAtMs",
+  "lastError",
+]);
+
 const APPROVED_MANAGED_RUNTIME_JOB_MARKERS = new Set([
   "memory-core.short-term-promotion",
 ]);
@@ -45,4 +62,21 @@ export function normalizeRuntimeCronConfig(repoConfig: CronConfig, runtimeConfig
   const normalizedJobs = runtimeJobs.filter((job) => !isApprovedManagedRuntimeOnlyJob(job));
 
   return { ...runtimeConfig, jobs: normalizedJobs };
+}
+
+function normalizeCronSemanticValue(value: unknown): unknown {
+  if (typeof value === "string") return value.trimEnd();
+  if (Array.isArray(value)) return value.map(normalizeCronSemanticValue);
+  if (!value || typeof value !== "object") return value;
+
+  const out: Record<string, unknown> = {};
+  for (const [key, inner] of Object.entries(value as Record<string, unknown>)) {
+    if (VOLATILE_CRON_KEYS.has(key)) continue;
+    out[key] = normalizeCronSemanticValue(inner);
+  }
+  return out;
+}
+
+export function stableCronSemanticDigest(value: unknown): string {
+  return JSON.stringify(normalizeCronSemanticValue(value));
 }

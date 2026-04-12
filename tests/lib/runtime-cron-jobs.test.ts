@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isApprovedManagedRuntimeOnlyJob, normalizeRuntimeCronConfig, splitRuntimeOnlyJobs } from "../../tools/lib/runtime-cron-jobs.js";
+import { isApprovedManagedRuntimeOnlyJob, normalizeRuntimeCronConfig, splitRuntimeOnlyJobs, stableCronSemanticDigest } from "../../tools/lib/runtime-cron-jobs.js";
 
 describe("runtime cron managed job classification", () => {
   it("treats approved memory-core managed runtime jobs as preserved runtime-only jobs", () => {
@@ -41,5 +41,18 @@ describe("runtime cron managed job classification", () => {
     expect(split.approvedManagedRuntimeOnlyJobs).toHaveLength(0);
     expect(split.unexpectedRuntimeOnlyJobs).toHaveLength(1);
     expect(split.unexpectedRuntimeOnlyJobs[0]?.id).toBe("unknown-1");
+  });
+
+  it("ignores trailing prompt whitespace in semantic cron comparisons", () => {
+    const repoConfig = {
+      version: 1,
+      jobs: [{ id: "repo-1", name: "Repo Job", payload: { kind: "agentTurn", message: "hello\n" } }],
+    };
+    const runtimeConfig = {
+      version: 1,
+      jobs: [{ id: "repo-1", name: "Repo Job", payload: { kind: "agentTurn", message: "hello" } }],
+    };
+
+    expect(stableCronSemanticDigest(repoConfig)).toBe(stableCronSemanticDigest(runtimeConfig));
   });
 });

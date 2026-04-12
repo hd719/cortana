@@ -22,6 +22,7 @@ const DEFAULT_ALERT_TYPE = "generic_alert";
 const TELEGRAM_MAX_MESSAGE_LEN = 3500;
 const DEFAULT_MAX_RETRIES = 3;
 const DEDUPE_WINDOW_SECONDS = 300;
+const DEFAULT_CONFIG = path.join(os.homedir(), ".openclaw", "openclaw.json");
 
 type GuardArgs = {
   message: string;
@@ -33,6 +34,14 @@ type GuardArgs = {
   system: string;
   actionNeeded: "now" | "soon" | "summary" | "none";
   sourceAgent?: string;
+};
+
+type TelegramConfig = {
+  channels?: {
+    telegram?: {
+      accounts?: Record<string, { botToken?: string }>;
+    };
+  };
 };
 
 export function parseGuardArgs(argv: string[]): GuardArgs {
@@ -112,10 +121,23 @@ function shouldDedupe(dedupeKey: string): boolean {
   return false;
 }
 
-function sendChunk(target: string, chunk: string): { ok: boolean; stderr: string } {
+export function resolveTelegramAccountId(owner: string, configPath = DEFAULT_CONFIG): string {
+  try {
+    const parsed = JSON.parse(fs.readFileSync(configPath, "utf8")) as TelegramConfig;
+    const accounts = parsed?.channels?.telegram?.accounts;
+    if (accounts && owner in accounts) {
+      return owner;
+    }
+  } catch {
+    // Fall back to default when runtime config is unavailable or malformed.
+  }
+  return "default";
+}
+
+function sendChunk(target: string, chunk: string, accountId: string): { ok: boolean; stderr: string } {
   const proc = spawnSync(
     "openclaw",
-    ["message", "send", "--channel", "telegram", "--target", target, "--message", chunk, "--json"],
+    ["message", "send", "--channel", "telegram", "--account", accountId, "--target", target, "--message", chunk, "--json"],
     { encoding: "utf8" }
   );
 
@@ -129,12 +151,12 @@ function sleep(ms: number): void {
   Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
 }
 
-export function sendWithRetries(target: string, chunks: string[], maxRetries = DEFAULT_MAX_RETRIES): void {
+export function sendWithRetries(target: string, chunks: string[], accountId: string, maxRetries = DEFAULT_MAX_RETRIES): void {
   for (let idx = 0; idx < chunks.length; idx += 1) {
     const chunk = chunks[idx];
     let attempt = 0;
     while (attempt < maxRetries) {
-      const res = sendChunk(target, chunk);
+      const res = sendChunk(target, chunk, accountId);
       if (res.ok) break;
       attempt += 1;
       if (attempt >= maxRetries) {
@@ -190,12 +212,13 @@ export function run(argv: string[]): number {
   }
 
   const chunks = chunkMessage(finalMessage);
-  sendWithRetries(envelope.target, chunks);
+  const accountId = resolveTelegramAccountId(envelope.owner);
+  sendWithRetries(envelope.target, chunks, accountId);
 
   console.error(
-    `[telegram-delivery-guard] sent (${envelope.alertType}) severity=${envelope.severity} owner=${envelope.owner} system=${envelope.system} to ${envelope.target} chunks=${chunks.length}`
+    `[telegram-delivery-guard] sent (${envelope.alertType}) severity=${envelope.severity} owner=${envelope.owner} account=${accountId} system=${envelope.system} to ${envelope.target} chunks=${chunks.length}`
   );
-  console.log(JSON.stringify({ delivered: true, mode: "sent", chunks: chunks.length, alertType: envelope.alertType }));
+  console.log(JSON.stringify({ delivered: true, mode: "sent", chunks: chunks.length, alertType: envelope.alertType, accountId }));
   return 0;
 }
 

@@ -139,6 +139,14 @@ export function deriveReadinessOutcome(results: VacationCheckResultRow[], config
   return { outcome: "pass", finalResults, missingRequiredSystemKeys, tier2WarnSystemKeys, reasoning };
 }
 
+export function shouldAttemptRemediation(config: VacationOpsConfig, result: VacationCheckResultRow): boolean {
+  const system = config.systems[result.system_key];
+  if (!system) return false;
+  if (![0, 1].includes(system.tier)) return false;
+  if (statusSeverity(result.status) < 2) return false;
+  return Array.isArray(system.remediation) && system.remediation.length > 0;
+}
+
 export function isFreshReadinessRun(run: VacationRunRow | null, freshnessHours: number, now = new Date()): boolean {
   if (!run?.completed_at) return false;
   const outcome = run.readiness_outcome;
@@ -213,7 +221,7 @@ export function runVacationReadiness(params: {
   const actions: VacationActionRow[] = [];
 
   for (const result of initialResults) {
-    if (config.systems[result.system_key]?.tier !== 1 || statusSeverity(result.status) < 2) continue;
+    if (!shouldAttemptRemediation(config, result)) continue;
     const remediation = runRemediationPlan({
       config,
       systemKey: result.system_key,

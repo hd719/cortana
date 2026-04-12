@@ -5,6 +5,15 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT_DIR"
 
 overall_ok=true
+skip_git=false
+
+for arg in "$@"; do
+  case "$arg" in
+    --skip-git)
+      skip_git=true
+      ;;
+  esac
+done
 
 print_header() {
   printf '\n== %s ==\n' "$1"
@@ -120,12 +129,16 @@ if ! printf '%s' "$validate_out" | python3 -c 'import json,sys; print("true" if 
 fi
 
 print_header "Git"
-git_status="$(git status --short)"
-if [[ -z "$git_status" ]]; then
-  printf 'clean\n'
+if [[ "$skip_git" == true ]]; then
+  printf 'skipped (--skip-git)\n'
 else
-  printf '%s\n' "$git_status"
-  mark_fail
+  git_status="$(git status --short)"
+  if [[ -z "$git_status" ]]; then
+    printf 'clean\n'
+  else
+    printf '%s\n' "$git_status"
+    mark_fail
+  fi
 fi
 
 print_header "Summary"

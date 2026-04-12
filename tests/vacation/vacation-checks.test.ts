@@ -70,6 +70,16 @@ function telegramStatusSpawn() {
   }) as any;
 }
 
+function greenBaselineSpawn() {
+  return ((cmd: string, args: string[]) => {
+    if (cmd !== "bash") return { status: 1, stdout: "", stderr: "unexpected command" } as any;
+    if (args[0]?.endsWith("tools/qa/green-baseline.sh") && args.includes("--skip-git")) {
+      return { status: 0, stdout: "GREEN_BASELINE=ok\n", stderr: "" } as any;
+    }
+    return { status: 1, stdout: "", stderr: "missing --skip-git" } as any;
+  }) as any;
+}
+
 function writeSessionStore(agentId: string, entries: Record<string, unknown>) {
   const home = fs.mkdtempSync(path.join(os.tmpdir(), `vacation-${agentId}-sessions-`));
   const sessionsDir = path.join(home, ".openclaw", "agents", agentId, "sessions");
@@ -172,6 +182,42 @@ describe("vacation tier0 delivery checks", () => {
     expect((result.detail.deliveryEvidence as any).evidenceJob.evidenceSource).toBe("run_ledger");
   });
 
+  it("passes telegram delivery when a recent critical-lane run completed cleanly with a no-op not-delivered status", () => {
+    const jobName = "⏰ Apple Reminders alerts → Telegram (Monitor)";
+    const { tempDir, runtimeCronFile, runtimeCronRunsDir } = writeRuntimeCronFixture({
+      id: "job-telegram-3",
+      name: jobName,
+      enabled: true,
+      state: {
+        lastRunAtMs: Date.parse("2026-04-11T15:45:00.000Z"),
+        lastStatus: "ok",
+        lastRunStatus: "ok",
+        lastDeliveryStatus: "not-delivered",
+        nextRunAtMs: Date.parse("2026-04-11T16:30:00.000Z"),
+        consecutiveErrors: 0,
+      },
+    });
+    const lanesConfigFile = writeLanesConfig(tempDir, [jobName]);
+    writeCronRun(runtimeCronRunsDir, "job-telegram-3", {
+      ts: Date.parse("2026-04-11T15:45:00.000Z"),
+      action: "finished",
+      status: "ok",
+      nextRunAtMs: Date.parse("2026-04-11T16:30:00.000Z"),
+      deliveryStatus: "not-delivered",
+    });
+
+    const result = runSystemCheck(config, {
+      runtimeCronFile,
+      runtimeCronRunsDir,
+      lanesConfigFile,
+      spawn: telegramStatusSpawn(),
+      now: () => new Date("2026-04-11T16:00:00.000Z"),
+    }, "telegram_delivery");
+
+    expect(result.status).toBe("green");
+    expect((result.detail.deliveryEvidence as any).evidenceJob.lastDeliveryStatus).toBe("not-delivered");
+  });
+
   it("fails main-agent delivery when the store entry has no live session artifact", () => {
     const { storePath } = writeSessionStore("main", {
       "agent:main:telegram:direct:1234": {
@@ -208,5 +254,13 @@ describe("vacation tier0 delivery checks", () => {
     expect(result.status).toBe("green");
     expect((result.detail.verifiedSession as any).sessionFileExists).toBe(true);
     expect((result.detail.verifiedSession as any).sessionFileSizeBytes).toBeGreaterThan(0);
+  });
+
+  it("runs green baseline in vacation mode without failing on branch git dirt", () => {
+    const result = runSystemCheck(config, {
+      spawn: greenBaselineSpawn(),
+    }, "green_baseline");
+
+    expect(result.status).toBe("green");
   });
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deriveReadinessOutcome } from "../../tools/vacation/readiness-engine.ts";
+import { deriveReadinessOutcome, shouldAttemptRemediation } from "../../tools/vacation/readiness-engine.ts";
 import { loadVacationOpsConfig } from "../../tools/vacation/vacation-config.ts";
 
 const config = loadVacationOpsConfig();
@@ -27,5 +27,33 @@ describe("vacation readiness", () => {
     ], config);
     expect(outcome.outcome).toBe("fail");
     expect(outcome.missingRequiredSystemKeys).toContain("gog_headless_auth");
+  });
+
+  it("allows remediation for failed Tier 0 systems that declare bounded repair steps", () => {
+    expect(shouldAttemptRemediation(config, {
+      system_key: "green_baseline",
+      tier: 0,
+      status: "red",
+      observed_at: "2026-04-11T12:00:00.000Z",
+      detail: {},
+    })).toBe(true);
+  });
+
+  it("does not attempt remediation for healthy systems or Tier 2 watch lanes", () => {
+    expect(shouldAttemptRemediation(config, {
+      system_key: "gateway_service",
+      tier: 0,
+      status: "green",
+      observed_at: "2026-04-11T12:00:00.000Z",
+      detail: {},
+    })).toBe(false);
+
+    expect(shouldAttemptRemediation(config, {
+      system_key: "market_scans",
+      tier: 2,
+      status: "red",
+      observed_at: "2026-04-11T12:00:00.000Z",
+      detail: {},
+    })).toBe(false);
   });
 });
