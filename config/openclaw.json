@@ -447,6 +447,7 @@
     "allow": [
       "telegram",
       "memory-core",
+      "active-memory",
       "memory-wiki",
       "brave",
       "openai"
@@ -479,6 +480,27 @@
             "enabled": true,
             "frequency": "0 3 * * *"
           }
+        }
+      },
+      "active-memory": {
+        "enabled": true,
+        "config": {
+          "enabled": true,
+          "agents": [
+            "main"
+          ],
+          "model": "openai-codex/gpt-5.3",
+          "allowedChatTypes": [
+            "direct"
+          ],
+          "thinking": "off",
+          "timeoutMs": 12000,
+          "queryMode": "recent",
+          "promptStyle": "preference-only",
+          "maxSummaryChars": 220,
+          "logging": true,
+          "persistTranscripts": false,
+          "cacheTtlMs": 15000
         }
       },
       "memory-wiki": {

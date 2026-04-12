@@ -14,6 +14,13 @@
 
 ## Storage design
 
+### Active-memory experiment (`active-memory`)
+- Purpose: prepend a short memory recall summary before eligible `main` direct-chat replies to improve continuity.
+- Scope: `main` only, `direct` chats only.
+- Trial config: `queryMode=recent`, `promptStyle=preference-only`, `thinking=off`, `timeoutMs=12000`, `logging=true`, `persistTranscripts=false`.
+- Current intent: evaluate continuity gains versus latency/odd recall risk before any broader rollout.
+- Non-goal: do not enable this for cron lanes, specialist agents, or group chats during the trial.
+
 ### Runtime wiki adjunct (`memory-wiki`)
 - Purpose: inspect imported source chats, compiled wiki pages, and source-page drilldown inside Dreaming without turning generated artifacts into repo memory.
 - Mode: isolated vault at `~/.openclaw/wiki/cortana`

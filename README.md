@@ -602,6 +602,7 @@ Key files:
   - deployed into `~/.openclaw/cron/jobs.json` during runtime deploy (see `TOOLS.md`)
 - `config/openclaw.json` – tracked OpenClaw baseline for agent/runtime/plugin config
   - enables `memory-core` dreaming plus `memory-wiki` in isolated mode
+  - enables an `active-memory` trial for `main` direct chats only
   - `memory-wiki` vault path: `~/.openclaw/wiki/cortana`
   - Dreaming can inspect imported chats and compiled wiki pages through `Imported Insights` and `Memory Palace`
   - repo-native wiki refresh command: `tools/openclaw/sync-memory-wiki.sh`
@@ -658,6 +659,14 @@ OpenClaw runtime helpers:
 - `tools/openclaw/post-update.sh` – post-update runtime repair/sync steps after OpenClaw upgrades
 - `.githooks/post-merge` – automatically runs the post-merge sync flow when Git merges update the local repo
 
+Active-memory trial:
+
+- enabled only for `main`
+- direct chats only
+- configured as a live experiment, not broad doctrine
+- logging on, transcript persistence off
+- goal: evaluate whether pre-reply memory recall improves continuity without adding too much latency or weird over-personalization
+
 ### 3.4 `skills/`
 
 Installed OpenClaw skills (non‑exhaustive):
@@ -699,6 +708,7 @@ Policy:
 Cortana treats curated notes plus `MEMORY.md` as durable memory, with consolidation into Postgres + embeddings.
 OpenClaw Dreaming may inspect imported insights and memory-palace pages from the isolated wiki vault, but those compiled/imported artifacts remain runtime state unless intentionally promoted into tracked docs.
 The repo post-merge flow now conditionally refreshes the isolated wiki when curated front-door docs changed.
+An `active-memory` experiment is also configured for `main` direct chats only; it is intentionally scoped narrowly while behavior and latency are evaluated.
 
 ### 3.6 `covenant/`
 
