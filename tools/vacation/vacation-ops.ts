@@ -65,6 +65,10 @@ export function recommendVacationWindow(startAt: string, endAt: string, timezone
 
 function prepVacationWindow(args: ParsedArgs) {
   const config = loadVacationOpsConfig();
+  const active = getActiveVacationWindow();
+  if (active) {
+    throw new Error(`Cannot start vacation preflight while vacation mode is already active for ${active.label}. Disable the active window before starting a new prep window.`);
+  }
   const defaults = defaultWindow(args.timezone ?? config.timezone);
   let window = args.windowId ? getVacationWindow(args.windowId) : null;
   const recommendation = recommendVacationWindow(args.start ?? defaults.start, args.end ?? defaults.end, args.timezone ?? defaults.timezone);
