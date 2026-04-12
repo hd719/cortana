@@ -6,6 +6,7 @@ It documents the command brain, not the runtime body. Runtime and trading surfac
 It does **not** replace:
 - root boot doctrine like `SOUL.md` and `MEMORY.md`
 - live continuity in `memory/`
+- isolated OpenClaw runtime wiki content under `~/.openclaw/wiki/cortana`
 - agent namespace files in `identities/`
 - Covenant role scaffolds in `covenant/`
 
@@ -14,6 +15,8 @@ In the LLM wiki model:
 - `docs/source/` = raw source material and durable artifacts
 - `knowledge/` = compiled current-truth wiki
 - `docs/archive/` = historical overflow kept out of the active front door
+
+OpenClaw also maintains an isolated `memory-wiki` vault for runtime-imported chats and compiled wiki pages. That vault powers Dreaming surfaces like `Imported Insights` and `Memory Palace`, but it is runtime state, not source-of-truth documentation for this repo.
 
 ## Start Here
 

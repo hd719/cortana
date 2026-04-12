@@ -600,6 +600,10 @@ Key files:
 
 - `config/cron/jobs.json` – **single source of truth** for OpenClaw cron jobs
   - deployed into `~/.openclaw/cron/jobs.json` during runtime deploy (see `TOOLS.md`)
+- `config/openclaw.json` – tracked OpenClaw baseline for agent/runtime/plugin config
+  - enables `memory-core` dreaming plus `memory-wiki` in isolated mode
+  - `memory-wiki` vault path: `~/.openclaw/wiki/cortana`
+  - Dreaming can inspect imported chats and compiled wiki pages through `Imported Insights` and `Memory Palace`
 
 ### 3.3 `tools/`
 
@@ -674,6 +678,9 @@ Installed OpenClaw skills (non‑exhaustive):
   - generated dream diaries (`DREAMS.md`, `identities/*/DREAMS.md`) unless you intentionally curate them for review
   - fitness payloads, weekly summaries, and next-session plans under `memory/fitness/`
   - archive copies under `memory/archive/YYYY/MM/`
+- Adjacent runtime memory surfaces:
+  - isolated memory-wiki vault under `~/.openclaw/wiki/cortana`
+  - imported ChatGPT/source pages and compiled wiki pages live there, not under tracked repo memory
 
 Policy:
 - Curated Markdown can be reviewed and committed.
@@ -682,6 +689,7 @@ Policy:
 - Archive copies are consolidation byproducts, not reviewable source-of-truth.
 
 Cortana treats curated notes plus `MEMORY.md` as durable memory, with consolidation into Postgres + embeddings.
+OpenClaw Dreaming may inspect imported insights and memory-palace pages from the isolated wiki vault, but those compiled/imported artifacts remain runtime state unless intentionally promoted into tracked docs.
 
 ### 3.6 `covenant/`
 

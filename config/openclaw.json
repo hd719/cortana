@@ -447,6 +447,7 @@
     "allow": [
       "telegram",
       "memory-core",
+      "memory-wiki",
       "brave",
       "openai"
     ],
@@ -477,6 +478,30 @@
           "dreaming": {
             "enabled": true,
             "frequency": "0 3 * * *"
+          }
+        }
+      },
+      "memory-wiki": {
+        "enabled": true,
+        "config": {
+          "vaultMode": "isolated",
+          "vault": {
+            "path": "/Users/hd/.openclaw/wiki/cortana",
+            "renderMode": "native"
+          },
+          "ingest": {
+            "autoCompile": true,
+            "maxConcurrentJobs": 2,
+            "allowUrlIngest": false
+          },
+          "search": {
+            "backend": "shared",
+            "corpus": "wiki"
+          },
+          "render": {
+            "preserveHumanBlocks": true,
+            "createBacklinks": true,
+            "createDashboards": true
           }
         }
       }

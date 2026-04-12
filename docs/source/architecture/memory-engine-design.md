@@ -10,8 +10,16 @@
 - `HEARTBEAT.md` memory maintenance flow
 - `tools/` memory-adjacent scripts (covenant boundary + heartbeat/proprioception hooks)
 - `~/.openclaw/openclaw.json` memorySearch config (`sources: memory,sessions`, embedding model `text-embedding-3-small`)
+- OpenClaw `memory-wiki` runtime surfaces for imported chat/source ingestion and compiled wiki inspection
 
 ## Storage design
+
+### Runtime wiki adjunct (`memory-wiki`)
+- Purpose: inspect imported source chats, compiled wiki pages, and source-page drilldown inside Dreaming without turning generated artifacts into repo memory.
+- Mode: isolated vault at `~/.openclaw/wiki/cortana`
+- UI surfaces: `Imported Insights`, `Memory Palace`, source-page viewer
+- Git policy: runtime-owned; do not treat the isolated vault as tracked durable memory
+- Promotion rule: if a wiki-derived insight becomes durable truth, promote it deliberately into tracked docs, `MEMORY.md`, or daily memory markdown
 
 ### Episodic (`cortana_memory_episodic`)
 - `id`, `happened_at`, `summary`, `details`, `participants[]`, `tags[]`
