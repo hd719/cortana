@@ -202,14 +202,16 @@
   - Rationale: concurrency ceiling at 4 was triggering intermittent "Request was aborted" failures when parallel sub-agent demand spiked.
   - Expected result: improved reliability for concurrent runs, clearer timeout control, and better short-term run trace availability.
 
+
+## Nightly Consolidation Notes (2026-04-13)
+
+- Unconsolidated day reviewed: 2026-04-12 (including `2026-04-12-thinking-speed.md`).
+- Runtime behavior clarification: think/text verbosity overrides can appear not to apply mid-session; verify with `/status` and treat changes as possibly session-bound until confirmed on the active thread.
+- Reliability signal reinforced: feedback pipeline health should include stuck-item age and link integrity checks (recent corrections flagged one stuck item >24h and one unlinked item).
+
 ## Nightly Consolidation Notes (2026-03-30)
 
 - Consolidated new evidence from 2026-03-30 daily memory: reminders cron showed transient gateway-timeout behavior despite healthy local script execution; a forced cron rerun returned green (5.4s, consecutiveErrors=0).
 - Morning Brief and Cron Gateway Drain Recovery still expose `LiveSessionModelSwitchError` in last-error fields; this class should remain a higher-priority reliability signal than duration-only checks.
 - User-facing session resets indicate startup prompts were still being tested; ensure startup requirements are re-validated after long idle periods and summarize the result in daily notes.
 
-## Nightly Consolidation Notes (2026-03-11)
-
-- Reliability work entered execution phase under task-board epic **#33 (Reliability Overhaul v1)** with concrete follow-ons: completion-sync JSON contract guard, Dip Buyer wording hardening, market-session verification for 9:30/12:30/3:30 ET runs, Alpaca/portfolio heartbeat observability, long-running cron slimming audit, monitoring summary design, and cron output ambiguity/noise audit.
-- Monitor context rule strengthened: treat major AI ecosystem/policy/geopolitical headlines as **background risk signals** only; escalate when there is measurable impact to reliability, latency, pricing, procurement posture, or OpenClaw routing decisions.
-- Sleep behavior reinforcement remains valid: recurring bedtime check pattern around ~21:30–22:00 ET continues to appear; maintain Sleep Anchor nudges around that window.
