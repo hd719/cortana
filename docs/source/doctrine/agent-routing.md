@@ -114,6 +114,10 @@ Namespace files loaded (when present):
 - `MEMORY.md`
 - `TOOLS.md`
 
+Dynamic bootstrap context:
+- `AGENT_FEEDBACK.md` is generated at bootstrap time from active `cortana_agent_feedback` lessons for that agent role (plus `all`).
+- This restores agent-scoped feedback lessons as live session context without requiring inter-agent status chatter.
+
 If a namespace file is missing, the hook logs a warning and keeps the workspace default file (non-breaking fallback).
 
 ### Rollout

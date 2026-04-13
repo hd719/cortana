@@ -22,6 +22,11 @@ Replaces SOUL/USER/IDENTITY/HEARTBEAT/MEMORY bootstrap files with per-agent name
 - `identities/<namespace>/HEARTBEAT.md`
 - `identities/<namespace>/MEMORY.md`
 
+Also adds dynamic bootstrap context when available:
+
+- `AGENT_FEEDBACK.md` generated from active `cortana_agent_feedback` lessons for the current agent role plus `all`
+- generation is non-blocking; bootstrap continues without it if the query fails
+
 Config (in `hooks.internal.entries.identity-namespace-bootstrap`):
 
 - `configPath` (default: `config/identity-namespaces.json`)
