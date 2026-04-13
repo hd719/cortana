@@ -4,6 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import {
+  IDENTITY_NAMESPACE_FILES,
   resolveAgentIdFromSessionKey,
   resolveDurableMemoryTargets,
   resolveNamespaceFilePath,
@@ -12,6 +13,10 @@ import {
 } from "../../tools/lib/identity-namespace";
 
 describe("identity namespace resolution", () => {
+  it("includes VOICE.md in namespaced identity files", () => {
+    expect(IDENTITY_NAMESPACE_FILES).toContain("VOICE.md");
+  });
+
   it("resolves namespace per agent", () => {
     const namespace = resolveNamespaceForAgent("researcher", {
       defaultNamespace: "main",

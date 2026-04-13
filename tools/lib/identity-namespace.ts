@@ -5,6 +5,7 @@ export const IDENTITY_NAMESPACE_FILES = [
   "SOUL.md",
   "USER.md",
   "IDENTITY.md",
+  "VOICE.md",
   "HEARTBEAT.md",
   "MEMORY.md",
   "TOOLS.md",

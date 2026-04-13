@@ -15,6 +15,7 @@ describe("Fitness Evening Recap Tonal tomorrow messaging", () => {
 
     const message = String(job?.payload?.message ?? "");
     expect(message).toContain("/Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts");
+    expect(message).toContain("/Users/hd/Developer/cortana/identities/spartan/VOICE.md");
     expect(message).toContain("today_training_output");
     expect(message).toContain("cycle-first");
     expect(message).toContain("Start with the day’s load verdict in natural language");
@@ -24,6 +25,7 @@ describe("Fitness Evening Recap Tonal tomorrow messaging", () => {
     expect(message).toContain("Sound like a real coach following up after the day");
     expect(message).toContain("Write like a text follow-up, not a summary report");
     expect(message).toContain("Finish with one concrete action for tonight");
+    expect(message).toContain("VOICE rewrite gate");
     expect(message).toContain("Do not call evening load signal \"readiness\"");
     expect(message).toContain("Keep the age-100 objective in mind");
     expect(message).toContain("do not stop at \"unknown\"");

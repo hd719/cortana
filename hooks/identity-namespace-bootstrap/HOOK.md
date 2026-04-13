@@ -14,11 +14,12 @@ metadata:
 
 # identity-namespace-bootstrap
 
-Replaces SOUL/USER/IDENTITY/HEARTBEAT/MEMORY bootstrap files with per-agent namespace variants from:
+Replaces SOUL/USER/IDENTITY/VOICE/HEARTBEAT/MEMORY bootstrap files with per-agent namespace variants from:
 
 - `identities/<namespace>/SOUL.md`
 - `identities/<namespace>/USER.md`
 - `identities/<namespace>/IDENTITY.md`
+- `identities/<namespace>/VOICE.md`
 - `identities/<namespace>/HEARTBEAT.md`
 - `identities/<namespace>/MEMORY.md`
 

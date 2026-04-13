@@ -2,7 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 
-const FILES = ["SOUL.md", "USER.md", "IDENTITY.md", "HEARTBEAT.md", "MEMORY.md", "TOOLS.md"];
+const FILES = ["SOUL.md", "USER.md", "IDENTITY.md", "VOICE.md", "HEARTBEAT.md", "MEMORY.md", "TOOLS.md"];
 const DYNAMIC_FEEDBACK_FILE = "AGENT_FEEDBACK.md";
 
 function normalizeBootstrapEntryName(entryFile) {

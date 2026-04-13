@@ -39,6 +39,7 @@ describe("identity namespace bootstrap hook", () => {
     const monitorDir = path.join(workspace, "identities", "monitor");
     fs.mkdirSync(monitorDir, { recursive: true });
     fs.writeFileSync(path.join(monitorDir, "SOUL.md"), "# Monitor soul\n", "utf8");
+    fs.writeFileSync(path.join(monitorDir, "VOICE.md"), "# Monitor voice\n", "utf8");
     fs.writeFileSync(path.join(monitorDir, "TOOLS.md"), "# Monitor tools\n", "utf8");
 
     const event = {
@@ -76,6 +77,12 @@ describe("identity namespace bootstrap hook", () => {
     expect(toolsEntry.path).toBe(path.join(workspace, "identities", "monitor", "TOOLS.md"));
     expect(toolsEntry.content).toBe("# Monitor tools\n");
     expect(toolsEntry.missing).toBe(false);
+
+    const voiceEntry = event.context.bootstrapFiles.find((file: any) => file.name === "VOICE.md");
+    expect(voiceEntry).toBeTruthy();
+    expect(voiceEntry.path).toBe(path.join(workspace, "identities", "monitor", "VOICE.md"));
+    expect(voiceEntry.content).toBe("# Monitor voice\n");
+    expect(voiceEntry.missing).toBe(false);
   });
 
   it("appends generated AGENT_FEEDBACK.md when compiled feedback exists", async () => {
