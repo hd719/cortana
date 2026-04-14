@@ -489,7 +489,7 @@
           "agents": [
             "main"
           ],
-          "model": "openai-codex/gpt-5.3",
+          "model": "openai-codex/gpt-5.4",
           "allowedChatTypes": [
             "direct"
           ],
