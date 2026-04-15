@@ -91,4 +91,41 @@ describe("cron-slo-monitor", () => {
       }),
     );
   });
+
+  it("suppresses stale unsupported-model failures that are already fixed in payload config until rerun", async () => {
+    readFileSync.mockReturnValue(JSON.stringify({
+      jobs: [
+        {
+          id: "x-health",
+          name: "🐦 X session healthcheck (bird)",
+          enabled: true,
+          state: {
+            consecutiveErrors: 2,
+            nextRunAtMs: Date.now() + (6 * 60 * 60 * 1000),
+            lastDeliveryStatus: "not-delivered",
+            lastError: "{\"detail\":\"The 'gpt-5.1' model is not supported when using Codex with a ChatGPT account.\"}",
+            lastDeliveryError: "{\"detail\":\"The 'gpt-5.1' model is not supported when using Codex with a ChatGPT account.\"}",
+          },
+          payload: { model: "openai-codex/gpt-5.4", timeoutSeconds: 90 },
+        },
+      ],
+    }));
+
+    const consoleSpy = captureConsole();
+    await importFresh("../../tools/monitoring/cron-slo-monitor.ts");
+    await flushModuleSideEffects();
+    consoleSpy.restore();
+
+    expect(consoleSpy.logs.join("\n").trim()).toBe("NO_REPLY");
+    expect(reconcileMissionControlFeedbackSignal).toHaveBeenCalledWith(
+      expect.objectContaining({
+        recurrenceKey: "ops:cron-slo-monitor",
+        signalState: "cleared",
+        details: expect.objectContaining({
+          awaiting_post_fix_rerun: ["🐦 X session healthcheck (bird)"],
+          actionable_erroring: [],
+        }),
+      }),
+    );
+  });
 });

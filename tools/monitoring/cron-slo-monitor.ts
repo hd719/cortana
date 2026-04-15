@@ -17,8 +17,10 @@ type Job = {
     lastStatus?: string;
     lastRunStatus?: string;
     lastDeliveryStatus?: string;
+    lastError?: string;
+    lastDeliveryError?: string;
   };
-  payload?: { timeoutSeconds?: number };
+  payload?: { timeoutSeconds?: number; model?: string };
 };
 
 const runtimeJobsPath = path.join(os.homedir(), ".openclaw", "cron", "jobs.json");
@@ -73,6 +75,22 @@ function hasDeliveryProblem(job: Job): boolean {
   return status === "error" || status === "failed";
 }
 
+function isUnsupportedLegacyModelError(job: Job): boolean {
+  const errorText = `${String(job?.state?.lastError || "")}\n${String(job?.state?.lastDeliveryError || "")}`.toLowerCase();
+  return errorText.includes("gpt-5.1") && errorText.includes("not supported");
+}
+
+function isAwaitingPostFixRerun(job: Job, now: number): boolean {
+  const configuredModel = String(job?.payload?.model || "").toLowerCase();
+  const nextRunAtMs = Number(job?.state?.nextRunAtMs || 0);
+  return Boolean(
+    configuredModel
+      && !configuredModel.includes("gpt-5.1")
+      && isUnsupportedLegacyModelError(job)
+      && nextRunAtMs > now,
+  );
+}
+
 function label(job: Job): string {
   return job.name || job.id || "unknown";
 }
@@ -103,7 +121,8 @@ async function main() {
   const missed = jobs.filter((j) => scheduleLikelyDue(j, now));
   const nearTimeoutAll = jobs.filter(isNearTimeout);
 
-  const actionableErroring = erroring.filter((j) => !isKnownNoisy(j));
+  const awaitingPostFixRerun = erroring.filter((j) => isAwaitingPostFixRerun(j, now));
+  const actionableErroring = erroring.filter((j) => !isKnownNoisy(j) && !isAwaitingPostFixRerun(j, now));
   const noisyErroring = erroring.filter(isKnownNoisy);
   const actionableMissed = missed.filter((j) => !isKnownNoisy(j));
   const noisyMissed = missed.filter(isKnownNoisy);
@@ -129,6 +148,7 @@ async function main() {
       actionable_erroring: actionableErroring.map(label),
       actionable_missed: actionableMissed.map(label),
       actionable_near_timeout: actionableNearTimeout.map(label),
+      awaiting_post_fix_rerun: awaitingPostFixRerun.map(label),
       noisy_erroring: noisyErroring.map(label),
       noisy_missed: noisyMissed.map(label),
     },
@@ -147,6 +167,7 @@ async function main() {
   const watchlist: string[] = [];
   if (noisyErroring.length) watchlist.push(`${noisyErroring.length} known legacy job(s) still erroring (${top(noisyErroring)})`);
   if (noisyMissed.length) watchlist.push(`${noisyMissed.length} known legacy job(s) look overdue (${top(noisyMissed)})`);
+  if (awaitingPostFixRerun.length) watchlist.push(`${awaitingPostFixRerun.length} job(s) still reflect a pre-fix unsupported-model failure and are waiting for their next scheduled rerun (${top(awaitingPostFixRerun)})`);
   if (watchlist.length) lines.push(`- watchlist: ${watchlist.join('; ')}`);
 
   console.log(lines.join("\n"));
