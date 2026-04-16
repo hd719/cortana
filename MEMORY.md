@@ -203,6 +203,12 @@
   - Expected result: improved reliability for concurrent runs, clearer timeout control, and better short-term run trace availability.
 
 
+
+## Nightly Consolidation Notes (2026-04-16)
+
+- Reviewed unconsolidated memory update: `2026-04-15-heartbeat-check.md` (heartbeat dispatch timeouts observed, but no durable policy/routing change required).
+- Task-board durability update: `cortana_tasks` item **478** (session lifecycle breach follow-up) is now completed (2026-04-15) with healthy-verification outcome. Treat prior lifecycle-breach context as resolved unless fresh evidence reopens it.
+
 ## Nightly Consolidation Notes (2026-04-13)
 
 - Unconsolidated day reviewed: 2026-04-12 (including `2026-04-12-thinking-speed.md`).
