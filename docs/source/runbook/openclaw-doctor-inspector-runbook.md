@@ -372,6 +372,137 @@ This doctor lane is broad, but it is not infinite. It should stay focused on Ope
 
 A replacement LLM should not waste time rediscovering where things live.
 
+## What `.openclaw`, `openclaw`, `cortana`, and `cortana-external` Actually Are
+
+This distinction must be understood correctly before diagnosing almost anything in this stack.
+
+### `~/.openclaw`
+
+Path:
+
+- `~/.openclaw`
+
+What it is:
+
+- live runtime state
+- deployed config actually used by the running gateway
+- sessions, cron state, caches, runtime wiki, command hashes, and other generated/operator-mutated state
+
+Examples:
+
+- `~/.openclaw/openclaw.json`
+- `~/.openclaw/cron/jobs.json`
+- `~/.openclaw/telegram/command-hash-*`
+- `~/.openclaw/agents/*/sessions`
+- `~/.openclaw/wiki/cortana`
+
+What it is not:
+
+- not the primary source repo
+- not durable doctrine
+- not safe to treat as the canonical design intent
+
+Operator rule:
+
+- use this when the question is "what is the live system doing right now?"
+
+### `openclaw`
+
+Typical paths involved in this stack:
+
+- `/Users/hd/Developer/openclaw`
+- `/Users/hd/openclaw` as a compatibility shim path
+- globally installed runtime package under `~/Library/pnpm/global/5/node_modules/openclaw`
+
+What it is:
+
+- the OpenClaw software itself
+- upstream/runtime implementation code for gateway, Telegram integration, command registration, message tools, providers, and related runtime behavior
+
+Important nuance:
+
+- `/Users/hd/Developer/openclaw` is a source checkout used for reading and patching code
+- the live service may instead be running the globally installed OpenClaw package
+- `/Users/hd/openclaw` should be treated as a compatibility shim path, not as the primary authoritative repo
+
+What it is not:
+
+- not the command-brain doctrine repo for Hamel's stack
+- not where Cortana's tracked operational doctrine should primarily live
+
+Operator rule:
+
+- use this when the question is "does the runtime implementation itself have a bug or regression?"
+
+### `cortana`
+
+Path:
+
+- `/Users/hd/Developer/cortana`
+
+What it is:
+
+- the canonical command-brain repo for Hamel's stack
+- the source of tracked doctrine, identity, routing, cron prompts, memory policy, and baseline OpenClaw runtime config
+
+Examples of what lives here:
+
+- `config/openclaw.json`
+- `config/cron/jobs.json`
+- docs and runbooks
+- identity files
+- routing doctrine
+- deploy/sync helpers that move tracked intent into live runtime state
+
+What it is not:
+
+- not the live runtime state itself
+- not the external Mission Control application repo
+
+Operator rule:
+
+- use this when the question is "what should the system be configured to do?" or "where should durable doctrine and tracked fixes live?"
+
+### `cortana-external`
+
+Path:
+
+- `/Users/hd/Developer/cortana-external`
+
+What it is:
+
+- the runtime-edge and app-surface repo
+- home of Mission Control, Trading Ops, external-service views, and related operator-facing surfaces
+
+What it is not:
+
+- not the source of live OpenClaw runtime state
+- not the primary doctrine/routing/config source for the command brain
+- not the upstream OpenClaw implementation repo
+
+Operator rule:
+
+- use this when the question is "is the external operator UI/surface wrong?" while remembering that many apparent UI issues are actually upstream runtime-state issues
+
+### Short version
+
+If a future LLM only remembers one distinction, it should remember this:
+
+- `~/.openclaw` = what the live system is doing now
+- `openclaw` = the runtime software implementation
+- `cortana` = the tracked command-brain source of truth
+- `cortana-external` = external/operator application surfaces
+
+### Common mistake pattern
+
+The most common diagnostic mistake is:
+
+1. inspect `/Users/hd/Developer/openclaw`
+2. assume that explains live behavior
+3. ignore `~/.openclaw/openclaw.json` and the global installed runtime package
+
+That mistake directly caused confusion during the Telegram slash-command regression, because the local source checkout and the live installed runtime were not the same thing.
+
 ### Primary source files
 
 - Tracked runtime baseline: `/Users/hd/Developer/cortana/config/openclaw.json`
