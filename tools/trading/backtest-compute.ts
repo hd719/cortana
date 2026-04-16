@@ -106,6 +106,8 @@ export type FullWatchlistArtifact = {
 
 const DEFAULT_ROOT = path.join(process.cwd(), "var", "backtests");
 const RUNS_DIR = path.join(process.env.BACKTEST_ROOT_DIR || DEFAULT_ROOT, "runs");
+const PREDICTION_REPORT_REFRESH_TIMEOUT_MS = parsePositiveInt(process.env.PREDICTION_REPORT_REFRESH_TIMEOUT_MS, 120_000);
+const PREDICTION_REPORT_REFRESH_MAX_SNAPSHOTS = String(parsePositiveInt(process.env.PREDICTION_REPORT_REFRESH_MAX_SNAPSHOTS, 1));
 const DEFAULT_PRESET: PresetName = "trading-unified";
 const PRESET_STRATEGY_LABELS: Record<PresetName, string> = {
   "trading-unified": "Trading market-session unified",
@@ -164,6 +166,35 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
   if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
   return Math.trunc(parsed);
+}
+
+function refreshPredictionReportBundle(runId: string): void {
+  if (process.env.TRADING_REFRESH_PREDICTION_REPORT === "0") return;
+
+  const result = spawnSync(
+    resolvePythonBin(),
+    ["prediction_accuracy_report.py", "--max-snapshots-per-run", PREDICTION_REPORT_REFRESH_MAX_SNAPSHOTS],
+    {
+      cwd: BACKTESTER_CWD,
+      encoding: "utf8",
+      env: process.env,
+      timeout: PREDICTION_REPORT_REFRESH_TIMEOUT_MS,
+    },
+  );
+
+  if (result.error) {
+    const message = result.error instanceof Error ? result.error.message : String(result.error);
+    process.stderr.write(`PREDICTION_REPORT_REFRESH_FAILED run_id=${runId} reason=${message}\n`);
+    return;
+  }
+
+  if ((result.status ?? 1) !== 0) {
+    const message = (result.stderr || result.stdout || "prediction_accuracy_report.py failed").trim().replace(/\s+/g, " ");
+    process.stderr.write(`PREDICTION_REPORT_REFRESH_FAILED run_id=${runId} reason=${message}\n`);
+    return;
+  }
+
+  process.stdout.write(`PREDICTION_REPORT_REFRESHED run_id=${runId} max_snapshots=${PREDICTION_REPORT_REFRESH_MAX_SNAPSHOTS}\n`);
 }
 
 function normalizePreset(raw: string | undefined): PresetName {
@@ -875,6 +906,8 @@ async function main(): Promise<void> {
       reason: finalSync.reason,
     });
   }
+
+  refreshPredictionReportBundle(id);
 
   process.stdout.write(`${summaryPath}\n`);
   if (!success && summary.error) {
