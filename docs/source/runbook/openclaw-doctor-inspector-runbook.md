@@ -109,6 +109,236 @@ When an alert appears, the correct default stance is:
 
 Do not collapse directly to "the code is broken" or "it healed itself" without evidence.
 
+## Exact Alerts And Error Strings Seen In This Lane
+
+This section is intentionally literal. A replacement LLM should use these as pattern matches, not just as historical color.
+
+### Cron / monitor degradation strings
+
+These exact or near-exact alerts appeared during this lane:
+
+```text
+High: heartbeat needs attention
+
+- Cron delivery monitoring: 3 jobs hit consecutiveErrors>=2 (X session healthcheck, Fitness service healthcheck, Trading Backtest Notify); CANSLIM Alert Scan is near timeout.
+- Task board hygiene: tomorrow reset left no ready work.
+```
+
+```text
+High: cron delivery still degraded
+
+- Cron delivery monitoring: 3 jobs remain at consecutiveErrors>=2 (X session healthcheck, Fitness service healthcheck, Trading Backtest Notify); CANSLIM Alert Scan is still near timeout.
+- Likely root cause: unstable job runtime or downstream service/dependency failures, not general heartbeat drift.
+```
+
+Interpretation rule:
+
+- These alerts turned out to be partly stale after the model fix.
+- Do not trust `consecutiveErrors>=2` alone as proof of an active outage.
+- Re-check the latest rerun result for each named job before acting.
+
+### Heartbeat silent-path failure strings
+
+These exact or near-exact failures matter:
+
+```text
+Heartbeat broken.
+Failing step: sending required NO_REPLY marker via message tool.
+Root cause: Telegram send rejects literal text payload with send requires text or media.
+Immediate next action: accept plain-text NO_REPLY in message validator, or configure a non-empty healthy marker for silent paths until fixed.
+```
+
+```text
+Not fixed yet, I just tested it and it still fails with send requires text or media when payload is exactly NO_REPLY.
+```
+
+Interpretation rule:
+
+- If you see `send requires text or media` together with `NO_REPLY`, suspect the delegated-heartbeat silent-path contract immediately.
+
+### Unsupported model error string
+
+This exact runtime error was a major shared root cause:
+
+```text
+The 'gpt-5.1' model is not supported when using Codex with a ChatGPT account.
+```
+
+Interpretation rule:
+
+- If multiple cron or monitor lanes fail with this same text, it is shared model-routing drift until proven otherwise.
+
+### Telegram command regression symptom
+
+User-visible symptom:
+
+```text
+slash cmds are not working in my telegram for my openclaw agent
+```
+
+Corroborating UI symptom:
+
+- Telegram command button disappeared
+- typing `/` no longer showed native suggestions
+
+Interpretation rule:
+
+- verify `getMyCommands` directly
+- do not stop at "bot is online"
+
+## Exact Runtime Facts Observed On April 16, 2026
+
+This section records the literal facts that were verified during the Telegram slash-command investigation and should be reused as a comparison baseline.
+
+### Gateway health
+
+Observed healthy control-plane result after the live fix:
+
+```text
+Gateway Health
+OK
+telegram: ok (@cortanahdbot, @arbiterhdbot, @huragokhdbot, @monitorhdbot, @oraclehdbot, @researcherhdbot, @spartanhdbot)
+```
+
+Meaning:
+
+- transport/control plane healthy does not imply native Telegram commands are registered
+
+### Live runtime location
+
+Observed live service path:
+
+```text
+/opt/homebrew/opt/node@22/bin/node /Users/hd/Library/pnpm/global/5/node_modules/openclaw/dist/index.js gateway --port 18789
+```
+
+Meaning:
+
+- the live gateway was using the globally installed package
+- source inspection in `/Users/hd/Developer/openclaw` was not enough by itself
+
+### Telegram command registration before fix
+
+Observed direct Telegram Bot API result before the workaround:
+
+```json
+{"accountId":"default","getMyCommandsOk":true,"commandCount":0}
+{"accountId":"monitor","getMyCommandsOk":true,"commandCount":0}
+{"accountId":"oracle","getMyCommandsOk":true,"commandCount":0}
+```
+
+Observed cached command-hash values before the workaround:
+
+```text
+command-hash-default-... 4f53cda18c2baa0c
+command-hash-monitor-... 4f53cda18c2baa0c
+command-hash-oracle-... 4f53cda18c2baa0c
+```
+
+Meaning:
+
+- the runtime believed the Telegram command list was empty
+- this was not just a Telegram client cache issue
+
+### Telegram command registration after fix
+
+Observed direct Telegram Bot API result after the workaround:
+
+```json
+{"accountId":"default","count":66}
+{"accountId":"monitor","count":56}
+{"accountId":"oracle","count":56}
+```
+
+Observed first commands after the workaround:
+
+```text
+help, commands, tools, skill, status, tasks, approve, context
+```
+
+Meaning:
+
+- native command registration was genuinely restored
+- not merely the chat UI
+
+### Live workaround that restored Telegram commands
+
+Observed working runtime config shape:
+
+```json
+"commands": {
+  "native": "auto",
+  "nativeSkills": "auto"
+},
+"channels": {
+  "telegram": {
+    "commands": {
+      "native": true,
+      "nativeSkills": false
+    }
+  }
+}
+```
+
+Interpretation rule:
+
+- prefer the scoped Telegram override over forcing global native commands on
+
+## Exact Config States That Mattered
+
+This lane repeatedly ran into confusion because "tracked config", "live config", and "runtime behavior" were not the same thing.
+
+### Tracked Cortana baseline during the Telegram regression
+
+Tracked source state in `cortana/config/openclaw.json`:
+
+```json
+"commands": {
+  "native": "auto",
+  "nativeSkills": "auto",
+  "restart": true,
+  "ownerDisplay": "raw"
+}
+```
+
+### Live runtime state that restored behavior
+
+Live state in `~/.openclaw/openclaw.json` after the runtime workaround:
+
+```json
+"commands": {
+  "native": "auto",
+  "nativeSkills": "auto",
+  "restart": true,
+  "ownerDisplay": "raw"
+},
+"channels": {
+  "telegram": {
+    "commands": {
+      "native": true,
+      "nativeSkills": false
+    }
+  }
+}
+```
+
+Operational lesson:
+
+- if the tracked baseline stays on `"auto"` and the runtime override is not carried into source control, a later config sync can reintroduce the regression
+
+### Heartbeat doctrine contract that matters
+
+The correct delegated-heartbeat healthy-path doctrine is:
+
+- do not send a Telegram message
+- return `NO_REPLY` in-session only
+
+The incorrect doctrine shape is:
+
+- "send exactly `NO_REPLY`"
+
+If a future LLM sees wording that resembles the incorrect shape, it should treat that as active doctrine drift.
+
 ## Scope Boundaries
 
 This doctor lane is broad, but it is not infinite. It should stay focused on OpenClaw operational diagnosis and nearby Cortana runtime contracts.
