@@ -1,5 +1,8 @@
 #!/usr/bin/env -S npx tsx
+import crypto from "node:crypto";
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { execSync } from "node:child_process";
 import { reconcileMissionControlFeedbackSignal } from "../feedback/mission-control-feedback-signal.js";
 
@@ -33,14 +36,32 @@ type RepoState = {
   remoteUrl: string;
   clean: boolean;
   changedPaths: string[];
+  fetchError?: string;
 };
 
 const FALLBACK_SOURCE_REPO = "/Users/hd/Developer/cortana";
 const DEFAULT_DEPLOY_REPO = process.env.CORTANA_DEPLOY_REPO || "/Users/hd/Developer/cortana-deploy";
+const ALERT_STATE_FILE = process.env.RUNTIME_REPO_DRIFT_ALERT_STATE_FILE
+  || path.join(os.homedir(), ".openclaw", "tmp", "runtime-repo-drift-monitor-state.json");
 const IGNORED_RUNTIME_STATE_PATHS = new Set([
   "memory/apple-reminders-sent.json",
   "var/backtests/rechecks/state.json",
 ]);
+
+type AlertState = {
+  active: boolean;
+  fingerprint: string | null;
+};
+
+type OutputPayload = {
+  status: "needs_action" | "healthy";
+  sourceRepo: string;
+  runtimeRepo: string;
+  sourceOfTruth?: string;
+  actionable: DriftAssessment[];
+  suppressed: DriftAssessment[];
+  missing: DriftAssessment[];
+};
 
 function resolveDefaultSourceRepo(): string {
   if (repoExists(DEFAULT_DEPLOY_REPO)) return DEFAULT_DEPLOY_REPO;
@@ -136,7 +157,12 @@ function isShimmedRuntime(sourceRepo: string, runtimeRepo: string): boolean {
 }
 
 function collectRepoState(repo: string, branch: string): RepoState {
-  run(`git fetch origin ${branch} --prune --quiet`, repo);
+  let fetchError = "";
+  try {
+    run(`git fetch origin ${branch} --prune --quiet`, repo);
+  } catch (error) {
+    fetchError = error instanceof Error ? error.message : String(error);
+  }
   const changedPaths = collectChangedPaths(repo);
   return {
     repo,
@@ -147,7 +173,76 @@ function collectRepoState(repo: string, branch: string): RepoState {
     remoteUrl: run("git remote get-url origin", repo),
     clean: changedPaths.every((repoPath) => !isMeaningfulDriftPath(repoPath)),
     changedPaths,
+    fetchError,
   };
+}
+
+function readAlertState(): AlertState {
+  try {
+    const raw = fs.readFileSync(ALERT_STATE_FILE, "utf8");
+    const parsed = JSON.parse(raw) as Partial<AlertState>;
+    return {
+      active: parsed.active === true,
+      fingerprint: typeof parsed.fingerprint === "string" ? parsed.fingerprint : null,
+    };
+  } catch {
+    return { active: false, fingerprint: null };
+  }
+}
+
+function writeAlertState(state: AlertState): void {
+  try {
+    fs.mkdirSync(path.dirname(ALERT_STATE_FILE), { recursive: true });
+    fs.writeFileSync(ALERT_STATE_FILE, `${JSON.stringify(state, null, 2)}\n`, "utf8");
+  } catch {
+    // Best effort only: a write failure should not block the health result.
+  }
+}
+
+function clearAlertState(): void {
+  writeAlertState({ active: false, fingerprint: null });
+}
+
+function fingerprintPayload(payload: OutputPayload): string {
+  return crypto.createHash("sha1").update(JSON.stringify(payload)).digest("hex");
+}
+
+function shouldEmitAlert(payload: OutputPayload): boolean {
+  if (payload.status !== "needs_action") {
+    clearAlertState();
+    return false;
+  }
+
+  const nextFingerprint = fingerprintPayload(payload);
+  const prior = readAlertState();
+  if (prior.active && prior.fingerprint === nextFingerprint) {
+    return false;
+  }
+
+  writeAlertState({ active: true, fingerprint: nextFingerprint });
+  return true;
+}
+
+function renderAlert(payload: OutputPayload): string {
+  const lines = ["🧭 Runtime Deploy Drift"];
+
+  if (payload.missing.length) {
+    for (const item of payload.missing) {
+      lines.push(`- ${item.check.label}: ${item.reason}`);
+    }
+  }
+
+  for (const item of payload.actionable) {
+    lines.push(`- ${item.check.label}: ${item.reason}`);
+  }
+
+  for (const item of payload.suppressed) {
+    if (item.reason === "runtime path is a compatibility shim to the source repo") {
+      lines.push(`- runtime-repo: compatibility shim target=${payload.runtimeRepo}`);
+    }
+  }
+
+  return lines.join("\n");
 }
 
 function assessSource(state: RepoState, expectedBranch: string): DriftAssessment[] {
@@ -160,6 +255,15 @@ function assessSource(state: RepoState, expectedBranch: string): DriftAssessment
       actionable: true,
       reason: "source repo is not on the deploy branch",
       details: { expected: expectedBranch, actual: state.branch },
+    });
+  }
+
+  if (state.fetchError) {
+    findings.push({
+      check,
+      actionable: true,
+      reason: "source repo fetch failed",
+      details: { remote: `origin/${expectedBranch}` },
     });
   }
 
@@ -202,6 +306,15 @@ function assessRuntime(state: RepoState, source: RepoState, expectedBranch: stri
       actionable: true,
       reason: "runtime repo remote does not match source repo remote",
       details: { sourceRemote: source.remoteUrl, runtimeRemote: state.remoteUrl },
+    });
+  }
+
+  if (state.fetchError) {
+    findings.push({
+      check,
+      actionable: true,
+      reason: "runtime repo fetch failed",
+      details: { remote: `origin/${expectedBranch}` },
     });
   }
 
@@ -284,12 +397,23 @@ async function main(): Promise<void> {
       owner: "monitor",
       details: { missing },
     });
-    const payload = { status: "needs_action", actionable: [], suppressed: [], missing };
+    const payload: OutputPayload = {
+      status: "needs_action",
+      sourceRepo: args.sourceRepo,
+      runtimeRepo: args.runtimeRepo,
+      actionable: [],
+      suppressed: [],
+      missing,
+    };
     if (args.json) {
       console.log(JSON.stringify(payload));
       return;
     }
-    console.log(["🧭 Runtime Deploy Drift", ...missing.map((item) => `- ${item.check.label}: ${item.reason}`)].join("\n"));
+    if (!shouldEmitAlert(payload)) {
+      console.log("NO_REPLY");
+      return;
+    }
+    console.log(renderAlert(payload));
     return;
   }
 
@@ -313,7 +437,7 @@ async function main(): Promise<void> {
         actionable,
       },
     });
-    const payload = {
+    const payload: OutputPayload = {
       status: actionable.length ? "needs_action" : "healthy",
       sourceRepo: args.sourceRepo,
       runtimeRepo: args.runtimeRepo,
@@ -334,17 +458,11 @@ async function main(): Promise<void> {
       return;
     }
 
-    if (!actionable.length) {
+    if (!shouldEmitAlert(payload)) {
       console.log("NO_REPLY");
       return;
     }
-
-    const lines = ["🧭 Runtime Deploy Drift"];
-    for (const item of actionable) {
-      lines.push(`- ${item.check.label}: ${item.reason}`);
-    }
-    lines.push(`- runtime-repo: compatibility shim target=${args.runtimeRepo}`);
-    console.log(lines.join("\n"));
+    console.log(renderAlert(payload));
     return;
   }
 
@@ -371,7 +489,7 @@ async function main(): Promise<void> {
     },
   });
 
-  const payload = {
+  const payload: OutputPayload = {
     status: actionable.length ? "needs_action" : "healthy",
     sourceRepo: args.sourceRepo,
     runtimeRepo: args.runtimeRepo,
@@ -386,16 +504,11 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (!actionable.length) {
+  if (!shouldEmitAlert(payload)) {
     console.log("NO_REPLY");
     return;
   }
-
-  const lines = ["🧭 Runtime Deploy Drift"];
-  for (const item of actionable) {
-    lines.push(`- ${item.check.label}: ${item.reason}`);
-  }
-  console.log(lines.join("\n"));
+  console.log(renderAlert(payload));
 }
 
 void main();

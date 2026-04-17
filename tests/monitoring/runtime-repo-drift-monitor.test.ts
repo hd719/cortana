@@ -4,6 +4,11 @@ import { captureConsole, flushModuleSideEffects, importFresh, resetProcess, setA
 const execSync = vi.hoisted(() => vi.fn());
 const existsSync = vi.hoisted(() => vi.fn(() => true));
 const realpathSync = vi.hoisted(() => vi.fn((p: string) => p));
+const readFileSync = vi.hoisted(() => vi.fn(() => {
+  throw new Error("missing state");
+}));
+const writeFileSync = vi.hoisted(() => vi.fn());
+const mkdirSync = vi.hoisted(() => vi.fn());
 const reconcileMissionControlFeedbackSignal = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
 
 vi.mock("node:child_process", () => ({ execSync }));
@@ -11,6 +16,9 @@ vi.mock("node:fs", () => ({
   default: {
     existsSync,
     realpathSync,
+    readFileSync,
+    writeFileSync,
+    mkdirSync,
   },
 }));
 vi.mock("../../tools/feedback/mission-control-feedback-signal.js", () => ({
@@ -32,6 +40,9 @@ describe("runtime-repo-drift-monitor", () => {
     execSync.mockReset();
     existsSync.mockReset();
     realpathSync.mockReset();
+    readFileSync.mockReset();
+    writeFileSync.mockReset();
+    mkdirSync.mockReset();
     reconcileMissionControlFeedbackSignal.mockReset();
     reconcileMissionControlFeedbackSignal.mockResolvedValue({ ok: true });
     existsSync.mockImplementation((filePath: string) => {
@@ -41,6 +52,9 @@ describe("runtime-repo-drift-monitor", () => {
         value !== "/Users/hd/openclaw";
     });
     realpathSync.mockImplementation((p: string) => p);
+    readFileSync.mockImplementation(() => {
+      throw new Error("missing state");
+    });
   });
 
   afterEach(() => {
@@ -110,6 +124,11 @@ describe("runtime-repo-drift-monitor", () => {
         recurrenceKey: "ops:runtime-repo-drift",
         signalState: "cleared",
       }),
+    );
+    expect(writeFileSync).toHaveBeenCalledWith(
+      expect.stringContaining("runtime-repo-drift-monitor-state.json"),
+      expect.stringContaining('"active": false'),
+      "utf8",
     );
   });
 
@@ -203,6 +222,43 @@ describe("runtime-repo-drift-monitor", () => {
         signalState: "active",
       }),
     );
+  });
+
+  it("suppresses repeated human alerts when the actionable drift state is unchanged", async () => {
+    seedRepos({
+      "/source": {
+        branch: "main",
+        upstream: "origin/main",
+        head: "def456",
+        originHead: "def456",
+        remoteUrl: "git@github-cortana:hd719/cortana.git",
+        clean: true,
+      },
+      "/runtime": {
+        branch: "main",
+        upstream: "origin/main",
+        head: "abc123",
+        originHead: "abc123",
+        remoteUrl: "git@github-cortana:hd719/cortana.git",
+        clean: true,
+        mergeBase: {
+          "abc123->def456": true,
+        },
+      },
+    });
+
+    const firstOutput = await runMonitor(["--source-repo", "/source", "--runtime-repo", "/runtime"]);
+    const persisted = writeFileSync.mock.calls.at(-1)?.[1];
+
+    expect(firstOutput).toContain("🧭 Runtime Deploy Drift");
+    expect(typeof persisted).toBe("string");
+
+    writeFileSync.mockClear();
+    readFileSync.mockImplementation(() => String(persisted));
+
+    const secondOutput = await runMonitor(["--source-repo", "/source", "--runtime-repo", "/runtime"]);
+    expect(secondOutput).toContain("NO_REPLY");
+    expect(writeFileSync).not.toHaveBeenCalled();
   });
 
   it("flags source dirt and missing runtime repo", async () => {

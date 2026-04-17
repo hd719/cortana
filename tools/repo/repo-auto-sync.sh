@@ -21,6 +21,7 @@ VOLATILE_STATUS_PREFIXES=(
 DIRTY_MAIN_STALE_HOURS="${DIRTY_MAIN_STALE_HOURS:-6}"
 STALE_TEMP_WORKTREE_HOURS="${STALE_TEMP_WORKTREE_HOURS:-24}"
 POST_MERGE_MODE=false
+ALERT_STATE_FILE="${REPO_AUTO_SYNC_ALERT_STATE_FILE:-$HOME/.openclaw/tmp/repo-auto-sync-state.txt}"
 
 ACTIONABLE_ALERTS=()
 
@@ -56,6 +57,37 @@ queue_actionable_alert() {
   local step="$2"
   local detail="$3"
   ACTIONABLE_ALERTS+=("repo=$(basename "$repo") step=$step detail=$detail")
+}
+
+ensure_alert_state_dir() {
+  mkdir -p "$(dirname "$ALERT_STATE_FILE")" >/dev/null 2>&1 || true
+}
+
+read_alert_fingerprint() {
+  if [[ -f "$ALERT_STATE_FILE" ]]; then
+    cat "$ALERT_STATE_FILE"
+  fi
+}
+
+write_alert_fingerprint() {
+  local fingerprint="$1"
+  ensure_alert_state_dir
+  printf '%s\n' "$fingerprint" > "$ALERT_STATE_FILE" 2>/dev/null || true
+}
+
+clear_alert_fingerprint() {
+  rm -f "$ALERT_STATE_FILE" 2>/dev/null || true
+}
+
+alert_fingerprint() {
+  if (( ${#ACTIONABLE_ALERTS[@]} == 0 )); then
+    return 1
+  fi
+
+  printf '%s\n' "${ACTIONABLE_ALERTS[@]}" \
+    | LC_ALL=C sort \
+    | shasum -a 1 \
+    | awk '{print $1}'
 }
 
 is_protected_branch() {
@@ -567,7 +599,10 @@ sync_repo() {
 
   ensure_no_stash_preflight "$repo" || fail "$repo" "preflight-stash" "stash preflight logging failed"
 
-  git -C "$repo" fetch --all --prune || fail "$repo" "fetch" "git fetch --all --prune failed"
+  if ! git -C "$repo" fetch --all --prune; then
+    queue_actionable_alert "$repo" "fetch" "git fetch --all --prune failed"
+    return 0
+  fi
   cleanup_stale_temp_worktrees "$repo"
   git -C "$repo" checkout main >/dev/null 2>&1 || fail "$repo" "checkout" "git checkout main failed"
 
@@ -582,7 +617,10 @@ sync_repo() {
   elif [[ "$ahead" -gt 0 ]]; then
     queue_actionable_alert "$repo" "branch-state" "local-main-ahead ahead=$ahead behind=$behind"
   elif [[ "$behind" -gt 0 ]]; then
-    git -C "$repo" pull --ff-only origin main >/dev/null 2>&1 || fail "$repo" "pull" "git pull --ff-only origin main failed"
+    if ! git -C "$repo" pull --ff-only origin main >/dev/null 2>&1; then
+      queue_actionable_alert "$repo" "pull" "git pull --ff-only origin main failed"
+      return 0
+    fi
   else
     printf 'INFO repo=%s step=pull detail=already-up-to-date\n' "$repo" >&2
   fi
@@ -593,15 +631,30 @@ sync_repo() {
 
 render_output() {
   if (( ${#ACTIONABLE_ALERTS[@]} == 0 )); then
+    clear_alert_fingerprint
     printf 'NO_REPLY\n'
     return
   fi
 
+  local fingerprint previous
+  fingerprint="$(alert_fingerprint)"
+  previous="$(read_alert_fingerprint)"
+
+  if [[ -n "$fingerprint" && "$fingerprint" == "$previous" ]]; then
+    printf 'INFO step=alert detail=unchanged-actionable-state-suppressed fingerprint=%s\n' "$fingerprint" >&2
+    printf 'NO_REPLY\n'
+    return
+  fi
+
+  if [[ -n "$fingerprint" ]]; then
+    write_alert_fingerprint "$fingerprint"
+  fi
+
   printf '🧹 Repo Hygiene Watcher\n'
   local line
-  for line in "${ACTIONABLE_ALERTS[@]}"; do
+  while IFS= read -r line; do
     printf -- '- %s\n' "$line"
-  done
+  done < <(printf '%s\n' "${ACTIONABLE_ALERTS[@]}" | LC_ALL=C sort)
 }
 
 main() {

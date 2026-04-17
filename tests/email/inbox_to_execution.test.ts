@@ -84,7 +84,10 @@ describe("inbox_to_execution wrapper", () => {
     const scriptSource = writeFileSync.mock.calls.find((call) => String(call[0]).endsWith("/script.py"))?.[1];
     expect(String(scriptSource)).toContain("self.warnings: list[str] = []");
     expect(String(scriptSource)).toContain("best_effort: bool = False");
-    expect(String(scriptSource)).toContain("continuing with partial inbox triage");
+    expect(String(scriptSource)).toContain("timeout_retries: int = 3");
+    expect(String(scriptSource)).toContain("def _run_with_timeout_retries");
+    expect(String(scriptSource)).toContain("time.sleep(min(2.0, 0.5 * (attempt + 1)))");
+    expect(String(scriptSource)).toContain("timed out after retries; continuing with partial inbox triage");
     expect(String(scriptSource)).toContain("label=\"stale/orphan sent-thread lookup\"");
     expect(String(scriptSource)).toContain("\"warnings\": runner.warnings");
   });
