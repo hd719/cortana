@@ -76,4 +76,16 @@ describe("inbox_to_execution wrapper", () => {
       }),
     );
   });
+
+  it("embeds best-effort Gmail timeout handling for secondary scans", async () => {
+    await importFresh("../../tools/email/inbox_to_execution.ts");
+    await flushModuleSideEffects();
+
+    const scriptSource = writeFileSync.mock.calls.find((call) => String(call[0]).endsWith("/script.py"))?.[1];
+    expect(String(scriptSource)).toContain("self.warnings: list[str] = []");
+    expect(String(scriptSource)).toContain("best_effort: bool = False");
+    expect(String(scriptSource)).toContain("continuing with partial inbox triage");
+    expect(String(scriptSource)).toContain("label=\"stale/orphan sent-thread lookup\"");
+    expect(String(scriptSource)).toContain("\"warnings\": runner.warnings");
+  });
 });

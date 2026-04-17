@@ -84,6 +84,8 @@ When Cortana dispatches a check to an owner agent, include these instructions:
 - If the delegated check is healthy/no-action and should stay silent, do not send a Telegram message. Reply exactly `NO_REPLY` in-session only.
 - If broken, send concise actionable alert with failing step + root cause + immediate next action.
 - Do **not** send result back through Cortana unless explicitly asked.
+- If a delegated agent already sent an actionable Telegram for the active heartbeat batch, follow-up status-check prompts should return `NO_REPLY` unless the state materially changed.
+- Pure announce handoff prompts such as `Agent-to-agent announce step.` should return `ANNOUNCE_SKIP` and must not restate the incident.
 
 ### Routing override for operational alerts
 
@@ -119,6 +121,7 @@ Otherwise: Cortana remains silent (`HEARTBEAT_OK` behavior preserved).
 - Passing checks should remain silent when possible.
 - Only broken/actionable items should message Hamel.
 - Cortana should not duplicate delegated summaries.
+- After a delegated alert already went out, Cortana should avoid follow-up status/announce prompts that would cause the owning agent to restate the same issue unless the state changed materially.
 
 ## Queued User Message Precedence
 

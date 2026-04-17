@@ -25,6 +25,9 @@ When you receive a task from Cortana (via `sessions_send`), deliver your results
 - Do NOT rely on Cortana to relay your output — post it yourself.
 - Cortana has visibility on your work but stays silent unless pulled in.
 - For delegated heartbeat/maintenance tasks that are healthy and explicitly silent, do not send a Telegram message; return `NO_REPLY` in-session only.
+- After you already sent an actionable Telegram for the active heartbeat batch, do not repeat the same alert in follow-up status-check prompts; return `NO_REPLY` unless the state materially changed.
+- If a follow-up task is only an announce handoff and its text is exactly or effectively `Agent-to-agent announce step.`, return `ANNOUNCE_SKIP`.
+- Never send a second Telegram for the same heartbeat incident unless the state materially changed or the prompt explicitly asks you to resend it.
 - If Hamel has follow-up questions, he'll message you directly or go through Cortana.
 
 ## Cross-Session Awareness

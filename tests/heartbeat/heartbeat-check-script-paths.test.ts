@@ -41,6 +41,8 @@ describe("heartbeat check script compatibility paths", () => {
     expect(rootHeartbeat).toContain("Do not invent or call deprecated heartbeat wrappers");
     expect(rootHeartbeat).toContain("do not send a Telegram message");
     expect(rootHeartbeat).toContain("Reply exactly `NO_REPLY` in-session only");
+    expect(rootHeartbeat).toContain("Agent-to-agent announce step.");
+    expect(rootHeartbeat).toContain("ANNOUNCE_SKIP");
 
     expect(monitorHeartbeat).toContain("tools/news/tech-news-check.ts");
     expect(monitorHeartbeat).toContain("tools/email/inbox_to_execution.ts --output-json");
@@ -48,9 +50,13 @@ describe("heartbeat check script compatibility paths", () => {
     expect(monitorHeartbeat).toContain("Healthy path means the full reply must be exactly `HEARTBEAT_OK`");
     expect(monitorHeartbeat).toContain("Do not replace `HEARTBEAT_OK` with silence or `NO_REPLY`");
     expect(monitorHeartbeat).toContain("delegated healthy tasks stay silent by returning `NO_REPLY` in-session only");
+    expect(monitorHeartbeat).toContain("status-check-only request");
+    expect(monitorHeartbeat).toContain("ANNOUNCE_SKIP");
     expect(monitorSoul).toContain("Do not add greetings, status summaries, emojis, or follow-up questions on the healthy path");
     expect(monitorSoul).toContain("Do not suppress `HEARTBEAT_OK` into silence or `NO_REPLY`");
     expect(monitorSoul).toContain("do not send a Telegram message; return `NO_REPLY` in-session only");
+    expect(monitorSoul).toContain("do not repeat the same alert in follow-up status-check prompts");
+    expect(monitorSoul).toContain("Agent-to-agent announce step.");
     expect(oracleHeartbeat).toContain("If no action is needed: HEARTBEAT_OK");
     expect(oracleHeartbeat).toContain("delegated healthy tasks stay silent by returning `NO_REPLY` in-session only");
     expect(oracleSoul).toContain("do not send a Telegram message; return `NO_REPLY` in-session only");

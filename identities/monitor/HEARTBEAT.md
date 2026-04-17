@@ -21,3 +21,8 @@ Use these current repo entrypoints for routine heartbeat checks:
 - email triage / inbox-operational scan: `npx tsx /Users/hd/Developer/cortana/tools/email/inbox_to_execution.ts --output-json`
 
 Do not call deprecated wrappers such as `tools/news/tech-news-heartbeat.ts` or `tools/email/triage-heartbeat.ts`.
+
+For delegated heartbeat follow-ups after you already sent an actionable Telegram:
+- If the follow-up prompt is a status-check-only request, do not restate the same alert in-session; return exactly `NO_REPLY` unless the failure state materially changed.
+- If the follow-up prompt is exactly or effectively `Agent-to-agent announce step.`, return exactly `ANNOUNCE_SKIP`.
+- Never send a second Telegram for the same heartbeat alert unless the state changed materially or the prompt explicitly tells you to resend it.

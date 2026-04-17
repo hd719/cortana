@@ -1,16 +1,696 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
-import { buildGogEnv } from '../gog/gog-with-env.js';
-import { ensureGatewayPathPrefix, readMergedGatewayEnvSources } from '../openclaw/gateway-env.js';
+import { spawnSync } from "node:child_process";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { buildGogEnv } from "../gog/gog-with-env.js";
+import { ensureGatewayPathPrefix, readMergedGatewayEnvSources } from "../openclaw/gateway-env.js";
 
 async function main(): Promise<void> {
-  const py = "#!/usr/bin/env python3\n\"\"\"Inbox-to-Execution pipeline.\n\nEnhances Gmail triage by turning important email commitments into structured\n`cortana_tasks`, detecting stale promises, surfacing orphan risks for briefings,\nand auto-closing tasks when closure evidence appears.\n\nUses `gog` CLI for Gmail access and PostgreSQL (`cortana` DB) for task state.\n\"\"\"\n\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport os\nimport re\nimport subprocess\nfrom dataclasses import dataclass\nfrom datetime import datetime, timedelta\nfrom pathlib import Path\nfrom typing import Any\n\nET_TZ = \"America/New_York\"\n\nDATE_PATTERNS = [\n    # 2026-03-14 / 2026/03/14\n    re.compile(r\"\\b(20\\d{2})[-/](\\d{1,2})[-/](\\d{1,2})\\b\", re.I),\n    # Mar 14, 2026 / March 14\n    re.compile(r\"\\b(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\\s+(\\d{1,2})(?:,\\s*(20\\d{2}))?\\b\", re.I),\n    # 14 Mar 2026\n    re.compile(r\"\\b(\\d{1,2})\\s+(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)(?:\\s*,?\\s*(20\\d{2}))?\\b\", re.I),\n]\n\nMONTHS = {\n    \"jan\": 1,\n    \"january\": 1,\n    \"feb\": 2,\n    \"february\": 2,\n    \"mar\": 3,\n    \"march\": 3,\n    \"apr\": 4,\n    \"april\": 4,\n    \"may\": 5,\n    \"jun\": 6,\n    \"june\": 6,\n    \"jul\": 7,\n    \"july\": 7,\n    \"aug\": 8,\n    \"august\": 8,\n    \"sep\": 9,\n    \"sept\": 9,\n    \"september\": 9,\n    \"oct\": 10,\n    \"october\": 10,\n    \"nov\": 11,\n    \"november\": 11,\n    \"dec\": 12,\n    \"december\": 12,\n}\n\n\n@dataclass\nclass EmailItem:\n    id: str\n    thread_id: str\n    subject: str\n    sender: str\n    recipients: str\n    snippet: str\n    date: datetime | None\n    body: str\n    gmail_url: str\n\n\nclass Runner:\n    def __init__(self, account: str, db: str, dry_run: bool = False, verbose: bool = False):\n        self.account = account\n        self.db = db\n        self.dry_run = dry_run\n        self.verbose = verbose\n        self.stats: dict[str, int] = {\n            \"scanned\": 0,\n            \"created\": 0,\n            \"updated\": 0,\n            \"closed\": 0,\n            \"stale\": 0,\n            \"orphan\": 0,\n            \"errors\": 0,\n        }\n\n    def log(self, msg: str) -> None:\n        if self.verbose:\n            print(msg)\n\n    def _run(self, cmd: list[str]) -> str:\n        self.log(f\"$ {' '.join(cmd)}\")\n        p = subprocess.run(cmd, capture_output=True, text=True)\n        if p.returncode != 0:\n            raise RuntimeError((p.stderr or p.stdout or \"command failed\").strip())\n        return p.stdout.strip()\n\n    def gog_search(self, query: str, max_results: int) -> list[dict[str, Any]]:\n        commands = [\n            [\n                \"gog\",\n                \"--account\",\n                self.account,\n                \"gmail\",\n                \"search\",\n                \"--query\",\n                query,\n                \"--max\",\n                str(max_results),\n                \"--json\",\n            ],\n            [\n                \"gog\",\n                \"--account\",\n                self.account,\n                \"gmail\",\n                \"search\",\n                query,\n                \"--max\",\n                str(max_results),\n                \"--json\",\n            ],\n        ]\n\n        last_err = None\n        out = \"\"\n        for cmd in commands:\n            try:\n                out = self._run(cmd)\n                break\n            except Exception as e:\n                last_err = e\n                continue\n\n        if not out and last_err:\n            raise RuntimeError(str(last_err))\n\n        data = json.loads(out) if out else []\n        if isinstance(data, list):\n            return data\n        if isinstance(data, dict):\n            for key in (\"threads\", \"messages\", \"results\", \"items\"):\n                if isinstance(data.get(key), list):\n                    return data[key]\n        return []\n\n    def psql(self, sql: str, *, fetch_json: bool = False) -> Any:\n        if self.dry_run and sql.strip().lower().startswith((\"insert\", \"update\", \"delete\")):\n            self.log(\"[dry-run] skipping write SQL\")\n            return []\n\n        cmd = [\"psql\", self.db, \"-t\", \"-A\", \"-v\", \"ON_ERROR_STOP=1\", \"-c\", sql]\n        out = self._run(cmd)\n        if fetch_json:\n            out = out.strip()\n            if not out:\n                return []\n            return json.loads(out)\n        return out\n\n\ndef parse_dt(raw: Any) -> datetime | None:\n    if raw is None:\n        return None\n    s = str(raw).strip()\n    if not s:\n        return None\n\n    # epoch millis/seconds\n    if s.isdigit():\n        try:\n            n = int(s)\n            if n > 10_000_000_000:\n                n //= 1000\n            return datetime.fromtimestamp(n)\n        except Exception:\n            return None\n\n    for fmt in (\n        \"%Y-%m-%dT%H:%M:%S%z\",\n        \"%Y-%m-%dT%H:%M:%S.%f%z\",\n        \"%Y-%m-%dT%H:%M:%S\",\n        \"%Y-%m-%d %H:%M:%S\",\n        \"%a, %d %b %Y %H:%M:%S %z\",\n    ):\n        try:\n            dt = datetime.strptime(s, fmt)\n            if dt.tzinfo:\n                return dt.astimezone().replace(tzinfo=None)\n            return dt\n        except Exception:\n            pass\n    return None\n\n\ndef normalize_email(raw: dict[str, Any]) -> EmailItem:\n    eid = str(raw.get(\"id\") or raw.get(\"messageId\") or raw.get(\"threadId\") or \"\")\n    thread_id = str(raw.get(\"threadId\") or raw.get(\"thread_id\") or eid)\n    sender = str(raw.get(\"from\") or raw.get(\"sender\") or \"Unknown\")\n    recipients = str(raw.get(\"to\") or raw.get(\"recipients\") or \"\")\n    subject = str(raw.get(\"subject\") or \"(no subject)\")\n    snippet = str(raw.get(\"snippet\") or raw.get(\"preview\") or \"\")\n    body = str(raw.get(\"body\") or raw.get(\"text\") or snippet)\n    d = parse_dt(raw.get(\"date\") or raw.get(\"internalDate\") or raw.get(\"timestamp\"))\n    gurl = str(raw.get(\"gmailUrl\") or f\"https://mail.google.com/mail/u/0/#inbox/{thread_id}\")\n    return EmailItem(\n        id=eid,\n        thread_id=thread_id,\n        subject=subject,\n        sender=sender,\n        recipients=recipients,\n        snippet=snippet,\n        date=d,\n        body=body,\n        gmail_url=gurl,\n    )\n\n\ndef parse_natural_due(text: str, now: datetime) -> datetime | None:\n    t = text.lower()\n\n    if \"today\" in t or \"eod\" in t or \"end of day\" in t:\n        return now.replace(hour=17, minute=0, second=0, microsecond=0)\n    if \"tomorrow\" in t:\n        d = now + timedelta(days=1)\n        return d.replace(hour=12, minute=0, second=0, microsecond=0)\n    if \"eow\" in t or \"end of week\" in t:\n        days = (4 - now.weekday()) % 7\n        d = now + timedelta(days=days)\n        return d.replace(hour=17, minute=0, second=0, microsecond=0)\n    if \"next week\" in t:\n        d = now + timedelta(days=7)\n        return d.replace(hour=12, minute=0, second=0, microsecond=0)\n\n    for pat in DATE_PATTERNS:\n        m = pat.search(text)\n        if not m:\n            continue\n        groups = m.groups()\n        try:\n            if pat is DATE_PATTERNS[0]:\n                y, mo, da = int(groups[0]), int(groups[1]), int(groups[2])\n            elif pat is DATE_PATTERNS[1]:\n                mo = MONTHS[groups[0].lower()]\n                da = int(groups[1])\n                y = int(groups[2]) if groups[2] else now.year\n            else:\n                da = int(groups[0])\n                mo = MONTHS[groups[1].lower()]\n                y = int(groups[2]) if groups[2] else now.year\n            return datetime(y, mo, da, 12, 0, 0)\n        except Exception:\n            continue\n\n    return None\n\n\ndef detect_commitment_and_action(email: EmailItem) -> tuple[bool, bool, bool, int]:\n    text = f\"{email.subject} {email.snippet} {email.body}\".lower()\n\n    response_required = bool(\n        re.search(r\"\\b(reply|respond|response needed|let me know|can you|could you|please (review|send|confirm)|action required|follow up)\\b\", text)\n    )\n    follow_up = bool(re.search(r\"\\bfollow\\s*up|check\\s*in|circle\\s*back|ping\\b\", text))\n    commitment = bool(\n        re.search(r\"\\b(i('?ll| will)|we('?ll| will)|i can|we can|i plan to|i promise|i'll get back|i'll send|i will send)\\b\", text)\n    )\n\n    priority = 3\n    if re.search(r\"\\b(asap|urgent|immediately|today|deadline|overdue)\\b\", text):\n        priority = 1\n    elif response_required:\n        priority = 2\n    elif follow_up:\n        priority = 2\n\n    important = response_required or follow_up or priority <= 2 or commitment\n    return important, response_required, follow_up, priority\n\n\ndef stakeholders(email: EmailItem) -> list[str]:\n    vals = []\n    for raw in [email.sender, email.recipients]:\n        if not raw:\n            continue\n        parts = re.split(r\"[,;]\", raw)\n        for p in parts:\n            s = p.strip()\n            if s and s not in vals:\n                vals.append(s)\n    return vals[:8]\n\n\ndef reminder_from_due(due: datetime | None, response_required: bool, follow_up: bool) -> datetime | None:\n    if not due:\n        return None\n    if response_required:\n        return due - timedelta(hours=24)\n    if follow_up:\n        return due - timedelta(hours=12)\n    return due - timedelta(hours=6)\n\n\ndef sql_q(s: str) -> str:\n    return s.replace(\"'\", \"''\")\n\n\ndef upsert_task(r: Runner, email: EmailItem, response_required: bool, follow_up: bool, priority: int, due_at: datetime | None, remind_at: datetime | None) -> None:\n    thr = sql_q(email.thread_id)\n    rows = r.psql(\n        f\"\"\"\n        SELECT COALESCE(json_agg(t), '[]'::json)::text\n        FROM (\n          SELECT id, status, created_at\n          FROM cortana_tasks\n          WHERE source='inbox-to-execution'\n            AND metadata->>'thread_id'='{thr}'\n          ORDER BY id DESC\n          LIMIT 1\n        ) t;\n        \"\"\",\n        fetch_json=True,\n    )\n    existing = rows[0] if rows else None\n\n    meta = {\n        \"thread_id\": email.thread_id,\n        \"gmail_id\": email.id,\n        \"gmail_url\": email.gmail_url,\n        \"sender\": email.sender,\n        \"stakeholders\": stakeholders(email),\n        \"response_required\": response_required,\n        \"follow_up\": follow_up,\n        \"commitment_detected\": detect_commitment_and_action(email)[0],\n        \"pipeline\": \"inbox_to_execution\",\n    }\n\n    title = f\"Email follow-up: {email.subject}\"\n    desc = (\n        f\"From: {email.sender}\\n\"\n        f\"Subject: {email.subject}\\n\\n\"\n        f\"Snippet: {email.snippet}\\n\\n\"\n        f\"Open thread: {email.gmail_url}\"\n    )\n\n    due_sql = f\"'{due_at.strftime('%Y-%m-%d %H:%M:%S')}'\" if due_at else \"NULL\"\n    remind_sql = f\"'{remind_at.strftime('%Y-%m-%d %H:%M:%S')}'\" if remind_at else \"NULL\"\n\n    if existing and existing.get(\"status\") in {\"ready\", \"in_progress\", \"backlog\"}:\n        sql = f\"\"\"\n        UPDATE cortana_tasks\n        SET\n          title='{sql_q(title)}',\n          description='{sql_q(desc)}',\n          priority={priority},\n          due_at={due_sql},\n          remind_at={remind_sql},\n          metadata=COALESCE(metadata, '{{}}'::jsonb) || '{sql_q(json.dumps(meta))}'::jsonb,\n          updated_at=NOW()\n        WHERE id={int(existing['id'])};\n        \"\"\"\n        r.psql(sql)\n        r.stats[\"updated\"] += 1\n        return\n\n    sql = f\"\"\"\n    INSERT INTO cortana_tasks (\n      source, title, description, priority, status,\n      due_at, remind_at, auto_executable, execution_plan, metadata\n    ) VALUES (\n      'inbox-to-execution',\n      '{sql_q(title)}',\n      '{sql_q(desc)}',\n      {priority},\n      'ready',\n      {due_sql},\n      {remind_sql},\n      FALSE,\n      'Review thread and send a response if required. Confirm closure evidence in Gmail.',\n      '{sql_q(json.dumps(meta))}'::jsonb\n    );\n    \"\"\"\n    r.psql(sql)\n    r.stats[\"created\"] += 1\n\n\ndef closure_sweep(r: Runner, sent_lookback_days: int) -> None:\n    rows = r.psql(\n        \"\"\"\n        SELECT COALESCE(json_agg(t), '[]'::json)::text\n        FROM (\n          SELECT id, title, status, created_at, metadata\n          FROM cortana_tasks\n          WHERE source='inbox-to-execution'\n            AND status IN ('ready','in_progress','backlog')\n        ) t;\n        \"\"\",\n        fetch_json=True,\n    )\n    tasks = rows if isinstance(rows, list) else []\n\n    sent = [normalize_email(x) for x in r.gog_search(f\"in:sent newer_than:{sent_lookback_days}d\", 200)]\n    sent_by_thread: dict[str, list[EmailItem]] = {}\n    for s in sent:\n        sent_by_thread.setdefault(s.thread_id, []).append(s)\n\n    for t in tasks:\n        tid = int(t[\"id\"])\n        meta = t.get(\"metadata\") or {}\n        thread_id = str(meta.get(\"thread_id\") or \"\")\n        if not thread_id:\n            continue\n        replies = sent_by_thread.get(thread_id, [])\n        if not replies:\n            continue\n\n        # Evidence: outgoing reply in same thread after task creation\n        created_at = parse_dt(t.get(\"created_at\"))\n        has_post_create_reply = any((m.date and created_at and m.date >= created_at) or not created_at for m in replies)\n        if not has_post_create_reply:\n            continue\n\n        top = sorted([m for m in replies if m.date], key=lambda x: x.date or datetime.min, reverse=True)\n        reply = top[0] if top else replies[0]\n        closure = {\n            \"closed_by\": \"reply_sent\",\n            \"closed_at\": (reply.date.isoformat() if reply.date else datetime.now().isoformat()),\n            \"closure_subject\": reply.subject,\n        }\n        sql = f\"\"\"\n        UPDATE cortana_tasks\n        SET\n          status='completed',\n          completed_at=COALESCE(completed_at, NOW()),\n          outcome=COALESCE(outcome, 'Auto-closed: reply sent in thread.'),\n          metadata=COALESCE(metadata, '{{}}'::jsonb) || '{sql_q(json.dumps(closure))}'::jsonb,\n          updated_at=NOW()\n        WHERE id={tid}\n          AND status IN ('ready','in_progress','backlog');\n        \"\"\"\n        r.psql(sql)\n        r.stats[\"closed\"] += 1\n\n\ndef stale_and_orphan_scan(r: Runner, commit_lookback_days: int, sent_lookback_days: int) -> list[dict[str, Any]]:\n    commits = [\n        normalize_email(x)\n        for x in r.gog_search(\n            f\"in:sent newer_than:{commit_lookback_days}d (\\\"I will\\\" OR \\\"I'll\\\" OR \\\"follow up\\\" OR \\\"get back\\\")\",\n            200,\n        )\n    ]\n    inbox = [normalize_email(x) for x in r.gog_search(f\"in:inbox newer_than:{commit_lookback_days}d\", 300)]\n    sent = [normalize_email(x) for x in r.gog_search(f\"in:sent newer_than:{sent_lookback_days}d\", 300)]\n\n    inbox_threads: dict[str, list[EmailItem]] = {}\n    sent_threads: dict[str, list[EmailItem]] = {}\n    for m in inbox:\n        inbox_threads.setdefault(m.thread_id, []).append(m)\n    for m in sent:\n        sent_threads.setdefault(m.thread_id, []).append(m)\n\n    stale_hits: list[dict[str, Any]] = []\n    for c in commits:\n        if not c.thread_id:\n            continue\n        commit_time = c.date or datetime.min\n        incoming_after = [m for m in inbox_threads.get(c.thread_id, []) if (m.date or datetime.min) > commit_time]\n        outgoing_after = [m for m in sent_threads.get(c.thread_id, []) if (m.date or datetime.min) > commit_time]\n\n        if incoming_after and not outgoing_after:\n            stale_hits.append(\n                {\n                    \"thread_id\": c.thread_id,\n                    \"subject\": c.subject,\n                    \"committed_at\": commit_time.isoformat() if c.date else None,\n                    \"sender\": c.recipients or c.sender,\n                    \"risk\": \"stale_commitment\",\n                }\n            )\n\n    # annotate matching open tasks\n    for hit in stale_hits:\n        thr = sql_q(hit[\"thread_id\"])\n        sql = f\"\"\"\n        UPDATE cortana_tasks\n        SET\n          metadata=COALESCE(metadata, '{{}}'::jsonb)\n            || jsonb_build_object('stale_commitment', true, 'stale_detected_at', NOW()::text),\n          updated_at=NOW()\n        WHERE source='inbox-to-execution'\n          AND status IN ('ready','in_progress','backlog')\n          AND metadata->>'thread_id'='{thr}';\n        \"\"\"\n        r.psql(sql)\n        r.stats[\"stale\"] += 1\n\n    # orphan risk: commitment exists but no closure evidence and no completed task\n    orphan: list[dict[str, Any]] = []\n    for c in commits:\n        thr = c.thread_id\n        if not thr:\n            continue\n        replies_after = [m for m in sent_threads.get(thr, []) if (m.date or datetime.min) > (c.date or datetime.min)]\n        closure_evidence = len(replies_after) > 0\n\n        row = r.psql(\n            f\"\"\"\n            SELECT COALESCE(json_agg(t), '[]'::json)::text\n            FROM (\n              SELECT id, status\n              FROM cortana_tasks\n              WHERE source='inbox-to-execution' AND metadata->>'thread_id'='{sql_q(thr)}'\n              ORDER BY id DESC LIMIT 3\n            ) t;\n            \"\"\",\n            fetch_json=True,\n        )\n        tasks = row if isinstance(row, list) else []\n        has_closed_task = any((t.get(\"status\") == \"completed\") for t in tasks)\n\n        if not closure_evidence and not has_closed_task:\n            orphan.append(\n                {\n                    \"thread_id\": thr,\n                    \"subject\": c.subject,\n                    \"committed_at\": c.date.isoformat() if c.date else None,\n                    \"risk\": \"orphan_commitment\",\n                }\n            )\n\n    # de-dupe by thread\n    seen = set()\n    clean = []\n    for o in orphan:\n        tid = o[\"thread_id\"]\n        if tid in seen:\n            continue\n        seen.add(tid)\n        clean.append(o)\n\n    r.stats[\"orphan\"] = len(clean)\n    return clean\n\n\ndef run_pipeline(args: argparse.Namespace) -> int:\n    os.environ[\"PATH\"] = \"/opt/homebrew/bin:/opt/homebrew/opt/postgresql@17/bin:/usr/local/bin:/usr/bin:/bin\"\n\n    runner = Runner(account=args.account, db=args.db, dry_run=args.dry_run, verbose=args.verbose)\n\n    raw = runner.gog_search(args.query, args.max_emails)\n    emails = [normalize_email(x) for x in raw]\n    now = datetime.now()\n\n    for e in emails:\n        runner.stats[\"scanned\"] += 1\n        important, response_required, follow_up, priority = detect_commitment_and_action(e)\n        if not important:\n            continue\n\n        due_at = parse_natural_due(f\"{e.subject}\\n{e.snippet}\\n{e.body}\", now)\n        remind_at = reminder_from_due(due_at, response_required, follow_up)\n        upsert_task(runner, e, response_required, follow_up, priority, due_at, remind_at)\n\n    closure_sweep(runner, sent_lookback_days=args.sent_lookback_days)\n    orphan = stale_and_orphan_scan(\n        runner,\n        commit_lookback_days=args.commit_lookback_days,\n        sent_lookback_days=args.sent_lookback_days,\n    )\n\n    summary = {\n        \"pipeline\": \"inbox_to_execution\",\n        \"ts\": datetime.now().isoformat(),\n        \"stats\": runner.stats,\n        \"orphan_risk\": orphan[: args.orphan_limit],\n    }\n\n    if args.output_json:\n        print(json.dumps(summary, indent=2))\n    else:\n        print(\"\ud83d\udce5 Inbox\u2192Execution summary\")\n        print(f\"\u2022 scanned: {runner.stats['scanned']}\")\n        print(f\"\u2022 tasks created: {runner.stats['created']}\")\n        print(f\"\u2022 tasks updated: {runner.stats['updated']}\")\n        print(f\"\u2022 auto-closed: {runner.stats['closed']}\")\n        print(f\"\u2022 stale commitments: {runner.stats['stale']}\")\n        print(f\"\u2022 orphan risk count: {runner.stats['orphan']}\")\n        if orphan:\n            print(\"\\nOrphan risk (for morning brief):\")\n            for i, o in enumerate(orphan[: args.orphan_limit], start=1):\n                print(f\"{i}. {o['subject']} [thread:{o['thread_id']}] committed:{o.get('committed_at') or 'unknown'}\")\n\n    if args.outfile:\n        out = Path(args.outfile)\n        out.parent.mkdir(parents=True, exist_ok=True)\n        out.write_text(json.dumps(summary, indent=2))\n\n    return 0\n\n\ndef build_parser() -> argparse.ArgumentParser:\n    p = argparse.ArgumentParser(\n        description=\"Turn important inbox threads into executable task state, detect stale commitments, and report orphan risk.\",\n    )\n    p.add_argument(\"--account\", default=os.getenv(\"GOG_ACCOUNT\", \"hameldesai3@gmail.com\"), help=\"gog account email\")\n    p.add_argument(\"--db\", default=os.getenv(\"CORTANA_DB\", \"cortana\"), help=\"PostgreSQL database name\")\n    p.add_argument(\"--query\", default=os.getenv(\"INBOX_EXEC_QUERY\", \"is:unread newer_than:7d\"), help=\"Gmail query for inbox scan\")\n    p.add_argument(\"--max-emails\", type=int, default=int(os.getenv(\"INBOX_EXEC_MAX\", \"40\")), help=\"max emails to scan\")\n    p.add_argument(\"--commit-lookback-days\", type=int, default=14, help=\"lookback for sent commitments\")\n    p.add_argument(\"--sent-lookback-days\", type=int, default=30, help=\"lookback for sent closure evidence\")\n    p.add_argument(\"--orphan-limit\", type=int, default=10, help=\"max orphan risks to print\")\n    p.add_argument(\"--output-json\", action=\"store_true\", help=\"print summary as JSON\")\n    p.add_argument(\"--outfile\", help=\"optional path to write JSON summary\")\n    p.add_argument(\"--dry-run\", action=\"store_true\", help=\"read-only mode; skip DB writes\")\n    p.add_argument(\"--verbose\", action=\"store_true\", help=\"verbose logs\")\n    return p\n\n\ndef main() -> int:\n    parser = build_parser()\n    args = parser.parse_args()\n    return run_pipeline(args)\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n";
-  const dir = mkdtempSync(join(tmpdir(), 'pywrap-'));
-  const script = join(dir, 'script.py');
-  writeFileSync(script, py, 'utf8');
+  const py = String.raw`#!/usr/bin/env python3
+"""Inbox-to-Execution pipeline.
+
+Enhances Gmail triage by turning important email commitments into structured
+cortana_tasks, detecting stale promises, surfacing orphan risks for briefings,
+and auto-closing tasks when closure evidence appears.
+
+Uses gog CLI for Gmail access and PostgreSQL (cortana DB) for task state.
+"""
+
+from __future__ import annotations
+
+import argparse
+import json
+import os
+import re
+import subprocess
+from dataclasses import dataclass
+from datetime import datetime, timedelta
+from pathlib import Path
+from typing import Any
+
+
+DATE_PATTERNS = [
+    # 2026-03-14 / 2026/03/14
+    re.compile(r"\b(20\d{2})[-/](\d{1,2})[-/](\d{1,2})\b", re.I),
+    # Mar 14, 2026 / March 14
+    re.compile(r"\b(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)\s+(\d{1,2})(?:,\s*(20\d{2}))?\b", re.I),
+    # 14 Mar 2026
+    re.compile(r"\b(\d{1,2})\s+(jan|january|feb|february|mar|march|apr|april|may|jun|june|jul|july|aug|august|sep|sept|september|oct|october|nov|november|dec|december)(?:\s*,?\s*(20\d{2}))?\b", re.I),
+]
+
+MONTHS = {
+    "jan": 1,
+    "january": 1,
+    "feb": 2,
+    "february": 2,
+    "mar": 3,
+    "march": 3,
+    "apr": 4,
+    "april": 4,
+    "may": 5,
+    "jun": 6,
+    "june": 6,
+    "jul": 7,
+    "july": 7,
+    "aug": 8,
+    "august": 8,
+    "sep": 9,
+    "sept": 9,
+    "september": 9,
+    "oct": 10,
+    "october": 10,
+    "nov": 11,
+    "november": 11,
+    "dec": 12,
+    "december": 12,
+}
+
+
+@dataclass
+class EmailItem:
+    id: str
+    thread_id: str
+    subject: str
+    sender: str
+    recipients: str
+    snippet: str
+    date: datetime | None
+    body: str
+    gmail_url: str
+
+
+class Runner:
+    def __init__(self, account: str, db: str, dry_run: bool = False, verbose: bool = False):
+        self.account = account
+        self.db = db
+        self.dry_run = dry_run
+        self.verbose = verbose
+        self.warnings: list[str] = []
+        self.stats: dict[str, int] = {
+            "scanned": 0,
+            "created": 0,
+            "updated": 0,
+            "closed": 0,
+            "stale": 0,
+            "orphan": 0,
+            "errors": 0,
+        }
+
+    def log(self, msg: str) -> None:
+        if self.verbose:
+            print(msg)
+
+    def _run(self, cmd: list[str]) -> str:
+        self.log(f"$ {' '.join(cmd)}")
+        p = subprocess.run(cmd, capture_output=True, text=True)
+        if p.returncode != 0:
+            raise RuntimeError((p.stderr or p.stdout or "command failed").strip())
+        return p.stdout.strip()
+
+    def _is_timeout_error(self, err: Exception | str) -> bool:
+        text = str(err).lower()
+        return "timed out" in text or "deadline exceeded" in text or "timeout" in text
+
+    def gog_search(
+        self,
+        query: str,
+        max_results: int,
+        *,
+        best_effort: bool = False,
+        label: str | None = None,
+    ) -> list[dict[str, Any]]:
+        limits: list[int] = []
+        for candidate in (max_results, min(max_results, 150), min(max_results, 100), min(max_results, 50)):
+            if candidate > 0 and candidate not in limits:
+                limits.append(candidate)
+
+        last_err = None
+        out = ""
+        for limit in limits:
+            commands = [
+                [
+                    "gog",
+                    "--account",
+                    self.account,
+                    "gmail",
+                    "search",
+                    "--query",
+                    query,
+                    "--max",
+                    str(limit),
+                    "--json",
+                ],
+                [
+                    "gog",
+                    "--account",
+                    self.account,
+                    "gmail",
+                    "search",
+                    query,
+                    "--max",
+                    str(limit),
+                    "--json",
+                ],
+            ]
+            for cmd in commands:
+                try:
+                    out = self._run(cmd)
+                    break
+                except Exception as e:
+                    last_err = e
+                    continue
+            if out:
+                break
+
+        if not out and last_err:
+            if best_effort and self._is_timeout_error(last_err):
+                context = label or query
+                self.stats["errors"] += 1
+                self.warnings.append(f"{context}: Gmail search timed out; continuing with partial inbox triage.")
+                return []
+            raise RuntimeError(str(last_err))
+
+        data = json.loads(out) if out else []
+        if isinstance(data, list):
+            return data
+        if isinstance(data, dict):
+            for key in ("threads", "messages", "results", "items"):
+                if isinstance(data.get(key), list):
+                    return data[key]
+        return []
+
+    def psql(self, sql: str, *, fetch_json: bool = False) -> Any:
+        if self.dry_run and sql.strip().lower().startswith(("insert", "update", "delete")):
+            self.log("[dry-run] skipping write SQL")
+            return []
+
+        cmd = ["psql", self.db, "-t", "-A", "-v", "ON_ERROR_STOP=1", "-c", sql]
+        out = self._run(cmd)
+        if fetch_json:
+            out = out.strip()
+            if not out:
+                return []
+            return json.loads(out)
+        return out
+
+
+def parse_dt(raw: Any) -> datetime | None:
+    if raw is None:
+        return None
+    s = str(raw).strip()
+    if not s:
+        return None
+
+    if s.isdigit():
+        try:
+            n = int(s)
+            if n > 10_000_000_000:
+                n //= 1000
+            return datetime.fromtimestamp(n)
+        except Exception:
+            return None
+
+    for fmt in (
+        "%Y-%m-%dT%H:%M:%S%z",
+        "%Y-%m-%dT%H:%M:%S.%f%z",
+        "%Y-%m-%dT%H:%M:%S",
+        "%Y-%m-%d %H:%M:%S",
+        "%a, %d %b %Y %H:%M:%S %z",
+    ):
+        try:
+            dt = datetime.strptime(s, fmt)
+            if dt.tzinfo:
+                return dt.astimezone().replace(tzinfo=None)
+            return dt
+        except Exception:
+            pass
+    return None
+
+
+def normalize_email(raw: dict[str, Any]) -> EmailItem:
+    eid = str(raw.get("id") or raw.get("messageId") or raw.get("threadId") or "")
+    thread_id = str(raw.get("threadId") or raw.get("thread_id") or eid)
+    sender = str(raw.get("from") or raw.get("sender") or "Unknown")
+    recipients = str(raw.get("to") or raw.get("recipients") or "")
+    subject = str(raw.get("subject") or "(no subject)")
+    snippet = str(raw.get("snippet") or raw.get("preview") or "")
+    body = str(raw.get("body") or raw.get("text") or snippet)
+    d = parse_dt(raw.get("date") or raw.get("internalDate") or raw.get("timestamp"))
+    gurl = str(raw.get("gmailUrl") or f"https://mail.google.com/mail/u/0/#inbox/{thread_id}")
+    return EmailItem(
+        id=eid,
+        thread_id=thread_id,
+        subject=subject,
+        sender=sender,
+        recipients=recipients,
+        snippet=snippet,
+        date=d,
+        body=body,
+        gmail_url=gurl,
+    )
+
+
+def parse_natural_due(text: str, now: datetime) -> datetime | None:
+    t = text.lower()
+
+    if "today" in t or "eod" in t or "end of day" in t:
+        return now.replace(hour=17, minute=0, second=0, microsecond=0)
+    if "tomorrow" in t:
+        d = now + timedelta(days=1)
+        return d.replace(hour=12, minute=0, second=0, microsecond=0)
+    if "eow" in t or "end of week" in t:
+        days = (4 - now.weekday()) % 7
+        d = now + timedelta(days=days)
+        return d.replace(hour=17, minute=0, second=0, microsecond=0)
+    if "next week" in t:
+        d = now + timedelta(days=7)
+        return d.replace(hour=12, minute=0, second=0, microsecond=0)
+
+    for pat in DATE_PATTERNS:
+        m = pat.search(text)
+        if not m:
+            continue
+        groups = m.groups()
+        try:
+            if pat is DATE_PATTERNS[0]:
+                y, mo, da = int(groups[0]), int(groups[1]), int(groups[2])
+            elif pat is DATE_PATTERNS[1]:
+                mo = MONTHS[groups[0].lower()]
+                da = int(groups[1])
+                y = int(groups[2]) if groups[2] else now.year
+            else:
+                da = int(groups[0])
+                mo = MONTHS[groups[1].lower()]
+                y = int(groups[2]) if groups[2] else now.year
+            return datetime(y, mo, da, 12, 0, 0)
+        except Exception:
+            continue
+
+    return None
+
+
+def detect_commitment_and_action(email: EmailItem) -> tuple[bool, bool, bool, int]:
+    text = f"{email.subject} {email.snippet} {email.body}".lower()
+
+    response_required = bool(
+        re.search(r"\b(reply|respond|response needed|let me know|can you|could you|please (review|send|confirm)|action required|follow up)\b", text)
+    )
+    follow_up = bool(re.search(r"\bfollow\s*up|check\s*in|circle\s*back|ping\b", text))
+    commitment = bool(
+        re.search(r"\b(i('ll| will)|we('ll| will)|i can|we can|i plan to|i promise|i'll get back|i'll send|i will send)\b", text)
+    )
+
+    priority = 3
+    if re.search(r"\b(asap|urgent|immediately|today|deadline|overdue)\b", text):
+        priority = 1
+    elif response_required:
+        priority = 2
+    elif follow_up:
+        priority = 2
+
+    important = response_required or follow_up or priority <= 2 or commitment
+    return important, response_required, follow_up, priority
+
+
+def stakeholders(email: EmailItem) -> list[str]:
+    vals = []
+    for raw in [email.sender, email.recipients]:
+        if not raw:
+            continue
+        parts = re.split(r"[,;]", raw)
+        for p in parts:
+            s = p.strip()
+            if s and s not in vals:
+                vals.append(s)
+    return vals[:8]
+
+
+def reminder_from_due(due: datetime | None, response_required: bool, follow_up: bool) -> datetime | None:
+    if not due:
+        return None
+    if response_required:
+        return due - timedelta(hours=24)
+    if follow_up:
+        return due - timedelta(hours=12)
+    return due - timedelta(hours=6)
+
+
+def sql_q(s: str) -> str:
+    return s.replace("'", "''")
+
+
+def upsert_task(r: Runner, email: EmailItem, response_required: bool, follow_up: bool, priority: int, due_at: datetime | None, remind_at: datetime | None) -> None:
+    thr = sql_q(email.thread_id)
+    rows = r.psql(
+        f"""
+        SELECT COALESCE(json_agg(t), '[]'::json)::text
+        FROM (
+          SELECT id, status, created_at
+          FROM cortana_tasks
+          WHERE source='inbox-to-execution'
+            AND metadata->>'thread_id'='{thr}'
+          ORDER BY id DESC
+          LIMIT 1
+        ) t;
+        """,
+        fetch_json=True,
+    )
+    existing = rows[0] if rows else None
+
+    meta = {
+        "thread_id": email.thread_id,
+        "gmail_id": email.id,
+        "gmail_url": email.gmail_url,
+        "sender": email.sender,
+        "stakeholders": stakeholders(email),
+        "response_required": response_required,
+        "follow_up": follow_up,
+        "commitment_detected": detect_commitment_and_action(email)[0],
+        "pipeline": "inbox_to_execution",
+    }
+
+    title = f"Email follow-up: {email.subject}"
+    desc = (
+        f"From: {email.sender}\n"
+        f"Subject: {email.subject}\n\n"
+        f"Snippet: {email.snippet}\n\n"
+        f"Open thread: {email.gmail_url}"
+    )
+
+    due_sql = f"'{due_at.strftime('%Y-%m-%d %H:%M:%S')}'" if due_at else "NULL"
+    remind_sql = f"'{remind_at.strftime('%Y-%m-%d %H:%M:%S')}'" if remind_at else "NULL"
+
+    if existing and existing.get("status") in {"ready", "in_progress", "backlog"}:
+        sql = f"""
+        UPDATE cortana_tasks
+        SET
+          title='{sql_q(title)}',
+          description='{sql_q(desc)}',
+          priority={priority},
+          due_at={due_sql},
+          remind_at={remind_sql},
+          metadata=COALESCE(metadata, '{{}}'::jsonb) || '{sql_q(json.dumps(meta))}'::jsonb,
+          updated_at=NOW()
+        WHERE id={int(existing['id'])};
+        """
+        r.psql(sql)
+        r.stats["updated"] += 1
+        return
+
+    sql = f"""
+    INSERT INTO cortana_tasks (
+      source, title, description, priority, status,
+      due_at, remind_at, auto_executable, execution_plan, metadata
+    ) VALUES (
+      'inbox-to-execution',
+      '{sql_q(title)}',
+      '{sql_q(desc)}',
+      {priority},
+      'ready',
+      {due_sql},
+      {remind_sql},
+      FALSE,
+      'Review thread and send a response if required. Confirm closure evidence in Gmail.',
+      '{sql_q(json.dumps(meta))}'::jsonb
+    );
+    """
+    r.psql(sql)
+    r.stats["created"] += 1
+
+
+def closure_sweep(r: Runner, sent_lookback_days: int) -> None:
+    rows = r.psql(
+        """
+        SELECT COALESCE(json_agg(t), '[]'::json)::text
+        FROM (
+          SELECT id, title, status, created_at, metadata
+          FROM cortana_tasks
+          WHERE source='inbox-to-execution'
+            AND status IN ('ready','in_progress','backlog')
+        ) t;
+        """,
+        fetch_json=True,
+    )
+    tasks = rows if isinstance(rows, list) else []
+
+    sent = [
+        normalize_email(x)
+        for x in r.gog_search(
+            f"in:sent newer_than:{sent_lookback_days}d",
+            200,
+            best_effort=True,
+            label="closure sweep sent-thread lookup",
+        )
+    ]
+    sent_by_thread: dict[str, list[EmailItem]] = {}
+    for s in sent:
+        sent_by_thread.setdefault(s.thread_id, []).append(s)
+
+    for t in tasks:
+        tid = int(t["id"])
+        meta = t.get("metadata") or {}
+        thread_id = str(meta.get("thread_id") or "")
+        if not thread_id:
+            continue
+        replies = sent_by_thread.get(thread_id, [])
+        if not replies:
+            continue
+
+        created_at = parse_dt(t.get("created_at"))
+        has_post_create_reply = any((m.date and created_at and m.date >= created_at) or not created_at for m in replies)
+        if not has_post_create_reply:
+            continue
+
+        top = sorted([m for m in replies if m.date], key=lambda x: x.date or datetime.min, reverse=True)
+        reply = top[0] if top else replies[0]
+        closure = {
+            "closed_by": "reply_sent",
+            "closed_at": (reply.date.isoformat() if reply.date else datetime.now().isoformat()),
+            "closure_subject": reply.subject,
+        }
+        sql = f"""
+        UPDATE cortana_tasks
+        SET
+          status='completed',
+          completed_at=COALESCE(completed_at, NOW()),
+          outcome=COALESCE(outcome, 'Auto-closed: reply sent in thread.'),
+          metadata=COALESCE(metadata, '{{}}'::jsonb) || '{sql_q(json.dumps(closure))}'::jsonb,
+          updated_at=NOW()
+        WHERE id={tid}
+          AND status IN ('ready','in_progress','backlog');
+        """
+        r.psql(sql)
+        r.stats["closed"] += 1
+
+
+def stale_and_orphan_scan(r: Runner, commit_lookback_days: int, sent_lookback_days: int) -> list[dict[str, Any]]:
+    commits = [
+        normalize_email(x)
+        for x in r.gog_search(
+            f"in:sent newer_than:{commit_lookback_days}d (\"I will\" OR \"I'll\" OR \"follow up\" OR \"get back\")",
+            200,
+            best_effort=True,
+            label="stale/orphan commitment scan",
+        )
+    ]
+    inbox = [
+        normalize_email(x)
+        for x in r.gog_search(
+            f"in:inbox newer_than:{commit_lookback_days}d",
+            300,
+            best_effort=True,
+            label="stale/orphan inbox scan",
+        )
+    ]
+    sent = [
+        normalize_email(x)
+        for x in r.gog_search(
+            f"in:sent newer_than:{sent_lookback_days}d",
+            300,
+            best_effort=True,
+            label="stale/orphan sent-thread lookup",
+        )
+    ]
+
+    inbox_threads: dict[str, list[EmailItem]] = {}
+    sent_threads: dict[str, list[EmailItem]] = {}
+    for m in inbox:
+        inbox_threads.setdefault(m.thread_id, []).append(m)
+    for m in sent:
+        sent_threads.setdefault(m.thread_id, []).append(m)
+
+    stale_hits: list[dict[str, Any]] = []
+    for c in commits:
+        if not c.thread_id:
+            continue
+        commit_time = c.date or datetime.min
+        incoming_after = [m for m in inbox_threads.get(c.thread_id, []) if (m.date or datetime.min) > commit_time]
+        outgoing_after = [m for m in sent_threads.get(c.thread_id, []) if (m.date or datetime.min) > commit_time]
+
+        if incoming_after and not outgoing_after:
+            stale_hits.append(
+                {
+                    "thread_id": c.thread_id,
+                    "subject": c.subject,
+                    "committed_at": commit_time.isoformat() if c.date else None,
+                    "sender": c.recipients or c.sender,
+                    "risk": "stale_commitment",
+                }
+            )
+
+    for hit in stale_hits:
+        thr = sql_q(hit["thread_id"])
+        sql = f"""
+        UPDATE cortana_tasks
+        SET
+          metadata=COALESCE(metadata, '{{}}'::jsonb)
+            || jsonb_build_object('stale_commitment', true, 'stale_detected_at', NOW()::text),
+          updated_at=NOW()
+        WHERE source='inbox-to-execution'
+          AND status IN ('ready','in_progress','backlog')
+          AND metadata->>'thread_id'='{thr}';
+        """
+        r.psql(sql)
+        r.stats["stale"] += 1
+
+    orphan: list[dict[str, Any]] = []
+    for c in commits:
+        thr = c.thread_id
+        if not thr:
+            continue
+        replies_after = [m for m in sent_threads.get(thr, []) if (m.date or datetime.min) > (c.date or datetime.min)]
+        closure_evidence = len(replies_after) > 0
+
+        row = r.psql(
+            f"""
+            SELECT COALESCE(json_agg(t), '[]'::json)::text
+            FROM (
+              SELECT id, status
+              FROM cortana_tasks
+              WHERE source='inbox-to-execution' AND metadata->>'thread_id'='{sql_q(thr)}'
+              ORDER BY id DESC LIMIT 3
+            ) t;
+            """,
+            fetch_json=True,
+        )
+        tasks = row if isinstance(row, list) else []
+        has_closed_task = any((t.get("status") == "completed") for t in tasks)
+
+        if not closure_evidence and not has_closed_task:
+            orphan.append(
+                {
+                    "thread_id": thr,
+                    "subject": c.subject,
+                    "committed_at": c.date.isoformat() if c.date else None,
+                    "risk": "orphan_commitment",
+                }
+            )
+
+    seen = set()
+    clean = []
+    for o in orphan:
+        tid = o["thread_id"]
+        if tid in seen:
+            continue
+        seen.add(tid)
+        clean.append(o)
+
+    r.stats["orphan"] = len(clean)
+    return clean
+
+
+def run_pipeline(args: argparse.Namespace) -> int:
+    os.environ["PATH"] = "/opt/homebrew/bin:/opt/homebrew/opt/postgresql@17/bin:/usr/local/bin:/usr/bin:/bin"
+
+    runner = Runner(account=args.account, db=args.db, dry_run=args.dry_run, verbose=args.verbose)
+
+    raw = runner.gog_search(args.query, args.max_emails)
+    emails = [normalize_email(x) for x in raw]
+    now = datetime.now()
+
+    for e in emails:
+        runner.stats["scanned"] += 1
+        important, response_required, follow_up, priority = detect_commitment_and_action(e)
+        if not important:
+            continue
+
+        due_at = parse_natural_due(f"{e.subject}\n{e.snippet}\n{e.body}", now)
+        remind_at = reminder_from_due(due_at, response_required, follow_up)
+        upsert_task(runner, e, response_required, follow_up, priority, due_at, remind_at)
+
+    closure_sweep(runner, sent_lookback_days=args.sent_lookback_days)
+    orphan = stale_and_orphan_scan(
+        runner,
+        commit_lookback_days=args.commit_lookback_days,
+        sent_lookback_days=args.sent_lookback_days,
+    )
+
+    summary = {
+        "pipeline": "inbox_to_execution",
+        "ts": datetime.now().isoformat(),
+        "stats": runner.stats,
+        "orphan_risk": orphan[: args.orphan_limit],
+        "warnings": runner.warnings,
+    }
+
+    if args.output_json:
+        print(json.dumps(summary, indent=2))
+    else:
+        print("📥 Inbox→Execution summary")
+        print(f"• scanned: {runner.stats['scanned']}")
+        print(f"• tasks created: {runner.stats['created']}")
+        print(f"• tasks updated: {runner.stats['updated']}")
+        print(f"• auto-closed: {runner.stats['closed']}")
+        print(f"• stale commitments: {runner.stats['stale']}")
+        print(f"• orphan risk count: {runner.stats['orphan']}")
+        if runner.warnings:
+            print("\nWarnings:")
+            for warning in runner.warnings:
+                print(f"- {warning}")
+        if orphan:
+            print("\nOrphan risk (for morning brief):")
+            for i, o in enumerate(orphan[: args.orphan_limit], start=1):
+                print(f"{i}. {o['subject']} [thread:{o['thread_id']}] committed:{o.get('committed_at') or 'unknown'}")
+
+    if args.outfile:
+        out = Path(args.outfile)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        out.write_text(json.dumps(summary, indent=2))
+
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    p = argparse.ArgumentParser(
+        description="Turn important inbox threads into executable task state, detect stale commitments, and report orphan risk.",
+    )
+    p.add_argument("--account", default=os.getenv("GOG_ACCOUNT", "hameldesai3@gmail.com"), help="gog account email")
+    p.add_argument("--db", default=os.getenv("CORTANA_DB", "cortana"), help="PostgreSQL database name")
+    p.add_argument("--query", default=os.getenv("INBOX_EXEC_QUERY", "is:unread newer_than:7d"), help="Gmail query for inbox scan")
+    p.add_argument("--max-emails", type=int, default=int(os.getenv("INBOX_EXEC_MAX", "40")), help="max emails to scan")
+    p.add_argument("--commit-lookback-days", type=int, default=14, help="lookback for sent commitments")
+    p.add_argument("--sent-lookback-days", type=int, default=30, help="lookback for sent closure evidence")
+    p.add_argument("--orphan-limit", type=int, default=10, help="max orphan risks to print")
+    p.add_argument("--output-json", action="store_true", help="print summary as JSON")
+    p.add_argument("--outfile", help="optional path to write JSON summary")
+    p.add_argument("--dry-run", action="store_true", help="read-only mode; skip DB writes")
+    p.add_argument("--verbose", action="store_true", help="verbose logs")
+    return p
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    return run_pipeline(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
+`;
+  const dir = mkdtempSync(join(tmpdir(), "pywrap-"));
+  const script = join(dir, "script.py");
+  writeFileSync(script, py, "utf8");
   const inheritedGatewayEnv = readMergedGatewayEnvSources(
     process.env.OPENCLAW_GATEWAY_PLIST || `${process.env.HOME}/Library/LaunchAgents/ai.openclaw.gateway.plist`,
   );
@@ -21,7 +701,7 @@ async function main(): Promise<void> {
     },
     inheritedGatewayEnv,
   );
-  const proc = spawnSync('python3', [script, ...process.argv.slice(2)], { stdio: 'inherit', env: execEnv });
+  const proc = spawnSync("python3", [script, ...process.argv.slice(2)], { stdio: "inherit", env: execEnv });
   rmSync(dir, { recursive: true, force: true });
   if (proc.error) {
     console.error(String(proc.error));
