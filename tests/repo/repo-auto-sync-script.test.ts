@@ -68,7 +68,7 @@ describe("repo-auto-sync.sh hygiene policy", () => {
     expect(script).toContain('local-main-ahead');
     expect(script).toContain('diverged-main-manual-intervention-required');
     expect(script).toContain('queue_actionable_alert "$repo" "fetch" "git fetch --all --prune failed"');
-    expect(script).toContain('queue_actionable_alert "$repo" "pull" "git pull --ff-only origin main failed"');
+    expect(script).toContain('queue_actionable_alert "$repo" "pull" "git pull --ff-only $pull_remote $pull_branch failed"');
   });
 
   it("suppresses volatile runtime-state false dirt and only re-alerts on changed actionable state", () => {
