@@ -24,6 +24,7 @@ import json
 import os
 import re
 import subprocess
+import time
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 from pathlib import Path
@@ -112,6 +113,21 @@ class Runner:
         text = str(err).lower()
         return "timed out" in text or "deadline exceeded" in text or "timeout" in text
 
+    def _run_with_timeout_retries(self, cmd: list[str], timeout_retries: int) -> str:
+        attempts = max(1, timeout_retries)
+        last_err: Exception | None = None
+
+        for attempt in range(attempts):
+            try:
+                return self._run(cmd)
+            except Exception as err:
+                last_err = err if isinstance(err, Exception) else RuntimeError(str(err))
+                if not self._is_timeout_error(last_err) or attempt >= attempts - 1:
+                    break
+                time.sleep(min(2.0, 0.5 * (attempt + 1)))
+
+        raise last_err or RuntimeError("command failed")
+
     def gog_search(
         self,
         query: str,
@@ -119,6 +135,7 @@ class Runner:
         *,
         best_effort: bool = False,
         label: str | None = None,
+        timeout_retries: int = 3,
     ) -> list[dict[str, Any]]:
         limits: list[int] = []
         for candidate in (max_results, min(max_results, 150), min(max_results, 100), min(max_results, 50)):
@@ -155,7 +172,7 @@ class Runner:
             ]
             for cmd in commands:
                 try:
-                    out = self._run(cmd)
+                    out = self._run_with_timeout_retries(cmd, timeout_retries)
                     break
                 except Exception as e:
                     last_err = e
@@ -167,7 +184,7 @@ class Runner:
             if best_effort and self._is_timeout_error(last_err):
                 context = label or query
                 self.stats["errors"] += 1
-                self.warnings.append(f"{context}: Gmail search timed out; continuing with partial inbox triage.")
+                self.warnings.append(f"{context}: Gmail search timed out after retries; continuing with partial inbox triage.")
                 return []
             raise RuntimeError(str(last_err))
 

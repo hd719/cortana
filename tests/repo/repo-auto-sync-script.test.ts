@@ -67,12 +67,18 @@ describe("repo-auto-sync.sh hygiene policy", () => {
     expect(script).toContain('rev-list --left-right --count "$main_remote_ref...HEAD"');
     expect(script).toContain('local-main-ahead');
     expect(script).toContain('diverged-main-manual-intervention-required');
+    expect(script).toContain('queue_actionable_alert "$repo" "fetch" "git fetch --all --prune failed"');
+    expect(script).toContain('queue_actionable_alert "$repo" "pull" "git pull --ff-only origin main failed"');
   });
 
-  it("suppresses volatile runtime-state false dirt and renders NO_REPLY when healthy", () => {
+  it("suppresses volatile runtime-state false dirt and only re-alerts on changed actionable state", () => {
     expect(script).toContain('memory/calendar-reminders-sent.json');
     expect(script).toContain('memory/newsletter-alerted.json');
     expect(script).toContain('detail=volatile-runtime-state-restored');
+    expect(script).toContain('ALERT_STATE_FILE="${REPO_AUTO_SYNC_ALERT_STATE_FILE:-$HOME/.openclaw/tmp/repo-auto-sync-state.txt}"');
+    expect(script).toContain("read_alert_fingerprint");
+    expect(script).toContain("write_alert_fingerprint");
+    expect(script).toContain("unchanged-actionable-state-suppressed");
     expect(script).toContain("render_output");
     expect(script).toContain("NO_REPLY");
   });
