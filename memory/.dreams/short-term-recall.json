@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-04-17T10:04:31.955Z",
+  "updatedAt": "2026-04-17T16:48:18.880Z",
   "entries": {
     "memory:memory/.dreams/session-corpus/2026-04-10.txt:1:1": {
       "key": "memory:memory/.dreams/session-corpus/2026-04-10.txt:1:1",
@@ -14880,6 +14880,68 @@
         "untrusted",
         "metadata",
         "sender"
+      ]
+    },
+    "memory:memory/2026-04-16.md:128:144": {
+      "key": "memory:memory/2026-04-16.md:128:144",
+      "path": "memory/2026-04-16.md",
+      "startLine": 128,
+      "endLine": 144,
+      "source": "memory",
+      "snippet": "- Candidate: User: System: [2026-04-12 03:00:43 EDT] __openclaw_memory_core_short_term_promotion_dream__ Sender (untrusted metadata): ```json { \"label\": \"openclaw-control-ui\", \"id\": \"openclaw-control-ui\" } ``` [Sun 2026-04-12 07:27 EDT] What can you do? [Bootstrap truncation warning] Some wor - confidence: 0.58 - evidence: memory/.dreams/session-corpus/2026-04-12.txt:99-99 - recalls: 0 - status: staged - Candidate: Assistant: [[reply_to_current]] Quite a lot, Chief. I can: - read, edit, and create files in your `/Users/hd/Developer/cortana` workspace - run shell commands, inspect logs, and debug local services - use browser automation for web tasks - manage messages, reminders, cron",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.3578801244497299,
+      "maxScore": 0.3578801244497299,
+      "firstRecalledAt": "2026-04-17T16:48:18.880Z",
+      "lastRecalledAt": "2026-04-17T16:48:18.880Z",
+      "queryHashes": [
+        "489659511777"
+      ],
+      "recallDays": [
+        "2026-04-17"
+      ],
+      "conceptTags": [
+        "openclaw-control-ui",
+        "0.58",
+        "99-99",
+        "reply-to-current",
+        "users/hd/developer/cortana",
+        "candidate",
+        "user",
+        "system"
+      ]
+    },
+    "memory:memory/2026-04-14.md:47:67": {
+      "key": "memory:memory/2026-04-14.md:47:67",
+      "path": "memory/2026-04-14.md",
+      "startLine": 47,
+      "endLine": 67,
+      "source": "memory",
+      "snippet": "- status: staged - Candidate: Assistant: [[reply_to_current]] Quite a lot, Chief. I can: - read, edit, and create files in your `/Users/hd/Developer/cortana` workspace - run shell commands, inspect logs, and debug local services - use browser automation for web tasks - manage messages, reminders, cron jobs, a - confidence: 0.58 - evidence: memory/.dreams/session-corpus/2026-04-12.txt:100-100 - recalls: 0 - status: staged - Candidate: Assistant: ☀️ Brief - Morning Brief Schedule: - 11:00 AM - 🏁 FORMULA 1 GULF AIR BAHRAIN GRAND PRIX 2026 - Race Apple Reminders: - Return iPhone FedEx - Bedding laundry - Pick classes for last semester - Check workday - Email Sanjay Uncle about investm",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.3544162184000015,
+      "maxScore": 0.3544162184000015,
+      "firstRecalledAt": "2026-04-17T16:48:18.880Z",
+      "lastRecalledAt": "2026-04-17T16:48:18.880Z",
+      "queryHashes": [
+        "489659511777"
+      ],
+      "recallDays": [
+        "2026-04-17"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "users/hd/developer/cortana",
+        "0.58",
+        "100-100",
+        "status",
+        "staged",
+        "candidate",
+        "assistant"
       ]
     }
   }
