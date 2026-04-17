@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { buildBrief, parseCalendarEvents } from "../../tools/morning-brief/orchestrate-brief.ts";
+import { describe, expect, it, vi } from "vitest";
+import { buildBrief, fetchWeatherWithRunCommand, parseCalendarEvents } from "../../tools/morning-brief/orchestrate-brief.ts";
 
 describe("parseCalendarEvents", () => {
   it("sorts, deduplicates, and formats schedule lines", () => {
@@ -60,5 +60,35 @@ describe("buildBrief", () => {
     expect(brief).toContain("- Submit quiz");
     expect(brief).not.toContain("Top 3 priorities");
     expect(brief).not.toContain("career-advancing task");
+  });
+});
+
+describe("fetchWeatherWithRunCommand", () => {
+  it("falls back to Open-Meteo when wttr.in times out", async () => {
+    const run = vi
+      .fn<(cmd: string, args: string[], timeoutMs?: number) => Promise<string>>()
+      .mockRejectedValueOnce(new Error("curl -fsSL https://wttr.in/Warren+NJ?format=j1 timed out after 20000ms"))
+      .mockResolvedValueOnce(
+        JSON.stringify({
+          current_weather: {
+            temperature: 61.8,
+            windspeed: 4.4,
+            weathercode: 1,
+          },
+          daily: {
+            temperature_2m_max: [72.2],
+            temperature_2m_min: [55.1],
+            precipitation_probability_max: [20],
+          },
+        }),
+      );
+
+    const weather = await fetchWeatherWithRunCommand(run);
+
+    expect(weather).toBe("Partly cloudy, 62F (feels 62F), high 72/low 55, rain 20%, wind 4 mph");
+    expect(run).toHaveBeenCalledTimes(2);
+    expect(run.mock.calls[0]).toEqual(["curl", ["-fsSL", "https://wttr.in/Warren+NJ?format=j1"], 20_000]);
+    expect(run.mock.calls[1]?.[0]).toBe("curl");
+    expect(run.mock.calls[1]?.[1]?.[1]).toContain("api.open-meteo.com/v1/forecast");
   });
 });

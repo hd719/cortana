@@ -61,6 +61,33 @@ type BriefParts = {
   specialists: SpecialistResult[];
 };
 
+type WttrWeatherPayload = {
+  current_condition?: Array<{
+    temp_F?: string;
+    FeelsLikeF?: string;
+    weatherDesc?: Array<{ value?: string }>;
+    windspeedMiles?: string;
+  }>;
+  weather?: Array<{
+    maxtempF?: string;
+    mintempF?: string;
+    hourly?: Array<{ chanceofrain?: string }>;
+  }>;
+};
+
+type OpenMeteoWeatherPayload = {
+  current_weather?: {
+    temperature?: number;
+    windspeed?: number;
+    weathercode?: number;
+  };
+  daily?: {
+    temperature_2m_max?: number[];
+    temperature_2m_min?: number[];
+    precipitation_probability_max?: number[];
+  };
+};
+
 const SPECIALIST_TASKS: SpecialistTask[] = [
   {
     sessionKey: "agent:researcher:main",
@@ -75,6 +102,15 @@ const SPECIALIST_TASKS: SpecialistTask[] = [
       "Return 1-2 short bullets for a morning market snapshot: market status plus one notable risk or focus. No intro.",
   },
 ];
+
+const WTTR_URL = "https://wttr.in/Warren+NJ?format=j1";
+const OPEN_METEO_URL =
+  "https://api.open-meteo.com/v1/forecast" +
+  "?latitude=40.63&longitude=-74.49" +
+  "&current_weather=true" +
+  "&temperature_unit=fahrenheit" +
+  "&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max" +
+  "&timezone=America/New_York&forecast_days=1";
 
 function withTimeout<T>(promise: Promise<T>, timeoutMs: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
@@ -256,43 +292,85 @@ async function sessionsSend(task: SpecialistTask): Promise<SpecialistResult> {
   }
 }
 
-async function fetchWeather(): Promise<string> {
-  try {
-    const raw = await runCommand("curl", ["-s", "https://wttr.in/Warren+NJ?format=j1"], 20_000);
-    const parsed = safeJsonParse(raw) as
-      | {
-          current_condition?: Array<{
-            temp_F?: string;
-            FeelsLikeF?: string;
-            weatherDesc?: Array<{ value?: string }>;
-            windspeedMiles?: string;
-          }>;
-          weather?: Array<{
-            maxtempF?: string;
-            mintempF?: string;
-            hourly?: Array<{ chanceofrain?: string }>;
-          }>;
-        }
-      | null;
+function formatWttrWeather(parsed: WttrWeatherPayload | null): string | null {
+  const current = parsed?.current_condition?.[0];
+  const today = parsed?.weather?.[0];
+  if (!current || !today) return null;
 
-    const current = parsed?.current_condition?.[0];
-    const today = parsed?.weather?.[0];
-    const condition = (current?.weatherDesc?.[0]?.value ?? "Weather").trim();
-    const temp = current?.temp_F ?? "?";
-    const feels = current?.FeelsLikeF ?? "?";
-    const high = today?.maxtempF ?? "?";
-    const low = today?.mintempF ?? "?";
-    const rain = today?.hourly?.reduce((max, hour) => {
+  const condition = (current.weatherDesc?.[0]?.value ?? "Weather").trim();
+  const temp = current.temp_F ?? "?";
+  const feels = current.FeelsLikeF ?? temp;
+  const high = today.maxtempF ?? "?";
+  const low = today.mintempF ?? "?";
+  const rain =
+    today.hourly?.reduce((max, hour) => {
       const chance = Number(hour?.chanceofrain ?? 0);
       return Number.isFinite(chance) ? Math.max(max, chance) : max;
     }, 0) ?? 0;
-    const wind = current?.windspeedMiles ?? "?";
+  const wind = current.windspeedMiles ?? "?";
 
-    return `${condition}, ${temp}F (feels ${feels}F), high ${high}/low ${low}, rain ${rain}%, wind ${wind} mph`;
+  return `${condition}, ${temp}F (feels ${feels}F), high ${high}/low ${low}, rain ${rain}%, wind ${wind} mph`;
+}
+
+function describeWeatherCode(code: number | undefined): string {
+  if (code === undefined || !Number.isFinite(code)) return "Weather";
+  if (code === 0) return "Clear";
+  if (code >= 1 && code <= 3) return "Partly cloudy";
+  if (code === 45 || code === 48) return "Fog";
+  if (code >= 51 && code <= 57) return "Drizzle";
+  if (code >= 61 && code <= 67) return "Rain";
+  if (code >= 71 && code <= 77) return "Snow";
+  if (code >= 80 && code <= 82) return "Rain showers";
+  if (code >= 85 && code <= 86) return "Snow showers";
+  if (code >= 95 && code <= 99) return "Thunderstorm";
+  return "Weather";
+}
+
+function formatOpenMeteoWeather(parsed: OpenMeteoWeatherPayload | null): string | null {
+  const current = parsed?.current_weather;
+  const daily = parsed?.daily;
+  if (!current || !daily) return null;
+
+  const temp = Number(current.temperature);
+  const high = Number(daily.temperature_2m_max?.[0]);
+  const low = Number(daily.temperature_2m_min?.[0]);
+  const rain = Number(daily.precipitation_probability_max?.[0] ?? 0);
+  const wind = Number(current.windspeed);
+
+  if (![temp, high, low, wind].every((value) => Number.isFinite(value))) return null;
+
+  const condition = describeWeatherCode(current.weathercode);
+  return `${condition}, ${Math.round(temp)}F (feels ${Math.round(temp)}F), high ${Math.round(high)}/low ${Math.round(low)}, rain ${Math.round(rain)}%, wind ${Math.round(wind)} mph`;
+}
+
+export async function fetchWeatherWithRunCommand(
+  run: (cmd: string, args: string[], timeoutMs?: number) => Promise<string>,
+): Promise<string> {
+  const errors: string[] = [];
+
+  try {
+    const raw = await run("curl", ["-fsSL", WTTR_URL], 20_000);
+    const formatted = formatWttrWeather(safeJsonParse(raw) as WttrWeatherPayload | null);
+    if (formatted) return formatted;
+    errors.push("wttr.in returned invalid weather data");
   } catch (error) {
-    const msg = error instanceof Error ? error.message : String(error);
-    return `Weather unavailable (${msg})`;
+    errors.push(error instanceof Error ? error.message : String(error));
   }
+
+  try {
+    const raw = await run("curl", ["-fsSL", OPEN_METEO_URL], 20_000);
+    const formatted = formatOpenMeteoWeather(safeJsonParse(raw) as OpenMeteoWeatherPayload | null);
+    if (formatted) return formatted;
+    errors.push("Open-Meteo returned invalid weather data");
+  } catch (error) {
+    errors.push(error instanceof Error ? error.message : String(error));
+  }
+
+  return `Weather unavailable (${errors.join("; ")})`;
+}
+
+async function fetchWeather(): Promise<string> {
+  return fetchWeatherWithRunCommand(runCommand);
 }
 
 function formatEventLabel(event: GogCalendarEvent): string | null {
