@@ -140,12 +140,10 @@ describe("repo-auto-sync worktree conflict automation", () => {
 
   it("skips non-temp external worktree with warning and preserves branch", () => {
     const { repoDir, branchName } = setupMergedBranchRepo("repo-auto-sync-non-temp-worktree");
-    const externalBase = path.resolve(
-      ".tmp-repo-auto-sync-tests",
-      `non-temp-worktree-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+    const externalBase = fs.mkdtempSync(
+      path.join(os.homedir(), ".repo-auto-sync-non-temp-"),
     );
     cleanupPaths.add(externalBase);
-    fs.mkdirSync(externalBase, { recursive: true });
 
     const externalWorktree = path.join(externalBase, "worktree");
     run(`git worktree add ${shQuote(externalWorktree)} ${shQuote(branchName)}`, repoDir);
