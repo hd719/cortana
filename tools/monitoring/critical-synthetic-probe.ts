@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { sourceRepoRoot } from "../lib/paths.js";
+import { buildGogEnv, resolveRealGogBin } from "../gog/gog-with-env.js";
 import { readMergedGatewayEnvSources } from "../openclaw/gateway-env.js";
 import { resolveIncident, upsertOpenIncident } from "./autonomy-incidents.ts";
 
@@ -58,8 +59,11 @@ type LanesConfig = {
 
 const RUNTIME_JOBS_PATH = path.join(os.homedir(), ".openclaw", "cron", "jobs.json");
 const LANES_CONFIG_PATH = path.join(sourceRepoRoot(), "config", "autonomy-lanes.json");
+const GATEWAY_PLIST = process.env.OPENCLAW_GATEWAY_PLIST || path.join(os.homedir(), "Library", "LaunchAgents", "ai.openclaw.gateway.plist");
 const GOG_ACCOUNT = process.env.GOG_ACCOUNT ?? "hameldesai3@gmail.com";
 const GOG_CALENDAR = process.env.GOG_OAUTH_CHECK_CALENDAR ?? "Clawdbot-Calendar";
+const GOG_PROBE_TIMEOUT_MS = Number(process.env.CRITICAL_GOG_PROBE_TIMEOUT_MS ?? 15000);
+const GOG_PROBE_TIMEOUT_RETRIES = Math.max(1, Number(process.env.CRITICAL_GOG_PROBE_TIMEOUT_RETRIES ?? 2));
 
 function run(cmd: string, args: string[], timeoutMs = 15000) {
   const proc = spawnSync(cmd, args, {
@@ -137,6 +141,10 @@ function isControlPlaneIssue(text: string): boolean {
   return /gateway not reachable|gateway closed|econnrefused|timed out|service unavailable|not running|failed to start cli/i.test(text);
 }
 
+function isTimeoutIssue(text: string): boolean {
+  return /timed out|timeout|deadline exceeded|etimedout/i.test(text);
+}
+
 function isTelegramOkStatus(text: string): boolean {
   return /(?:^|\n)[^\n]*Telegram[^\n]*(?:│|\|)\s*ON\s*(?:│|\|)\s*OK\b/im.test(text);
 }
@@ -152,19 +160,35 @@ function gatewayServiceHealthy(): { healthy: boolean; detail: string } {
 }
 
 function probeGog(): ProbeResult {
-  const proc = spawnSync("gog", ["--account", GOG_ACCOUNT, "cal", "list", GOG_CALENDAR, "--from", "today", "--plain", "--no-input"], {
-    encoding: "utf8",
-    timeout: 15000,
-    stdio: ["ignore", "pipe", "pipe"],
-    env: gogProbeEnv(),
-  });
-  const r = {
-    status: proc.status ?? 1,
-    stdout: String(proc.stdout ?? ""),
-    stderr: String(proc.stderr ?? ""),
-    error: proc.error,
+  const args = ["--account", GOG_ACCOUNT, "cal", "list", GOG_CALENDAR, "--from", "today", "--plain", "--no-input"];
+  const env = buildGogEnv(gogProbeEnv(), readMergedGatewayEnvSources(GATEWAY_PLIST));
+  const gogBin = resolveRealGogBin(env);
+  let r = {
+    status: 1,
+    stdout: "",
+    stderr: "",
+    error: undefined as Error | undefined,
   };
-  const merged = `${r.stdout}\n${r.stderr}`;
+  let merged = "";
+
+  for (let attempt = 0; attempt < GOG_PROBE_TIMEOUT_RETRIES; attempt += 1) {
+    const proc = spawnSync(gogBin, args, {
+      encoding: "utf8",
+      timeout: GOG_PROBE_TIMEOUT_MS,
+      stdio: ["ignore", "pipe", "pipe"],
+      env,
+    });
+    r = {
+      status: proc.status ?? 1,
+      stdout: String(proc.stdout ?? ""),
+      stderr: String(proc.stderr ?? ""),
+      error: proc.error,
+    };
+    merged = `${r.stdout}\n${r.stderr}\n${r.error?.message ?? ""}`;
+    if (r.status === 0 || !isTimeoutIssue(merged) || attempt >= GOG_PROBE_TIMEOUT_RETRIES - 1) {
+      break;
+    }
+  }
 
   if (r.status === 0) return { probe: "gog", ok: true };
   if (r.error?.message?.includes("ENOENT")) {

@@ -8,6 +8,8 @@ const fsMock = vi.hoisted(() => ({
 const spawnSync = vi.hoisted(() => vi.fn());
 const upsertOpenIncident = vi.hoisted(() => vi.fn());
 const resolveIncident = vi.hoisted(() => vi.fn());
+const buildGogEnv = vi.hoisted(() => vi.fn((env: NodeJS.ProcessEnv, inherited: Record<string, string>) => ({ ...env, ...inherited })));
+const resolveRealGogBin = vi.hoisted(() => vi.fn(() => "gog"));
 
 vi.mock("node:fs", () => ({
   default: fsMock,
@@ -15,6 +17,10 @@ vi.mock("node:fs", () => ({
 }));
 vi.mock("node:child_process", () => ({
   spawnSync,
+}));
+vi.mock("../../tools/gog/gog-with-env.ts", () => ({
+  buildGogEnv,
+  resolveRealGogBin,
 }));
 vi.mock("../../tools/monitoring/autonomy-incidents.ts", () => ({
   upsertOpenIncident,
@@ -28,6 +34,10 @@ describe("critical-synthetic-probe", () => {
     spawnSync.mockReset();
     upsertOpenIncident.mockReset();
     resolveIncident.mockReset();
+    buildGogEnv.mockReset();
+    resolveRealGogBin.mockReset();
+    buildGogEnv.mockImplementation((env: NodeJS.ProcessEnv, inherited: Record<string, string>) => ({ ...env, ...inherited }));
+    resolveRealGogBin.mockReturnValue("gog");
     resetProcess();
   });
 
@@ -156,6 +166,43 @@ describe("critical-synthetic-probe", () => {
     consoleSpy.restore();
 
     expect(consoleSpy.logs.join("\n")).toContain("NO_REPLY");
+  });
+
+  it("retries transient gog timeouts before opening an incident", async () => {
+    mockHealthyRuntimeFiles();
+    upsertOpenIncident.mockReturnValue("unchanged");
+    let gogCalls = 0;
+
+    spawnSync.mockImplementation((cmd: string, args: string[]) => {
+      const joined = args.join(" ");
+      if (cmd === "gog") {
+        gogCalls += 1;
+        if (gogCalls === 1) {
+          return { status: 1, stdout: "", stderr: "", error: new Error("Command timed out after 15000ms") } as any;
+        }
+        return { status: 0, stdout: "ok", stderr: "" } as any;
+      }
+      if (cmd === "remindctl") return { status: 0, stdout: "[]", stderr: "" } as any;
+      if (cmd === "openclaw" && joined === "status --json") {
+        return { status: 0, stdout: JSON.stringify({ gateway: { reachable: true }, channelSummary: ["Telegram: configured"] }), stderr: "" } as any;
+      }
+      if (cmd === "openclaw" && joined === "status") {
+        return { status: 0, stdout: "Telegram | ON | OK", stderr: "" } as any;
+      }
+      if (cmd === "openclaw" && joined === "gateway status --no-probe") {
+        return { status: 0, stdout: "running", stderr: "" } as any;
+      }
+      throw new Error(`unexpected spawn ${cmd} ${joined}`);
+    });
+
+    const consoleSpy = captureConsole();
+    await importFresh("../../tools/monitoring/critical-synthetic-probe.ts");
+    await flushModuleSideEffects();
+    consoleSpy.restore();
+
+    expect(gogCalls).toBe(2);
+    expect(consoleSpy.logs.join("\n")).toContain("NO_REPLY");
+    expect(upsertOpenIncident).not.toHaveBeenCalled();
   });
 
   it("prefers fresh cron run history over stale job state for the critical lane", async () => {
