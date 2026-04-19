@@ -11,8 +11,8 @@
       "pruneAfter": "1d"
     },
     "cron": {
-      "maxEntries": 70,
-      "pruneAfter": "12h"
+      "maxEntries": 40,
+      "pruneAfter": "6h"
     },
     "other": {
       "maxEntries": 20,

@@ -77,6 +77,11 @@ openclaw sessions --all-agents --active 60 --json
 openclaw sessions cleanup --all-agents --enforce --json
 ```
 
+Preventive defaults:
+- cron `agentTurn` jobs should use `payload.lightContext=true` unless they truly need full identity/bootstrap context
+- keep high-frequency watchdog prompts terse and script-driven
+- tighten cron session lifecycle caps before tuning broader runtime config
+
 Escalation path:
 - clean stale sessions first
 - inspect oversized session artifacts before deleting anything manually
