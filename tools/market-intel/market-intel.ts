@@ -1,6 +1,7 @@
 #!/usr/bin/env npx tsx
 
 import fs from "fs";
+import os from "os";
 import path from "path";
 import { spawnSync } from "child_process";
 import { resolveRepoPath } from "../lib/paths.js";
@@ -10,6 +11,7 @@ const STOCK_ANALYSIS_DIR = path.join(ROOT, "skills", "stock-analysis");
 const MARKET_STATUS_SCRIPT = path.join(ROOT, "skills", "markets", "check_market_status.sh");
 const ALPACA_PORTFOLIO_URL = "http://localhost:3033/alpaca/portfolio";
 const ALPACA_STATS_URL = "http://localhost:3033/alpaca/stats";
+const BIRD_SECRET_ENV = path.join(os.homedir(), ".config", "bird", "secret.env");
 
 const BULLISH_WORDS = new Set([
   "bullish",
@@ -56,13 +58,54 @@ type Json = Record<string, any>;
 
 type RunResult = { code: number; stdout: string; stderr: string };
 
-function run(cmd: string[], timeoutSeconds = 30, cwd?: string): RunResult {
+function run(cmd: string[], timeoutSeconds = 30, cwd?: string, env?: NodeJS.ProcessEnv): RunResult {
   const proc = spawnSync(cmd[0], cmd.slice(1), {
     encoding: "utf8",
     timeout: timeoutSeconds * 1000,
     cwd,
+    env,
   });
   return { code: proc.status ?? 1, stdout: (proc.stdout ?? "").trim(), stderr: (proc.stderr ?? "").trim() };
+}
+
+function readSimpleEnvFile(filePath: string): Record<string, string> {
+  const values: Record<string, string> = {};
+  const raw = fs.readFileSync(filePath, "utf8");
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith("#")) continue;
+    const idx = trimmed.indexOf("=");
+    if (idx <= 0) continue;
+    const key = trimmed.slice(0, idx).trim();
+    let value = trimmed.slice(idx + 1).trim();
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
+      value = value.slice(1, -1);
+    }
+    values[key] = value;
+  }
+  return values;
+}
+
+function birdEnv(): NodeJS.ProcessEnv {
+  const env = { ...process.env };
+  if (env.AUTH_TOKEN && env.CT0) return env;
+  if (!fs.existsSync(BIRD_SECRET_ENV)) return env;
+
+  try {
+    const parsed = readSimpleEnvFile(BIRD_SECRET_ENV);
+    if (!env.AUTH_TOKEN && parsed.AUTH_TOKEN) env.AUTH_TOKEN = parsed.AUTH_TOKEN;
+    if (!env.CT0 && parsed.CT0) env.CT0 = parsed.CT0;
+    if (!env.SWEETISTICS_API_KEY && parsed.SWEETISTICS_API_KEY) {
+      env.SWEETISTICS_API_KEY = parsed.SWEETISTICS_API_KEY;
+    }
+  } catch {
+    // Fall back to the ambient environment if the local bird secret file is unreadable.
+  }
+
+  return env;
 }
 
 async function fetchJson(url: string, timeoutSeconds = 15): Promise<any> {
@@ -337,7 +380,7 @@ function normalizeTweet(t: Json): Json {
 
 function ensureBirdReady(): boolean {
   if (birdOk !== null) return birdOk;
-  const { code, stdout, stderr } = run(["bird", "check"], 20);
+  const { code, stdout, stderr } = run(["bird", "check"], 20, undefined, birdEnv());
   const merged = `${stdout}\n${stderr}`.toLowerCase();
   birdOk = code === 0 && merged.includes("ok");
   if (!birdOk) {
@@ -349,7 +392,7 @@ function ensureBirdReady(): boolean {
 function birdSearch(query: string, count: number): Json[] {
   if (!ensureBirdReady()) return [];
   const cmd = ["bird", "search", "--json", "-n", String(count), query];
-  const { code, stdout } = run(cmd, 45);
+  const { code, stdout } = run(cmd, 45, undefined, birdEnv());
   if (code !== 0) return [];
   const tweets = parseBirdJson(stdout).map(normalizeTweet);
   return tweets.filter((t) => t.text);

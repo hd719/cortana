@@ -2,10 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureConsole, flushModuleSideEffects, importFresh, mockExit, resetProcess, setArgv } from "../test-utils";
 
 const spawnSync = vi.hoisted(() => vi.fn());
+const existsSync = vi.hoisted(() => vi.fn(() => false));
+const readFileSync = vi.hoisted(() => vi.fn(() => ""));
 
 vi.mock("node:child_process", () => ({
   spawnSync,
 }));
+
+vi.mock("fs", async () => {
+  const actual = await vi.importActual<any>("fs");
+  const merged = { ...actual, existsSync, readFileSync };
+  return {
+    ...merged,
+    default: merged,
+  };
+});
 
 vi.mock("../../tools/lib/paths.js", () => ({
   resolveRepoPath: () => "/repo",
@@ -16,6 +27,10 @@ describe("market-intel", () => {
 
   beforeEach(() => {
     spawnSync.mockReset();
+    existsSync.mockReset();
+    existsSync.mockReturnValue(false);
+    readFileSync.mockReset();
+    readFileSync.mockReturnValue("");
     fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
   });
@@ -99,5 +114,43 @@ describe("market-intel", () => {
     const { exitSpy, logs } = await runTicker();
     expect(exitSpy).toHaveBeenCalledWith(1);
     expect(logs.join("\n")).toContain("stock-analysis failed: boom");
+  });
+
+  it("loads bird auth from secret.env when process env is missing", async () => {
+    existsSync.mockImplementation((filePath: string) => filePath.endsWith("/.config/bird/secret.env"));
+    readFileSync.mockImplementation((filePath: string) => {
+      if (filePath.endsWith("/.config/bird/secret.env")) {
+        return "AUTH_TOKEN=test-auth\nCT0=test-ct0\n";
+      }
+      return "";
+    });
+
+    spawnSync.mockImplementation((cmd: string, args: string[], options?: { env?: Record<string, string> }) => {
+      if (cmd === "npx") {
+        return {
+          status: 0,
+          stdout: JSON.stringify({ price: 201, change_percent: 1.2, signal: "neutral" }),
+          stderr: "",
+        } as any;
+      }
+      if (cmd === "bird" && args[0] === "check") {
+        expect(options?.env?.AUTH_TOKEN).toBe("test-auth");
+        expect(options?.env?.CT0).toBe("test-ct0");
+        return { status: 0, stdout: "ok", stderr: "" } as any;
+      }
+      if (cmd === "bird" && args[0] === "search") {
+        expect(options?.env?.AUTH_TOKEN).toBe("test-auth");
+        expect(options?.env?.CT0).toBe("test-ct0");
+        return { status: 0, stdout: "[]", stderr: "" } as any;
+      }
+      return { status: 0, stdout: "", stderr: "" } as any;
+    });
+
+    fetchMock.mockResolvedValue({
+      text: async () => "Date,Open,High,Low,Close,Volume\n2024-01-02,1,2,0.5,3,100",
+    });
+
+    const { exitSpy } = await runTicker();
+    expect(exitSpy).toHaveBeenCalledWith(0);
   });
 });
