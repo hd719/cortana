@@ -75,6 +75,51 @@ function runRepoAutoSync(repoDir: string, extraArgs: string[] = []): { stdout: s
   const result = spawnSync("bash", [scriptPath, "--repo", repoDir, ...extraArgs], {
     cwd: repoDir,
     encoding: "utf8",
+    env: process.env,
+  });
+
+  return {
+    stdout: result.stdout ?? "",
+    stderr: result.stderr ?? "",
+    status: result.status ?? 1,
+  };
+}
+
+function setupFakeGh(rootDir: string): { binDir: string; callsPath: string } {
+  const binDir = path.join(rootDir, "bin");
+  const callsPath = path.join(rootDir, "gh-calls.log");
+  fs.mkdirSync(binDir, { recursive: true });
+  const ghPath = path.join(binDir, "gh");
+  fs.writeFileSync(
+    ghPath,
+    `#!/usr/bin/env bash
+set -euo pipefail
+printf '%s\n' "$*" >> ${JSON.stringify(callsPath)}
+if [[ "$1 $2" == "pr create" ]]; then
+  echo https://github.com/hd719/cortana/pull/4242
+  exit 0
+fi
+if [[ "$1 $2" == "pr list" ]]; then
+  echo '[]'
+  exit 0
+fi
+exit 0
+`,
+    { mode: 0o755 },
+  );
+
+  return { binDir, callsPath };
+}
+
+function runRepoAutoSyncWithEnv(
+  repoDir: string,
+  env: NodeJS.ProcessEnv,
+  extraArgs: string[] = [],
+): { stdout: string; stderr: string; status: number } {
+  const result = spawnSync("bash", [scriptPath, "--repo", repoDir, ...extraArgs], {
+    cwd: repoDir,
+    encoding: "utf8",
+    env: { ...process.env, ...env },
   });
 
   return {
@@ -177,5 +222,35 @@ describe("repo-auto-sync worktree conflict automation", () => {
     expect(result.stderr).toContain("detail=volatile-runtime-state-restored");
     expect(run("git status --short", repoDir)).toBe("");
     expect(fs.readFileSync(runtimeState, "utf8")).toContain("seed");
+  });
+
+  it("promotes tracked dream-memory dirt on main into a draft PR and returns to clean main", () => {
+    const { repoDir, rootDir } = setupMergedBranchRepo("repo-auto-sync-promotable-memory");
+    const dreamState = path.join(repoDir, "memory", ".dreams", "short-term-recall.json");
+    const { binDir, callsPath } = setupFakeGh(rootDir);
+
+    fs.mkdirSync(path.dirname(dreamState), { recursive: true });
+    fs.writeFileSync(dreamState, '{"summary":"seed"}\n', "utf8");
+    run("git add memory/.dreams/short-term-recall.json", repoDir);
+    run("git commit -m 'track dream memory file for regression'", repoDir);
+    run("git push origin main", repoDir);
+
+    fs.writeFileSync(dreamState, '{"summary":"updated"}\n', "utf8");
+
+    const result = runRepoAutoSyncWithEnv(repoDir, {
+      PATH: `${binDir}:${process.env.PATH ?? ""}`,
+    });
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toContain("promotable-memory-pr-opened");
+    expect(result.stdout).toContain("https://github.com/hd719/cortana/pull/4242");
+    expect(result.stderr).toContain("detail=promotable-memory-pr-opened");
+    expect(run("git branch --show-current", repoDir)).toBe("main");
+    expect(run("git status --short", repoDir)).toBe("");
+    expect(fs.readFileSync(callsPath, "utf8")).toContain("pr create --draft");
+
+    const promotedBranch = result.stdout.match(/branch=(codex\/promote-[^ ]+)/)?.[1];
+    expect(promotedBranch).toBeTruthy();
+    expect(hasLocalBranch(repoDir, promotedBranch ?? "")).toBe(true);
   });
 });

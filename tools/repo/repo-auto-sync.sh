@@ -17,6 +17,12 @@ VOLATILE_STATE_FILES=(
 VOLATILE_STATUS_PREFIXES=(
   "var/backtests/runs/"
 )
+PROMOTABLE_MEMORY_FILES=(
+  "memory/fitness/programs/json/current-tonal-catalog.json"
+)
+PROMOTABLE_MEMORY_PREFIXES=(
+  "memory/.dreams/"
+)
 
 DIRTY_MAIN_STALE_HOURS="${DIRTY_MAIN_STALE_HOURS:-6}"
 STALE_TEMP_WORKTREE_HOURS="${STALE_TEMP_WORKTREE_HOURS:-24}"
@@ -176,6 +182,13 @@ status_line_is_volatile() {
   return 1
 }
 
+status_line_path() {
+  local line="$1"
+  local path="${line:3}"
+  path="${path##* -> }"
+  printf '%s\n' "$path"
+}
+
 status_tracked_lines() {
   local status="$1"
 
@@ -185,6 +198,80 @@ status_tracked_lines() {
       printf '%s\n' "$line"
     fi
   done <<< "$status"
+}
+
+tracked_status_paths() {
+  local status="$1"
+
+  while IFS= read -r line; do
+    [[ -z "$line" ]] && continue
+    status_line_path "$line"
+  done < <(status_tracked_lines "$status")
+}
+
+path_is_promotable_memory() {
+  local path="$1"
+  local rel
+  local prefix
+
+  for rel in "${PROMOTABLE_MEMORY_FILES[@]}"; do
+    if [[ "$path" == "$rel" ]]; then
+      return 0
+    fi
+  done
+
+  for prefix in "${PROMOTABLE_MEMORY_PREFIXES[@]}"; do
+    if [[ "$path" == "$prefix"* ]]; then
+      return 0
+    fi
+  done
+
+  return 1
+}
+
+tracked_status_is_promotable_memory_only() {
+  local status="$1"
+  local saw_path=1
+  local path=""
+
+  while IFS= read -r path; do
+    [[ -n "$path" ]] || continue
+    saw_path=0
+    if ! path_is_promotable_memory "$path"; then
+      return 1
+    fi
+  done < <(tracked_status_paths "$status")
+
+  return "$saw_path"
+}
+
+promotable_memory_slug() {
+  local status="$1"
+  local path=""
+
+  while IFS= read -r path; do
+    [[ -n "$path" ]] || continue
+    if [[ "$path" != memory/.dreams/* ]]; then
+      printf 'memory-artifacts\n'
+      return 0
+    fi
+  done < <(tracked_status_paths "$status")
+
+  printf 'dream-memory\n'
+}
+
+join_by_comma() {
+  local result=""
+  local value=""
+
+  for value in "$@"; do
+    if [[ -n "$result" ]]; then
+      result+=","
+    fi
+    result+="$value"
+  done
+
+  printf '%s\n' "$result"
 }
 
 newest_status_path_age_seconds() {
@@ -242,6 +329,136 @@ restore_volatile_runtime_state() {
     printf 'INFO repo=%s step=preflight-clean detail=volatile-runtime-state-restored files=%q\n' \
       "$repo" "${restored[*]}" >&2
   fi
+}
+
+create_or_find_pr_for_branch() {
+  local repo="$1"
+  local branch="$2"
+  local title="$3"
+  local body="$4"
+
+  local create_out=""
+  local create_rc=0
+  local pr_url=""
+
+  set +e
+  create_out="$(git -C "$repo" rev-parse --show-toplevel >/dev/null 2>&1 && cd "$repo" && gh pr create --draft --base main --head "$branch" --title "$title" --body "$body" 2>&1)"
+  create_rc=$?
+  set -e
+
+  if [[ "$create_rc" -eq 0 ]]; then
+    pr_url="$(printf '%s\n' "$create_out" | grep -Eo 'https://github.com/[^ ]+/pull/[0-9]+' | tail -n1 || true)"
+  fi
+
+  if [[ -z "$pr_url" ]]; then
+    set +e
+    pr_url="$(cd "$repo" && gh pr list --head "$branch" --json url --limit 1 2>/dev/null | python3 -c 'import json,sys
+try:
+    payload=json.load(sys.stdin)
+except Exception:
+    payload=[]
+if isinstance(payload, list) and payload:
+    print(payload[0].get("url", ""))')"
+    create_rc=$?
+    set -e
+    if [[ "$create_rc" -ne 0 ]]; then
+      pr_url=""
+    fi
+  fi
+
+  printf '%s\n' "$pr_url"
+}
+
+promote_promotable_memory_state() {
+  local repo="$1"
+  local tracked_status="$2"
+  local branch_slug branch_name ts commit_msg pr_title pr_body branch_files file_list repo_name
+  local paths=()
+  local path=""
+  local pr_url=""
+  local commit_sha=""
+  local promotion_ok=1
+  local on_feature_branch=1
+
+  while IFS= read -r path; do
+    [[ -n "$path" ]] || continue
+    paths+=("$path")
+  done < <(tracked_status_paths "$tracked_status")
+
+  if (( ${#paths[@]} == 0 )); then
+    return 1
+  fi
+
+  branch_slug="$(promotable_memory_slug "$tracked_status")"
+  ts="$(date -u +%Y%m%d-%H%M%S)"
+  branch_name="codex/promote-${branch_slug}-${ts}"
+  repo_name="$(basename "$repo")"
+  branch_files="$(join_by_comma "${paths[@]}")"
+
+  if [[ "$branch_slug" == "dream-memory" ]]; then
+    commit_msg="chore(memory): promote dream memory state"
+    pr_title="[codex] Promote dream memory state"
+  else
+    commit_msg="chore(memory): promote memory artifacts"
+    pr_title="[codex] Promote memory artifacts"
+  fi
+
+  file_list="$(for path in "${paths[@]}"; do printf -- '- `%s`\n' "$path"; done)"
+  pr_body=$(cat <<EOF
+## Summary
+- promote tracked memory artifacts detected on local main during repo auto-sync
+- preserve dreaming and runtime-derived memory state instead of treating it as disposable dirt
+- return local main to a clean state so sync/deploy automation can continue
+
+## Files
+$file_list
+EOF
+)
+
+  if ! git -C "$repo" checkout -b "$branch_name" >/dev/null 2>&1; then
+    queue_actionable_alert "$repo" "preflight-clean" "promotable-memory-branch-create-failed branch=$branch_name"
+    return 1
+  fi
+  on_feature_branch=0
+
+  if ! git -C "$repo" add -- "${paths[@]}" >/dev/null 2>&1; then
+    queue_actionable_alert "$repo" "preflight-clean" "promotable-memory-stage-failed branch=$branch_name files=$branch_files"
+    return 1
+  fi
+
+  if ! git -C "$repo" commit -m "$commit_msg" >/dev/null 2>&1; then
+    queue_actionable_alert "$repo" "preflight-clean" "promotable-memory-commit-failed branch=$branch_name files=$branch_files"
+    return 1
+  fi
+
+  commit_sha="$(git -C "$repo" rev-parse HEAD 2>/dev/null || true)"
+
+  if ! git -C "$repo" push -u origin "$branch_name" >/dev/null 2>&1; then
+    queue_actionable_alert "$repo" "preflight-clean" "promotable-memory-push-failed branch=$branch_name commit=${commit_sha:-unknown}"
+    promotion_ok=0
+  else
+    pr_url="$(create_or_find_pr_for_branch "$repo" "$branch_name" "$pr_title" "$pr_body")"
+    if [[ -n "$pr_url" ]]; then
+      queue_actionable_alert "$repo" "preflight-clean" "promotable-memory-pr-opened branch=$branch_name pr_url=$pr_url files=$branch_files"
+      printf 'INFO repo=%s step=preflight-clean detail=promotable-memory-pr-opened branch=%q pr_url=%q files=%q\n' \
+        "$repo" "$branch_name" "$pr_url" "$branch_files" >&2
+    else
+      queue_actionable_alert "$repo" "preflight-clean" "promotable-memory-branch-pushed-no-pr branch=$branch_name commit=${commit_sha:-unknown}"
+      promotion_ok=0
+    fi
+  fi
+
+  if ! git -C "$repo" checkout main >/dev/null 2>&1; then
+    queue_actionable_alert "$repo" "preflight-clean" "promotable-memory-return-main-failed branch=$branch_name"
+    return 1
+  fi
+  on_feature_branch=1
+
+  if [[ "$promotion_ok" -ne 0 ]]; then
+    return 0
+  fi
+
+  return 1
 }
 
 list_worktrees_for_branch() {
@@ -523,6 +740,13 @@ ensure_clean_preflight() {
     fi
     printf 'WARN repo=%s step=preflight-clean detail=feature-branch-dirty-expected branch=%q\n' "$repo" "$current_branch" >&2
     return 2
+  fi
+
+  if tracked_status_is_promotable_memory_only "$tracked_status"; then
+    if promote_promotable_memory_state "$repo" "$tracked_status"; then
+      return 0
+    fi
+    return 3
   fi
 
   local newest_age_seconds threshold_seconds
