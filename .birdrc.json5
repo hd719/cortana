@@ -1,0 +1,7 @@
+// Workspace bird config
+// Use only the Cortana X account via the OpenClaw browser profile.
+{
+  chromeProfileDir: "/Users/hd/.openclaw/browser/openclaw/user-data/Default",
+  cookieTimeoutMs: 60000,
+  timeoutMs: 30000,
+}
