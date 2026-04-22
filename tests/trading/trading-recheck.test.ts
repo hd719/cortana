@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { afterEach, describe, expect, it } from "vitest";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   applyTrackedSymbolExclusions,
@@ -13,6 +13,13 @@ import {
   pickEligibleBaseRun,
   type RecheckChange,
 } from "../../tools/trading/trading-recheck";
+import { cleanupTestTempDirs, createTestTempDir } from "./test-temp-artifacts";
+
+const tempRoots = new Set<string>();
+
+afterEach(() => {
+  cleanupTestTempDirs(tempRoots);
+});
 
 function candidate(
   file: string,
@@ -57,7 +64,7 @@ describe("trading re-check base run selection", () => {
   });
 
   it("returns null when the latest successful run is stale", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-recheck-"));
+    const root = createTestTempDir("recheck-", tempRoots);
     const runDir = path.join(root, "runs", "20260319-143000");
     mkdirSync(runDir, { recursive: true });
     writeFileSync(path.join(runDir, "stdout.txt"), "report");
@@ -76,7 +83,7 @@ describe("trading re-check base run selection", () => {
   });
 
   it("accepts the latest successful run when only watchlist-full.json is present", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-recheck-watchlist-"));
+    const root = createTestTempDir("recheck-watchlist-", tempRoots);
     const runDir = path.join(root, "runs", "20260319-143000");
     mkdirSync(runDir, { recursive: true });
     writeFileSync(
@@ -147,7 +154,7 @@ Dip Buyer: scanned 120 | evaluated 2 | threshold-passed 1 | BUY 0 | WATCH 1 | NO
   });
 
   it("prefers the structured full watchlist artifact over stdout report parsing", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-recheck-prefers-artifact-"));
+    const root = createTestTempDir("recheck-prefers-artifact-", tempRoots);
     const runDir = path.join(root, "runs", "20260319-143000");
     mkdirSync(runDir, { recursive: true });
     writeFileSync(
@@ -193,7 +200,7 @@ CANSLIM: scanned 120 | evaluated 1 | threshold-passed 1 | BUY 0 | WATCH 0 | NO_B
   });
 
   it("applies explicit exclusions from env and file-backed symbol lists", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-recheck-exclude-"));
+    const root = createTestTempDir("recheck-exclude-", tempRoots);
     const file = path.join(root, "exclude.txt");
     writeFileSync(
       file,
@@ -229,7 +236,7 @@ CANSLIM: scanned 120 | evaluated 1 | threshold-passed 0 | BUY 0 | WATCH 0 | NO_B
   });
 
   it("falls back to stdout parsing when the structured artifact is missing", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-recheck-stdout-fallback-"));
+    const root = createTestTempDir("recheck-stdout-fallback-", tempRoots);
     const runDir = path.join(root, "runs", "20260319-143000");
     mkdirSync(runDir, { recursive: true });
     writeFileSync(

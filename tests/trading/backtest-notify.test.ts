@@ -1,8 +1,15 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { execSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { buildNotifyArgs, describePendingStateFromCandidates, pickPendingFromCandidates, type SummaryCandidate } from "../../tools/trading/backtest-notify";
+import { cleanupTestTempDirs, createTestTempDir } from "./test-temp-artifacts";
+
+const tempRoots = new Set<string>();
+
+afterEach(() => {
+  cleanupTestTempDirs(tempRoots);
+});
 
 function candidate(
   file: string,
@@ -138,7 +145,7 @@ describe("backtest notify delivery contract", () => {
   }
 
   it("stamps notified when guard confirms sent", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-notify-"));
+    const root = createTestTempDir("notify-", tempRoots);
     const notifyStub = path.join(root, "notify-stub.sh");
     const psqlStub = path.join(root, "psql-stub.sh");
     const psqlLog = path.join(root, "psql.log");
@@ -168,7 +175,7 @@ describe("backtest notify delivery contract", () => {
   });
 
   it("does not stamp notified when guard returns deduped/suppressed", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-notify-"));
+    const root = createTestTempDir("notify-", tempRoots);
     const notifyStub = path.join(root, "notify-stub.sh");
     const summaryPath = setupRun(root, "20260101-000001");
 
@@ -217,7 +224,7 @@ describe("backtest notify delivery contract", () => {
   });
 
   it("fails when guard fails delivery", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-notify-"));
+    const root = createTestTempDir("notify-", tempRoots);
     const notifyStub = path.join(root, "notify-stub.sh");
     const summaryPath = setupRun(root, "20260101-000002");
 

@@ -1,6 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
-import { mkdtempSync, mkdirSync, writeFileSync } from "node:fs";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { cleanupTestTempDirs, createTestTempDir } from "./test-temp-artifacts";
 
 const { runPsqlMock } = vi.hoisted(() => ({
   runPsqlMock: vi.fn(),
@@ -84,13 +85,19 @@ function setupRunArtifacts(root: string, runId: string) {
 }
 
 describe("trading run state writer", () => {
+  const tempRoots = new Set<string>();
+
   beforeEach(() => {
     runPsqlMock.mockReset();
     runPsqlMock.mockReturnValue({ status: 0, stdout: "", stderr: "" });
   });
 
+  afterEach(() => {
+    cleanupTestTempDirs(tempRoots);
+  });
+
   it("builds a normalized record from run artifacts", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-trading-run-state-"));
+    const root = createTestTempDir("trading-run-state-", tempRoots);
     const { summaryPath } = setupRunArtifacts(root, "20260407-171940");
 
     const record = buildTradingRunStateRecordFromArtifacts(summaryPath);
@@ -113,7 +120,7 @@ describe("trading run state writer", () => {
   });
 
   it("writes an upsert through MISSION_CONTROL_DATABASE_URL", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-trading-run-state-"));
+    const root = createTestTempDir("trading-run-state-", tempRoots);
     const { summaryPath } = setupRunArtifacts(root, "20260407-171941");
 
     const result = syncTradingRunFromArtifacts(summaryPath, {
@@ -131,7 +138,7 @@ describe("trading run state writer", () => {
   });
 
   it("strips Prisma-only query params before invoking psql", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-trading-run-state-"));
+    const root = createTestTempDir("trading-run-state-", tempRoots);
     const { summaryPath } = setupRunArtifacts(root, "20260407-171945");
 
     const result = syncTradingRunFromArtifacts(summaryPath, {
@@ -153,8 +160,8 @@ describe("trading run state writer", () => {
   });
 
   it("falls back to Mission Control .env.local when explicit sync env is missing", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-trading-run-state-"));
-    const externalRoot = mkdtempSync(path.join(process.cwd(), "tmp-cortana-external-"));
+    const root = createTestTempDir("trading-run-state-", tempRoots);
+    const externalRoot = createTestTempDir("cortana-external-", tempRoots);
     const envLocalPath = path.join(externalRoot, "apps", "mission-control", ".env.local");
     const { summaryPath } = setupRunArtifacts(root, "20260407-171944");
 
@@ -173,8 +180,8 @@ describe("trading run state writer", () => {
   });
 
   it("sanitizes fallback Mission Control .env.local URLs for psql", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-trading-run-state-"));
-    const externalRoot = mkdtempSync(path.join(process.cwd(), "tmp-cortana-external-"));
+    const root = createTestTempDir("trading-run-state-", tempRoots);
+    const externalRoot = createTestTempDir("cortana-external-", tempRoots);
     const envLocalPath = path.join(externalRoot, "apps", "mission-control", ".env.local");
     const { summaryPath } = setupRunArtifacts(root, "20260407-171946");
 

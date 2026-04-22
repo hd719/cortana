@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
 import { execSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import {
   buildFullWatchlistArtifact,
@@ -9,6 +9,13 @@ import {
   formatFullWatchlistArtifactText,
 } from "../../tools/trading/backtest-compute";
 import type { PipelineSnapshot } from "../../tools/trading/trading-pipeline";
+import { cleanupTestTempDirs, createTestTempDir } from "./test-temp-artifacts";
+
+const tempRoots = new Set<string>();
+
+afterEach(() => {
+  cleanupTestTempDirs(tempRoots);
+});
 
 const UNIFIED_REPORT = `📈 Trading Advisor - Unified Pipeline
 Run: 3/19/2026, 3:30:00 PM ET
@@ -243,7 +250,7 @@ describe("backtest compute unified metrics", () => {
 
 describe("backtest compute failure artifacts", () => {
   it("writes structured failure details and emits a concise stderr summary", () => {
-    const root = mkdtempSync(path.join(process.cwd(), "tmp-backtest-compute-"));
+    const root = createTestTempDir("backtest-compute-", tempRoots);
     const scriptPath = path.join(root, "fail.sh");
     const psqlStub = path.join(root, "psql-stub.sh");
     const psqlLog = path.join(root, "psql.log");
