@@ -13,6 +13,7 @@ VOLATILE_STATE_FILES=(
   "memory/circuit-breaker-state.json"
   "memory/cron-health-48h.json"
   "memory/cron-health-48h-errors.json"
+  "memory/heartbeat-state.json"
 )
 VOLATILE_STATUS_PREFIXES=(
   "var/backtests/runs/"

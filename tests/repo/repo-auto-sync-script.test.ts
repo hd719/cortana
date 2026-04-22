@@ -74,6 +74,7 @@ describe("repo-auto-sync.sh hygiene policy", () => {
   it("suppresses volatile runtime-state false dirt and only re-alerts on changed actionable state", () => {
     expect(script).toContain('memory/calendar-reminders-sent.json');
     expect(script).toContain('memory/newsletter-alerted.json');
+    expect(script).toContain('memory/heartbeat-state.json');
     expect(script).toContain('detail=volatile-runtime-state-restored');
     expect(script).toContain('PROMOTABLE_MEMORY_FILES=(');
     expect(script).toContain('"DREAMS.md"');
