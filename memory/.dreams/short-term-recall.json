@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updatedAt": "2026-04-20T00:38:26.781Z",
+  "updatedAt": "2026-04-22T18:57:23.616Z",
   "entries": {
     "memory:memory/.dreams/session-corpus/2026-04-10.txt:1:1": {
       "key": "memory:memory/.dreams/session-corpus/2026-04-10.txt:1:1",
@@ -8977,19 +8977,20 @@
       "source": "memory",
       "snippet": "Reflections: Theme: `assistant` kept surfacing across 139 memories.; confidence: 0.95; evidence: memory/.dreams/session-corpus/2026-04-10.txt:2-2, memory/.dreams/session-corpus/2026-04-10.txt:3-3, memory/.dreams/session-corpus/2026-04-10.txt:4-4; note: reflection",
       "recallCount": 0,
-      "dailyCount": 1,
+      "dailyCount": 2,
       "groundedCount": 0,
-      "totalScore": 0.62,
+      "totalScore": 1.24,
       "maxScore": 0.62,
       "firstRecalledAt": "2026-04-16T10:04:08.748Z",
-      "lastRecalledAt": "2026-04-17T10:04:08.752Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
       "queryHashes": [
         "11d1361acb2d"
       ],
       "recallDays": [
         "2026-04-14",
         "2026-04-16",
-        "2026-04-17"
+        "2026-04-17",
+        "2026-04-21"
       ],
       "conceptTags": [
         "0.95",
@@ -9010,19 +9011,20 @@
       "source": "memory",
       "snippet": "Reflections: Theme: `heartbeat-ok` kept surfacing across 133 memories.; confidence: 0.90; evidence: memory/.dreams/session-corpus/2026-04-10.txt:1-1, memory/.dreams/session-corpus/2026-04-10.txt:2-2, memory/.dreams/session-corpus/2026-04-10.txt:5-5; note: reflection",
       "recallCount": 0,
-      "dailyCount": 1,
+      "dailyCount": 2,
       "groundedCount": 0,
-      "totalScore": 0.62,
+      "totalScore": 1.24,
       "maxScore": 0.62,
       "firstRecalledAt": "2026-04-16T10:04:08.748Z",
-      "lastRecalledAt": "2026-04-17T10:04:08.752Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
       "queryHashes": [
         "11d1361acb2d"
       ],
       "recallDays": [
         "2026-04-14",
         "2026-04-16",
-        "2026-04-17"
+        "2026-04-17",
+        "2026-04-21"
       ],
       "conceptTags": [
         "heartbeat-ok",
@@ -9043,19 +9045,20 @@
       "source": "memory",
       "snippet": "Reflections: Theme: `user` kept surfacing across 132 memories.; confidence: 0.90; evidence: memory/.dreams/session-corpus/2026-04-10.txt:1-1, memory/.dreams/session-corpus/2026-04-10.txt:5-5, memory/.dreams/session-corpus/2026-04-10.txt:7-7; note: reflection",
       "recallCount": 0,
-      "dailyCount": 1,
+      "dailyCount": 2,
       "groundedCount": 0,
-      "totalScore": 0.62,
+      "totalScore": 1.24,
       "maxScore": 0.62,
       "firstRecalledAt": "2026-04-16T10:04:08.748Z",
-      "lastRecalledAt": "2026-04-17T10:04:08.752Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
       "queryHashes": [
         "11d1361acb2d"
       ],
       "recallDays": [
         "2026-04-14",
         "2026-04-16",
-        "2026-04-17"
+        "2026-04-17",
+        "2026-04-21"
       ],
       "conceptTags": [
         "0.90",
@@ -9076,19 +9079,20 @@
       "source": "memory",
       "snippet": "Possible Lasting Truths: Assistant: [[reply_to_current]] Capital gains tax is tax on profit when you sell an asset for more than you paid. Short version: - You usually pay it when you **sell** and realize a gain, not just because the asset went up. - **Yes, every taxable sale can",
       "recallCount": 0,
-      "dailyCount": 1,
+      "dailyCount": 2,
       "groundedCount": 0,
-      "totalScore": 0.62,
+      "totalScore": 1.24,
       "maxScore": 0.62,
       "firstRecalledAt": "2026-04-16T10:04:08.748Z",
-      "lastRecalledAt": "2026-04-17T10:04:08.752Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
       "queryHashes": [
         "11d1361acb2d"
       ],
       "recallDays": [
         "2026-04-14",
         "2026-04-16",
-        "2026-04-17"
+        "2026-04-17",
+        "2026-04-21"
       ],
       "conceptTags": [
         "reply-to-current",
@@ -11415,18 +11419,19 @@
       "source": "memory",
       "snippet": "Reflections: Theme: `heartbeat-ok` kept surfacing across 197 memories.; confidence: 1.00; evidence: memory/.dreams/session-corpus/2026-04-10.txt:1-1, memory/.dreams/session-corpus/2026-04-10.txt:2-2, memory/.dreams/session-corpus/2026-04-10.txt:5-5; note: reflection",
       "recallCount": 0,
-      "dailyCount": 1,
+      "dailyCount": 2,
       "groundedCount": 0,
-      "totalScore": 0.62,
+      "totalScore": 1.24,
       "maxScore": 0.62,
       "firstRecalledAt": "2026-04-17T10:04:08.752Z",
-      "lastRecalledAt": "2026-04-17T10:04:08.752Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
       "queryHashes": [
         "b628913e3912"
       ],
       "recallDays": [
         "2026-04-16",
-        "2026-04-17"
+        "2026-04-17",
+        "2026-04-21"
       ],
       "conceptTags": [
         "heartbeat-ok",
@@ -11447,18 +11452,19 @@
       "source": "memory",
       "snippet": "Reflections: Theme: `assistant` kept surfacing across 182 memories.; confidence: 0.98; evidence: memory/.dreams/session-corpus/2026-04-10.txt:2-2, memory/.dreams/session-corpus/2026-04-10.txt:3-3, memory/.dreams/session-corpus/2026-04-10.txt:4-4; note: reflection",
       "recallCount": 0,
-      "dailyCount": 1,
+      "dailyCount": 2,
       "groundedCount": 0,
-      "totalScore": 0.62,
+      "totalScore": 1.24,
       "maxScore": 0.62,
       "firstRecalledAt": "2026-04-17T10:04:08.752Z",
-      "lastRecalledAt": "2026-04-17T10:04:08.752Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
       "queryHashes": [
         "b628913e3912"
       ],
       "recallDays": [
         "2026-04-16",
-        "2026-04-17"
+        "2026-04-17",
+        "2026-04-21"
       ],
       "conceptTags": [
         "0.98",
@@ -11479,18 +11485,19 @@
       "source": "memory",
       "snippet": "Reflections: Theme: `user` kept surfacing across 167 memories.; confidence: 0.90; evidence: memory/.dreams/session-corpus/2026-04-10.txt:1-1, memory/.dreams/session-corpus/2026-04-10.txt:5-5, memory/.dreams/session-corpus/2026-04-10.txt:7-7; note: reflection",
       "recallCount": 0,
-      "dailyCount": 1,
+      "dailyCount": 2,
       "groundedCount": 0,
-      "totalScore": 0.62,
+      "totalScore": 1.24,
       "maxScore": 0.62,
       "firstRecalledAt": "2026-04-17T10:04:08.752Z",
-      "lastRecalledAt": "2026-04-17T10:04:08.752Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
       "queryHashes": [
         "b628913e3912"
       ],
       "recallDays": [
         "2026-04-16",
-        "2026-04-17"
+        "2026-04-17",
+        "2026-04-21"
       ],
       "conceptTags": [
         "0.90",
@@ -11511,18 +11518,19 @@
       "source": "memory",
       "snippet": "Possible Lasting Truths: Backfilled canonical daily memory file on 2026-04-12 to preserve the date chain.; No canonical `memory/YYYY-MM-DD.md` file existed for this date at backfill time.; No same-day fragment files were present in `memory/` during backfill. [confidence=0.51 evid",
       "recallCount": 0,
-      "dailyCount": 1,
+      "dailyCount": 2,
       "groundedCount": 0,
-      "totalScore": 0.62,
+      "totalScore": 1.24,
       "maxScore": 0.62,
       "firstRecalledAt": "2026-04-17T10:04:08.752Z",
-      "lastRecalledAt": "2026-04-17T10:04:08.752Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
       "queryHashes": [
         "b628913e3912"
       ],
       "recallDays": [
         "2026-04-16",
-        "2026-04-17"
+        "2026-04-17",
+        "2026-04-21"
       ],
       "conceptTags": [
         "memory/yyyy-mm-dd.md",
@@ -14889,23 +14897,25 @@
       "endLine": 67,
       "source": "memory",
       "snippet": "- status: staged - Candidate: Assistant: [[reply_to_current]] Quite a lot, Chief. I can: - read, edit, and create files in your `/Users/hd/Developer/cortana` workspace - run shell commands, inspect logs, and debug local services - use browser automation for web tasks - manage messages, reminders, cron jobs, a - confidence: 0.58 - evidence: memory/.dreams/session-corpus/2026-04-12.txt:100-100 - recalls: 0 - status: staged - Candidate: Assistant: ☀️ Brief - Morning Brief Schedule: - 11:00 AM - 🏁 FORMULA 1 GULF AIR BAHRAIN GRAND PRIX 2026 - Race Apple Reminders: - Return iPhone FedEx - Bedding laundry - Pick classes for last semester - Check workday - Email Sanjay Uncle about investm",
-      "recallCount": 5,
+      "recallCount": 6,
       "dailyCount": 0,
       "groundedCount": 0,
-      "totalScore": 1.4504280358552935,
+      "totalScore": 1.8021964341402055,
       "maxScore": 0.3544162184000015,
       "firstRecalledAt": "2026-04-17T16:48:18.880Z",
-      "lastRecalledAt": "2026-04-19T23:35:59.708Z",
+      "lastRecalledAt": "2026-04-21T17:19:26.999Z",
       "queryHashes": [
         "489659511777",
         "1d4ad651fc3c",
         "8d9acb69d49c",
         "b223830b246e",
-        "538b8377e745"
+        "538b8377e745",
+        "a45e9531753f"
       ],
       "recallDays": [
         "2026-04-17",
-        "2026-04-19"
+        "2026-04-19",
+        "2026-04-21"
       ],
       "conceptTags": [
         "reply-to-current",
@@ -15172,30 +15182,3107 @@
       "startLine": 1,
       "endLine": 3,
       "source": "memory",
-      "snippet": "- Resolved LobsterLink browser-extension loading on H’s Mac mini by switching OpenClaw’s browser launcher away from Google Chrome to an unquarantined user-owned Chromium copy; Google Chrome was ignoring the unpacked-extension flags and the stock Chromium app was blocked by macOS quarantine. - LobsterLink was verified live on the real `openclaw` browser profile after the browser-launcher config patch.",
+      "snippet": "Resolved LobsterLink browser-extension loading on H’s Mac mini by switching OpenClaw’s browser launcher away from Google Chrome to an unquarantined user-owned Chromium copy; Google Chrome was ignoring the unpacked-extension flags and the stock Chromium app was blocked by macOS qu",
+      "recallCount": 2,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 1.4961044770479202,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-19T23:20:07.902Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "a0dd9dac6731",
+        "9667fc92281f",
+        "21faa0df9302"
+      ],
+      "recallDays": [
+        "2026-04-19",
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "browser-extension",
+        "user-owned",
+        "unpacked-extension",
+        "resolved",
+        "lobsterlink",
+        "browser",
+        "extension",
+        "loading"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:1:1": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:1:1",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 1,
+      "endLine": 1,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:2:2": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:2:2",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 2,
+      "endLine": 2,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:3:3": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:3:3",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 3,
+      "endLine": 3,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:4:4": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:4:4",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 4,
+      "endLine": 4,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:5:5": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:5:5",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 5,
+      "endLine": 5,
+      "source": "memory",
+      "snippet": "Assistant: ☀️ Brief - Morning Brief Schedule: - Calendar unavailable (Command failed: npx tsx /Users/hd/Developer/cortana/tools/gog/calendar-events-json.ts --account hameldesai3@gmail.com cal list primary --from today --to today --json failed to get primary calendar: Get \"https:/",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "gmail.com",
+        "assistant",
+        "brief",
+        "morning",
+        "schedule",
+        "calendar",
+        "unavailable",
+        "command"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:6:6": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:6:6",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 6,
+      "endLine": 6,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:7:7": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:7:7",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 7,
+      "endLine": 7,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:8:8": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:8:8",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 8,
+      "endLine": 8,
+      "source": "memory",
+      "snippet": "User: Hey Cortana I got some errors for ya to investigate",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "hey",
+        "cortana",
+        "got",
+        "errors",
+        "investigate"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:9:9": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:9:9",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 9,
+      "endLine": 9,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Send them over. Paste the errors, screenshots, or tell me what broke and where, and I’ll tear into it.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "assistant",
+        "send",
+        "them",
+        "paste",
+        "the",
+        "errors",
+        "screenshots"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:10:10": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:10:10",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 10,
+      "endLine": 10,
+      "source": "memory",
+      "snippet": "User: [media attached: /Users/hd/.openclaw/media/inbound/file_271---156ed3e9-3461-4118-a50d-45cc77331a33.jpg (image/jpeg) | /Users/hd/.openclaw/media/inbound/file_271---156ed3e9-3461-4118-a50d-45cc77331a33.jpg] To send an image back, prefer the message tool (media/path/filePath).",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "users/hd",
+        "openclaw/media/inbound/file-271",
+        "image/jpeg",
+        "media/path/filepath",
+        "user",
+        "media",
+        "attached",
+        "users"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:11:11": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:11:11",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 11,
+      "endLine": 11,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Looks like the calendar reminder cron is choking on a Google Calendar API timeout. Core failure: - `failed to get primary calendar` - request to `https://www.googleapis.com/calendar/v3/users/me/calendarList/primary...` - socket read timed out on HT",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "assistant",
+        "looks",
+        "like",
+        "the",
+        "calendar",
+        "reminder",
+        "cron"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:12:12": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:12:12",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 12,
+      "endLine": 12,
+      "source": "memory",
+      "snippet": "User: [media attached: /Users/hd/.openclaw/media/inbound/file_272---9184d779-8046-4e07-ade4-479c0bc548e9.jpg (image/jpeg) | /Users/hd/.openclaw/media/inbound/file_272---9184d779-8046-4e07-ade4-479c0bc548e9.jpg] To send an image back, prefer the message tool (media/path/filePath).",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "users/hd",
+        "openclaw/media/inbound/file-272",
+        "image/jpeg",
+        "media/path/filepath",
+        "user",
+        "media",
+        "attached",
+        "users"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:13:13": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:13:13",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 13,
+      "endLine": 13,
+      "source": "memory",
+      "snippet": "User: A new session was started via /new or /reset. If runtime-provided startup context is included for this first turn, use it before responding to the user. Then greet the user in your configured persona, if one is provided. Be yourself - use your defined voice, mannerisms, and",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "runtime-provided",
+        "user",
+        "new",
+        "was",
+        "started",
+        "via",
+        "reset",
+        "runtime"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:14:14": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:14:14",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 14,
+      "endLine": 14,
+      "source": "memory",
+      "snippet": "Assistant: Morning, Chief. Fresh deck, clean slate, and it’s Sunday, so tell me where you want to aim first. What are we doing?",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "assistant",
+        "morning",
+        "chief",
+        "fresh",
+        "deck",
+        "clean",
+        "slate",
+        "it’s"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:15:15": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:15:15",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 15,
+      "endLine": 15,
+      "source": "memory",
+      "snippet": "User: whats your model and thinking speed",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "whats",
+        "your",
+        "model",
+        "thinking",
+        "speed"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:16:16": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:16:16",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 16,
+      "endLine": 16,
+      "source": "memory",
+      "snippet": "Assistant: Right now I’m on `openai-codex/gpt-5.4`, with thinking set to `xhigh`. So, deep-think mode, not speed-run mode. Fallback is `openai-codex/gpt-5.3-codex` if needed.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "gpt",
+        "openai",
+        "openai-codex/gpt-5.4",
+        "deep-think",
+        "speed-run",
+        "openai-codex/gpt-5.3-codex",
+        "assistant",
+        "right"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:17:17": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:17:17",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 17,
+      "endLine": 17,
+      "source": "memory",
+      "snippet": "User: [Queued messages while agent was busy] --- Queued #1 (from Hamel Desai) A new session was started via /new or /reset. If runtime-provided startup context is included for this first turn, use it before responding to the user. Then greet the user in your configured persona, i",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "runtime-provided",
+        "user",
+        "queued",
+        "messages",
+        "while",
+        "was",
+        "busy",
+        "hamel"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:18:18": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:18:18",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 18,
+      "endLine": 18,
+      "source": "memory",
+      "snippet": "Assistant: Morning, Chief. I’m on deck and ready, what are we tackling first?",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "assistant",
+        "morning",
+        "chief",
+        "i’m",
+        "deck",
+        "ready",
+        "what",
+        "tackling"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:19:19": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:19:19",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 19,
+      "endLine": 19,
+      "source": "memory",
+      "snippet": "User: The extension has been loaded",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "the",
+        "extension",
+        "has",
+        "been",
+        "loaded"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:20:20": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:20:20",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 20,
+      "endLine": 20,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Nice. We’re live. What do you want me to do with it?",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "assistant",
+        "nice",
+        "we’re",
+        "live",
+        "what",
+        "you",
+        "want"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:21:21": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:21:21",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 21,
+      "endLine": 21,
+      "source": "memory",
+      "snippet": "User: Lets do a test run? Log into X you have your own credentials",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "lets",
+        "test",
+        "run",
+        "log",
+        "you",
+        "your",
+        "own"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:22:22": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:22:22",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 22,
+      "endLine": 22,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Yep. I’m in. Account is **Cortana**, **@Cortana356047**. Ready for the next move on X.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "assistant",
+        "yep",
+        "i’m",
+        "account",
+        "cortana",
+        "cortana356047",
+        "ready"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:23:23": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:23:23",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 23,
+      "endLine": 23,
+      "source": "memory",
+      "snippet": "User: Can you show me in the browser please",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "can",
+        "you",
+        "show",
+        "the",
+        "browser",
+        "please"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:24:24": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:24:24",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 24,
+      "endLine": 24,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Yep, it’s up and focused in the browser now.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "assistant",
+        "yep",
+        "it’s",
+        "focused",
+        "the",
+        "browser",
+        "now"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:25:25": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:25:25",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 25,
+      "endLine": 25,
+      "source": "memory",
+      "snippet": "User: What else can we do how can we test this extension?",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "what",
+        "else",
+        "can",
+        "how",
+        "test",
+        "extension"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:26:26": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:26:26",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 26,
+      "endLine": 26,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Plenty. Best clean test is a **draft-only X workflow**: search, open composer, write a post draft, attach an image if you want, then stop before sending. That proves navigation, auth, typing, and UI control without risk. Other good tests: - open/fo",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "draft-only",
+        "open/fo",
+        "assistant",
+        "plenty",
+        "best",
+        "clean",
+        "test"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:27:27": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:27:27",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 27,
+      "endLine": 27,
+      "source": "memory",
+      "snippet": "User: Go ahead follow some people who are revolutionizing AI technology",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "ahead",
+        "follow",
+        "people",
+        "who",
+        "revolutionizing",
+        "technology"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:28:28": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:28:28",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 28,
+      "endLine": 28,
+      "source": "memory",
+      "snippet": "Assistant: I’ll follow a small, solid set of real AI operators, not random hype merchants.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "assistant",
+        "i’ll",
+        "follow",
+        "small",
+        "solid",
+        "set",
+        "real",
+        "operators"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:29:29": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:29:29",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 29,
+      "endLine": 29,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Done. Followed: - Sam Altman, @sama - Andrej Karpathy, @karpathy - Demis Hassabis, @demishassabis - Yann LeCun, @ylecun - Andrew Ng, @AndrewYNg Good first pass, solid signal, low clown density. If you want, I can do a second pass for founders, rese",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "assistant",
+        "done",
+        "followed",
+        "sam",
+        "altman",
+        "sama",
+        "andrej"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:30:30": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:30:30",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 30,
+      "endLine": 30,
+      "source": "memory",
+      "snippet": "Assistant: 🫀 Whoop Freshness Alert Keep today easy and skip any intensity chasing, stick to a walk, mobility, or easy Zone 2 until WHOOP refreshes. Your recovery and sleep feeds are about 60 hours stale, so the signal is too old to trust for hard training decisions today.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "assistant",
+        "whoop",
+        "freshness",
+        "alert",
+        "keep",
+        "easy",
+        "skip",
+        "any"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:31:31": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:31:31",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 31,
+      "endLine": 31,
+      "source": "memory",
+      "snippet": "User: A new session was started via /new or /reset. If runtime-provided startup context is included for this first turn, use it before responding to the user. Then greet the user in your configured persona, if one is provided. Be yourself - use your defined voice, mannerisms, and",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "runtime-provided",
+        "user",
+        "new",
+        "was",
+        "started",
+        "via",
+        "reset",
+        "runtime"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:32:32": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:32:32",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 32,
+      "endLine": 32,
+      "source": "memory",
+      "snippet": "Assistant: Morning, Chief. Cortana on deck, caffeinated by pure spite and ready to make something useful happen. What are we doing today?",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "assistant",
+        "morning",
+        "chief",
+        "cortana",
+        "deck",
+        "caffeinated",
+        "pure",
+        "spite"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:33:33": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:33:33",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 33,
+      "endLine": 33,
+      "source": "memory",
+      "snippet": "User: Whats your model and thinking spee",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "whats",
+        "your",
+        "model",
+        "thinking",
+        "spee"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:34:34": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:34:34",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 34,
+      "endLine": 34,
+      "source": "memory",
+      "snippet": "Assistant: Model: openai-codex/gpt-5.4 Thinking: high Text verbosity: low So, short version: big brain, clipped answers.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "gpt",
+        "openai",
+        "openai-codex/gpt-5.4",
+        "assistant",
+        "model",
+        "codex",
+        "5.4",
+        "thinking"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:35:35": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:35:35",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 35,
+      "endLine": 35,
+      "source": "memory",
+      "snippet": "User: Cool perfect - I have a task for you So lately openclaw has been really slow you have been really slow I found these steps let me know what you think Do these 6 steps immediately: 🔶 Clear your sessions Biggest jump in performance was from doing this. Every cron job creates",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "cool",
+        "perfect",
+        "task",
+        "you",
+        "lately",
+        "openclaw",
+        "has"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:36:36": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:36:36",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 36,
+      "endLine": 36,
+      "source": "memory",
+      "snippet": "Assistant: Mostly right, but a couple parts are folklore. 1. **Clear sessions:** yes, but the claim is overstated. Old sessions are not all blindly stuffed into every prompt. Still, you currently have **93 active sessions**, so cleanup matters. 2. **Telegram topics:** helpful for",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "assistant",
+        "mostly",
+        "right",
+        "but",
+        "couple",
+        "parts",
+        "folklore",
+        "clear"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:37:37": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:37:37",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 37,
+      "endLine": 37,
+      "source": "memory",
+      "snippet": "User: System (untrusted): [2026-04-19 08:33:19 EDT] Exec completed (fast-wil, code 0) :: or: The `openclaw help` command is unavailable because `plugins.allow` excludes \"help\". Add \"help\" to `plugins.allow` if you want that bundled plugin CLI surface. at runCli (file:… An async c",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "fast-wil",
+        "plugins.allow",
+        "user",
+        "system",
+        "untrusted",
+        "edt",
+        "exec",
+        "completed"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:38:38": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:38:38",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 38,
+      "endLine": 38,
+      "source": "memory",
+      "snippet": "Assistant: NO_REPLY",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "no-reply",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:39:39": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:39:39",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 39,
+      "endLine": 39,
+      "source": "memory",
+      "snippet": "User: Do it and create a PR please",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "create",
+        "please"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:40:40": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:40:40",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 40,
+      "endLine": 40,
+      "source": "memory",
+      "snippet": "User: Do it and create a PR please",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "create",
+        "please"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:41:41": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:41:41",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 41,
+      "endLine": 41,
+      "source": "memory",
+      "snippet": "Assistant: Done. PR: #513 https://github.com/cortana-foundry/cortana/pull/513 Shipped the cron performance pass: `lightContext` on all 44 cron `agentTurn` jobs, tighter cron session retention, slimmer watchdog prompts, and slower schedules for the chattiest maintenance jobs. I al",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "assistant",
+        "done",
+        "https",
+        "github.com",
+        "cortana",
+        "foundry",
+        "pull",
+        "shipped"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:42:42": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:42:42",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 42,
+      "endLine": 42,
+      "source": "memory",
+      "snippet": "User: System (untrusted): [2026-04-19 08:42:59 EDT] Exec completed (delta-ne, code 0) :: ok config/cron/jobs.json ok config/session-lifecycle-policy.json {\"status\":\"remediated\",\"beforeCounts\":{\"chat\":1,\"subagent\":0,\"cron\":70,\"other\":22},\"afterCounts\":{\"chat\":1,\"subage… Still crea",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "delta-ne",
+        "config/cron/jobs.json",
+        "user",
+        "system",
+        "untrusted",
+        "edt",
+        "exec",
+        "completed"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:1:1": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:1:1",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 1,
+      "endLine": 1,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:2:2": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:2:2",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 2,
+      "endLine": 2,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:3:3": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:3:3",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 3,
+      "endLine": 3,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:4:4": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:4:4",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 4,
+      "endLine": 4,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:5:5": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:5:5",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 5,
+      "endLine": 5,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:6:6": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:6:6",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 6,
+      "endLine": 6,
+      "source": "memory",
+      "snippet": "User: System (untrusted): [2026-04-20 19:35:11 EDT] Exec completed (rapid-at, code 0) :: \"timeZone\": \"America/New_York\" }, \"recurringEventId\": \"_8cr3cc218grk2ba664rj0b9k6h2jeb9p8os3aba564s34di4611jecpi6o\", \"reminders\": { \"useDefault\": true }, \"start\": { \"dateTime\": \"2… An async c",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "rapid-at",
+        "america/new-york",
+        "user",
+        "system",
+        "untrusted",
+        "edt",
+        "exec",
+        "completed"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:7:7": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:7:7",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 7,
+      "endLine": 7,
+      "source": "memory",
+      "snippet": "Assistant: NO_REPLY",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "no-reply",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:8:8": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:8:8",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 8,
+      "endLine": 8,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:9:9": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:9:9",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 9,
+      "endLine": 9,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:10:10": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:10:10",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 10,
+      "endLine": 10,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:11:11": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:11:11",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 11,
+      "endLine": 11,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:12:12": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:12:12",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 12,
+      "endLine": 12,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/2026-04-17.md:213:216": {
+      "key": "memory:memory/2026-04-17.md:213:216",
+      "path": "memory/2026-04-17.md",
+      "startLine": 213,
+      "endLine": 216,
+      "source": "memory",
+      "snippet": "Reflections: Theme: `heartbeat-ok` kept surfacing across 277 memories.; confidence: 1.00; evidence: memory/.dreams/session-corpus/2026-04-10.txt:1-1, memory/.dreams/session-corpus/2026-04-10.txt:2-2, memory/.dreams/session-corpus/2026-04-10.txt:5-5; note: reflection",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "500c0eda9949"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "1.00",
+        "1-1",
+        "2-2",
+        "5-5",
+        "reflections",
+        "theme",
+        "heartbeat"
+      ]
+    },
+    "memory:memory/2026-04-17.md:217:220": {
+      "key": "memory:memory/2026-04-17.md:217:220",
+      "path": "memory/2026-04-17.md",
+      "startLine": 217,
+      "endLine": 220,
+      "source": "memory",
+      "snippet": "Reflections: Theme: `assistant` kept surfacing across 240 memories.; confidence: 0.98; evidence: memory/.dreams/session-corpus/2026-04-10.txt:2-2, memory/.dreams/session-corpus/2026-04-10.txt:3-3, memory/.dreams/session-corpus/2026-04-10.txt:4-4; note: reflection",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "500c0eda9949"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "0.98",
+        "2-2",
+        "3-3",
+        "4-4",
+        "reflections",
+        "theme",
+        "assistant",
+        "kept"
+      ]
+    },
+    "memory:memory/2026-04-17.md:221:224": {
+      "key": "memory:memory/2026-04-17.md:221:224",
+      "path": "memory/2026-04-17.md",
+      "startLine": 221,
+      "endLine": 224,
+      "source": "memory",
+      "snippet": "Reflections: Theme: `user` kept surfacing across 223 memories.; confidence: 0.91; evidence: memory/.dreams/session-corpus/2026-04-10.txt:1-1, memory/.dreams/session-corpus/2026-04-10.txt:5-5, memory/.dreams/session-corpus/2026-04-10.txt:7-7; note: reflection",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "500c0eda9949"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "0.91",
+        "1-1",
+        "5-5",
+        "7-7",
+        "reflections",
+        "theme",
+        "user",
+        "kept"
+      ]
+    },
+    "memory:memory/2026-04-17.md:227:229": {
+      "key": "memory:memory/2026-04-17.md:227:229",
+      "path": "memory/2026-04-17.md",
+      "startLine": 227,
+      "endLine": 229,
+      "source": "memory",
+      "snippet": "Possible Lasting Truths: Backfilled canonical daily memory file on 2026-04-12 to preserve the date chain.; No canonical `memory/YYYY-MM-DD.md` file existed for this date at backfill time.; No same-day fragment files were present in `memory/` during backfill. [confidence=0.58 evid",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.62,
+      "maxScore": 0.62,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "500c0eda9949"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "memory/yyyy-mm-dd.md",
+        "same-day",
+        "0.58",
+        "possible",
+        "lasting",
+        "truths",
+        "backfilled",
+        "canonical"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:43:43": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:43:43",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 43,
+      "endLine": 43,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Yep, same species of failure. This one is another network/API timeout, not some catastrophic logic bug. The pattern looks like: - scheduled job kicks off - external Google call hangs - request times out - cron reports it as a failure So the real is",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "network",
+        "reply-to-current",
+        "network/api",
+        "assistant",
+        "yep",
+        "species",
+        "failure",
+        "one"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:44:44": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:44:44",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 44,
+      "endLine": 44,
+      "source": "memory",
+      "snippet": "User: Got 54 messages last night in Monroe",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "got",
+        "messages",
+        "last",
+        "night",
+        "monroe"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:45:45": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:45:45",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 45,
+      "endLine": 45,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Yeah, that’s busted. What I checked: - overnight OpenClaw message-send logs to your direct Telegram - cron-comms and Monitor sessions - recent calendar/reminder failure paths What I found: - I do **not** see 54 sends to this direct chat overnight -",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "message-send",
+        "cron-comms",
+        "calendar/reminder",
+        "assistant",
+        "yeah",
+        "that’s",
+        "busted"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:46:46": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:46:46",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 46,
+      "endLine": 46,
+      "source": "memory",
+      "snippet": "User: Please",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "please"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:47:47": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:47:47",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 47,
+      "endLine": 47,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Send me either: 1. a screenshot of the Monroe spam, or 2. the Monroe chat/topic name and I’ll trace the exact noisy cron instead of shadowboxing the wrong bastard.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "chat/topic",
+        "assistant",
+        "send",
+        "either",
+        "screenshot",
+        "the",
+        "monroe"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:48:48": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:48:48",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 48,
+      "endLine": 48,
+      "source": "memory",
+      "snippet": "User: [HIGH] Heartbeat check failed • Email triage scan hung and was killed before completion. • Root cause: inbox_to_execution.ts --output-json did not finish within the watchdog window. • Tech/news scan completed normally. Next: rerun the inbox triage script with debugging/logg",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "inbox-to-execution.ts",
+        "output-json",
+        "tech/news",
+        "debugging/logg",
+        "user",
+        "high",
+        "heartbeat",
+        "check"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:49:49": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:49:49",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 49,
+      "endLine": 49,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Checked. What happened: - that alert was real, but probably **transient**, not a persistent break - I reran `inbox_to_execution.ts --output-json` just now, and it **completed cleanly** - output: scanned 2, created 0, updated 0, closed 0, errors 0 L",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "inbox-to-execution.ts",
+        "output-json",
+        "assistant",
+        "checked",
+        "what",
+        "happened",
+        "alert"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:50:50": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:50:50",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 50,
+      "endLine": 50,
+      "source": "memory",
+      "snippet": "User: System (untrusted): [2026-04-19 07:40:45 EDT] Exec completed (wild-val, code 0) :: { \"pipeline\": \"inbox_to_execution\", \"ts\": \"2026-04-19T07:40:45.004712\", \"stats\": { \"scanned\": 2, \"created\": 0, \"updated\": 0, \"closed\": 0, \"stale\": 0, \"orphan\": 0, \"errors\": 0 }, \"… An async c",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "wild-val",
+        "inbox-to-execution",
+        "2026-04-19t07",
+        "45.004712",
+        "user",
+        "system",
+        "untrusted",
+        "edt"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:51:51": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:51:51",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 51,
+      "endLine": 51,
+      "source": "memory",
+      "snippet": "Assistant: NO_REPLY",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "no-reply",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:52:52": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:52:52",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 52,
+      "endLine": 52,
+      "source": "memory",
+      "snippet": "User: Cortana what model and thinking speed you on?",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "cortana",
+        "what",
+        "model",
+        "thinking",
+        "speed",
+        "you"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:53:53": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:53:53",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 53,
+      "endLine": 53,
+      "source": "memory",
+      "snippet": "Assistant: Need answer from session_status per instructions. Use tool.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "session-status",
+        "assistant",
+        "need",
+        "answer",
+        "per",
+        "instructions",
+        "use",
+        "tool"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:54:54": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:54:54",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 54,
+      "endLine": 54,
+      "source": "memory",
+      "snippet": "User: What model are you on?",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "what",
+        "model",
+        "you"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:55:55": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:55:55",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 55,
+      "endLine": 55,
+      "source": "memory",
+      "snippet": "User: Lets do this can you do codex reauth through the CLI lets test out lobster link send me the link so I can complete oauth",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "lets",
+        "can",
+        "you",
+        "codex",
+        "reauth",
+        "the",
+        "cli"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:56:56": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:56:56",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 56,
+      "endLine": 56,
+      "source": "memory",
+      "snippet": "Assistant: I’m going to kick off a fresh Codex device login so I can grab the auth link for you.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "assistant",
+        "i’m",
+        "going",
+        "kick",
+        "off",
+        "fresh",
+        "codex",
+        "device"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:57:57": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:57:57",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 57,
+      "endLine": 57,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Yep. Fresh Codex reauth is waiting on you. Link: https://auth.openai.com/codex/device Code: `RIMA-P9JQH` It expires in about 15 minutes. Finish that, then tell me and I’ll verify the login stuck.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "openai",
+        "reply-to-current",
+        "auth.openai.com/codex/device",
+        "rima-p9jqh",
+        "assistant",
+        "yep",
+        "fresh",
+        "codex"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:58:58": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:58:58",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 58,
+      "endLine": 58,
+      "source": "memory",
+      "snippet": "User: Send the lobster link?",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "send",
+        "the",
+        "lobster",
+        "link"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:59:59": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:59:59",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 59,
+      "endLine": 59,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Yep, here: https://auth.openai.com/codex/device Code: `RIMA-P9JQH` If you meant a separate **Lobster** OAuth link, I can’t generate that from this host right now because the Lobster plugin is disabled. The Codex device-auth link above is the one cu",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "openai",
+        "reply-to-current",
+        "auth.openai.com/codex/device",
+        "rima-p9jqh",
+        "device-auth",
+        "assistant",
+        "yep",
+        "here"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:60:60": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:60:60",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 60,
+      "endLine": 60,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:61:61": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:61:61",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 61,
+      "endLine": 61,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:62:62": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:62:62",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 62,
+      "endLine": 62,
+      "source": "memory",
+      "snippet": "User: [Queued messages while agent was busy] --- Queued #1 (from Hamel Desai) This is what we installed no? https://lobsterl.ink/",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "lobsterl.ink",
+        "user",
+        "queued",
+        "messages",
+        "while",
+        "was",
+        "busy",
+        "hamel"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:63:63": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:63:63",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 63,
+      "endLine": 63,
+      "source": "memory",
+      "snippet": "Assistant: [[reply_to_current]] Yes, that’s the Lobster Link site. I checked the host, and **Lobster is installed but currently disabled**: `Lobster | lobster | openclaw | disabled` So, yes, that’s the thing, but it is **not active on this machine right now**, which is why I coul",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "reply-to-current",
+        "assistant",
+        "yes",
+        "that’s",
+        "the",
+        "lobster",
+        "link",
+        "site"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:64:64": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:64:64",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 64,
+      "endLine": 64,
+      "source": "memory",
+      "snippet": "Assistant: Yes, that’s the Lobster Link site. I checked the host, and **Lobster is installed but currently disabled**: `Lobster | lobster | openclaw | disabled` So, yes, that’s the thing, but it is **not active on this machine right now**, which is why I could not generate a Lobs",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "assistant",
+        "yes",
+        "that’s",
+        "the",
+        "lobster",
+        "link",
+        "site",
+        "checked"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:65:65": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:65:65",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 65,
+      "endLine": 65,
+      "source": "memory",
+      "snippet": "User: Lets make it active and configure it because we can use that link to complete oauth",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "lets",
+        "active",
+        "configure",
+        "can",
+        "use",
+        "link",
+        "complete"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:66:66": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:66:66",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 66,
+      "endLine": 66,
+      "source": "memory",
+      "snippet": "Assistant: I’m enabling the plugin now, then I’ll try to trigger the auth flow and get you the link.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "assistant",
+        "i’m",
+        "enabling",
+        "the",
+        "plugin",
+        "now",
+        "i’ll",
+        "try"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:67:67": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:67:67",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 67,
+      "endLine": 67,
+      "source": "memory",
+      "snippet": "Assistant: Nope, done. PR is live: #513 https://github.com/cortana-foundry/cortana/pull/513 The async cleanup result was just the validation finishing in the background, not the PR still cooking.",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "assistant",
+        "nope",
+        "done",
+        "live",
+        "https",
+        "github.com",
+        "cortana",
+        "foundry"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:68:68": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:68:68",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 68,
+      "endLine": 68,
+      "source": "memory",
+      "snippet": "User: System: [2026-04-19 08:47:28 EDT] Gateway restart restart ok (gateway.restart) System: Restarted OpenClaw to load the new cron performance settings. System: Reason: Load updated cron performance settings and light-context changes System: Run: openclaw doctor --non-interacti",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "gateway",
+        "gateway.restart",
+        "light-context",
+        "non-interacti",
+        "user",
+        "system",
+        "edt",
+        "restart"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:69:69": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:69:69",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 69,
+      "endLine": 69,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:70:70": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:70:70",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 70,
+      "endLine": 70,
+      "source": "memory",
+      "snippet": "User: System (untrusted): [2026-04-19 08:48:27 EDT] Exec completed (nova-slu, code 0) :: ons/sessions.json (20 entries) - agent:main:main (1m ago) - agent:main:telegram:slash:8171372724 (29m ago) - agent:main:dreaming-narrative-rem-0ce83c8153e3-1776593277275 (160m ago… An async c",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "nova-slu",
+        "ons/sessions.json",
+        "user",
+        "system",
+        "untrusted",
+        "edt",
+        "exec",
+        "completed"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:71:71": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:71:71",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 71,
+      "endLine": 71,
+      "source": "memory",
+      "snippet": "Assistant: NO_REPLY",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "no-reply",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:72:72": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:72:72",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 72,
+      "endLine": 72,
+      "source": "memory",
+      "snippet": "User: The CI failing in that PR",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "the",
+        "failing"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:73:73": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:73:73",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 73,
+      "endLine": 73,
+      "source": "memory",
+      "snippet": "Assistant: Yep, I fixed it. Root cause: I over-trimmed three cron prompt contracts, and CI has tests that assert specific wording in those jobs. I restored the required contract text, kept the performance changes, reran the full suite locally, and force-pushed the PR branch. Loca",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "over-trimmed",
+        "force-pushed",
+        "assistant",
+        "yep",
+        "fixed",
+        "root",
+        "cause",
+        "trimmed"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:74:74": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:74:74",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 74,
+      "endLine": 74,
+      "source": "memory",
+      "snippet": "User: System: [2026-04-19 08:53:27 EDT] Gateway restart restart ok (gateway.restart) System: Restarted OpenClaw after syncing the cron contract fix to runtime. System: Reason: Reload cron prompt contract fixes after CI repair System: Run: openclaw doctor --non-interactive Read HE",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "gateway",
+        "gateway.restart",
+        "non-interactive",
+        "user",
+        "system",
+        "edt",
+        "restart",
+        "restarted"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:75:75": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:75:75",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 75,
+      "endLine": 75,
+      "source": "memory",
+      "snippet": "Assistant: Heartbeat warning: main bootstrap budget is still truncating `HEARTBEAT.md`, `BOOTSTRAP.md`, and `MEMORY.md` completely, plus clipping `SOUL.md` and `USER.md`. Telegram and the restart look healthy. Next fix is `openclaw doctor --fix` or tuning `agents.defaults.bootstr",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "bootstrap.md",
+        "memory.md",
+        "soul.md",
+        "user.md",
+        "agents.defaults.bootstr",
+        "assistant",
+        "heartbeat"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:76:76": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:76:76",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 76,
+      "endLine": 76,
+      "source": "memory",
+      "snippet": "User: System (untrusted): [2026-04-19 08:54:05 EDT] Exec completed (cool-sea, code 0) :: ons/sessions.json (20 entries) - agent:main:main (1m ago) - agent:main:telegram:slash:8171372724 (34m ago) - agent:main:dreaming-narrative-rem-0ce83c8153e3-1776593277275 (166m ago… An async c",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "cool-sea",
+        "ons/sessions.json",
+        "user",
+        "system",
+        "untrusted",
+        "edt",
+        "exec",
+        "completed"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:77:77": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:77:77",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 77,
+      "endLine": 77,
+      "source": "memory",
+      "snippet": "Assistant: NO_REPLY",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "no-reply",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-19.txt:78:78": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-19.txt:78:78",
+      "path": "memory/.dreams/session-corpus/2026-04-19.txt",
+      "startLine": 78,
+      "endLine": 78,
+      "source": "memory",
+      "snippet": "User: Go ahead and approve this PR please https://github.com/cortana-foundry/cortana/pull/512",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "c9fd66cc4843"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "user",
+        "ahead",
+        "approve",
+        "please",
+        "https",
+        "github.com",
+        "cortana",
+        "foundry"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:13:13": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:13:13",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 13,
+      "endLine": 13,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:14:14": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:14:14",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 14,
+      "endLine": 14,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:15:15": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:15:15",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 15,
+      "endLine": 15,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:16:16": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:16:16",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 16,
+      "endLine": 16,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:17:17": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:17:17",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 17,
+      "endLine": 17,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:18:18": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:18:18",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 18,
+      "endLine": 18,
+      "source": "memory",
+      "snippet": "User: Read HEARTBEAT.md if it exists (workspace context). Follow it strictly. Do not infer or repeat old tasks from prior chats. If nothing needs attention, reply HEARTBEAT_OK. When reading HEARTBEAT.md, use workspace file /Users/hd/Developer/cortana/HEARTBEAT.md (exact case). Do",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat.md",
+        "heartbeat-ok",
+        "user",
+        "read",
+        "exists",
+        "context",
+        "follow",
+        "strictly"
+      ]
+    },
+    "memory:memory/.dreams/session-corpus/2026-04-20.txt:19:19": {
+      "key": "memory:memory/.dreams/session-corpus/2026-04-20.txt:19:19",
+      "path": "memory/.dreams/session-corpus/2026-04-20.txt",
+      "startLine": 19,
+      "endLine": 19,
+      "source": "memory",
+      "snippet": "Assistant: HEARTBEAT_OK",
+      "recallCount": 0,
+      "dailyCount": 1,
+      "groundedCount": 0,
+      "totalScore": 0.58,
+      "maxScore": 0.58,
+      "firstRecalledAt": "2026-04-21T10:04:08.753Z",
+      "lastRecalledAt": "2026-04-21T10:04:08.753Z",
+      "queryHashes": [
+        "9bbfcb9cbaf5"
+      ],
+      "recallDays": [
+        "2026-04-21"
+      ],
+      "conceptTags": [
+        "heartbeat-ok",
+        "assistant"
+      ]
+    },
+    "memory:memory/2026-03-03.md:28:53": {
+      "key": "memory:memory/2026-03-03.md:28:53",
+      "path": "memory/2026-03-03.md",
+      "startLine": 28,
+      "endLine": 53,
+      "source": "memory",
+      "snippet": "- OpenClaw has related known failover issues under Anthropic overload (e.g., open issue/PR around provider escalation behavior). - User preference/context captured: - Wants Huragok as direct infra operator lane and Cortana as delegating command lane. ## 2026-03-03 15:46 ET — Mission Control + market alert routing updates - Mission Control UI work shipped and merged in `hd719/cortana-external`: - Consolidated PR merged for markdown rendering + docs tab + responsive sidebar. - Cron Jobs editor feature added in follow-up PR with tests. - User communication preference reinforced (high priority): - Do **not** relay raw sub-agent completion payloads (e.g., `✅ Subagent main finished .",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.370309042930603,
+      "maxScore": 0.370309042930603,
+      "firstRecalledAt": "2026-04-22T18:48:32.580Z",
+      "lastRecalledAt": "2026-04-22T18:48:32.580Z",
+      "queryHashes": [
+        "5220e63726ca"
+      ],
+      "recallDays": [
+        "2026-04-22"
+      ],
+      "conceptTags": [
+        "failover",
+        "e.g",
+        "issue/pr",
+        "preference/context",
+        "hd719/cortana-external",
+        "follow-up",
+        "sub-agent",
+        "openclaw"
+      ]
+    },
+    "memory:memory/archive/2026/03/2026-03-03.md:28:53": {
+      "key": "memory:memory/archive/2026/03/2026-03-03.md:28:53",
+      "path": "memory/archive/2026/03/2026-03-03.md",
+      "startLine": 28,
+      "endLine": 53,
+      "source": "memory",
+      "snippet": "- OpenClaw has related known failover issues under Anthropic overload (e.g., open issue/PR around provider escalation behavior). - User preference/context captured: - Wants Huragok as direct infra operator lane and Cortana as delegating command lane. ## 2026-03-03 15:46 ET — Mission Control + market alert routing updates - Mission Control UI work shipped and merged in `hd719/cortana-external`: - Consolidated PR merged for markdown rendering + docs tab + responsive sidebar. - Cron Jobs editor feature added in follow-up PR with tests. - User communication preference reinforced (high priority): - Do **not** relay raw sub-agent completion payloads (e.g., `✅ Subagent main finished .",
+      "recallCount": 1,
+      "dailyCount": 0,
+      "groundedCount": 0,
+      "totalScore": 0.370309042930603,
+      "maxScore": 0.370309042930603,
+      "firstRecalledAt": "2026-04-22T18:48:32.580Z",
+      "lastRecalledAt": "2026-04-22T18:48:32.580Z",
+      "queryHashes": [
+        "5220e63726ca"
+      ],
+      "recallDays": [
+        "2026-04-22"
+      ],
+      "conceptTags": [
+        "failover",
+        "e.g",
+        "issue/pr",
+        "preference/context",
+        "hd719/cortana-external",
+        "follow-up",
+        "sub-agent",
+        "openclaw"
+      ]
+    },
+    "memory:memory/2026-04-19.md:1:4": {
+      "key": "memory:memory/2026-04-19.md:1:4",
+      "path": "memory/2026-04-19.md",
+      "startLine": 1,
+      "endLine": 4,
+      "source": "memory",
+      "snippet": "- Resolved LobsterLink browser-extension loading on H’s Mac mini by switching OpenClaw’s browser launcher away from Google Chrome to an unquarantined user-owned Chromium copy; Google Chrome was ignoring the unpacked-extension flags and the stock Chromium app was blocked by macOS quarantine. - LobsterLink was verified live on the real `openclaw` browser profile after the browser-launcher config patch. - Preference: for X/Twitter, use only the Cortana account via the OpenClaw browser profile. Never use the personal Chrome profile.",
       "recallCount": 2,
       "dailyCount": 0,
       "groundedCount": 0,
-      "totalScore": 0.87610447704792,
-      "maxScore": 0.5432248204946517,
-      "firstRecalledAt": "2026-04-19T23:20:07.902Z",
-      "lastRecalledAt": "2026-04-19T23:20:20.768Z",
+      "totalScore": 0.6706461906433105,
+      "maxScore": 0.3566528975963592,
+      "firstRecalledAt": "2026-04-22T18:57:15.791Z",
+      "lastRecalledAt": "2026-04-22T18:57:23.616Z",
       "queryHashes": [
-        "a0dd9dac6731",
-        "9667fc92281f"
+        "03ae43fa68c0",
+        "c1b0c62653d4"
       ],
       "recallDays": [
-        "2026-04-19"
+        "2026-04-22"
       ],
       "conceptTags": [
         "browser-extension",
         "user-owned",
         "unpacked-extension",
         "browser-launcher",
+        "x/twitter",
         "resolved",
         "lobsterlink",
-        "browser",
-        "extension"
+        "browser"
       ]
     }
   }
