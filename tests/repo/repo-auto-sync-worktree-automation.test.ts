@@ -203,17 +203,17 @@ describe("repo-auto-sync worktree conflict automation", () => {
     expect(hasLocalBranch(repoDir, branchName)).toBe(true);
   });
 
-  it("auto-restores volatile runtime-state dirt on main and stays quiet", () => {
+  it("auto-restores runtime heartbeat-state dirt on main and stays quiet", () => {
     const { repoDir } = setupMergedBranchRepo("repo-auto-sync-volatile-runtime-state");
-    const runtimeState = path.join(repoDir, "memory", "newsletter-alerted.json");
+    const runtimeState = path.join(repoDir, "memory", "heartbeat-state.json");
 
     fs.mkdirSync(path.dirname(runtimeState), { recursive: true });
-    fs.writeFileSync(runtimeState, '{"ids":["seed"]}\n', "utf8");
-    run("git add memory/newsletter-alerted.json", repoDir);
+    fs.writeFileSync(runtimeState, '{"lastHeartbeat":1,"lastChecks":{"monitor":{"lastChecked":1}}}\n', "utf8");
+    run("git add memory/heartbeat-state.json", repoDir);
     run("git commit -m 'track runtime state file for regression'", repoDir);
     run("git push origin main", repoDir);
 
-    fs.writeFileSync(runtimeState, '{"ids":["runtime-change"]}\n', "utf8");
+    fs.writeFileSync(runtimeState, '{"lastHeartbeat":2,"lastChecks":{"monitor":{"lastChecked":2}}}\n', "utf8");
 
     const result = runRepoAutoSync(repoDir);
 
@@ -221,7 +221,7 @@ describe("repo-auto-sync worktree conflict automation", () => {
     expect(result.stdout.trim()).toBe("NO_REPLY");
     expect(result.stderr).toContain("detail=volatile-runtime-state-restored");
     expect(run("git status --short", repoDir)).toBe("");
-    expect(fs.readFileSync(runtimeState, "utf8")).toContain("seed");
+    expect(fs.readFileSync(runtimeState, "utf8")).toContain('"lastHeartbeat":1');
   });
 
   it("promotes tracked and untracked dream-memory dirt on main into a draft PR and returns to clean main", () => {
