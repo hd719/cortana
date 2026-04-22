@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "lastHeartbeat": 1776886131059,
+  "lastHeartbeat": 1776888914977,
   "lastChecks": {
     "email": {
       "lastChecked": 1776886131059
@@ -41,7 +41,7 @@
   },
   "lastRemediationAt": 1776357027040,
   "subagentWatchdog": {
-    "lastRun": 1776885310446,
+    "lastRun": 1776888914977,
     "lastLogged": {
       "agent:main:subagent:1eaf3cfe-0893-474e-b578-d25399184f41|aborted_last_run": 1776856518586
     }
