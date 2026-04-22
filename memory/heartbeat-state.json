@@ -1,0 +1,49 @@
+{
+  "version": 2,
+  "lastHeartbeat": 1776875664654,
+  "lastChecks": {
+    "email": {
+      "lastChecked": 1776875664654
+    },
+    "calendar": {
+      "lastChecked": 1776728131425
+    },
+    "watchlist": {
+      "lastChecked": 1776875664654
+    },
+    "tasks": {
+      "lastChecked": 1776357027040
+    },
+    "portfolio": {
+      "lastChecked": 1776875664654
+    },
+    "marketIntel": {
+      "lastChecked": 1776875664654
+    },
+    "techNews": {
+      "lastChecked": 1776720906472
+    },
+    "weather": {
+      "lastChecked": 1776357027040
+    },
+    "fitness": {
+      "lastChecked": 1776679599737
+    },
+    "apiBudget": {
+      "lastChecked": 1776357027040
+    },
+    "mission": {
+      "lastChecked": 1776357027040
+    },
+    "cronDelivery": {
+      "lastChecked": 1776357027040
+    }
+  },
+  "lastRemediationAt": 1776357027040,
+  "subagentWatchdog": {
+    "lastRun": 1776875422241,
+    "lastLogged": {
+      "agent:main:subagent:1eaf3cfe-0893-474e-b578-d25399184f41|aborted_last_run": 1776856518586
+    }
+  }
+}
