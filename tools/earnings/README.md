@@ -13,6 +13,7 @@ Data source priority:
 - `check-earnings.sh` → outputs JSON:
   `[{symbol, earnings_date, days_until, confirmed}]`
 - `create-calendar-events.sh` → creates calendar events (within 48h)
+- `upcoming-holdings-earnings.ts` → merges holdings earnings output with existing calendar events so alerts do not contradict the calendar source of truth
 
 ## Setup
 
