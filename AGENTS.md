@@ -481,6 +481,7 @@ PR identity and delivery rule:
 
 - if you create a PR, use the `cortana-hd` GitHub identity, not `hd719`
 - create the PR in ready state, not draft, unless Hamel explicitly asks for a draft PR
+- when a task changes repo code, default to creating and delivering a PR in the same work session unless Hamel explicitly says not to publish yet
 - after creating the PR, send Hamel the PR link
 - do not stop at "PR created locally"; deliver the actual ready-view URL
 
