@@ -299,6 +299,8 @@ Do not declare green until you have checked the relevant items:
 - tracked config vs runtime config was compared when relevant
 - the latest rerun/check passed, not just historical failures
 - the user-facing surface was verified if the issue was user-visible
+- if the issue involved operator-visible alerts or delivery, verify the owning channel end-to-end, not just the internal status surface
+- when Hamel asks to prove Telegram delivery, send an explicit manual test message to the intended Telegram target/account and confirm receipt before calling the path good
 - any required deploy/sync step was actually completed
 - there is no obvious remaining source/runtime mismatch
 
