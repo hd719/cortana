@@ -69,6 +69,8 @@ identities/main/IDENTITY.md
 # Archived memory (already consolidated into MEMORY.md)
 memory/archive/
 memory/.dreams/
+memory/.dreams/events.jsonl
+memory/.dreams/short-term-recall.json
 DREAMS.md
 identities/*/DREAMS.md
 
