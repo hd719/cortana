@@ -6,10 +6,12 @@ import { sourceRepoRoot } from "../lib/paths.js";
 import {
   archiveVacationMirror,
   buildVacationMirror,
+  cancelRunningVacationRuns,
   clearVacationMirror,
   createVacationWindow,
   finishVacationRun,
   getActiveVacationWindow,
+  getLatestStagedVacationWindow,
   getLatestReadinessRun,
   getVacationWindow,
   setRuntimeCronJobsEnabled,
@@ -214,4 +216,51 @@ export function disableVacationMode(params: {
     summaryText,
   });
   return { window, summaryText, restoredJobIds, archivedMirrorPath, run: completedRun };
+}
+
+export function cancelStagedVacationWindow(params: {
+  windowId?: number;
+} = {}): { window: VacationWindowRow | null; summaryText: string; archivedMirrorPath: string | null; cancelledRunCount: number; run: VacationRunRow | null } {
+  const active = getActiveVacationWindow();
+  if (active && (!params.windowId || active.id === params.windowId)) {
+    throw new Error("Vacation mode is active. Disable the active window instead of cancelling staging.");
+  }
+
+  const window = params.windowId ? getVacationWindow(params.windowId) : getLatestStagedVacationWindow();
+  if (!window || !["prep", "ready", "failed"].includes(window.status)) {
+    return {
+      window: null,
+      summaryText: "No staged vacation window is waiting in preflight or ready state.",
+      archivedMirrorPath: null,
+      cancelledRunCount: 0,
+      run: null,
+    };
+  }
+
+  const note = `Cancelled staged vacation window ${window.label}.`;
+  const cancelledRunCount = cancelRunningVacationRuns(window.id, note);
+  const run = startVacationRun({
+    vacationWindowId: window.id,
+    runType: "disable",
+    triggerSource: "manual_command",
+  });
+  const updated = updateVacationWindow(window.id, {
+    status: "cancelled",
+    prepCompletedAt: window.prep_completed_at ?? new Date().toISOString(),
+    disabledAt: new Date().toISOString(),
+    disableReason: "cancelled",
+    stateSnapshot: {
+      ...(window.state_snapshot ?? {}),
+      paused_job_ids: [],
+    },
+  });
+  const archivedMirrorPath = archiveVacationMirror();
+  clearVacationMirror();
+  const summaryText = `🛑 Vacation staging cancelled.\nWindow ${updated.label} removed from staging.\nCancelled running prep jobs: ${cancelledRunCount}.`;
+  const completedRun = finishVacationRun(run.id, {
+    state: "completed",
+    summaryPayload: { cancelledRunCount, kind: "cancel_staged_window" },
+    summaryText,
+  });
+  return { window: updated, summaryText, archivedMirrorPath, cancelledRunCount, run: completedRun };
 }

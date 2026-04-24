@@ -214,44 +214,53 @@ export function runVacationReadiness(params: {
     runType: "readiness",
     triggerSource: params.triggerSource ?? "manual_command",
   });
-  const remediationWindowId = params.vacationWindowId ?? 0;
+  try {
+    const remediationWindowId = params.vacationWindowId ?? 0;
+    const initialResults = runVacationChecks(config, params.checkEnv, params.systemKeys);
+    const results = [...initialResults];
+    const actions: VacationActionRow[] = [];
 
-  const initialResults = runVacationChecks(config, params.checkEnv, params.systemKeys);
-  const results = [...initialResults];
-  const actions: VacationActionRow[] = [];
+    for (const result of initialResults) {
+      if (!shouldAttemptRemediation(config, result)) continue;
+      const remediation = runRemediationPlan({
+        config,
+        systemKey: result.system_key,
+        initialCheck: result,
+        checkRunner: (systemKey) => runVacationChecks(config, params.checkEnv, [systemKey])[0],
+        vacationWindowId: remediationWindowId,
+        runId: run.id,
+        env: params.remediationEnv,
+      });
+      actions.push(...remediation.actions);
+      results.push(remediation.finalCheck);
+    }
 
-  for (const result of initialResults) {
-    if (!shouldAttemptRemediation(config, result)) continue;
-    const remediation = runRemediationPlan({
-      config,
-      systemKey: result.system_key,
-      initialCheck: result,
-      checkRunner: (systemKey) => runVacationChecks(config, params.checkEnv, [systemKey])[0],
-      vacationWindowId: remediationWindowId,
-      runId: run.id,
-      env: params.remediationEnv,
+    recordVacationCheckResults(run.id, results);
+    if (actions.length && params.vacationWindowId != null) recordVacationActions(actions);
+
+    const evaluation = deriveReadinessOutcome(results, config);
+    syncIncidents(params.vacationWindowId, run.id, evaluation.finalResults, actions);
+
+    const summaryPayload = {
+      outcome: evaluation.outcome,
+      reasoning: evaluation.reasoning,
+      tier2WarnSystemKeys: evaluation.tier2WarnSystemKeys,
+      missingRequiredSystemKeys: evaluation.missingRequiredSystemKeys,
+    };
+    const completedRun = finishVacationRun(run.id, {
+      state: evaluation.outcome === "fail" ? "failed" : "completed",
+      readinessOutcome: evaluation.outcome,
+      summaryPayload,
+      summaryText: JSON.stringify(summaryPayload),
     });
-    actions.push(...remediation.actions);
-    results.push(remediation.finalCheck);
+    return { ...evaluation, run: completedRun, actions };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    finishVacationRun(run.id, {
+      state: "failed",
+      summaryPayload: { error: message },
+      summaryText: message,
+    });
+    throw error;
   }
-
-  recordVacationCheckResults(run.id, results);
-  if (actions.length && params.vacationWindowId != null) recordVacationActions(actions);
-
-  const evaluation = deriveReadinessOutcome(results, config);
-  syncIncidents(params.vacationWindowId, run.id, evaluation.finalResults, actions);
-
-  const summaryPayload = {
-    outcome: evaluation.outcome,
-    reasoning: evaluation.reasoning,
-    tier2WarnSystemKeys: evaluation.tier2WarnSystemKeys,
-    missingRequiredSystemKeys: evaluation.missingRequiredSystemKeys,
-  };
-  const completedRun = finishVacationRun(run.id, {
-    state: evaluation.outcome === "fail" ? "failed" : "completed",
-    readinessOutcome: evaluation.outcome,
-    summaryPayload,
-    summaryText: JSON.stringify(summaryPayload),
-  });
-  return { ...evaluation, run: completedRun, actions };
 }

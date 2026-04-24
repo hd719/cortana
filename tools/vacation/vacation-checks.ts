@@ -63,6 +63,7 @@ export type VacationCheckEnvironment = {
 };
 
 const CRITICAL_CRON_OVERDUE_MS = 60 * 60 * 1000;
+const COMMAND_TIMEOUT_MS = 20_000;
 
 function nowIso(env: VacationCheckEnvironment): string {
   return (env.now ?? (() => new Date()))().toISOString();
@@ -81,6 +82,8 @@ function run(env: VacationCheckEnvironment, cmd: string, args: string[]): Return
   const proc = (env.spawn ?? spawnSync)(cmd, args, {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
+    timeout: COMMAND_TIMEOUT_MS,
+    killSignal: "SIGKILL",
   });
   return execResult(proc);
 }
