@@ -34,6 +34,7 @@ vi.mock("../../tools/vacation/vacation-state.js", () => ({
 }));
 
 vi.mock("../../tools/vacation/vacation-state-machine.js", () => ({
+  cancelStagedVacationWindow: vi.fn(),
   enableVacationMode: vi.fn(),
   disableVacationMode: vi.fn(),
   unpauseVacationJobs: vi.fn(),
