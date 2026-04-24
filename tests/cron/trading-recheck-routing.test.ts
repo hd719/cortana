@@ -12,7 +12,7 @@ describe("trading re-check cron routing", () => {
         agentId?: string;
         delivery?: { accountId?: string };
         schedule?: { kind?: string; expr?: string };
-        payload?: { message?: string };
+        payload?: { message?: string; timeoutSeconds?: number; };
       }>;
     };
 
@@ -28,5 +28,6 @@ describe("trading re-check cron routing", () => {
     expect(message).toContain("/Users/hd/Developer/cortana/tools/trading/run-trading-recheck.sh");
     expect(message).toContain("If script outputs exactly NO_REPLY");
     expect(message).toContain("accountId monitor");
+    expect(job?.payload?.timeoutSeconds).toBe(300);
   });
 });
