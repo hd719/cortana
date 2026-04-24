@@ -440,6 +440,12 @@ function summarizeProviderStatus(label: string, status: string, extra?: string |
   return extra ? `${label}: ${status} (${extra})` : `${label}: ${status}`;
 }
 
+function hasTelegramTransportConfigured(jsonStatusText: string, mergedStatusText: string): boolean {
+  return /Telegram:\s*configured/i.test(jsonStatusText)
+    || /Telegram[^\n]*(?:OK|configured)/i.test(mergedStatusText)
+    || /[│|]\s*Telegram\s*[│|]\s*ON\s*[│|]\s*OK\b/i.test(mergedStatusText);
+}
+
 function checkGateway(config: VacationOpsConfig, env: VacationCheckEnvironment): VacationCheckResultRow {
   const result = run(env, "openclaw", ["gateway", "status", "--no-probe"]);
   return buildResult(config, "gateway_service", result.status === 0 ? "green" : "red", {
@@ -452,7 +458,7 @@ function checkTelegramDelivery(config: VacationOpsConfig, env: VacationCheckEnvi
   const jsonStatus = run(env, "openclaw", ["status", "--json"]);
   const textStatus = run(env, "openclaw", ["status"]);
   const merged = `${jsonStatus.stdout}\n${jsonStatus.stderr}\n${textStatus.stdout}\n${textStatus.stderr}`;
-  const transportConfigured = /Telegram:\s*configured/i.test(jsonStatus.stdout || "") && /Telegram[^\n]*(?:OK|configured)/i.test(merged);
+  const transportConfigured = hasTelegramTransportConfigured(jsonStatus.stdout || "", merged);
   const deliveryEvidence = readCriticalCronDeliveryEvidence(config, env);
   const ok = jsonStatus.status === 0 && textStatus.status === 0 && transportConfigured && deliveryEvidence.ok;
   return buildResult(config, "telegram_delivery", ok ? "green" : "red", {

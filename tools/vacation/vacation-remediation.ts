@@ -1,6 +1,6 @@
 import path from "node:path";
 import { spawnSync, type SpawnSyncReturns } from "node:child_process";
-import { externalRepoRoot, sourceRepoRoot } from "../lib/paths.js";
+import { externalRepoRoot, runtimeStateHome, sourceRepoRoot } from "../lib/paths.js";
 import type {
   VacationActionRow,
   VacationCheckResultRow,
@@ -57,7 +57,18 @@ function commandFor(systemKey: string, action: VacationActionKind): [string, str
       }
       return null;
     case "runtime_sync":
-      return ["npx", ["tsx", path.join(sourceRepoRoot(), "tools", "cron", "sync-cron-to-runtime.ts"), "--json"]];
+      return [
+        "npx",
+        [
+          "tsx",
+          path.join(sourceRepoRoot(), "tools", "cron", "sync-cron-to-runtime.ts"),
+          "--json",
+          "--repo-root",
+          sourceRepoRoot(),
+          "--runtime-home",
+          runtimeStateHome(),
+        ],
+      ];
     case "restore_env":
       return ["npx", ["tsx", path.join(sourceRepoRoot(), "tools", "openclaw", "runtime-integrity-check.ts"), "--repair", "--json"]];
     case "rotate_session":

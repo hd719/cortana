@@ -2,6 +2,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { mergeRuntimeCronState, normalizeRuntimeCronConfig, splitRuntimeOnlyJobs, stableCronSemanticDigest } from "../lib/runtime-cron-jobs.js";
 
 type CronJob = Record<string, unknown>;
@@ -17,10 +18,12 @@ type Args = {
   runtimeHome: string;
 };
 
+const DEFAULT_REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+
 function parseArgs(argv: string[]): Args {
   let check = false;
   let json = false;
-  let repoRoot = process.env.CORTANA_RUNTIME_REPO ?? process.cwd();
+  let repoRoot = process.env.CORTANA_SOURCE_REPO ?? process.env.CORTANA_RUNTIME_REPO ?? DEFAULT_REPO_ROOT;
   let runtimeHome = process.env.CORTANA_RUNTIME_HOME ?? os.homedir();
 
   for (let i = 0; i < argv.length; i += 1) {

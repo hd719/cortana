@@ -12,6 +12,35 @@ function writeJson(filePath: string, value: unknown) {
 describe("sync-cron-to-runtime", () => {
   const script = path.resolve(process.cwd(), "tools/cron/sync-cron-to-runtime.ts");
 
+  it("uses the script repo by default even when invoked from another cwd", () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), "cron-sync-foreign-cwd-"));
+    const foreignCwd = path.join(root, "foreign");
+    const runtimeHome = path.join(root, "home");
+    const repoRoot = process.cwd();
+
+    fs.mkdirSync(foreignCwd, { recursive: true });
+    writeJson(path.join(runtimeHome, ".openclaw", "cron", "jobs.json"), readJson(path.join(repoRoot, "config", "cron", "jobs.json")));
+
+    const result = spawnSync(
+      "npx",
+      ["tsx", script, "--check", "--json", "--runtime-home", runtimeHome],
+      { cwd: foreignCwd, encoding: "utf8" },
+    );
+
+    expect(result.status).toBe(0);
+    const payload = JSON.parse(result.stdout) as {
+      repoFile: string;
+      runtimeFile: string;
+      changed: boolean;
+      semanticMatch: boolean;
+    };
+
+    expect(payload.repoFile).toBe(path.join(repoRoot, "config", "cron", "jobs.json"));
+    expect(payload.runtimeFile).toBe(path.join(runtimeHome, ".openclaw", "cron", "jobs.json"));
+    expect(payload.changed).toBe(false);
+    expect(payload.semanticMatch).toBe(true);
+  });
+
   it("ignores approved managed runtime-only jobs when checking semantic drift", () => {
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "cron-sync-"));
     const repoRoot = path.join(root, "repo");
@@ -61,3 +90,7 @@ describe("sync-cron-to-runtime", () => {
     expect(payload.preservedManagedRuntimeOnlyJobs).toEqual(["a528ac8a-41ea-4af6-8dfa-98ca64d2243d"]);
   });
 });
+
+function readJson(filePath: string): unknown {
+  return JSON.parse(fs.readFileSync(filePath, "utf8"));
+}
