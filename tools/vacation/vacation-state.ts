@@ -183,6 +183,10 @@ export function getActiveVacationWindow(): VacationWindowRow | null {
   return queryOneJson<VacationWindowRow>(vacationWindowSelect(`WHERE status = 'active' ORDER BY start_at DESC`));
 }
 
+export function getLatestStagedVacationWindow(): VacationWindowRow | null {
+  return queryOneJson<VacationWindowRow>(vacationWindowSelect(`WHERE status IN ('prep', 'ready', 'failed') ORDER BY updated_at DESC`));
+}
+
 export function createVacationWindow(input: {
   label: string;
   status: VacationWindowRow["status"];
@@ -352,6 +356,23 @@ export function getLatestReadinessRun(windowId?: number | null): VacationRunRow 
   const clauses = [`run_type = 'readiness'`];
   if (windowId != null) clauses.push(`vacation_window_id = ${Number(windowId)}`);
   return queryOneJson<VacationRunRow>(vacationRunSelect(`WHERE ${clauses.join(" AND ")} ORDER BY started_at DESC`));
+}
+
+export function cancelRunningVacationRuns(windowId: number, note: string): number {
+  const raw = queryText(`
+WITH updated AS (
+  UPDATE cortana_vacation_runs
+  SET state = 'cancelled',
+      completed_at = NOW(),
+      summary_payload = COALESCE(summary_payload, '{}'::jsonb) || ${jsonSql({ note })},
+      summary_text = '${sqlEscape(note)}'
+  WHERE vacation_window_id = ${Number(windowId)}
+    AND state = 'running'
+  RETURNING 1
+)
+SELECT COUNT(*)::text FROM updated;
+`);
+  return Number(raw || "0");
 }
 
 export function recordVacationCheckResults(runId: number, rows: VacationCheckResultRow[]): void {

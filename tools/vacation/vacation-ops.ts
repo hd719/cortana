@@ -11,7 +11,7 @@ import {
   startVacationRun,
   updateVacationWindow,
 } from "./vacation-state.js";
-import { disableVacationMode, enableVacationMode, unpauseVacationJobs } from "./vacation-state-machine.js";
+import { cancelStagedVacationWindow, disableVacationMode, enableVacationMode, unpauseVacationJobs } from "./vacation-state-machine.js";
 import { summarizeActiveVacation } from "./vacation-summary.js";
 import type { VacationRecommendation, VacationRunRow } from "./types.js";
 
@@ -90,7 +90,16 @@ function prepVacationWindow(args: ParsedArgs) {
     status: "prep",
     prepStartedAt: new Date().toISOString(),
   });
-  const readiness = runVacationReadiness({ config, vacationWindowId: window.id });
+  let readiness;
+  try {
+    readiness = runVacationReadiness({ config, vacationWindowId: window.id });
+  } catch (error) {
+    updateVacationWindow(window.id, {
+      status: "failed",
+      prepCompletedAt: new Date().toISOString(),
+    });
+    throw error;
+  }
   const nextStatus = readiness.outcome === "pass" || readiness.outcome === "warn" ? "ready" : "failed";
   const updated = updateVacationWindow(window.id, {
     status: nextStatus,
@@ -149,6 +158,11 @@ export function runVacationOps(argv = process.argv.slice(2)): number {
       case "disable": {
         const reason = (args.reason as "manual" | "expired" | "cancelled" | undefined) ?? "manual";
         const payload = disableVacationMode({ reason });
+        console.log(args.json ? JSON.stringify(payload, null, 2) : payload.summaryText);
+        return 0;
+      }
+      case "cancel": {
+        const payload = cancelStagedVacationWindow({ windowId: args.windowId });
         console.log(args.json ? JSON.stringify(payload, null, 2) : payload.summaryText);
         return 0;
       }
