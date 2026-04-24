@@ -20,7 +20,6 @@ VOLATILE_STATUS_PREFIXES=(
 )
 PROMOTABLE_MEMORY_FILES=(
   "DREAMS.md"
-  "memory/fitness/programs/json/current-tonal-catalog.json"
 )
 PROMOTABLE_MEMORY_PREFIXES=(
   "memory/.dreams/"

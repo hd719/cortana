@@ -889,7 +889,7 @@
       "payload": {
         "kind": "agentTurn",
         "timeoutSeconds": 90,
-        "message": "Maintenance watchdog.\n\nFirst action: exec exactly `/Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 120, yieldMs 20000.\n\nIf the script needs escalation, send one concise Telegram alert via `message` to target `8171372724`, channel `telegram`, accountId `monitor`. Otherwise return exactly `NO_REPLY`.",
+        "message": "Maintenance watchdog.\n\nRouting owner:\n- Monitor is the user-facing owner lane for operational maintenance alerts.\n- Healthy/no-action paths must stay silent and return exactly `NO_REPLY`.\n\nFirst action: exec exactly `/Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 120, yieldMs 20000.\n\nIf the script needs escalation, send one concise Telegram alert via `message` with:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nOtherwise return exactly `NO_REPLY`.",
         "lightContext": true
       },
       "delivery": {
@@ -976,46 +976,6 @@
         "consecutiveErrors": 0
       },
       "updatedAtMs": 1773751207528
-    },
-    {
-      "id": "49b29596-dd12-493d-820a-b3c234753783",
-      "agentId": "cron-maintenance",
-      "sessionKey": "agent:main:main",
-      "name": "🔄 Repo Auto Sync + Local Branch Cleanup",
-      "enabled": true,
-      "createdAtMs": 1772642795141,
-      "updatedAtMs": 1773759636727,
-      "schedule": {
-        "kind": "cron",
-        "expr": "0 * * * 1-5",
-        "tz": "America/New_York"
-      },
-      "sessionTarget": "isolated",
-      "wakeMode": "now",
-      "payload": {
-        "kind": "agentTurn",
-        "model": "openai-codex/gpt-5.4",
-        "timeoutSeconds": 180,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: /Users/hd/Developer/cortana/tools/repo/repo-auto-sync.sh\nPolicy:\n- If the script outputs NO_REPLY, return exactly NO_REPLY.\n- The script may auto-clean only safe/reversible cases: merged local branches, obvious /tmp worktrees, and volatile runtime-state false alarms.\n- If it outputs alert text, send it exactly once as a Monitor-owned maintenance alert under 150 words.\n- Healthy and auto-healed paths stay quiet.",
-        "lightContext": true
-      },
-      "delivery": {
-        "mode": "none",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true,
-        "accountId": "monitor"
-      },
-      "state": {
-        "nextRunAtMs": 1773761400000,
-        "lastRunAtMs": 1773759614631,
-        "lastRunStatus": "ok",
-        "lastStatus": "ok",
-        "lastDurationMs": 22096,
-        "lastDeliveryStatus": "not-delivered",
-        "consecutiveErrors": 0,
-        "lastDelivered": false
-      }
     },
     {
       "id": "0f2b73e9-2f7d-4e8e-88eb-a6fd33d4d7a1",

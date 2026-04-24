@@ -178,6 +178,7 @@ Stable operational routing/preferences must be updated together across the canon
 - Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.
 - Monitor is the user-facing owner lane for trading alert scans.
 - Quiet maintenance watchers should return exactly `NO_REPLY` on healthy paths.
+- Maintenance watchdog prompts should state Monitor ownership and the exact `NO_REPLY` quiet-path contract explicitly, not rely on implication.
 - Underlying execution can still belong to another specialist, but the user-facing ownership must remain Monitor-labeled.
 - Update `MEMORY.md`, `HEARTBEAT.md`, `docs/source/doctrine/agent-routing.md`, `README.md`, and `config/cron/jobs.json` in the same workflow whenever this contract changes.
 

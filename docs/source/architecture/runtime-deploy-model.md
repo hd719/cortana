@@ -23,7 +23,7 @@ What it does:
 3. Syncs `config/cron/jobs.json` into `~/.openclaw/cron/jobs.json` while preserving runtime-only state fields.
 4. Verifies the shim, runtime cron state, and `openclaw gateway status`.
 
-`tools/repo/repo-auto-sync.sh` is allowed one narrow exception before that clean-main gate: promotable memory artifacts such as `memory/.dreams/*`, `memory/dreaming/*`, `DREAMS.md`, `identities/*/DREAMS.md`, and `memory/fitness/programs/json/current-tonal-catalog.json` are auto-promoted onto a feature branch with a draft PR instead of being discarded as volatile runtime dirt. Canonical runtime snapshots such as `memory/heartbeat-state.json` stay committed in the repo but are restored locally as volatile state.
+`tools/repo/repo-auto-sync.sh` is allowed one narrow exception before that clean-main gate: dream-memory artifacts such as `memory/.dreams/*`, `memory/dreaming/*`, `DREAMS.md`, and `identities/*/DREAMS.md` are auto-promoted onto a feature branch with a draft PR instead of being discarded as volatile runtime dirt. Canonical runtime snapshots such as `memory/heartbeat-state.json` stay committed in the repo but are restored locally as volatile state.
 
 ## When to deploy
 

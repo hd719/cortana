@@ -78,6 +78,7 @@ describe("repo-auto-sync.sh hygiene policy", () => {
     expect(script).toContain('detail=volatile-runtime-state-restored');
     expect(script).toContain('PROMOTABLE_MEMORY_FILES=(');
     expect(script).toContain('"DREAMS.md"');
+    expect(script).not.toContain('memory/fitness/programs/json/current-tonal-catalog.json');
     expect(script).toContain('PROMOTABLE_MEMORY_PREFIXES=(');
     expect(script).toContain('memory/.dreams/');
     expect(script).toContain('memory/dreaming/');

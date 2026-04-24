@@ -37,6 +37,7 @@ Owner-labeled Telegram alerts must send with the matching `accountId`; do not le
 
 - Another specialist can still execute the underlying work.
 - The user-facing delivery account, prompt ownership language, and cron routing should still point to Monitor.
+- Maintenance watchdog prompts should say this explicitly: Monitor owns the user-visible maintenance alert, and healthy/no-action paths return exactly `NO_REPLY`.
 - If this contract changes, update `MEMORY.md`, `HEARTBEAT.md`, `docs/source/doctrine/operating-rules.md`, `README.md`, and `config/cron/jobs.json` in the same workflow.
 
 ## Cortana Protocol (Routing)

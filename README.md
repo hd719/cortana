@@ -1191,6 +1191,7 @@ Stable routing phrases:
 - Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.
 - Monitor is the user-facing owner lane for trading alert scans.
 - Quiet maintenance watchers should return exactly `NO_REPLY` on healthy paths.
+- Maintenance watchdog prompts should explicitly say Monitor owns user-visible maintenance alerts and that healthy/no-action paths return exactly `NO_REPLY`.
 
 - Another specialist can execute the underlying work.
 - User-visible ownership, prompt language, and delivery routing stay Monitor-labeled.
