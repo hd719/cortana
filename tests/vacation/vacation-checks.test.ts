@@ -55,14 +55,17 @@ function telegramStatusSpawn() {
     if (args[0] === "status" && args[1] === "--json") {
       return {
         status: 0,
-        stdout: JSON.stringify({ channelSummary: ["Telegram: configured"] }),
+        stdout: JSON.stringify({ channelSummary: [] }),
         stderr: "",
       } as any;
     }
     if (args[0] === "status") {
       return {
         status: 0,
-        stdout: "Telegram | OK",
+        stdout: [
+          "Channels",
+          "│ Telegram │ ON │ OK │ token config×7 │",
+        ].join("\n"),
         stderr: "",
       } as any;
     }
