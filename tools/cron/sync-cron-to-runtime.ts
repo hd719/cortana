@@ -2,7 +2,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { normalizeRuntimeCronConfig, splitRuntimeOnlyJobs, stableCronSemanticDigest } from "../lib/runtime-cron-jobs.js";
+import { mergeRuntimeCronState, normalizeRuntimeCronConfig, splitRuntimeOnlyJobs, stableCronSemanticDigest } from "../lib/runtime-cron-jobs.js";
 
 type CronJob = Record<string, unknown>;
 type CronConfig = {
@@ -38,43 +38,6 @@ function readJson(filePath: string): CronConfig {
   return JSON.parse(fs.readFileSync(filePath, "utf8")) as CronConfig;
 }
 
-function mergeRuntimeState(repoConfig: CronConfig, runtimeConfig: CronConfig): CronConfig {
-  const repoJobs = Array.isArray(repoConfig.jobs) ? repoConfig.jobs : [];
-  const runtimeJobs = Array.isArray(runtimeConfig.jobs) ? runtimeConfig.jobs : [];
-  const runtimeById = new Map(runtimeJobs.map((job) => [String(job.id ?? ""), job]));
-  const { approvedManagedRuntimeOnlyJobs } = splitRuntimeOnlyJobs(repoConfig, runtimeConfig);
-
-  const mergedJobs = repoJobs.map((repoJob) => {
-    const jobId = String(repoJob.id ?? "");
-    const runtimeJob = runtimeById.get(jobId);
-    if (!runtimeJob) return repoJob;
-
-    const merged: CronJob = { ...repoJob };
-    for (const [key, value] of Object.entries(runtimeJob)) {
-      if (![
-        "state",
-        "updatedAtMs",
-        "lastRunAtMs",
-        "nextRunAtMs",
-        "lastStatus",
-        "lastRunStatus",
-        "lastDurationMs",
-        "lastDeliveryStatus",
-        "lastDelivered",
-        "consecutiveErrors",
-        "reconciledAt",
-        "reconciledReason",
-        "runningAtMs",
-        "lastError",
-      ].includes(key)) continue;
-      merged[key] = value;
-    }
-    return merged;
-  });
-
-  return { ...repoConfig, jobs: [...mergedJobs, ...approvedManagedRuntimeOnlyJobs] };
-}
-
 function main(): void {
   const args = parseArgs(process.argv.slice(2));
   const repoFile = path.join(args.repoRoot, "config", "cron", "jobs.json");
@@ -89,7 +52,7 @@ function main(): void {
 
   const repoConfig = readJson(repoFile);
   const runtimeConfig = readJson(runtimeFile);
-  const merged = mergeRuntimeState(repoConfig, runtimeConfig);
+  const merged = mergeRuntimeCronState(repoConfig, runtimeConfig);
   const normalizedRuntimeConfig = normalizeRuntimeCronConfig(repoConfig, runtimeConfig);
   const { approvedManagedRuntimeOnlyJobs, unexpectedRuntimeOnlyJobs } = splitRuntimeOnlyJobs(repoConfig, runtimeConfig);
 

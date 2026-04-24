@@ -2,6 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import { renderBriefSections } from "./brief-assembler.js";
 import { resolveRepoPath } from "../lib/paths.js";
 
 const ET = "America/New_York";
@@ -86,38 +87,44 @@ function recommendationFromTasks(overdue: number, dueToday: number): string {
 }
 
 function buildBrief(data: BriefData): string {
-  const calendarBlock = data.calendar.length ? data.calendar.map((x) => `- ${x}`).join("\n") : "- No calendar events found for today.";
   const fitnessWhoop = data.fitness.whoopWorkoutsToday.length ? data.fitness.whoopWorkoutsToday.join(", ") : "none";
   const fitnessTonal = data.fitness.tonalWorkoutsToday.length ? data.fitness.tonalWorkoutsToday.join(", ") : "none";
-  const marketBullets = data.market.bullets.length ? data.market.bullets.map((x) => `- ${x}`).join("\n") : "- Market pulse unavailable.";
-  const taskLines = data.tasks.ready.length
-    ? data.tasks.ready.slice(0, 3).map((t) => `- P${t.priority}: ${t.title}${t.due_at ? ` (due ${t.due_at})` : ""}`).join("\n")
-    : "- No ready tasks found.";
 
-  return [
-    `🧭 Brief - Daily Command Brief (${data.nowEt} ET)`,
-    "",
-    "1) 📅 Calendar Command Window",
-    calendarBlock,
-    "Recommendation: Anchor your day around the earliest fixed commitment and protect one uninterrupted focus block.",
-    "",
-    "2) 🏋️ Recovery & Fitness",
-    `- Recovery: ${data.fitness.recoveryScore ?? "unavailable"}`,
-    `- Sleep performance: ${data.fitness.sleepPerformance ?? "unavailable"}%`,
-    `- Whoop workouts today: ${fitnessWhoop}`,
-    `- Tonal workouts today: ${fitnessTonal}`,
-    `Recommendation: ${recommendationFromRecovery(data.fitness.recoveryScore)}`,
-    "",
-    "3) 📈 Market Intelligence",
-    `- Pulse: ${data.market.headline}`,
-    marketBullets,
-    "Recommendation: Avoid impulsive positioning at open; make one deliberate check-in after the first hour.",
-    "",
-    "4) ✅ Task Board Execution",
-    taskLines,
-    `- Overdue: ${data.tasks.overdueCount} | Due today: ${data.tasks.dueTodayCount}`,
-    `Recommendation: ${recommendationFromTasks(data.tasks.overdueCount, data.tasks.dueTodayCount)}`,
-  ].join("\n");
+  return renderBriefSections({
+    heading: `🧭 Brief - Daily Command Brief (${data.nowEt} ET)`,
+    sections: [
+      {
+        title: "1) 📅 Calendar Command Window",
+        items: data.calendar.length ? data.calendar : ["No calendar events found for today."],
+        recommendation: "Anchor your day around the earliest fixed commitment and protect one uninterrupted focus block.",
+      },
+      {
+        title: "2) 🏋️ Recovery & Fitness",
+        items: [
+          `Recovery: ${data.fitness.recoveryScore ?? "unavailable"}`,
+          `Sleep performance: ${data.fitness.sleepPerformance ?? "unavailable"}%`,
+          `Whoop workouts today: ${fitnessWhoop}`,
+          `Tonal workouts today: ${fitnessTonal}`,
+        ],
+        recommendation: recommendationFromRecovery(data.fitness.recoveryScore),
+      },
+      {
+        title: "3) 📈 Market Intelligence",
+        items: [`Pulse: ${data.market.headline}`, ...(data.market.bullets.length ? data.market.bullets : ["Market pulse unavailable."])],
+        recommendation: "Avoid impulsive positioning at open; make one deliberate check-in after the first hour.",
+      },
+      {
+        title: "4) ✅ Task Board Execution",
+        items: [
+          ...(data.tasks.ready.length
+            ? data.tasks.ready.slice(0, 3).map((t) => `P${t.priority}: ${t.title}${t.due_at ? ` (due ${t.due_at})` : ""}`)
+            : ["No ready tasks found."]),
+          `Overdue: ${data.tasks.overdueCount} | Due today: ${data.tasks.dueTodayCount}`,
+        ],
+        recommendation: recommendationFromTasks(data.tasks.overdueCount, data.tasks.dueTodayCount),
+      },
+    ],
+  });
 }
 
 function collectData(): BriefData {

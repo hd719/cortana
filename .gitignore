@@ -66,13 +66,12 @@ var/backtests/rechecks/state.json
 BOOTSTRAP.md
 identities/main/IDENTITY.md
 
-# Archived memory (already consolidated into MEMORY.md)
-memory/archive/
-memory/.dreams/
-memory/.dreams/events.jsonl
-memory/.dreams/short-term-recall.json
+# Runtime-derived memory and dreaming artifacts
 DREAMS.md
 identities/*/DREAMS.md
+memory/archive/
+memory/.dreams/
+memory/dreaming/
 
 memory/*-sent.json
 memory/circuit-breaker-state.json

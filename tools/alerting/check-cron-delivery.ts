@@ -1,10 +1,14 @@
 #!/usr/bin/env npx tsx
 
 import fs from "fs";
+import { expectsSilentSuccess } from "../cron/control-plane.js";
 import { spawnSync } from "child_process";
 import { withPostgresPath } from "../lib/db.js";
 import { readJsonFile } from "../lib/json-file.js";
 import { resolveHomePath, PSQL_BIN } from "../lib/paths.js";
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  !!value && typeof value === "object" && !Array.isArray(value);
+
 const coerceBool = (value: unknown): unknown => {
   if (typeof value === "boolean") return value;
   if (typeof value === "string") {
@@ -13,32 +17,6 @@ const coerceBool = (value: unknown): unknown => {
     if (["true", "1", "yes", "y"].includes(v)) return true;
   }
   return value;
-};
-
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  !!value && typeof value === "object" && !Array.isArray(value);
-
-const toText = (value: unknown): string => (typeof value === "string" ? value : "");
-
-const expectsSilentSuccess = (job: Record<string, unknown>): boolean => {
-  const delivery = isRecord(job.delivery) ? job.delivery : null;
-  const mode = typeof delivery?.mode === "string" ? delivery.mode.trim().toLowerCase() : "";
-  if (mode === "none") return true;
-
-  const to = typeof delivery?.to === "string" ? delivery.to.trim().toUpperCase() : "";
-  if (to === "NO_REPLY") return true;
-
-  const message = toText((job.payload as Record<string, unknown> | undefined)?.message);
-  const hints = [
-    "NO_REPLY",
-    "output NOTHING",
-    "return NOTHING",
-    "stay silent",
-    "silent, no message",
-    "If healthy: output NOTHING",
-  ];
-
-  return hints.some((hint) => message.includes(hint));
 };
 
 async function main(): Promise<number> {

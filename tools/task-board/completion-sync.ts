@@ -1,22 +1,14 @@
 #!/usr/bin/env npx tsx
 
 import { spawnSync } from "node:child_process";
+import { classifyTerminalOutcome, type SessionRow } from "./lifecycle.js";
 import { checkIdempotency, generateOperationId, logIdempotency } from "../lib/idempotency.js";
 import { runPsql, withPostgresPath } from "../lib/db.js";
 import { repoRoot } from "../lib/paths.js";
 
-type Json = Record<string, any>;
+export { classifyTerminalOutcome } from "./lifecycle.js";
 
-type SessionRow = {
-  key?: string;
-  label?: string;
-  run_id?: string;
-  runId?: string;
-  sessionId?: string;
-  status?: string;
-  lastStatus?: string;
-  abortedLastRun?: boolean;
-};
+type Json = Record<string, any>;
 
 type SessionsPayload = {
   sessions?: SessionRow[];
@@ -78,27 +70,6 @@ function runSqlJson<T>(sql: string, label: string): T {
   const raw = runSql(sql);
   if (!raw) throw new Error(`${label}: empty SQL result`);
   return parseJson<T>(raw, label);
-}
-
-export function classifyTerminalOutcome(row: SessionRow): { outcome: "completed" | "failed"; lifecycleEvent: string } | null {
-  const status = String(row.status ?? row.lastStatus ?? "unknown").trim().toLowerCase();
-
-  if (["ok", "done", "completed", "success"].includes(status)) {
-    return { outcome: "completed", lifecycleEvent: "completed" };
-  }
-  if (["timeout", "timed_out"].includes(status)) {
-    return { outcome: "failed", lifecycleEvent: "timeout" };
-  }
-  if (["killed", "kill", "terminated", "aborted", "cancelled", "canceled"].includes(status)) {
-    return { outcome: "failed", lifecycleEvent: "killed" };
-  }
-  if (["failed", "error"].includes(status)) {
-    return { outcome: "failed", lifecycleEvent: "failed" };
-  }
-  if (row.abortedLastRun === true) {
-    return { outcome: "failed", lifecycleEvent: "killed" };
-  }
-  return null;
 }
 
 function loadSessions(): SessionRow[] {
