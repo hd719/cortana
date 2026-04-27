@@ -58,6 +58,7 @@ memory/fitness/weekly/*.md
 # Identity runtime state (keep repo clean; do not ignore TOOLS.md)
 identities/*/.openclaw/
 identities/*/memory/
+identities/*/MEMORY.md
 
 # Generated trading backtest runtime artifacts
 var/backtests/runs/
