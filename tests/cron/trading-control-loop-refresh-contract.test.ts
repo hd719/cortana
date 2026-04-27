@@ -32,7 +32,7 @@ describe("trading control-loop refresh cron contract", () => {
     expect(minuteOfDay(job?.schedule?.expr)).toBeLessThan(minuteOfDay(marketScan?.schedule?.expr));
     expect(job?.delivery?.accountId).toBe("monitor");
     expect(job?.schedule?.kind).toBe("cron");
-    expect(job?.schedule?.expr).toBe("20 8 * * 1-5");
+    expect(job?.schedule?.expr).toBe("20 8,12 * * 1-5");
     expect(fs.existsSync("tools/trading/run-v4-control-loop-refresh.sh")).toBe(true);
 
     const message = String(job?.payload?.message ?? "");

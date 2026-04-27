@@ -1108,7 +1108,7 @@
       "updatedAtMs": 1777284000000,
       "schedule": {
         "kind": "cron",
-        "expr": "20 8 * * 1-5",
+        "expr": "20 8,12 * * 1-5",
         "tz": "America/New_York"
       },
       "sessionTarget": "isolated",
