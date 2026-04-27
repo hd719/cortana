@@ -221,3 +221,8 @@
 - Morning Brief and Cron Gateway Drain Recovery still expose `LiveSessionModelSwitchError` in last-error fields; this class should remain a higher-priority reliability signal than duration-only checks.
 - User-facing session resets indicate startup prompts were still being tested; ensure startup requirements are re-validated after long idle periods and summarize the result in daily notes.
 
+
+## Promoted From Short-Term Memory (2026-04-26)
+
+<!-- openclaw-memory-promotion:memory:memory/2026-04-19.md:1:3 -->
+- - Resolved LobsterLink browser-extension loading on H’s Mac mini by switching OpenClaw’s browser launcher away from Google Chrome to an unquarantined user-owned Chromium copy; Google Chrome was ignoring the unpacked-extension flags and the stock Chromium app was blocked by macOS quarantine. - LobsterLink was verified live on the real `openclaw` browser profile after the browser-launcher config patch. - Preference: for X/Twitter, use only the Cortana account via the OpenClaw browser profile. Never use the personal Chrome profile. [score=0.847 recalls=2 avg=0.547 source=memory/2026-04-19.md:1-3]
