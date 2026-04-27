@@ -1100,6 +1100,32 @@
       }
     },
     {
+      "id": "trading-control-loop-refresh-20260427",
+      "agentId": "cron-market",
+      "name": "🧭 V4 Trading Control Loop Refresh",
+      "enabled": true,
+      "createdAtMs": 1777284000000,
+      "updatedAtMs": 1777284000000,
+      "schedule": {
+        "kind": "cron",
+        "expr": "20 8 * * 1-5",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "model": "openai-codex/gpt-5.4",
+        "timeoutSeconds": 600,
+        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nThis is the V4 trading control-loop refresh lane. It refreshes weekday lifecycle artifacts between precompute and the first market-session scan.\nMonitor is the user-facing owner lane for trading alert scans, but this job does not send Telegram messages.\n\nRun exactly:\nbash /Users/hd/Developer/cortana/tools/trading/run-v4-control-loop-refresh.sh\n\nRules:\n- Refresh the review-only trade lifecycle artifacts first.\n- Fail the run if the control-loop schedule assertion is still late after refresh.\n- Do not use the message tool.\n- If the wrapper exits 0, return exactly: control-loop refresh complete\n- If the wrapper exits non-zero, return the wrapper stderr only.",
+        "lightContext": true
+      },
+      "delivery": {
+        "mode": "none",
+        "accountId": "monitor"
+      }
+    },
+    {
       "id": "35e3be71-260a-4b2f-9e9e-892e20aa70cb",
       "agentId": "cron-market",
       "name": "📣 Trading Backtest Notify (market sessions)",
