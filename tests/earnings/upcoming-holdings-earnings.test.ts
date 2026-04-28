@@ -64,7 +64,8 @@ describe("earnings alert cron wiring", () => {
     const job = json.jobs.find((entry) => entry.id === "fd0ee16f-2259-4759-963f-85d5119447eb");
     const message = String(job?.payload?.message ?? "");
 
-    expect(message).toContain("/Users/hd/Developer/cortana/tools/earnings/upcoming-holdings-earnings.ts");
+    expect(message).toContain("command: npx tsx /Users/hd/Developer/cortana/tools/earnings/upcoming-holdings-earnings.ts");
+    expect(message).toContain("First action must be one `exec` tool call");
     expect(message).toContain("merges holdings data with existing Clawdbot-Calendar earnings events");
     expect(message).not.toContain("/Users/hd/Developer/cortana/tools/earnings/check-earnings.sh");
   });
