@@ -9,6 +9,9 @@ describe("vacation ops config", () => {
     expect(config.readinessFreshnessHours).toBe(6);
     expect(config.pausedJobIds).toContain("af9e1570-3ba2-4d10-a807-91cdfc2df18b");
     expect(config.systems.gateway_service.tier).toBe(0);
+    expect(config.systems.runtime_integrity.tier).toBe(0);
+    expect(config.systems.critical_synthetic_probe.tier).toBe(0);
+    expect(config.systems.green_baseline).toBeUndefined();
     expect(config.systems.browser_cdp.tier).toBe(1);
   });
 

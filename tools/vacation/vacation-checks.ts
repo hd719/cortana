@@ -75,6 +75,7 @@ function execResult(proc: SpawnSyncReturns<string>) {
     stdout: String(proc.stdout ?? ""),
     stderr: String(proc.stderr ?? ""),
     error: proc.error,
+    signal: proc.signal,
   };
 }
 
@@ -92,6 +93,16 @@ function compact(text: string, max = 220): string {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (!normalized) return "unknown";
   return normalized.length <= max ? normalized : `${normalized.slice(0, max - 1)}…`;
+}
+
+function failedCommandDetail(result: ReturnType<typeof execResult>): string {
+  const errorMessage = result.error instanceof Error ? result.error.message : "";
+  return compact([
+    result.stderr,
+    errorMessage,
+    result.signal ? `signal=${result.signal}` : "",
+    result.stdout,
+  ].filter(Boolean).join(" "));
 }
 
 function redactToken(token: string | null | undefined): string | null {
@@ -517,7 +528,7 @@ function checkGreenBaseline(config: VacationOpsConfig, env: VacationCheckEnviron
   const result = run(env, "bash", [path.join(sourceRepoRoot(), "tools", "qa", "green-baseline.sh"), "--skip-git"]);
   const ok = result.status === 0 && /GREEN_BASELINE=ok/i.test(result.stdout);
   return buildResult(config, "green_baseline", ok ? "green" : "red", {
-    detail: compact(result.stdout || result.stderr),
+    detail: ok ? compact(result.stdout) : failedCommandDetail(result),
   });
 }
 

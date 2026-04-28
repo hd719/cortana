@@ -31,7 +31,7 @@ describe("vacation readiness", () => {
 
   it("allows remediation for failed Tier 0 systems that declare bounded repair steps", () => {
     expect(shouldAttemptRemediation(config, {
-      system_key: "green_baseline",
+      system_key: "runtime_integrity",
       tier: 0,
       status: "red",
       observed_at: "2026-04-11T12:00:00.000Z",

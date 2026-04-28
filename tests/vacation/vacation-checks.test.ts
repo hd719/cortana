@@ -4,7 +4,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 
 import { loadVacationOpsConfig } from "../../tools/vacation/vacation-config.ts";
-import { runSystemCheck } from "../../tools/vacation/vacation-checks.ts";
+import { runSystemCheck, runVacationChecks } from "../../tools/vacation/vacation-checks.ts";
 
 const config = loadVacationOpsConfig();
 
@@ -324,6 +324,36 @@ describe("vacation tier0 delivery checks", () => {
     }, "green_baseline");
 
     expect(result.status).toBe("green");
+  });
+
+  it("surfaces green-baseline command timeouts instead of hiding them behind partial stdout", () => {
+    const result = runSystemCheck(config, {
+      spawn: (() => ({
+        status: null,
+        signal: "SIGKILL",
+        error: new Error("spawnSync bash ETIMEDOUT"),
+        stdout: "== Config ==\nstatus=ok\n== Validate System ==\n",
+        stderr: "",
+      })) as any,
+    }, "green_baseline");
+
+    expect(result.status).toBe("red");
+    expect(result.detail.detail).toContain("ETIMEDOUT");
+    expect(result.detail.detail).toContain("SIGKILL");
+  });
+
+  it("does not run aggregate green-baseline as part of the tracked Vacation Ops preflight", () => {
+    const tinyConfig = {
+      ...config,
+      systems: {
+        low_value_info_scans: config.systems.low_value_info_scans,
+      },
+    };
+
+    const results = runVacationChecks(tinyConfig);
+
+    expect(Object.keys(config.systems)).not.toContain("green_baseline");
+    expect(results.map((result) => result.system_key)).toEqual(["low_value_info_scans"]);
   });
 });
 

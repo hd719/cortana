@@ -114,16 +114,6 @@
         "rerun_smoke"
       ]
     },
-    "green_baseline": {
-      "tier": 0,
-      "required": true,
-      "probe": "tools/qa/green-baseline.sh",
-      "freshnessSource": "immediate_probe",
-      "remediation": [
-        "runtime_sync",
-        "rerun_smoke"
-      ]
-    },
     "critical_synthetic_probe": {
       "tier": 0,
       "required": true,

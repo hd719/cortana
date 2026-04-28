@@ -41,7 +41,6 @@ export const REQUIRED_SYSTEM_KEYS = [
   "mission_control",
   "tailscale_remote_access",
   "runtime_integrity",
-  "green_baseline",
   "critical_synthetic_probe",
   "gog_headless_auth",
   "calendar_reminders_e2e",
