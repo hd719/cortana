@@ -1,5 +1,7 @@
 #!/usr/bin/env -S npx tsx
 import { spawnSync } from "node:child_process";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { runGogWithEnv } from "../gog/gog-with-env.js";
 
 export type EarningsEntry = {
@@ -19,6 +21,7 @@ type CalendarEvent = {
 const CALENDAR_NAME = "Clawdbot-Calendar";
 const DEFAULT_WINDOW_HOURS = 48;
 const EARNINGS_WINDOW_DAYS = 2;
+const CHECK_EARNINGS_SCRIPT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "check-earnings.sh");
 
 function parseJson<T>(raw: string, fallback: T): T {
   try {
@@ -101,8 +104,12 @@ export function mergeUpcomingEarnings(
     });
 }
 
+export function resolveCheckEarningsScriptPath(): string {
+  return CHECK_EARNINGS_SCRIPT;
+}
+
 function runCheckEarnings(): EarningsEntry[] {
-  const result = spawnSync("bash", ["tools/earnings/check-earnings.sh"], {
+  const result = spawnSync("bash", [CHECK_EARNINGS_SCRIPT], {
     encoding: "utf8",
     stdio: ["ignore", "pipe", "pipe"],
   });

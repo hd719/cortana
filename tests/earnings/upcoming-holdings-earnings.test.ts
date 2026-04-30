@@ -1,7 +1,11 @@
 import fs from "node:fs";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { extractSymbolFromSummary, mergeUpcomingEarnings } from "../../tools/earnings/upcoming-holdings-earnings.ts";
+import {
+  extractSymbolFromSummary,
+  mergeUpcomingEarnings,
+  resolveCheckEarningsScriptPath,
+} from "../../tools/earnings/upcoming-holdings-earnings.ts";
 
 describe("upcoming holdings earnings reconciliation", () => {
   it("extracts the ticker from calendar earnings titles", () => {
@@ -54,6 +58,10 @@ describe("upcoming holdings earnings reconciliation", () => {
 });
 
 describe("earnings alert cron wiring", () => {
+  it("resolves the check script by absolute path", () => {
+    expect(resolveCheckEarningsScriptPath()).toBe(path.resolve("tools/earnings/check-earnings.sh"));
+  });
+
   it("points the alert prompt at the reconciled script", () => {
     const jobsPath = path.resolve("config/cron/jobs.json");
     const raw = fs.readFileSync(jobsPath, "utf8");
