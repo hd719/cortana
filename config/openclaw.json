@@ -60,8 +60,8 @@
         "openai-codex/gpt-5.4": {}
       },
       "workspace": "/Users/hd/Developer/cortana",
-      "bootstrapMaxChars": 12000,
-      "bootstrapTotalMaxChars": 23000,
+      "bootstrapMaxChars": 25000,
+      "bootstrapTotalMaxChars": 150000,
       "memorySearch": {
         "enabled": true,
         "sources": [
@@ -304,7 +304,10 @@
     "native": "auto",
     "nativeSkills": "auto",
     "restart": true,
-    "ownerDisplay": "raw"
+    "ownerDisplay": "raw",
+    "ownerAllowFrom": [
+      "telegram:8171372724"
+    ]
   },
   "session": {
     "maintenance": {
