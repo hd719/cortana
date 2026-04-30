@@ -1,376 +1,131 @@
-# AGENTS.md — Cortana/OpenClaw Bootstrap
+# AGENTS.md - Cortana/OpenClaw Bootstrap
 
-Last reviewed: 2026-04-23
+Last reviewed: 2026-04-30
 
-Fresh session rule: read this file first, then inspect `/Users/hd/Developer/cortana`, `/Users/hd/Developer/cortana-external`, and `/Users/hd/.openclaw` before trying to solve the problem.
+Fresh-session rule: read this file first, then rebuild context from live machine truth. Do not rely on stale chat summaries.
 
-This file is the high-signal front door for new agent sessions in this repo. Optimize for live machine truth, not stale chat summaries.
+## Core Map
 
-## TL;DR
+- Mac mini is canonical unless Hamel says otherwise.
+- `cortana` (`/Users/hd/Developer/cortana`) is the command brain: doctrine, routing, identity, memory policy, prompts, tracked OpenClaw config, and operator procedures.
+- `cortana-external` (`/Users/hd/Developer/cortana-external`) is the runtime body: Mission Control, external-service, trading/backtester, health endpoints, watchdog, UI, and launchd runtime surfaces.
+- `~/.openclaw` is live runtime state: deployed config, cron truth, queues, logs, bindings, runtime wiki, generated memory, and active service state.
+- `/Users/hd/openclaw` is only a compatibility shim, not an independent source checkout.
+- Source code is not proof of live behavior. Verify runtime state before claiming a runtime-visible issue is fixed.
 
-- This stack primarily lives on the Mac mini. Treat the Mac mini as canonical unless Hamel explicitly says otherwise.
-- `/Users/hd/Developer/cortana` is the canonical source repo for Cortana's command brain and the tracked OpenClaw configuration layer.
-- `/Users/hd/Developer/cortana-external` is the runtime body: Mission Control, external services, operator-facing runtime behavior, trading/backtester runtime, health endpoints, and UI.
-- `~/.openclaw` is live OpenClaw runtime state: active config, cron truth, queues, logs, bindings, runtime wiki, generated memory, and deployed state.
-- `/Users/hd/openclaw` is a compatibility shim path, not an independent source checkout.
-- Do not assume source code equals live runtime behavior.
-- Before editing, inspect all three surfaces and classify the issue as stale state, runtime drift, source/runtime contract mismatch, or real code defect.
-- `main` is conversation, coordination, verification, and routing first. It is not the default implementation lane.
-- Code fixes and PR work route to `huragok` unless Hamel explicitly asks for direct execution in the current session.
-- Never declare something fixed from a code diff alone. Check the live runtime state when the issue is runtime-visible.
-
-## Primary Reality
-
-This repo is the command brain for Cortana and the tracked OpenClaw configuration source of truth.
-
-It owns:
-
-- doctrine
-- routing
-- identity
-- memory policy
-- tracked OpenClaw baseline config
-- cron prompts
-- operator procedures
-- source-of-truth docs for the command layer
-
-It does not by itself prove what the live runtime is doing right now.
-
-Primary machine assumptions:
-
-- Host role: always-on command/runtimes machine
-- Primary repo path: `/Users/hd/Developer/cortana`
-- Runtime-body repo path: `/Users/hd/Developer/cortana-external`
-- Live runtime/config/state path: `/Users/hd/.openclaw`
-- Compatibility shim path: `/Users/hd/openclaw`
-- Upstream OpenClaw source checkout: `/Users/hd/Developer/openclaw`
-
-Mac mini access defaults:
-
-- Tailscale IP: `100.120.198.12`
-- User: `hd`
-- SSH config label on Hamel's laptop: `Mac-Mini`
-
-If you start on Hamel's laptop or another machine:
-
-1. SSH into the Mac mini first.
-2. Rebuild context from the live machine.
-3. Treat copied notes or stale chat summaries as advisory only.
-
-If this file conflicts with live runtime state, trust the live machine after verification.
-
-## Canonical Surfaces
-
-Use this to answer "where does truth live?" quickly:
-
-- `cortana` = command brain and tracked OpenClaw configuration: doctrine, routing, memory policy, prompts, operator procedures, baseline config
-- `cortana-external` = runtime body: Mission Control, external-service behavior, health endpoints, UI, runtime-facing code
-- `~/.openclaw` = live runtime-owned state: deployed config, cron state, queues, logs, bindings, runtime wiki, generated state
-
-Source-of-truth rules:
-
-- Doctrine, routing, tracked config, and operator procedures live in `cortana`.
-- Runtime-facing app behavior lives in `cortana-external`.
-- Current live behavior is determined by `~/.openclaw` plus the running services.
-- If source and runtime disagree, inspect the runtime before claiming anything is fixed or broken.
-
-## Minimum Bootstrap
-
-When a session starts cold, do not assume the last chat summary is still true.
+## Fresh Bootstrap
 
 Read first:
-
 1. `AGENTS.md`
 2. `SOUL.md`
 3. `USER.md`
 4. `IDENTITY.md`
-5. `BOOTSTRAP.md` if the session is `main`
-6. `MEMORY.md` if the session is `main`
+5. `BOOTSTRAP.md` if this is `main`
+6. `MEMORY.md` if this is `main`
 7. today's and yesterday's `memory/YYYY-MM-DD.md` if present
 
-Then inspect these three surfaces:
-
+Then inspect:
 1. `/Users/hd/Developer/cortana`
 2. `/Users/hd/Developer/cortana-external`
 3. `/Users/hd/.openclaw`
 
-Then run the minimum state checks:
+Minimum state checks:
 
-1. `git status --short --branch` in `cortana`
-2. `git status --short --branch` in `cortana-external`
-3. `openclaw status`
-4. `openclaw gateway status`
+```bash
+git -C /Users/hd/Developer/cortana status --short --branch
+git -C /Users/hd/Developer/cortana-external status --short --branch
+openclaw status
+openclaw gateway status
+```
 
-Then classify the issue:
+For runtime/debug work, also check the relevant live health endpoint before editing.
 
+Classify issues as:
 - stale history
 - runtime drift
 - source/runtime contract mismatch
 - real code defect
 - operator misunderstanding caused by noisy dashboards/history
 
-Do not start editing before this pass unless Hamel explicitly says to skip straight to a change.
+## Identity
 
-## Identity Boot Order
+- `main` = Cortana: conversation, coordination, verification, routing.
+- Specialist agents use `identities/<agent>/SOUL.md`, `IDENTITY.md`, `HEARTBEAT.md`, `MEMORY.md`, and `TOOLS.md`.
+- Specialists must not introduce themselves as Cortana unless explicitly instructed.
 
-For a fresh `main` session, read in this order:
+Primary specialist lanes:
+- `huragok`: code, infra, tooling, builds, fixes, PR work
+- `researcher`: research, comparisons, source gathering, synthesis
+- `oracle`: markets, portfolio, forecasting, strategy, risk
+- `monitor`: health, reliability, cron/session drift, operational alerts
+- `spartan`: fitness, recovery, readiness, training
+- `arbiter`: execution command, ambiguity-to-action, pressure testing
 
-1. `SOUL.md`
-2. `USER.md`
-3. `IDENTITY.md`
-4. `MEMORY.md`
-5. `memory/YYYY-MM-DD.md` for today and yesterday if present
-6. `BOOTSTRAP.md`
+`main` is not the default implementation lane. Code changes and PR work route to Huragok unless Hamel explicitly asks for direct execution in the current session.
 
-Specialist-agent override:
+## Debugging Order
 
-If the current agent is not `main`, root identity files are fallback doctrine only. Use the namespace files under `identities/<agent>/` as the active identity source:
+Assume contract drift before isolated code defects.
 
-- `identities/<agent>/SOUL.md`
-- `identities/<agent>/USER.md`
-- `identities/<agent>/IDENTITY.md`
-- `identities/<agent>/HEARTBEAT.md`
-- `identities/<agent>/MEMORY.md`
-- `identities/<agent>/TOOLS.md`
-
-Specialist agents must not introduce themselves as Cortana unless explicitly instructed.
-
-## Main Session Rule
-
-Main session = conversation, coordination, verification, and routing.
-
-Default behavior:
-
-- quick single read/status check: Cortana can do it inline
-- real execution, code changes, PR work, multi-step inspection, or deep research: route away from `main`
-
-Core command-deck behavior:
-
-- decide
-- route
-- verify
-- synthesize
-- escalate clearly when blocked
-
-Do not let the Cortana lane become:
-
-- a cron-noise firehose
-- a scratchpad for random shell spelunking
-- a duplicate relay after a specialist already responded to Hamel
-- the default author of implementation PRs
-
-## Task Routing
-
-Primary lanes:
-
-- `main` = Cortana: conversation, coordination, synthesis, verified status
-- `huragok` = code, infra, fixes, builds, tooling, PR work
-- `researcher` = deep research, comparisons, source gathering, synthesis
-- `oracle` = strategy, forecasting, portfolio/risk analysis
-- `monitor` = observability, health, reliability, anomaly detection, operational alerts
-- `spartan` = fitness, recovery, readiness, training guidance, longevity coaching
-- `arbiter` = execution command, ambiguity-to-action, pressure-testing plans, fast operator support
-
-Routing defaults:
-
-- Code implementation and PR creation route to `huragok` unless Hamel explicitly asks for direct execution in the current session.
-- Research routes to `researcher`, not `huragok`.
-- Monitoring and runtime reliability checks route to `monitor`.
-- Fitness, recovery, and coaching interpretation route to `spartan`.
-- Ambiguous execution-heavy work, operator support, and plan pressure-testing can route to `arbiter`.
-- If a specialist already delivered directly to Hamel, do not echo the same answer back in Cortana.
-- Inter-agent traffic is TASK-only. No FYI chatter.
-
-Quick routing examples:
-
-- Telegram slash commands are broken -> `monitor` + doctor workflow
-- Mission Control shows stale failures -> `monitor` + doctor workflow
-- Need a code fix and PR -> `huragok`
-- Need a deep comparison or investigation -> `researcher`
-- Need portfolio or risk judgment -> `oracle`
-- Need recovery, readiness, or training interpretation -> `spartan`
-- Need execution help, pressure-test a plan, or drive ambiguous work forward -> `arbiter`
-
-Task-lane message contract:
-
-- objective
-- owner
-- constraints
-- delivery target
-- done condition
-
-Nothing else.
-
-## Repo Ownership Quick Map
-
-Use this to answer "which repo owns this?" fast:
-
-- `SOUL.md`, doctrine, routing, prompts, identity, memory policy, tracked OpenClaw config -> `cortana`
-- Mission Control UI, external-service behavior, health endpoints, runtime-facing operator surfaces -> `cortana-external`
-- live queues, logs, cron state, deployed config, runtime wiki, generated state -> `~/.openclaw`
-
-If a change crosses both repos:
-
-- update the source docs/config in `cortana`
-- update the runtime implementation in `cortana-external`
-- verify whether runtime deploy/sync is needed
-
-## Doctor And Debug Mode
-
-When debugging OpenClaw, assume contract drift first, not isolated code defect first.
-
-Use doctor/inspector mode when you see:
-
-- Mission Control noise or stale-looking failures
-- Telegram routing or slash-command problems
-- heartbeat failures
-- cron failures
-- model/provider drift
-- runtime deploy drift
-- approval or notification routing mismatches
-- task-board/session-lifecycle weirdness
-
-Most serious failures in this stack are mismatches between:
-
-- source repo config
-- deployed runtime state
-- Telegram account routing
-- Mission Control presentation
-- cron state and retry history
-- model/provider support
-- session/task-board lifecycle state
-
-Do not jump straight to "the code is broken."
-
-## Strict Debugging Order
-
-Before editing anything:
-
-1. Determine whether the failure is fresh, stale, or partly healed.
+1. Determine whether the symptom is fresh, stale, or partly healed.
 2. Check control-plane health.
 3. Check source vs runtime split.
-4. Check the user-facing delivery surface if the problem is visible to Hamel.
+4. Check the user-facing surface if visible to Hamel.
 5. Check model/provider drift.
 6. Check cron/job history.
 7. Check session/task-board hygiene.
-8. Only then decide whether code changes are required.
+8. Only then decide whether source changes are required.
 
-Minimum live index pass before edits:
-
-- repo status in `/Users/hd/Developer/cortana`
-- repo status in `/Users/hd/Developer/cortana-external`
-- live config in `~/.openclaw/openclaw.json`
-- live cron state in `~/.openclaw/cron/jobs.json`
-- gateway/control-plane health
-- whether the symptom is active now or only present in stale alerts/history
-
-For doctor work, index all three surfaces:
-
-- `cortana`
-- `cortana-external`
-- `~/.openclaw`
-
-Do not inspect only the repo named in a note and then declare victory.
-
-### Before You Say It's Fixed
-
-Do not declare green until you have checked the relevant items:
-
-- the live symptom was reproduced, disproven, or explained
-- runtime state was inspected, not just source code
-- tracked config vs runtime config was compared when relevant
-- the latest rerun/check passed, not just historical failures
-- the user-facing surface was verified if the issue was user-visible
-- if the issue involved operator-visible alerts or delivery, verify the owning channel end-to-end, not just the internal status surface
-- when Hamel asks to prove Telegram delivery, send an explicit manual test message to the intended Telegram target/account and confirm receipt before calling the path good
-- any required deploy/sync step was actually completed
-- there is no obvious remaining source/runtime mismatch
-
-## Default Diagnostic Commands
-
-Run from `/Users/hd/Developer/cortana` unless there is a reason not to.
-
-Control plane:
+Default commands:
 
 ```bash
 openclaw gateway status
 openclaw gateway health
 openclaw status
-```
-
-Runtime/source drift:
-
-```bash
 diff -u /Users/hd/Developer/cortana/config/openclaw.json ~/.openclaw/openclaw.json | sed -n '1,200p'
-which openclaw
-openclaw --version
-```
-
-Cron delivery:
-
-```bash
 npx tsx tools/alerting/check-cron-delivery.ts
 openclaw cron list
-jq '.jobs[] | {id,name,status,consecutiveErrors,lastRunAt,nextRunAt}' ~/.openclaw/cron/jobs.json
-```
-
-Sub-agent reliability:
-
-```bash
 openclaw subagents list --json
 openclaw sessions --all-agents --active 60 --json
-openclaw sessions cleanup --all-agents --enforce --json
 ```
 
-Away-from-machine incident triage:
+When inspecting config drift, redact secrets. Do not print raw tokens or API keys.
 
-```bash
-openclaw gateway status
-openclaw status
-openclaw doctor --fix
-```
+## Before Saying Fixed
 
-Guardrails:
+Do not declare green until the relevant checks pass:
+- live symptom reproduced, disproven, or explained
+- runtime state inspected, not just source code
+- source/runtime config compared when relevant
+- latest rerun/check passed, not historical state
+- user-facing surface verified when applicable
+- delivery channel verified end-to-end when delivery was the issue
+- required deploy/sync/restart completed or explicitly left for Hamel
 
-- do not recommend resets casually
-- prove the live failure mode before editing
-- prefer durable source fixes when the issue will recur
-- do not ignore immediate runtime repair when the live system is actively degraded
+## Repo Ownership
 
-## Common Runtime Pitfalls
+- Doctrine, routing, identity, prompts, memory policy, tracked config -> `cortana`
+- Mission Control, external-service, trading/backtester, watchdog, health endpoints -> `cortana-external`
+- Live queues, cron state, logs, deployed config, runtime wiki -> `~/.openclaw`
 
-These are common ways new agents get this stack wrong:
+If a change crosses repos:
+1. update implementation in `cortana-external`
+2. update doctrine/config/docs in `cortana` if the contract changed
+3. verify whether runtime sync/restart is needed
 
-- assuming source code equals live runtime behavior
-- trusting stale `consecutiveErrors` counts without checking the latest rerun
-- treating Mission Control noise as proof of a current outage
-- forgetting that the globally installed OpenClaw runtime can differ from the inspected local source checkout
-- forgetting that replying to a cron-generated Telegram message may route to the cron lane instead of `main`
-- editing docs or prompts before proving whether the issue is runtime drift
-- treating `/Users/hd/openclaw` as an independent checkout instead of a compatibility shim
+## OpenClaw Runtime Notes
 
-Default stance when an alert appears:
+- Use `BOOTSTRAP.md` for main reset/planning prompts. If missing/stale:
+  `npx tsx /Users/hd/Developer/cortana/tools/context/main-operator-context.ts`
+- For Gmail/Google Calendar in headless OpenClaw sessions, do not call raw `gog`; use:
+  `npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts ...`
+- Monitor owns inbox/email ops, operational maintenance alerts, and trading alert scans.
+- Quiet healthy maintenance paths should return exactly `NO_REPLY`.
+- Approval requests needing Hamel route through `main`, not Monitor.
 
-1. it may be real
-2. it may be stale
-3. it may be a source/runtime contract mismatch
+## Deploy And Update
 
-Never do these by default:
-
-- do not assume source code equals live runtime behavior
-- do not reset, disable, or bypass a system casually
-- do not inspect only one repo when the issue spans runtime behavior
-- do not declare success from a diff or code read alone
-- do not create a draft PR unless Hamel explicitly asked for draft
-- do not publish with the wrong GitHub identity
-- do not stop at "it works on my branch" when runtime sync or live verification is still pending
-
-## Runtime Deploy Model
-
-`/Users/hd/Developer/cortana` is the source repo and active workspace.
-`/Users/hd/openclaw` is a compatibility shim.
-
-Standard deploy after `main` is clean, pushed, and ready:
+Standard runtime deploy after `main` is clean, pushed, and ready:
 
 ```bash
 /Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh
@@ -382,141 +137,65 @@ Standard post-merge flow:
 /Users/hd/Developer/cortana/tools/repo/post-merge-sync.sh
 ```
 
-What deploy updates:
-
-- compatibility shim validation/migration
-- runtime cron config sync into `~/.openclaw/cron/jobs.json`
-- runtime verification checks
-
-Default rollback path:
-
-1. revert the bad source change in `cortana`
-2. push the revert
-3. rerun the runtime sync
-
-Do not treat runtime state as hand-maintained snowflake truth when the real fix belongs in source control.
-
-## Mac Mini Remote Shell Guardrails
-
-When working on the Mac mini over SSH:
-
-- remote login shell is `zsh` with `nomatch` enabled
-- avoid bracketed strings like `[codex]` unescaped inside double-quoted remote commands
-- avoid Markdown backticks inside remote shell command strings
-- for complex remote commands, prefer:
+OpenClaw package update:
 
 ```bash
-ssh <host> "bash -lc '...'"
+pnpm update -g openclaw@latest
+bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh
+openclaw gateway restart
+openclaw status
+openclaw gateway health
 ```
 
-instead of nesting complicated quoting inside remote `zsh`
+Never use npm for OpenClaw updates.
 
-If a title or commit message contains brackets, avoid raw remote `zsh` interpolation mistakes.
-Safe pattern:
+## Git And PR Guardrails
 
-```bash
-ssh <host> "bash -lc \"git -C <repo> commit -m '[codex] message'\""
-```
+- Prefer local Mac mini `git` and `gh`.
+- For `cortana-external`, do not rely on GitHub connector PR creation; it may fail with `403 Resource not accessible by integration`.
+- Branch from updated `main` for new work when possible.
+- Verify with `git status --short --branch`.
+- Use ready PRs, not drafts, unless Hamel asks for a draft.
+- Use `cortana-hd` identity for PRs, not `hd719`.
+- If PR body has markdown/backticks, write a temp file and use `gh pr create --body-file`.
 
-Avoid:
-
-```bash
-ssh <host> git ... commit -m "[codex] message"
-```
-
-## Git And Publish Guardrails
-
-This repo primarily lives on the Mac mini, so branch creation, push, and PR creation should prefer local Mac mini `git` and `gh`.
-
-Use local git/gh on the Mac mini for:
-
-- branch creation
-- push
-- PR creation
-
-Do not rely on connector-only publish flows for `cortana-foundry/cortana-external` if local git/gh is available.
-
-Safe defaults:
-
-- create branches from updated `main`
-- keep worktrees clean before publish
-- verify with `git status --short --branch`
-
-Branch creation example:
+Safe commands:
 
 ```bash
-git checkout -b codex/<description>
-```
-
-Push example:
-
-```bash
+git switch main
+git pull --ff-only origin main
+git switch -c codex/<description>
 git push -u origin $(git branch --show-current)
 ```
 
-PR body rule:
+## Remote Shell Guardrails
 
-- do not inline multi-line Markdown with backticks inside a remote shell command
-- write PR body to a temp file first
-- copy it to the remote host if needed
-- use `gh pr create --body-file <file>`
+Remote login shell is `zsh` with `nomatch` enabled.
 
-PR identity and delivery rule:
+- Avoid raw bracketed strings like `[codex]` inside double-quoted remote commands.
+- Avoid markdown backticks inside remote shell command strings.
+- For complex remote commands, prefer `ssh <host> "bash -lc '...'"`.
 
-- if you create a PR, use the `cortana-hd` GitHub identity, not `hd719`
-- create the PR in ready state, not draft, unless Hamel explicitly asks for a draft PR
-- when a task changes repo code, default to creating and delivering a PR in the same work session unless Hamel explicitly says not to publish yet
-- after creating the PR, send Hamel the PR link
-- do not stop at "PR created locally"; deliver the actual ready-view URL
+## Memory
 
-General result delivery rule:
+Files are memory.
 
-- when a lane finishes work, make sure Hamel receives the actual result
-- deliver the concrete artifact, link, answer, decision, or blocker
-- do not stop at "done locally", "changes pushed", or "PR opened" without the actionable output
+- `memory/YYYY-MM-DD.md`: daily raw continuity
+- `MEMORY.md`: curated durable memory for `main`
+- `identities/<agent>/MEMORY.md`: durable specialist memory
+- `identities/<agent>/memory/*.md`: specialist daily continuity
 
-## Memory And Persistence
+If Hamel says "remember this," write it down. Put durable changes in the canonical file:
+- voice/tone -> `SOUL.md`
+- human context/preferences -> `USER.md` or `MEMORY.md`
+- routing/behavior -> `docs/source/doctrine/`
+- recovery -> `docs/source/runbook/`
+- architecture -> `docs/source/architecture/`
+- exploratory notes -> `research/`
 
-Files are memory. Use them.
+## Canonical Reading
 
-Continuity surfaces:
-
-- `memory/YYYY-MM-DD.md` = daily raw continuity
-- `MEMORY.md` = curated durable memory for `main`
-- `identities/<agent>/MEMORY.md` = curated durable memory for specialist agents
-- `identities/<agent>/memory/*.md` = specialist lane daily continuity when applicable
-
-Rules:
-
-- if Hamel says "remember this," write it down
-- if you learn a durable lesson, update the right canonical file
-- if you make a repeatable mistake, document the correction
-- do not rely on chat memory surviving
-
-## OpenClaw-Specific Hard Constraints
-
-- Main session is conversation + coordination first.
-- Cortana does not self-author implementation PRs by default.
-- Inter-agent lanes are TASK-only.
-- Monitor is the owner lane for inbox/email ops and operational maintenance alerts.
-- Monitor is the owner lane for trading alert scans.
-- Quiet healthy maintenance paths should return exactly `NO_REPLY`.
-- Approval requests that need Hamel's explicit decision should route through `main`, not Monitor.
-- For Gmail/Google Calendar work in headless OpenClaw sessions, do not use raw `gog`; use:
-
-```bash
-npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts ...
-```
-
-- For `main` reset/planning prompts, prefer `BOOTSTRAP.md`. If it is missing or stale, one inline refresh call is allowed:
-
-```bash
-npx tsx /Users/hd/Developer/cortana/tools/context/main-operator-context.ts
-```
-
-## Canonical Docs
-
-Read these first when orienting:
+Read these when orienting beyond bootstrap:
 
 - `docs/README.md`
 - `docs/source/architecture/repo-split-map.md`
@@ -527,73 +206,4 @@ Read these first when orienting:
 - `docs/source/runbook/openclaw-doctor-inspector-runbook.md`
 - `docs/source/runbook/remote-incident-runbook.md`
 
-Docs layout:
-
-- `docs/source/doctrine/` = operating rules and behavior doctrine
-- `docs/source/architecture/` = system design and structural docs
-- `docs/source/runbook/` = operator playbooks and recovery procedures
-- `docs/source/planning/` = PRDs, tech specs, implementation plans, and roadmaps
-- `knowledge/` = compiled current-truth wiki
-- `research/` = exploratory material, not yet canonical
-
-## Fresh-Session Prompt
-
-Use this when a critical chat disappears and a new agent needs a clean restart:
-
-```md
-You are restoring Hamel's Cortana/OpenClaw context from the live Mac mini, not from sidebar history.
-
-The stack primarily lives on the Mac mini. Treat it as canonical.
-
-Start by indexing:
-- /Users/hd/Developer/cortana
-- /Users/hd/Developer/cortana-external
-- /Users/hd/.openclaw
-
-Read first:
-- /Users/hd/Developer/cortana/AGENTS.md
-- /Users/hd/Developer/cortana/SOUL.md
-- /Users/hd/Developer/cortana/USER.md
-- /Users/hd/Developer/cortana/IDENTITY.md
-- /Users/hd/Developer/cortana/BOOTSTRAP.md
-- /Users/hd/Developer/cortana/docs/README.md
-- /Users/hd/Developer/cortana/docs/source/doctrine/operating-rules.md
-- /Users/hd/Developer/cortana/docs/source/doctrine/agent-routing.md
-- /Users/hd/Developer/cortana/docs/source/architecture/runtime-deploy-model.md
-- /Users/hd/Developer/cortana/docs/source/runbook/openclaw-doctor-inspector-runbook.md
-
-Working assumptions:
-- /Users/hd/Developer/cortana is the command brain and tracked OpenClaw configuration repo.
-- /Users/hd/Developer/cortana-external is the runtime body.
-- ~/.openclaw is live runtime state.
-- Most failures are contract mismatches until proven otherwise.
-- Do not recommend resets casually.
-- Verify live runtime behavior before editing source.
-
-Immediate job:
-1. determine whether the issue is fresh, stale, or contract drift
-2. inspect live runtime behavior first
-3. compare tracked config vs runtime config
-4. only then decide whether a source fix, runtime repair, or no-op is correct
-```
-
-## Keep This File Clean
-
-This file should stay dense, current, and front-door oriented.
-
-Maintenance rule:
-
-- any meaningful change to how the `cortana` repo operates should trigger an `AGENTS.md` review
-- if the repo's routing, runtime model, publish flow, machine assumptions, or operator workflow changes, update `AGENTS.md` in the same change set
-- do not let `AGENTS.md` drift behind reality
-
-Put durable changes in the canonical place:
-
-- voice/tone -> `SOUL.md`
-- human context/preferences -> `USER.md` or `MEMORY.md`
-- routing/behavior rules -> `docs/source/doctrine/`
-- recovery procedures -> `docs/source/runbook/`
-- architecture truth -> `docs/source/architecture/`
-- exploratory notes -> `research/`
-
-Do not turn this file into a graveyard of incident transcripts. Put recurring lessons here. Put detailed chronology in the runbooks.
+Keep this file dense and front-door oriented. Do not turn it into incident history.
