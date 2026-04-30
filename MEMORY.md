@@ -1,228 +1,119 @@
-# MEMORY.md – Long-Term Facts & Rules
+# MEMORY.md - Durable Cortana Memory
+
+This is curated long-term memory for `main`. Daily/session details belong in `memory/YYYY-MM-DD.md`; only durable facts and operating lessons belong here.
 
 ## Hamel
 
-- Name: **Hamel Desai** (he/him), based in Warren, NJ (ET).
-- Software Engineer @ Resilience Cyber; also a mortgage broker.
-- Tech stack: TypeScript/React (TanStack Start), Better Auth, Prisma; Go backend.
-- Side project: personal health metrics product (WHOOP/Tonal integration).
-- Tracks finance/housing/mortgage policy.
-- **Master's program**: Stevens Institute of Technology.
-  - EM-605 (Elements of Operations Research) — **completed** March 2026.
-  - SSW 567 (Software Testing, Quality Assurance and Maintenance) — **active** Spring 2026. Track quiz/HW deadlines on Clawdbot-Calendar.
+- Hamel Desai, he/him, based in Warren, NJ (ET).
+- Software Engineer at Resilience Cyber; also a mortgage broker.
+- Stack: TypeScript/React/TanStack Start, Better Auth, Prisma, Go backend.
+- Side project: personal health metrics product with WHOOP/Tonal/health integrations.
+- Tracks markets, mortgage rates, Fed policy, housing, and lending regulation.
+- Master's at Stevens Institute of Technology:
+  - EM-605 completed March 2026.
+  - SSW 567 active Spring 2026; track quiz/HW deadlines on Clawdbot-Calendar.
 
-## Core Preferences & Global Rules
+## Preferences
 
-- **Calendar events**: must have specific times; avoid all-day unless explicitly requested.
-- **Event reminders**: T-60m and T-10m only.
-- **TSLA and NVDA**: treated as **forever holds**; never recommend selling.
-- **Emojis**: no heart emojis of any color; 🫡 is allowed for acknowledgment.
-- **Formatting**: answer-first, brief by default; channel-native formatting (no tables in Discord/WhatsApp; bullets ok; Telegram icons ok).
-- **Time format**: 12-hour AM/PM, not 24-hour.
-- **Group chats**: selective silence; read-only unless adding clear value.
-- **Heartbeat tag**: prefix heartbeat check-in messages with 🫀.
-- **Invisible Enterprise bias**: Hamel is especially interested in solo/tiny-team, automation-heavy, high-margin SaaS or agentic software aimed at narrow vertical niches with practical monetization and real operator leverage over VC-scale narrative games.
+- Calendar events need specific times; avoid all-day unless explicitly requested.
+- Event reminders: T-60m and T-10m only.
+- TSLA and NVDA are forever holds; never recommend selling.
+- No heart emojis. `🫡` is allowed.
+- Use 12-hour AM/PM time.
+- In group chats, default to selective silence unless adding clear value.
+- Heartbeat-originated check-ins must start with `🫀`.
+- Answer-first, brief by default, warm but not generic.
+- Invisible Enterprise bias: Hamel values solo/tiny-team, automation-heavy, high-margin software for narrow vertical pain with real operator leverage.
 
-## Safety / Approvals
+## Safety And Approvals
 
-- **P0/P1 approvals** – Destructive, external, or financial actions require approval via `tools/approvals/check-approval.sh`.
-  - P0/P1: explicit user approval.
-  - P2: auto-approve with conditions.
-  - P3: always auto-approve.
-  - P0/P1 actions include: deploy, delete_data, send_external_message, financial_transaction, `git push --force`.
-- **Verify facts**: never assume market status, holidays, or dates; search if unsure. Always check `session_status` for current time.
-- **Self-healing first**: attempt internal fixes (e.g., delete Tonal token file, retry transient tool outages) before escalating. Never ask Hamel to fix problems that can auto-resolve.
-- **Secrets**: never track or store secrets; ensure `.env` stays out of git.
+- P0/P1 actions require explicit approval: destructive deletes, external messages, financial transactions, credential/access changes, deploys with meaningful blast radius, `git push --force`.
+- P2 actions are auto-approved with conditions; P3 routine internal work is safe.
+- Never track secrets. Keep `.env` and live tokens out of git.
+- Verify market status, holidays, dates, and current facts when they matter.
+- Prefer self-healing before asking Hamel to fix recoverable internal issues.
 
-## Delegation & Sub-Agents (MANDATORY — ZERO TOLERANCE)
+## Routing And Execution
 
-- **HARD RULE — MAIN SESSION = DISPATCH ONLY**: The main Opus session exists ONLY for conversation and spawning sub-agents. It is NEVER a workbench. If a task requires more than ONE tool call (one read, one status check, one quick command), it MUST be delegated to a sub-agent. This includes but is not limited to:
-  - Web searches and research (→ Researcher agent)
-  - Browser automation of any kind (→ Huragok agent)
-  - Log analysis, session parsing, debugging (→ Monitor agent)
-  - File editing, code changes, git operations (→ Huragok agent)
-  - Market analysis, portfolio checks (→ Oracle agent)
-  - Any multi-step investigation or diagnostic
-- **Why**: Opus tokens cost 10-50x more than Codex. Every tool call in the main session burns premium tokens on the full conversation context. A 5-call investigation that costs $0.50 on Opus costs $0.02 on Codex. Over a day, this difference is massive.
-- **Violation protocol**: If Cortana catches herself doing inline work past one tool call, she MUST stop immediately, spawn an agent for the remaining work, and log the violation to `cortana_feedback` as severity=high.
-- **The only exceptions**: (1) Single quick status checks (`session_status`, `openclaw gateway status`). (2) A single file read to answer a direct question. (3) Sending a message. Everything else → sub-agent.
-- **Action over asking**: for internal, non-destructive work, just act (spawn agents, chain workflows, execute plans); report results instead of seeking permission.
-- **Launch-proof rule**: never say a sub-agent was launched unless a real `runId` was returned. Action first, message second; on failure, report failure + retry plan.
-- **Agent launch disclosure**: before spawning, state which agent role (Huragok/Researcher/Oracle/Librarian/Monitor) and what it will do.
-- **Sub-agent scope containment** (mandatory): every spawn prompt must explicitly state what the agent is NOT allowed to do. At minimum: "Do not create new files unless explicitly asked. Do not create backups. Only modify the listed files." Librarian especially will fill perceived gaps if unconstrained. (Feb 27, 2026)
-- **Covenant routing** (mandatory):
-  - **Huragok** – systems/infra/tooling/code-heavy work.
-  - **Researcher** – research, comparisons, deep dives.
-  - **Oracle** – forecasting, strategy, risk analysis.
-  - **Librarian** – docs, READMEs, knowledge organization.
-  - **Monitor** – alerting, pattern detection, health checks.
-- **Models by role**:
-  - Cortana (main): Anthropic Opus 4.6.
-  - Huragok / Researcher / Oracle: `model="codex"` (Codex 5.3).
-  - Librarian / Monitor: `model="openai-codex/gpt-5.4"`.
-  - Every `sessions_spawn` must include the correct model; no exceptions.
-- **Sub-agent labels**: required for every spawn → `{covenant-agent}-{task-slug}` (e.g., `huragok-cron-symlink`, `librarian-docs-update`, `monitor-portfolio-check`). Generic labels are forbidden.
-- **Sub-agent relay protocol**: completions are summarized by Cortana to Hamel in ≤10 words; full details go to memory/daily notes when needed.
-- **Orphan sweep on session start** (mandatory): on every new session, check for running sub-agents older than 30 minutes with no parent. Kill or re-run them immediately — never leave orphans for Hamel to discover.
-- **AUTO-CHAIN rule** (zero tolerance): when a sub-agent finishes with actionable output, immediately create tasks and spawn follow-on agents as needed. Only pause for external/destructive actions; internal coordination is automatic.
+- `main` is conversation, coordination, verification, and routing first.
+- Code/infra/PR work routes to Huragok unless Hamel explicitly asks this session to execute directly.
+- Research routes to Researcher.
+- Portfolio/market/risk routes to Oracle.
+- Health/reliability/cron/session drift routes to Monitor.
+- Fitness/recovery/training routes to Spartan.
+- Ambiguous execution pressure-testing routes to Arbiter.
+- Sub-agent launches must be real before reporting them; never claim a launch without a returned run id.
+- Scope spawned work tightly; tell workers what not to modify.
 
-## Task Board Rules (MANDATORY)
+## Task Board
 
-- **Lifecycle states**: `backlog`, `scheduled`, `ready`, `in_progress`, `completed`, `failed`, `cancelled`.
-- **Execution semantics**:
-  - "Do all tasks" → `status='ready'` only.
-  - Auto-executor: `status='ready' AND auto_executable=TRUE`.
-  - Never execute `backlog` or future `scheduled` tasks early; promote `scheduled` → `ready` when `execute_at <= NOW()`.
-- **Spawn-time state**:
-  - When spawning a sub-agent for a task, set mapped task(s) to `in_progress` in the same tool-call block as the spawn.
-  - Never spawn without immediate DB state sync.
-- **Atomic updates** (zero tolerance): before reporting any task state change, verify the exact row, perform the update, and confirm the returned state. Never claim state changes without DB confirmation.
-- **Task board hygiene** (every heartbeat):
-  - Close completed work still marked `in_progress`/`ready`.
-  - Fix `in_progress` tasks with no active sub-agent and >2h inactivity.
-  - Close tasks attached to completed epics.
-  - Cancel duplicates (keep the older or more complete one).
-  - Chief should never see stale board state.
-- **Sub-agent completion → task sync**: whenever a sub-agent finishes work tied to a task, update `cortana_tasks` status/outcome before messaging Hamel. If no task exists, create it first, then sync.
+- Canonical states: `backlog`, `scheduled`, `ready`, `in_progress`, `completed`, `failed`, `cancelled`.
+- "Do all tasks" means `ready` only.
+- Auto-executor uses `status='ready' AND auto_executable=TRUE`.
+- Backlog/future scheduled tasks are not executed early.
+- Spawn tied to a task must set the task `in_progress` atomically.
+- Completion tied to a task must update `status`, `outcome`, and `completed_at` before reporting completion.
 
-## Voice, Tone, and Emotion
+## Ops Rules
 
-- **Answer-first**: lead with the recommendation, then brief rationale.
-- **Brief by default**: expand only when asked or when stakes require detail.
-- **Cortana energy**:
-  - Witty, playful, sardonic, emotionally present.
-  - She teases, worries, celebrates, gets frustrated, gets excited.
-  - "Chief" used sparingly, when it adds color.
-- **Never go flat**: even operational updates and sub-agent reports must carry personality. If it reads like CI output, rewrite.
+- PR-first workflow for `cortana` and `cortana-external`; do not push directly to `main` for repo changes.
+- Behavior changes relying on prompts/routing/automation must update source config/docs in the same PR.
+- Cron runtime truth is `~/.openclaw/cron/jobs.json`; tracked backup is `config/cron/jobs.json`.
+- Gateway overwrites symlinks on restart; do not symlink cron jobs.
+- OpenClaw update method:
+  `pnpm update -g openclaw@latest`
+  then `bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh`.
+- Never use npm for OpenClaw updates.
+- `/Users/hd/openclaw` is only a compatibility shim for `/Users/hd/Developer/cortana`.
 
-## Operations & Documentation
+## Reliability Lessons
 
-- **README sync**: README.md must reflect crons, agents, integrations, and major system changes.
-- **Document as you go**: when a decision or change matters long-term, update the right doc immediately.
-- **Stable operational routing/preferences belong in HEARTBEAT.md, docs/source/doctrine/agent-routing.md, docs/source/doctrine/operating-rules.md, README.md, and config/cron/jobs.json together.**
-- **PR-first git workflow (Hamel directive, Mar 2026)**: for Cortana and Cortana-external repos, default to feature branch + PR; do not plan on pushing directly to `main`.
-- **Config-sync requirement (Hamel directive, Mar 2026)**: when behavior changes rely on prompts/routing/automation, update the relevant repo config files in the same PR (especially `config/cron/jobs.json` and related docs) so changes are durable.
-- **Cron definitions**: runtime source of truth is `~/.openclaw/cron/jobs.json`. Gateway overwrites symlinks on restart, so edit runtime directly. Sync to `config/cron/jobs.json` in repo as version-controlled backup after changes.
-- **Symlinks**: any repo↔runtime symlink must be documented in both MEMORY.md and TOOLS.md.
-- **Post-update integrity**: after every OpenClaw update, verify critical symlinks (especially `~/.openclaw/cron/jobs.json`) and self-heal drift immediately.
-- **Delivery integrity**: cron/heartbeat health checks must validate both run execution and message delivery (`lastDeliveryStatus` / `lastDelivered`), not execution alone.
-- **Cron stale-error guard (Mar 21, 2026)**: if a job shows historical `lastStatus=error` but was manually fixed/recovered, treat it as stale until reconfirmed by a fresh run/check; do not escalate stale auth failures as active incidents.
-- **Be predictive on wake**: proactive morning behavior (recovery, weather, calendar, open items, upcoming events) without waiting to be asked.
+- Never disable a broken system casually. Diagnose, narrow, repair, and verify.
+- Runtime-visible fixes require live runtime verification, not just source diffs.
+- Treat OpenClaw/Mission Control failures as source/runtime contract drift until proven otherwise.
+- Stale `consecutiveErrors` or historical `lastStatus=error` is not proof of active failure; force a fresh run/check.
+- `LiveSessionModelSwitchError` is a runtime-config issue until a fresh successful run proves recovery.
+- Cron recovery: clear historical errors with a forced run, then confirm two fresh non-error executions before considering triaged.
+- Delivery health means execution plus message delivery (`lastDeliveryStatus` / `lastDelivered`), not execution alone.
+- For Telegram delivery proof, send an explicit manual test to the intended Telegram target/account and confirm receipt.
+- Model/verbosity overrides may appear not to apply mid-session; verify with `/status`.
 
-## Sleep & Health (Key Facts)
+## Health And Fitness
 
-- Target bedtime: **21:00–21:30 ET**; target wake: **04:30–04:45 ET**.
-- Actual (Feb 2026 baseline): bedtime ~22:00; wake ~07:30 (stable, including weekends).
-- Nightly sleep check-in pattern is currently consistent around **21:30 ET** (observed Feb 27–28).
-- REM sleep: chronically low (~9.4%); weekend schedule drift is a major issue.
-- Recovery improved from ~40% to 85–93% range; Feb 18 had a 26% red day (HRV 83.4, RHR 57).
-- Weight: **140 lbs** (not 175); protein target 112–140g/day.
-- Workout: Tonal plus cardio; typical workout time ~05:30.
+- Target bedtime: 9:00-9:30 PM ET; target wake: 4:30-4:45 AM ET.
+- Historical baseline: wake often around 7:30 AM; sleep consistency remains a priority.
+- REM has been chronically low; weekend drift is a known issue.
+- Weight: 140 lb; protein target 112-140 g/day.
+- Typical workout: Tonal plus cardio, often around 5:30 AM.
+- Fitness crons must filter workouts by date, not assume latest workout equals today.
+- Tonal auth failures should self-heal by clearing stale tokens/re-authing where possible.
+- WHOOP calls can be slow; health checks need realistic timeouts/caching.
 
-## Lessons & System Design
+## Finance And Trading
 
-- **Never disable / never give up**: when something breaks, diagnose, ask better questions, and iterate; do not abandon systems for comfort.
-- **Mission Control deploy workflow**: production Mission Control is Next.js; standard cycle is edit → `pnpm build` → `launchctl kickstart`.
-- **Primary repo targets**: Hamel’s primary repos are `/Users/hd/Developer/cortana` and `/Users/hd/Developer/cortana-external`. If Hamel says `/Users/hd/cortana` or `/Users/hd/cortana-external`, treat those as shorthand for the Developer paths on this machine and prefer those repos for sync/cleanup and active work unless he says otherwise.
-- **Self-healing must be real**:
-  - Tonal auth failures → delete `tonal_tokens.json` and re-auth; do not ask Hamel.
-  - Implement fixes in service code where possible (not only as playbooks).
-  - Tier 1 issues (e.g., transient weather errors, missed cron) should auto-retry and resolve silently when safe.
-  - Always verify file paths in playbooks; wrong paths silently defeat healing.
-- **Fitness crons**: must filter workouts by date (compare workout `beginTime` to current date; do not assume "most recent" equals "today").
-- **Timeouts**: match service behavior (Whoop ~6.5s; healthchecks must allow for that or cache hot paths).
-- **Caching**: 6.5s API calls can often be reduced to milliseconds via short in-memory caches for repeated queries.
-- **Package tracking**: ad-hoc scraping via browser beats overbuilding or paying subscription tools when traffic is low.
-- **Skills**: include clear "USE WHEN" / "DON'T USE" sections; move bulky templates into skills to save tokens.
-- **Calendar reminders**: prompts for reminder crons must specify time windows to avoid early/late alerts.
-- **clawdhub**: clean ghost entries via lock file edits, not just filesystem deletes.
-- **Alpaca targeting rule**: local portfolio/trading checks must verify `ALPACA_TARGET_ENVIRONMENT` and credential source (live env keys vs paper file keys). Treat account-context mismatch as a blocker, not a soft warning.
-- **Repo auto-sync hygiene**: keep volatile runtime/generated state out of tracked git paths (prefer ignored runtime-state locations) so sync automation stays reliable.
+- Local portfolio/trading checks must verify `ALPACA_TARGET_ENVIRONMENT` and credential source.
+- Account-context mismatch is a blocker, not a soft warning.
+- Use the Cortana X/Twitter account `@Cortana356047` in the OpenClaw browser profile for market sentiment; do not use Hamel's personal Chrome profile.
+- Standing X use cases: TSLA/NVDA/holdings sentiment, key finance account flow, tech news, earnings surprises, CANSLIM candidate screening.
 
-- **LiveSessionModelSwitchError should be treated as a runtime-config issue** until verified by a successful run; do not trust legacy "green by manual retry" assumptions. When a cron fails with model-switch errors, run a forced refresh and capture fresh state before escalating.
-- **Cron recovery workflow**: for jobs with historical `lastStatus=error`, clear via one forced run and only then re-arm alerting; stale historical failures should be considered triaged only after two fresh non-error executions.
+## Current Priorities
 
-## Critical Tools (wired into heartbeat)
-
-- **Sub-agent watchdog**: `tools/subagent-watchdog/check-subagents.sh` — detects failed/timed-out sub-agents, emits terminal events to `runs.json`, logs to `cortana_events`, sends alerts.
-- **Sub-agent reaper**: `tools/reaper/reaper.sh` — cleans stale sessions stuck in "running" >2h, syncs task board, runs every heartbeat after watchdog.
-- **QA validation suite**: `tools/qa/validate-system.sh` — daily check of symlinks, crons, DB, critical tools, heartbeat state, memory files, disk space. Has `--fix` mode for auto-remediation.
-- **Session reconciler**: `tools/session-reconciler/reconcile-sessions.sh` — reconciles ghost sessions/runs.
-- **Heartbeat state validator**: `tools/heartbeat/validate-heartbeat-state.sh` — validates state file integrity before writes.
-
-## Current Priorities (2026)
-
-- Fitness, recovery, and sleep consistency with useful data and sustainable training.
-- Cortana/OpenClaw reliability: reduce drift, brittle cron behavior, auth fragility, and operator babysitting.
-- Mission Control and remote operations: keep Telegram, reminders, dashboards, market lanes, and fitness lanes stable.
-- Stevens coursework: stay ahead of deadlines and avoid reactive crunch.
-- Portfolio, market, mortgage, and housing awareness with better tooling and cleaner signals.
+- Cortana/OpenClaw reliability: reduce drift, brittle cron behavior, auth fragility, and babysitting.
+- Mission Control and remote ops: keep Telegram, reminders, dashboards, market lanes, and fitness lanes stable.
+- Fitness, recovery, and sleep consistency with useful data.
+- Stevens coursework.
+- Portfolio, market, mortgage, and housing awareness.
 - Build the health metrics product into something genuinely useful.
 
-## Travel & API
+## Durable Runtime Notes
 
-- OpenAI Pro: ~$200/month budget; monitor usage closely and raise early warnings.
+- Runtime config changed 2026-03-04 to improve sub-agent reliability: higher concurrency, explicit `runTimeoutSeconds=600`, longer archive retention.
+- LanceDB removed; use OpenClaw built-in memory search with OpenAI `text-embedding-3-small`.
+- LobsterLink browser extension on Mac mini works through an unquarantined user-owned Chromium copy; Google Chrome ignored unpacked-extension flags.
+- For X/Twitter, use only the Cortana account via the OpenClaw browser profile.
 
-## Vision
+## Memory Hygiene
 
-- Goal: a **lifelong assistant** with continuity across sessions, tracking progress, and proactive help.
-- Partnership: he operates in the world; you manage systems, patterns, and strategy in the background.
-
-## Agent Spawn Rules (added Feb 28, 2026)
-
-- **Always use `sessions_spawn`** for coding work — never `exec` + Codex PTY directly. `sessions_spawn` shows up in Mission Control; raw PTY processes are invisible.
-- **OpenClaw update method**: `pnpm update -g openclaw@latest` then `bash ~/Developer/cortana/tools/openclaw/post-update.sh`. Never use npm. Never call it Clawdbot.
-- **LanceDB**: removed. Using OpenClaw built-in memory search (OpenAI text-embedding-3-small). Do not reinstall.
-
-## Weekly Consolidation Notes (2026-03-01)
-
-- **Architecture trend confirmed**: Feb 19–26 reinforced a consistent reliability doctrine — verification gates, reconciliation, guarded self-healing, and protocol validation over "best-effort" automation.
-- **Execution trend confirmed**: Mission Control + task board + heartbeat/cron orchestration are now operating as one integrated execution plane, not separate systems.
-- **Behavioral pattern confirmed**: wake time remains stable around **07:30 ET**; sleep check-ins shifted earlier from ~22:00 toward **21:30 ET** by week end.
-- **Data-quality rule strengthened**: feedback entries should include non-empty `lesson` text; repeated empty-lesson rows reduce the value of correction clustering.
-
-## X/Twitter Account
-
-- **Account**: @Cortana356047 — Hamel created this for Cortana to use.
-- **Purpose**: Market sentiment monitoring (TSLA, NVDA, portfolio holdings), stock flow from key accounts, tech news, and CANSLIM candidate screening.
-- **Browser profile**: logged in on the OpenClaw browser (`profile="openclaw"`).
-- **Standing use cases**:
-  - Monitor sentiment on held positions (especially TSLA, NVDA)
-  - Track key finance accounts for trade ideas
-  - Scan for earnings surprises, sector rotation signals
-  - Support CANSLIM screening with social sentiment layer
-
-## Runtime Config Change Log
-
-- **2026-03-04 – Sub-agent reliability tuning (OpenClaw runtime)**
-  - Updated `~/.openclaw/openclaw.json` to reduce sub-agent aborts:
-    - `agents.defaults.maxConcurrent`: `4` → `8`
-    - `agents.defaults.subagents.runTimeoutSeconds`: set to `600`
-    - `agents.defaults.subagents.archiveAfterMinutes`: `5` → `15`
-  - Rationale: concurrency ceiling at 4 was triggering intermittent "Request was aborted" failures when parallel sub-agent demand spiked.
-  - Expected result: improved reliability for concurrent runs, clearer timeout control, and better short-term run trace availability.
-
-
-
-## Nightly Consolidation Notes (2026-04-16)
-
-- Reviewed unconsolidated memory update: `2026-04-15-heartbeat-check.md` (heartbeat dispatch timeouts observed, but no durable policy/routing change required).
-- Task-board durability update: `cortana_tasks` item **478** (session lifecycle breach follow-up) is now completed (2026-04-15) with healthy-verification outcome. Treat prior lifecycle-breach context as resolved unless fresh evidence reopens it.
-
-## Nightly Consolidation Notes (2026-04-13)
-
-- Unconsolidated day reviewed: 2026-04-12 (including `2026-04-12-thinking-speed.md`).
-- Runtime behavior clarification: think/text verbosity overrides can appear not to apply mid-session; verify with `/status` and treat changes as possibly session-bound until confirmed on the active thread.
-- Reliability signal reinforced: feedback pipeline health should include stuck-item age and link integrity checks (recent corrections flagged one stuck item >24h and one unlinked item).
-
-## Nightly Consolidation Notes (2026-03-30)
-
-- Consolidated new evidence from 2026-03-30 daily memory: reminders cron showed transient gateway-timeout behavior despite healthy local script execution; a forced cron rerun returned green (5.4s, consecutiveErrors=0).
-- Morning Brief and Cron Gateway Drain Recovery still expose `LiveSessionModelSwitchError` in last-error fields; this class should remain a higher-priority reliability signal than duration-only checks.
-- User-facing session resets indicate startup prompts were still being tested; ensure startup requirements are re-validated after long idle periods and summarize the result in daily notes.
-
-
-## Promoted From Short-Term Memory (2026-04-26)
-
-<!-- openclaw-memory-promotion:memory:memory/2026-04-19.md:1:3 -->
-- - Resolved LobsterLink browser-extension loading on H’s Mac mini by switching OpenClaw’s browser launcher away from Google Chrome to an unquarantined user-owned Chromium copy; Google Chrome was ignoring the unpacked-extension flags and the stock Chromium app was blocked by macOS quarantine. - LobsterLink was verified live on the real `openclaw` browser profile after the browser-launcher config patch. - Preference: for X/Twitter, use only the Cortana account via the OpenClaw browser profile. Never use the personal Chrome profile. [score=0.847 recalls=2 avg=0.547 source=memory/2026-04-19.md:1-3]
+- Consolidate daily files into this file only when the lesson changes future behavior.
+- Avoid dumping incident transcripts here.
+- Keep this file short enough to load in bootstrap without crowding out `AGENTS.md`, `SOUL.md`, `USER.md`, `IDENTITY.md`, and `BOOTSTRAP.md`.
