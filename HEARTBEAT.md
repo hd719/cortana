@@ -29,6 +29,12 @@ npx tsx /Users/hd/Developer/cortana/tools/heartbeat/validate-heartbeat-state.ts
 - Huragok: code/infra/tooling maintenance when explicitly requested.
 - Cortana local: state validation, quick calendar/fitness reads, escalation synthesis.
 
+Current Monitor heartbeat entrypoints:
+- tech/news scan: `tools/news/tech-news-check.ts`
+- inbox-operational scan: `tools/email/inbox_to_execution.ts --output-json`
+
+Do not invent or call deprecated heartbeat wrappers.
+
 Routine maintenance checks already covered by cron should not be re-dispatched on normal heartbeats unless stale/failing:
 - task-board hygiene
 - feedback reconciliation
@@ -51,9 +57,10 @@ Routine maintenance checks already covered by cron should not be re-dispatched o
 Every delegated heartbeat task must say:
 - run only the requested check
 - send actionable results directly to Hamel on Telegram (`channel: telegram`, `target: 8171372724`)
-- if healthy/no-action, do not send Telegram; reply exactly `NO_REPLY` in-session
+- if healthy/no-action, do not send a Telegram message; Reply exactly `NO_REPLY` in-session only
 - if broken, send the failing step, root cause, and immediate next action
 - do not send the result back through Cortana unless explicitly asked
+- pure announce handoffs such as `Agent-to-agent announce step.` should return `ANNOUNCE_SKIP`
 
 Operational cron/maintenance alerts and inbox/email summaries are user-facing Monitor outputs even when another specialist executes the underlying work.
 
