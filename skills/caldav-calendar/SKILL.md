@@ -4,7 +4,7 @@ description: >
   Sync and query CalDAV calendars using vdirsyncer + khal. Works on macOS and Linux.
   USE WHEN: iCloud calendar, Fastmail, Nextcloud, any CalDAV server, creating/viewing local calendar events.
   DON'T USE: Gmail/Google Calendar (use gog skill), Outlook/Microsoft 365 calendars.
-  NOTE: On this machine, Clawdbot-Calendar syncs to Google Calendar via CalDAV.
+  NOTE: On this machine, Clawdbot-Calendar health uses Gog as source of truth; the vdirsyncer/khal mirror is legacy/advisory.
 metadata: {"clawdbot":{"emoji":"📅","os":["darwin","linux"],"requires":{"bins":["vdirsyncer","khal"]},"install":[{"id":"apt","kind":"apt","packages":["vdirsyncer","khal"],"bins":["vdirsyncer","khal"],"label":"Install vdirsyncer + khal via apt"}]}}
 ---
 
@@ -12,10 +12,22 @@ metadata: {"clawdbot":{"emoji":"📅","os":["darwin","linux"],"requires":{"bins"
 
 **vdirsyncer** syncs CalDAV calendars to local `.ics` files. **khal** reads and writes them.
 
+## Clawdbot-Calendar Source of Truth
+
+For **Clawdbot-Calendar**, use the Gog skill and `tools/gog/gog-with-env.ts` as the source of truth. The local vdirsyncer/khal mirror is legacy/advisory on this machine.
+
+Do not run `vdirsyncer sync clawdbot_calendar` from a headless monitor or cron when `~/.config/vdirsyncer/google_token.json` is missing. It opens a browser OAuth callback and can hang. Treat stale local `.ics` files as a low-priority mirror issue unless a caller explicitly requires khal/local ICS.
+
+Health check:
+```bash
+npx tsx /Users/hd/Developer/cortana/tools/calendar/calendar-health.ts --json
+```
+
 ## When NOT to Use This Skill
 
 ❌ "Search my Gmail for calendar invites" → Use **gog** skill (Gmail)
 ❌ "What's on my Google Calendar?" → Use **gog** skill (gog calendar events)
+❌ "Is Clawdbot-Calendar healthy?" → Use `tools/calendar/calendar-health.ts` or the **gog** skill, not vdirsyncer
 ❌ "Add event to Outlook/365" → Not supported here
 ❌ "Set a reminder" → Use **cron** for time-based reminders, or Apple Reminders
 

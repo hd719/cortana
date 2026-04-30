@@ -22,4 +22,11 @@ describe("headless Gog calendar paths", () => {
     expect(text).not.toContain('gog cal list "Clawdbot-Calendar"');
     expect(text).not.toContain('gog calendar events "$CAL_ID"');
   });
+
+  it("keeps Clawdbot health on Gog instead of the legacy vdirsyncer mirror", () => {
+    const text = fs.readFileSync("skills/caldav-calendar/SKILL.md", "utf8");
+    expect(text).toContain("Clawdbot-Calendar health uses Gog as source of truth");
+    expect(text).toContain("Do not run `vdirsyncer sync clawdbot_calendar` from a headless monitor");
+    expect(text).toContain("tools/calendar/calendar-health.ts");
+  });
 });
