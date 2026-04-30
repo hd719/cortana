@@ -551,6 +551,7 @@
         "mode": "announce",
         "channel": "telegram",
         "to": "8171372724",
+        "accountId": "default",
         "bestEffort": true
       },
       "state": {
