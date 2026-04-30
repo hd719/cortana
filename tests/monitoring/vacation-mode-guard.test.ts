@@ -1,7 +1,7 @@
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const loadVacationOpsConfig = vi.hoisted(() => vi.fn());
 const getActiveVacationWindow = vi.hoisted(() => vi.fn());
@@ -32,7 +32,14 @@ describe("vacation mode guard", () => {
     disableVacationMode.mockReset();
   });
 
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("persists quarantined job ids back into canonical vacation state", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-30T10:00:00.000Z"));
+
     loadVacationOpsConfig.mockReturnValue({
       guard: {
         fragileCronMatchers: ["Stock Market Brief"],
@@ -48,32 +55,44 @@ describe("vacation mode guard", () => {
     });
     updateVacationWindow.mockReturnValue({ id: 42 });
 
-    const { runVacationModeGuard } = await import("../../tools/monitoring/vacation-mode-guard.ts");
+    const { runVacationModeGuard } =
+      await import("../../tools/monitoring/vacation-mode-guard.ts");
 
     const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "vacation-guard-"));
     const runtimeJobsPath = path.join(tempDir, "jobs.json");
     const quarantineDir = path.join(tempDir, "quarantine");
-    fs.writeFileSync(runtimeJobsPath, JSON.stringify({
-      jobs: [
-        {
-          id: "fragile-job",
-          name: "📈 Stock Market Brief (daily)",
-          enabled: true,
-          state: { consecutiveErrors: 2 },
-        },
-      ],
-    }), "utf8");
+    fs.writeFileSync(
+      runtimeJobsPath,
+      JSON.stringify({
+        jobs: [
+          {
+            id: "fragile-job",
+            name: "📈 Stock Market Brief (daily)",
+            enabled: true,
+            state: { consecutiveErrors: 2 },
+          },
+        ],
+      }),
+      "utf8",
+    );
 
     const output = runVacationModeGuard({ runtimeJobsPath, quarantineDir });
 
     expect(output).toContain("quarantined fragile cron jobs");
-    expect(updateVacationWindow).toHaveBeenCalledWith(42, expect.objectContaining({
-      stateSnapshot: expect.objectContaining({
-        paused_job_ids: ["baseline-job", "fragile-job"],
-        quarantined_job_ids: ["fragile-job"],
+    expect(updateVacationWindow).toHaveBeenCalledWith(
+      42,
+      expect.objectContaining({
+        stateSnapshot: expect.objectContaining({
+          paused_job_ids: ["baseline-job", "fragile-job"],
+          quarantined_job_ids: ["fragile-job"],
+        }),
       }),
-    }));
+    );
     expect(reconcileVacationMirror).toHaveBeenCalledTimes(2);
-    expect(fs.existsSync(path.join(quarantineDir, "📈 Stock Market Brief (daily).quarantined"))).toBe(true);
+    expect(
+      fs.existsSync(
+        path.join(quarantineDir, "📈 Stock Market Brief (daily).quarantined"),
+      ),
+    ).toBe(true);
   });
 });
