@@ -61,7 +61,7 @@ const RUNTIME_JOBS_PATH = path.join(os.homedir(), ".openclaw", "cron", "jobs.jso
 const LANES_CONFIG_PATH = path.join(sourceRepoRoot(), "config", "autonomy-lanes.json");
 const GATEWAY_PLIST = process.env.OPENCLAW_GATEWAY_PLIST || path.join(os.homedir(), "Library", "LaunchAgents", "ai.openclaw.gateway.plist");
 const GOG_ACCOUNT = process.env.GOG_ACCOUNT ?? "hameldesai3@gmail.com";
-const GOG_CALENDAR = process.env.GOG_OAUTH_CHECK_CALENDAR ?? "Clawdbot-Calendar";
+const GOG_CALENDAR_ID = process.env.GOG_OAUTH_CHECK_CALENDAR_ID ?? "60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com";
 const GOG_PROBE_TIMEOUT_MS = Number(process.env.CRITICAL_GOG_PROBE_TIMEOUT_MS ?? 15000);
 const GOG_PROBE_TIMEOUT_RETRIES = Math.max(1, Number(process.env.CRITICAL_GOG_PROBE_TIMEOUT_RETRIES ?? 2));
 
@@ -160,7 +160,7 @@ function gatewayServiceHealthy(): { healthy: boolean; detail: string } {
 }
 
 function probeGog(): ProbeResult {
-  const args = ["--account", GOG_ACCOUNT, "cal", "list", GOG_CALENDAR, "--from", "today", "--plain", "--no-input"];
+  const args = ["--account", GOG_ACCOUNT, "calendar", "events", GOG_CALENDAR_ID, "--from", "today", "--to", "tomorrow", "--json", "--no-input"];
   const env = buildGogEnv(gogProbeEnv(), readMergedGatewayEnvSources(GATEWAY_PLIST));
   const gogBin = resolveRealGogBin(env);
   let r = {
