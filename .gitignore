@@ -72,6 +72,7 @@ identities/*/DREAMS.md
 memory/archive/
 memory/.dreams/
 memory/dreaming/
+memory/*-delivery-test.md
 
 memory/*-sent.json
 memory/circuit-breaker-state.json

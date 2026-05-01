@@ -62,6 +62,16 @@ export function readPlistEnvironmentVariables(plistPath: string): Record<string,
   }
 }
 
+function ensurePlistEnvironmentVariablesContainer(plistPath: string): void {
+  const result = plutil(["-insert", "EnvironmentVariables", "-dictionary", plistPath]);
+  if ((result.status ?? 1) === 0) return;
+
+  const output = String(result.stderr || result.stdout || "");
+  if (output.includes("already exists")) return;
+
+  throw new Error(`failed to create EnvironmentVariables in ${plistPath}: ${output.trim()}`);
+}
+
 export function readGatewayEnvStateFile(statePath: string = DEFAULT_GATEWAY_ENV_STATE_PATH): Record<string, string> {
   if (!fs.existsSync(statePath)) return {};
   try {
@@ -121,9 +131,17 @@ export function reconcileGatewayPlistEnv(
   });
 
   let updated = false;
+  let environmentVariablesReady = Object.keys(existing).length > 0;
+  const ensureEnvironmentVariablesReady = (): void => {
+    if (environmentVariablesReady) return;
+    ensurePlistEnvironmentVariablesContainer(plistPath);
+    environmentVariablesReady = true;
+  };
+
   for (const key of PRESERVED_GATEWAY_ENV_KEYS) {
     const value = desired[key];
     if (!nonEmpty(value) || existing[key] === value) continue;
+    ensureEnvironmentVariablesReady();
     const action = existing[key] ? "-replace" : "-insert";
     const result = plutil([action, `EnvironmentVariables.${key}`, "-string", value, plistPath]);
     if ((result.status ?? 1) !== 0) {
@@ -134,6 +152,7 @@ export function reconcileGatewayPlistEnv(
 
   const desiredPath = ensureGatewayPathPrefix(currentEnv.PATH ?? existing.PATH);
   if (existing.PATH !== desiredPath) {
+    ensureEnvironmentVariablesReady();
     const action = existing.PATH ? "-replace" : "-insert";
     const result = plutil([action, "EnvironmentVariables.PATH", "-string", desiredPath, plistPath]);
     if ((result.status ?? 1) !== 0) {
