@@ -7,9 +7,9 @@ const SCANNER_SCRIPT = `${externalRepoRoot()}/backtester/canslim_alert.py`;
 
 const script = String.raw`set -u
 
-SCRIPT="${CANSLIM_SCANNER_SCRIPT:?missing CANSLIM_SCANNER_SCRIPT}"
+SCRIPT="\${CANSLIM_SCANNER_SCRIPT:?missing CANSLIM_SCANNER_SCRIPT}"
 PYTHON_BIN="python3"
-CACHE_DIR="${CANSLIM_CACHE_DIR:?missing CANSLIM_CACHE_DIR}"
+CACHE_DIR="\${CANSLIM_CACHE_DIR:?missing CANSLIM_CACHE_DIR}"
 OUT_FILE="$CACHE_DIR/canslim-latest.txt"
 META_FILE="$CACHE_DIR/canslim-latest.meta.json"
 

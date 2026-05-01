@@ -79,7 +79,8 @@ export function readGatewayEnvStateFile(statePath: string = DEFAULT_GATEWAY_ENV_
     const out: Record<string, string> = {};
     for (const key of PRESERVED_GATEWAY_ENV_KEYS) {
       const value = parsed[key];
-      if (nonEmpty(typeof value === "string" ? value : undefined)) out[key] = value;
+      const text = typeof value === "string" ? value : undefined;
+      if (nonEmpty(text)) out[key] = text;
     }
     return out;
   } catch {

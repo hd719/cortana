@@ -3,6 +3,7 @@
 /** Correlation tracing for Covenant agent lifecycle + boundary timing. */
 
 import { randomUUID } from "crypto";
+import { runPsql, withPostgresPath } from "../lib/db.js";
 const DEFAULT_DB = "cortana";
 
 class TraceError extends Error {}
