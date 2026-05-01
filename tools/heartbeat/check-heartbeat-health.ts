@@ -4,6 +4,7 @@ import fs from "node:fs";
 import path from "node:path";
 import {
   HEARTBEAT_MAX_AGE_MS,
+  HEARTBEAT_QUIET_HOURS,
   isHeartbeatQuietHours,
   type HeartbeatState,
   validateHeartbeatState,
@@ -19,6 +20,7 @@ export type HeartbeatHealthResult = {
   freshnessThresholdMs: number;
   checkedAt: string;
   quietHours: boolean;
+  quietHoursGrace: boolean;
   lastHeartbeat?: string;
   lastHeartbeatAgeMs?: number;
   freshnessSource?: string;
@@ -88,6 +90,26 @@ function resolveLatestCanonicalHeartbeat(state: HeartbeatState): {
   };
 }
 
+function getEtClockMinutes(date: Date): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: HEARTBEAT_QUIET_HOURS.tz,
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const hour = Number(parts.find((p) => p.type === "hour")?.value ?? "0");
+  const minute = Number(parts.find((p) => p.type === "minute")?.value ?? "0");
+  return hour * 60 + minute;
+}
+
+function isHeartbeatQuietHoursGrace(now: Date, freshnessThresholdMs: number): boolean {
+  if (isHeartbeatQuietHours(now)) return true;
+  const quietEndMinutes = HEARTBEAT_QUIET_HOURS.endHour * 60;
+  const elapsedMs = (getEtClockMinutes(now) - quietEndMinutes) * 60 * 1000;
+  return elapsedMs >= 0 && elapsedMs <= freshnessThresholdMs;
+}
+
 export function evaluateHeartbeatHealth(
   rawState: string | null,
   opts?: {
@@ -101,7 +123,9 @@ export function evaluateHeartbeatHealth(
   const freshnessThresholdMs =
     opts?.freshnessThresholdMs ?? DEFAULT_FRESHNESS_THRESHOLD_MS;
   const checkedAt = new Date(nowMs).toISOString();
-  const quietHours = isHeartbeatQuietHours(new Date(nowMs));
+  const checkedDate = new Date(nowMs);
+  const quietHours = isHeartbeatQuietHours(checkedDate);
+  const quietHoursGrace = isHeartbeatQuietHoursGrace(checkedDate, freshnessThresholdMs);
 
   if (rawState == null) {
     return {
@@ -111,6 +135,7 @@ export function evaluateHeartbeatHealth(
       freshnessThresholdMs,
       checkedAt,
       quietHours,
+      quietHoursGrace,
       summary: "canonical heartbeat state missing",
       error: "state file not found",
     };
@@ -124,6 +149,24 @@ export function evaluateHeartbeatHealth(
     const lastHeartbeat = new Date(latestCanonicalHeartbeat.timestampMs).toISOString();
 
     if (lastHeartbeatAgeMs > freshnessThresholdMs) {
+      if (quietHoursGrace) {
+        return {
+          ok: true,
+          status: "healthy",
+          statePath,
+          freshnessThresholdMs,
+          checkedAt,
+          quietHours,
+          quietHoursGrace,
+          lastHeartbeat,
+          lastHeartbeatAgeMs,
+          freshnessSource: latestCanonicalHeartbeat.source,
+          summary: quietHours
+            ? "canonical heartbeat state is stale during quiet hours"
+            : "canonical heartbeat state is stale during post-quiet grace",
+        };
+      }
+
       return {
         ok: false,
         status: "stale",
@@ -131,6 +174,7 @@ export function evaluateHeartbeatHealth(
         freshnessThresholdMs,
         checkedAt,
         quietHours,
+        quietHoursGrace,
         lastHeartbeat,
         lastHeartbeatAgeMs,
         freshnessSource: latestCanonicalHeartbeat.source,
@@ -146,6 +190,7 @@ export function evaluateHeartbeatHealth(
       freshnessThresholdMs,
       checkedAt,
       quietHours,
+      quietHoursGrace,
       lastHeartbeat,
       lastHeartbeatAgeMs,
       freshnessSource: latestCanonicalHeartbeat.source,
@@ -160,6 +205,7 @@ export function evaluateHeartbeatHealth(
       freshnessThresholdMs,
       checkedAt,
       quietHours,
+      quietHoursGrace,
       summary: "canonical heartbeat state is invalid",
       error: message,
     };
@@ -176,11 +222,12 @@ export function renderHeartbeatHealth(result: HeartbeatHealthResult): string {
     : "";
   const sourcePart = result.freshnessSource ? ` source=${result.freshnessSource}` : "";
   const quietHoursPart = ` quiet_hours=${result.quietHours ? "yes" : "no"}`;
+  const quietHoursGracePart = ` quiet_hours_grace=${result.quietHoursGrace ? "yes" : "no"}`;
   const errorPart = result.error ? ` error=${JSON.stringify(result.error)}` : "";
 
   return `${result.ok ? "HEALTHY" : "UNHEALTHY"} heartbeat_state status=${result.status} path=${JSON.stringify(
     result.statePath,
-  )}${agePart}${lastHeartbeatPart}${sourcePart}${quietHoursPart}${errorPart}`;
+  )}${agePart}${lastHeartbeatPart}${sourcePart}${quietHoursPart}${quietHoursGracePart}${errorPart}`;
 }
 
 function main(): void {
