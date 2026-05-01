@@ -57,6 +57,46 @@ describe("check-heartbeat-health", () => {
     expect(result.error).toContain("exceeds freshness threshold");
   });
 
+  it("uses fresh OpenClaw runtime session activity when canonical state is stale", () => {
+    const now = Date.parse("2026-05-01T14:00:00Z");
+    const state = defaultHeartbeatState(now - 60 * 60 * 1000);
+
+    const result = evaluateHeartbeatHealth(JSON.stringify(state), {
+      nowMs: now,
+      statePath: "/tmp/heartbeat-state.json",
+      freshnessThresholdMs: 45 * 60 * 1000,
+      runtimeHeartbeatSignal: {
+        timestampMs: now - 20 * 60 * 1000,
+        source: "openclawSessions.agent:main:main",
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    expect(result.status).toBe("healthy");
+    expect(result.lastHeartbeatAgeMs).toBe(20 * 60 * 1000);
+    expect(result.freshnessSource).toBe("openclawSessions.agent:main:main");
+    expect(result.summary).toContain("runtime heartbeat session is fresh");
+  });
+
+  it("does not use stale OpenClaw runtime session activity as a fallback", () => {
+    const now = Date.parse("2026-05-01T14:00:00Z");
+    const state = defaultHeartbeatState(now - 60 * 60 * 1000);
+
+    const result = evaluateHeartbeatHealth(JSON.stringify(state), {
+      nowMs: now,
+      statePath: "/tmp/heartbeat-state.json",
+      freshnessThresholdMs: 45 * 60 * 1000,
+      runtimeHeartbeatSignal: {
+        timestampMs: now - 50 * 60 * 1000,
+        source: "openclawSessions.agent:main:main",
+      },
+    });
+
+    expect(result.ok).toBe(false);
+    expect(result.status).toBe("stale");
+    expect(result.freshnessSource).toBe("lastHeartbeat");
+  });
+
   it("treats stale state as healthy during overnight quiet hours", () => {
     const now = Date.parse("2026-05-01T09:20:00Z");
     const state = defaultHeartbeatState(Date.parse("2026-05-01T02:34:45.061Z"));
