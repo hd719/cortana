@@ -108,6 +108,25 @@ export function runRemediationPlan(params: {
     let verificationStatus: VacationActionRow["verification_status"] = null;
     const detail: Record<string, unknown> = { step, command };
 
+    if (params.systemKey === "mission_control" && step === "restart_service") {
+      actions.push({
+        vacation_window_id: params.vacationWindowId,
+        run_id: params.runId ?? null,
+        system_key: params.systemKey,
+        step_order: index + 1,
+        action_kind: step,
+        action_status: "blocked",
+        verification_status: null,
+        started_at: startedAt,
+        completed_at: new Date().toISOString(),
+        detail: {
+          ...detail,
+          reason: "mission_control_self_restart_blocked",
+        },
+      });
+      return { actions, finalCheck, finalState: "human_required" };
+    }
+
     if (command) {
       const [cmd, args] = command;
       const proc = run(params.env ?? {}, cmd, args);
