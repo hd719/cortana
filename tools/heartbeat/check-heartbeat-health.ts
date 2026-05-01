@@ -28,13 +28,21 @@ export type HeartbeatHealthResult = {
   error?: string;
 };
 
+export type RuntimeHeartbeatSignal = {
+  timestampMs: number;
+  source: string;
+};
+
 type Args = {
   json: boolean;
   stateFile: string;
   freshnessThresholdMs: number;
+  runtimeSessionFile: string;
+  runtimeFallback: boolean;
 };
 
 const DEFAULT_FRESHNESS_THRESHOLD_MS = 45 * 60 * 1000;
+const DEFAULT_RUNTIME_SESSION_KEY = "agent:main:main";
 
 function parsePositiveInt(value: string | undefined, fallback: number): number {
   const parsed = Number(value);
@@ -45,6 +53,16 @@ function parsePositiveInt(value: string | undefined, fallback: number): number {
 function parseArgs(argv: string[], env: NodeJS.ProcessEnv): Args {
   let json = false;
   let stateFile = env.HEARTBEAT_STATE_FILE || defaultHeartbeatStatePath();
+  let runtimeSessionFile =
+    env.HEARTBEAT_RUNTIME_SESSION_FILE ||
+    path.join(
+      path.dirname(path.dirname(defaultHeartbeatStatePath())),
+      "agents",
+      "main",
+      "sessions",
+      "sessions.json",
+    );
+  let runtimeFallback = env.HEARTBEAT_RUNTIME_SESSION_FALLBACK !== "0";
   let freshnessThresholdMs = parsePositiveInt(
     env.HEARTBEAT_HEALTH_MAX_AGE_MS,
     DEFAULT_FRESHNESS_THRESHOLD_MS,
@@ -61,13 +79,22 @@ function parseArgs(argv: string[], env: NodeJS.ProcessEnv): Args {
       i += 1;
       continue;
     }
+    if (arg === "--runtime-session-file" && argv[i + 1]) {
+      runtimeSessionFile = path.resolve(argv[i + 1]);
+      i += 1;
+      continue;
+    }
+    if (arg === "--no-runtime-fallback") {
+      runtimeFallback = false;
+      continue;
+    }
     if (arg === "--threshold-ms" && argv[i + 1]) {
       freshnessThresholdMs = parsePositiveInt(argv[i + 1], freshnessThresholdMs);
       i += 1;
     }
   }
 
-  return { json, stateFile, freshnessThresholdMs };
+  return { json, stateFile, freshnessThresholdMs, runtimeSessionFile, runtimeFallback };
 }
 
 function resolveLatestCanonicalHeartbeat(state: HeartbeatState): {
@@ -116,6 +143,7 @@ export function evaluateHeartbeatHealth(
     nowMs?: number;
     statePath?: string;
     freshnessThresholdMs?: number;
+    runtimeHeartbeatSignal?: RuntimeHeartbeatSignal | null;
   },
 ): HeartbeatHealthResult {
   const nowMs = opts?.nowMs ?? Date.now();
@@ -126,6 +154,26 @@ export function evaluateHeartbeatHealth(
   const checkedDate = new Date(nowMs);
   const quietHours = isHeartbeatQuietHours(checkedDate);
   const quietHoursGrace = isHeartbeatQuietHoursGrace(checkedDate, freshnessThresholdMs);
+  const runtimeHeartbeatSignal = opts?.runtimeHeartbeatSignal ?? null;
+
+  const runtimeFallbackResult = (): HeartbeatHealthResult | null => {
+    if (runtimeHeartbeatSignal == null) return null;
+    const runtimeAgeMs = Math.max(0, nowMs - runtimeHeartbeatSignal.timestampMs);
+    if (runtimeAgeMs > freshnessThresholdMs) return null;
+    return {
+      ok: true,
+      status: "healthy",
+      statePath,
+      freshnessThresholdMs,
+      checkedAt,
+      quietHours,
+      quietHoursGrace,
+      lastHeartbeat: new Date(runtimeHeartbeatSignal.timestampMs).toISOString(),
+      lastHeartbeatAgeMs: runtimeAgeMs,
+      freshnessSource: runtimeHeartbeatSignal.source,
+      summary: "OpenClaw runtime heartbeat session is fresh; canonical heartbeat state is stale",
+    };
+  };
 
   if (rawState == null) {
     return {
@@ -166,6 +214,9 @@ export function evaluateHeartbeatHealth(
             : "canonical heartbeat state is stale during post-quiet grace",
         };
       }
+
+      const fallback = runtimeFallbackResult();
+      if (fallback) return fallback;
 
       return {
         ok: false,
@@ -212,6 +263,35 @@ export function evaluateHeartbeatHealth(
   }
 }
 
+function readOpenClawRuntimeHeartbeatSignal(
+  sessionFile: string,
+  nowMs: number,
+): RuntimeHeartbeatSignal | null {
+  if (!fs.existsSync(sessionFile)) return null;
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(sessionFile, "utf8")) as unknown;
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) return null;
+    const root = parsed as Record<string, unknown>;
+    const mainSession = root[DEFAULT_RUNTIME_SESSION_KEY];
+    if (!mainSession || typeof mainSession !== "object" || Array.isArray(mainSession)) {
+      return null;
+    }
+
+    const updatedAt = (mainSession as Record<string, unknown>).updatedAt;
+    if (typeof updatedAt !== "number" || !Number.isFinite(updatedAt)) return null;
+    const timestampMs = Math.trunc(updatedAt);
+    if (timestampMs <= 0 || timestampMs > nowMs + 5 * 60 * 1000) return null;
+
+    return {
+      timestampMs,
+      source: `openclawSessions.${DEFAULT_RUNTIME_SESSION_KEY}`,
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function renderHeartbeatHealth(result: HeartbeatHealthResult): string {
   const agePart =
     result.lastHeartbeatAgeMs == null
@@ -232,13 +312,18 @@ export function renderHeartbeatHealth(result: HeartbeatHealthResult): string {
 
 function main(): void {
   const args = parseArgs(process.argv.slice(2), process.env);
+  const nowMs = Date.now();
   const rawState = fs.existsSync(args.stateFile)
     ? fs.readFileSync(args.stateFile, "utf8")
     : null;
+  const runtimeHeartbeatSignal = args.runtimeFallback
+    ? readOpenClawRuntimeHeartbeatSignal(args.runtimeSessionFile, nowMs)
+    : null;
   const result = evaluateHeartbeatHealth(rawState, {
-    nowMs: Date.now(),
+    nowMs,
     statePath: args.stateFile,
     freshnessThresholdMs: args.freshnessThresholdMs,
+    runtimeHeartbeatSignal,
   });
 
   if (args.json) console.log(JSON.stringify(result, null, 2));
