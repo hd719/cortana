@@ -18,6 +18,7 @@
     "researcher:start:dry": "bash tools/researcher/start-researcher.sh --dry-run"
   },
   "devDependencies": {
+    "@types/node": "^25.6.0",
     "tsx": "^4.6.0",
     "vitest": "^4.0.18"
   },

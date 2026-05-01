@@ -152,7 +152,10 @@ main_remote_components() {
 
 is_temp_worktree_path() {
   local worktree_path="${1%/}/"
-  [[ "$worktree_path" == /tmp/* || "$worktree_path" == /private/tmp/* ]]
+  [[ "$worktree_path" == /tmp/* ||
+    "$worktree_path" == /private/tmp/* ||
+    "$worktree_path" == /var/folders/* ||
+    "$worktree_path" == /private/var/folders/* ]]
 }
 
 path_mtime_epoch() {

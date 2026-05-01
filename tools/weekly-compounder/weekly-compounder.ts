@@ -9,7 +9,7 @@ const script = String.raw`set -euo pipefail
 # Weekly Compounder Scoreboard
 # Builds a Telegram-ready weekly brief for Time / Health / Wealth / Career.
 
-ROOT="${WEEKLY_COMPOUNDER_ROOT:?missing WEEKLY_COMPOUNDER_ROOT}"
+ROOT="\${WEEKLY_COMPOUNDER_ROOT:?missing WEEKLY_COMPOUNDER_ROOT}"
 TMP_DIR="$(mktemp -d)"
 trap 'rm -rf "$TMP_DIR"' EXIT
 GOG_HELPER="$ROOT/tools/gog/gog-with-env.ts"
