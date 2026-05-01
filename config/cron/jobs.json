@@ -40,7 +40,7 @@
       "id": "af9e1570-3ba2-4d10-a807-91cdfc2df18b",
       "agentId": "cron-maintenance",
       "name": "🔄 Daily Auto-Update (notify Hamel)",
-      "enabled": true,
+      "enabled": false,
       "createdAtMs": 1769556023422,
       "updatedAtMs": 1773562976889,
       "schedule": {

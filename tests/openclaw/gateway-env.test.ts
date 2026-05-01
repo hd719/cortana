@@ -6,6 +6,8 @@ import {
   computePreservedGatewayEnv,
   ensureGatewayPathPrefix,
   readGatewayEnvStateFile,
+  readPlistEnvironmentVariables,
+  reconcileGatewayPlistEnv,
   writeGatewayEnvStateFile,
 } from "../../tools/openclaw/gateway-env.ts";
 
@@ -74,5 +76,40 @@ describe("gateway env preservation", () => {
   it("prepends the runtime bin dir to PATH exactly once", () => {
     expect(ensureGatewayPathPrefix("/usr/bin:/bin", "/tmp/openclaw-bin")).toBe("/tmp/openclaw-bin:/usr/bin:/bin");
     expect(ensureGatewayPathPrefix("/tmp/openclaw-bin:/usr/bin:/bin", "/tmp/openclaw-bin")).toBe("/tmp/openclaw-bin:/usr/bin:/bin");
+  });
+
+  it.skipIf(process.platform !== "darwin")("adds EnvironmentVariables when reconciling an env-wrapper plist", () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), "gateway-env-test-"));
+    tempPaths.push(dir);
+    const plistPath = path.join(dir, "ai.openclaw.gateway.plist");
+    fs.writeFileSync(
+      plistPath,
+      `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>ai.openclaw.gateway</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/tmp/env-wrapper.sh</string>
+  </array>
+</dict>
+</plist>
+`,
+      "utf8",
+    );
+
+    const result = reconcileGatewayPlistEnv(
+      plistPath,
+      { PATH: "/usr/bin:/bin" } as NodeJS.ProcessEnv,
+      { GOG_KEYRING_PASSWORD: "from-state" },
+    );
+
+    expect(result.updated).toBe(true);
+    expect(readPlistEnvironmentVariables(plistPath)).toMatchObject({
+      GOG_KEYRING_PASSWORD: "from-state",
+      PATH: expect.stringContaining("/usr/bin:/bin"),
+    });
   });
 });
