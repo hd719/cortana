@@ -58,6 +58,7 @@ This is curated long-term memory for `main`. Daily/session details belong in `me
 
 - PR-first workflow for `cortana` and `cortana-external`; do not push directly to `main` for repo changes.
 - Behavior changes relying on prompts/routing/automation must update source config/docs in the same PR.
+- Stable operational routing/preferences belong in HEARTBEAT.md, docs/source/doctrine/agent-routing.md, docs/source/doctrine/operating-rules.md, README.md, and config/cron/jobs.json together.
 - Cron runtime truth is `~/.openclaw/cron/jobs.json`; tracked backup is `config/cron/jobs.json`.
 - Gateway overwrites symlinks on restart; do not symlink cron jobs.
 - OpenClaw update method:

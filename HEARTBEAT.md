@@ -24,6 +24,8 @@ npx tsx /Users/hd/Developer/cortana/tools/heartbeat/validate-heartbeat-state.ts
 ## Routing
 
 - Monitor: system health, drift, cron/session reliability, repo sync, inbox/email ops, operational maintenance alerts, trading alert scan ownership.
+- Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.
+- Monitor owns email-triage / inbox-operational summaries and operational cron / maintenance alerts on user-facing paths.
 - Oracle: market/portfolio pulse and X sentiment during market hours.
 - Researcher: research/news gathering when explicitly needed.
 - Huragok: code/infra/tooling maintenance when explicitly requested.
