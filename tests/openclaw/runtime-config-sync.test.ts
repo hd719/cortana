@@ -5,6 +5,16 @@ import { describe, expect, it } from "vitest";
 import { buildRuntimeConfig, syncRuntimeConfig } from "../../tools/openclaw/runtime-config-sync";
 
 describe("runtime-config-sync", () => {
+  it("keeps cron agents on supported configured models", () => {
+    const configPath = path.resolve(__dirname, "../../config/openclaw.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    const cronAgents = config.agents.list.filter((agent: any) => String(agent.id).startsWith("cron-"));
+
+    expect(cronAgents.length).toBeGreaterThan(0);
+    expect(cronAgents.map((agent: any) => agent.model)).not.toContain("openai-codex/gpt-5.3-codex-spark");
+    expect(new Set(cronAgents.map((agent: any) => agent.model))).toEqual(new Set(["openai-codex/gpt-5.3-codex"]));
+  });
+
   it("preserves live secrets from prior runtime sources and strips unsupported threadBindings", () => {
     const source = {
       models: { providers: { openai: { apiKey: "REDACTED_USE_LIVE_CONFIG" } } },
