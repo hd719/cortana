@@ -968,6 +968,8 @@ sed -n '1,40p' /opt/homebrew/bin/openclaw
 
 ```bash
 npx tsx tools/alerting/check-cron-delivery.ts
+npx tsx tools/monitoring/cron-state-reconciler.ts --dry-run
+npx tsx tools/monitoring/cron-state-reconciler.ts --dry-run --json --write-report
 openclaw cron list
 ```
 
@@ -975,7 +977,16 @@ Inspect the runtime cron state:
 
 ```bash
 jq '.jobs[] | {id,name,status,consecutiveErrors,lastRunAt,nextRunAt}' ~/.openclaw/cron/jobs.json
+jq '.jobs | to_entries[] | {id:.key,status:.value.state.lastStatus,consecutiveErrors:.value.state.consecutiveErrors,lastRunAtMs:.value.state.lastRunAtMs,nextRunAtMs:.value.state.nextRunAtMs}' ~/.openclaw/cron/jobs-state.json
 ```
+
+Use the reconciler before treating `consecutiveErrors` as an active incident. It compares tracked config, live runtime config, `jobs-state.json`, and per-job run logs. `stale_error_state` means a newer successful run disproves old error metadata; `active_failure` means fresh failure evidence still exists. Apply mode is explicit only:
+
+```bash
+npx tsx tools/monitoring/cron-state-reconciler.ts --apply --json
+```
+
+Do not run apply mode unless you are prepared for the tool to back up runtime state, update stale status metadata, restart/reload the gateway scheduler, and verify live state after reload.
 
 ### Session hygiene
 
