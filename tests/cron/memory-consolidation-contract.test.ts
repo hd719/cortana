@@ -23,6 +23,8 @@ describe("memory consolidation cron contract", () => {
     expect(job?.enabled).toBe(true);
     expect(job?.schedule).toMatchObject({ kind: "cron", expr: "7 6-23 * * *", tz: "America/New_York" });
     expect(message).toContain("tools/memory/materialize-daily-memory.ts --today --yesterday");
+    expect(message).toContain("~/.openclaw/memory/daily/YYYY-MM-DD.md");
+    expect(message).toContain("It must not modify tracked memory/YYYY-MM-DD.md files");
     expect(message).toContain("First action must be one `exec` tool call");
     expect(job?.payload?.timeoutSeconds).toBe(180);
     expect(job?.payload?.lightContext).toBe(true);
@@ -44,6 +46,8 @@ describe("memory consolidation cron contract", () => {
     expect(message).toContain("If no substantive change, return exactly NO_REPLY");
     expect(message).not.toContain("return NOTHING");
     expect(message).toContain("materialize-daily-memory.ts --today --yesterday");
+    expect(message).toContain("Read ~/.openclaw/memory/daily/YYYY-MM-DD.md");
+    expect(message).toContain("Runtime daily memory files live under ~/.openclaw/memory/daily");
     expect(message).toContain("only query columns that actually exist");
     expect(job?.payload?.timeoutSeconds).toBe(300);
   });

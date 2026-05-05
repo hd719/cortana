@@ -689,10 +689,10 @@ Installed OpenClaw skills (non‑exhaustive):
 
 - Tracked, durable memory:
   - `MEMORY.md`
-  - Daily notes: `memory/YYYY-MM-DD*.md`
   - Curated research/playbooks/upgrades/mission plans
   - Evergreen fitness notes: `memory/fitness/README.md`, `memory/fitness/insights.md`
 - Runtime/generated memory artifacts:
+  - Daily notes: `~/.openclaw/memory/daily/YYYY-MM-DD.md`
   - sent markers, heartbeat/cache snapshots, and other machine-written JSON
   - dream runtime state under `memory/.dreams/`
   - generated dream diaries (`DREAMS.md`, `identities/*/DREAMS.md`) unless you intentionally curate them for review
@@ -912,7 +912,7 @@ The current autonomy stabilization work gives Cortana:
 - `TOOLS.md` – environment‑specific notes and deploy paths
 - `config/cron/jobs.json` – OpenClaw cron definitions
 - `config/autonomy-lanes.json` – posture + family-critical / never-miss lane configuration
-- `memory/YYYY-MM-DD.md` – daily memory logs
+- `~/.openclaw/memory/daily/YYYY-MM-DD.md` – generated daily memory logs
 
 ### Runtime Deploy Paths
 
