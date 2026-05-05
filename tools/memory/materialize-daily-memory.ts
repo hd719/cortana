@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { execFileSync } from "node:child_process";
 
 type SessionMessage = {
   timestampMs: number;
@@ -15,6 +16,8 @@ type SessionMessage = {
 
 type MaterializeOptions = {
   repoRoot: string;
+  externalRepoRoot?: string;
+  logRoot?: string;
   stateRoot: string;
   dates: string[];
   dryRun?: boolean;
@@ -27,6 +30,21 @@ type MaterializeResult = {
   wrote: boolean;
   sessionMessageCount: number;
   artifactCount: number;
+  commitCount: number;
+  logSignalCount: number;
+};
+
+type GitCommit = {
+  repo: string;
+  date: string;
+  hash: string;
+  subject: string;
+};
+
+type LogSignal = {
+  time: string;
+  level: string;
+  message: string;
 };
 
 const DAILY_START = "<!-- cortana:daily-memory:start -->";
@@ -107,7 +125,9 @@ function parseArgs(argv: string[]): MaterializeOptions {
   let since = "";
   let until = "";
   let repoRoot = process.env.CORTANA_REPO_ROOT || "/Users/hd/Developer/cortana";
+  let externalRepoRoot = process.env.CORTANA_EXTERNAL_REPO_ROOT || "/Users/hd/Developer/cortana-external";
   let stateRoot = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+  let logRoot = process.env.OPENCLAW_LOG_ROOT || path.join("/tmp", "openclaw");
   let dryRun = false;
   let maxMessagesPerDay = DEFAULT_MAX_MESSAGES;
 
@@ -127,8 +147,12 @@ function parseArgs(argv: string[]): MaterializeOptions {
       dates.push(yesterdayEt());
     } else if (arg === "--repo-root") {
       repoRoot = argv[++i] ?? "";
+    } else if (arg === "--external-repo-root") {
+      externalRepoRoot = argv[++i] ?? "";
     } else if (arg === "--state-root") {
       stateRoot = argv[++i] ?? "";
+    } else if (arg === "--log-root") {
+      logRoot = argv[++i] ?? "";
     } else if (arg === "--dry-run") {
       dryRun = true;
     } else if (arg === "--max-messages") {
@@ -157,7 +181,9 @@ function parseArgs(argv: string[]): MaterializeOptions {
 
   return {
     repoRoot,
+    externalRepoRoot,
     stateRoot,
+    logRoot,
     dates: validatedDates,
     dryRun,
     maxMessagesPerDay: Number.isFinite(maxMessagesPerDay) && maxMessagesPerDay > 0 ? maxMessagesPerDay : DEFAULT_MAX_MESSAGES,
@@ -347,6 +373,100 @@ function collectArtifacts(repoRoot: string, date: string): string[] {
   return artifacts.sort();
 }
 
+function collectCommits(repoRoot: string, externalRepoRoot: string, date: string): GitCommit[] {
+  const repos = [
+    { label: "cortana", root: repoRoot },
+    { label: "cortana-external", root: externalRepoRoot },
+  ];
+  const commits: GitCommit[] = [];
+
+  for (const repo of repos) {
+    if (!repo.root || !fs.existsSync(path.join(repo.root, ".git"))) continue;
+    let output = "";
+    try {
+      output = execFileSync(
+        "git",
+        [
+          "-C",
+          repo.root,
+          "log",
+          `--since=${date} 00:00`,
+          `--until=${date} 23:59:59`,
+          "--date=short",
+          "--pretty=format:%ad%x09%h%x09%s",
+        ],
+        { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }
+      );
+    } catch {
+      continue;
+    }
+
+    for (const line of output.split("\n")) {
+      const [commitDate, hash, ...subjectParts] = line.split("\t");
+      const subject = subjectParts.join("\t").trim();
+      if (!commitDate || !hash || !subject) continue;
+      commits.push({
+        repo: repo.label,
+        date: commitDate,
+        hash,
+        subject: truncate(subject, 180),
+      });
+    }
+  }
+
+  return commits.sort((a, b) => a.repo.localeCompare(b.repo) || a.subject.localeCompare(b.subject));
+}
+
+function parseLogSignal(rawLine: string): LogSignal | null {
+  const text = rawLine.replace(/^\d+:/, "").trim();
+  if (!text) return null;
+
+  try {
+    const parsed = JSON.parse(text) as {
+      time?: string;
+      message?: string;
+      _meta?: { logLevelName?: string };
+    };
+    const message = truncate(parsed.message ?? text, 240);
+    if (!message) return null;
+    return {
+      time: parsed.time ?? "",
+      level: parsed._meta?.logLevelName ?? "INFO",
+      message,
+    };
+  } catch {
+    return { time: "", level: "LOG", message: truncate(text, 240) };
+  }
+}
+
+function collectLogSignals(logRoot: string, date: string): LogSignal[] {
+  const logPath = path.join(logRoot, `openclaw-${date}.log`);
+  if (!fs.existsSync(logPath)) return [];
+
+  let raw = "";
+  try {
+    raw = fs.readFileSync(logPath, "utf8");
+  } catch {
+    return [];
+  }
+
+  const pattern = /(ERROR|WARN|failed|degraded|timeout|restarted|interrupt|rate limited|cron: job added|cron: job created|cron: started)/i;
+  const seen = new Set<string>();
+  const signals: LogSignal[] = [];
+
+  for (const line of raw.split("\n")) {
+    if (!pattern.test(line)) continue;
+    const signal = parseLogSignal(line);
+    if (!signal) continue;
+    const key = `${signal.level}:${signal.message}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    signals.push(signal);
+  }
+
+  return signals.slice(-12);
+}
+
 function summarizeMessages(messages: SessionMessage[], maxMessages: number): SessionMessage[] {
   const seen = new Set<string>();
   const deduped: SessionMessage[] = [];
@@ -362,15 +482,23 @@ function summarizeMessages(messages: SessionMessage[], maxMessages: number): Ses
   return deduped;
 }
 
-function renderDailyBlock(date: string, messages: SessionMessage[], artifacts: string[]): string {
+function renderDailyBlock(
+  date: string,
+  messages: SessionMessage[],
+  artifacts: string[],
+  commits: GitCommit[],
+  logSignals: LogSignal[]
+): string {
   const generatedAt = new Date().toISOString();
   const lines = [
     DAILY_START,
     `Generated: ${generatedAt}`,
-    `Source: live OpenClaw session logs and runtime memory artifacts.`,
+    `Source: live OpenClaw session logs, git commits, gateway logs, and runtime memory artifacts.`,
     "",
     "## Source Counts",
     `- Session messages: ${messages.length}`,
+    `- Git commits: ${commits.length}`,
+    `- Log signals: ${logSignals.length}`,
     `- Runtime artifacts: ${artifacts.length}`,
     "",
     "## Session Continuity",
@@ -381,6 +509,25 @@ function renderDailyBlock(date: string, messages: SessionMessage[], artifacts: s
   } else {
     for (const message of messages) {
       lines.push(`- ${message.timeEt} ET [${message.agentId}] ${message.role}: ${message.text}`);
+    }
+  }
+
+  lines.push("", "## Git Activity");
+  if (commits.length === 0) {
+    lines.push("- No dated commits found in cortana or cortana-external.");
+  } else {
+    for (const commit of commits) {
+      lines.push(`- [${commit.repo}] ${commit.hash}: ${commit.subject}`);
+    }
+  }
+
+  lines.push("", "## Operational Log Signals");
+  if (logSignals.length === 0) {
+    lines.push("- No high-signal OpenClaw gateway log lines found for this date.");
+  } else {
+    for (const signal of logSignals) {
+      const prefix = [signal.time, signal.level].filter(Boolean).join(" ");
+      lines.push(`- ${prefix}: ${signal.message}`);
     }
   }
 
@@ -413,6 +560,8 @@ function mergeManagedBlock(existing: string, block: string): string {
 export function materializeDailyMemory(options: MaterializeOptions): MaterializeResult[] {
   const memoryDir = path.join(options.repoRoot, "memory");
   fs.mkdirSync(memoryDir, { recursive: true });
+  const externalRepoRoot = options.externalRepoRoot ?? "/Users/hd/Developer/cortana-external";
+  const logRoot = options.logRoot ?? path.join("/tmp", "openclaw");
 
   const messagesByDate = collectSessionMessages(options.stateRoot, options.dates);
   const results: MaterializeResult[] = [];
@@ -421,7 +570,9 @@ export function materializeDailyMemory(options: MaterializeOptions): Materialize
     const dailyPath = path.join(memoryDir, `${date}.md`);
     const messages = summarizeMessages(messagesByDate.get(date) ?? [], options.maxMessagesPerDay ?? DEFAULT_MAX_MESSAGES);
     const artifacts = collectArtifacts(options.repoRoot, date);
-    const block = renderDailyBlock(date, messages, artifacts);
+    const commits = collectCommits(options.repoRoot, externalRepoRoot, date);
+    const logSignals = collectLogSignals(logRoot, date);
+    const block = renderDailyBlock(date, messages, artifacts, commits, logSignals);
     const existing = fs.existsSync(dailyPath) ? fs.readFileSync(dailyPath, "utf8") : `# Daily Memory - ${date}\n\n`;
     const next = mergeManagedBlock(existing, block);
 
@@ -432,6 +583,8 @@ export function materializeDailyMemory(options: MaterializeOptions): Materialize
       wrote: !options.dryRun,
       sessionMessageCount: messages.length,
       artifactCount: artifacts.length,
+      commitCount: commits.length,
+      logSignalCount: logSignals.length,
     });
   }
 
@@ -444,7 +597,7 @@ async function main(): Promise<void> {
     const results = materializeDailyMemory(options);
     for (const result of results) {
       console.log(
-        `${options.dryRun ? "would-write" : "wrote"} ${path.relative(options.repoRoot, result.path)} messages=${result.sessionMessageCount} artifacts=${result.artifactCount}`
+        `${options.dryRun ? "would-write" : "wrote"} ${path.relative(options.repoRoot, result.path)} messages=${result.sessionMessageCount} commits=${result.commitCount} logs=${result.logSignalCount} artifacts=${result.artifactCount}`
       );
     }
   } catch (error) {
