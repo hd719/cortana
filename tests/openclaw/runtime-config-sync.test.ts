@@ -20,9 +20,12 @@ describe("runtime-config-sync", () => {
     const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
 
     expect(config.plugins.bundledDiscovery).toBe("allowlist");
-    expect(config.plugins.allow).toContain("brave");
+    expect(config.tools.web.search.provider).toBe("duckduckgo");
+    expect(config.plugins.allow).not.toContain("brave");
+    expect(config.plugins.allow).toContain("duckduckgo");
     expect(config.plugins.allow).toContain("browser");
-    expect(config.plugins.entries.brave.enabled).toBe(true);
+    expect(config.plugins.entries.brave).toBeUndefined();
+    expect(config.plugins.entries.duckduckgo.enabled).toBe(true);
     expect(config.plugins.entries.browser.enabled).toBe(true);
     expect(config.messages.groupChat.visibleReplies).toBe("message_tool");
     expect(config.session.maintenance.rotateBytes).toBeUndefined();
