@@ -83,7 +83,50 @@ async function main(): Promise<void> {
   };
 
   const createAlert = (title: string, desc: string, meta = "{}") => {
-    const sql = `INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata) VALUES ('${source}', '${sqlEscape(title)}', '${sqlEscape(desc)}', 1, 'ready', FALSE, 'Investigate gog OAuth auth failure and re-authorize if needed.', '${sqlEscape(meta)}'::jsonb);`;
+    const sql = `
+      WITH existing AS (
+        SELECT id
+        FROM cortana_tasks
+        WHERE source='${source}'
+          AND title='${sqlEscape(title)}'
+          AND status IN ('ready','in_progress','scheduled')
+        ORDER BY id DESC
+        LIMIT 1
+      ), updated AS (
+        UPDATE cortana_tasks
+        SET
+          description='${sqlEscape(desc)}',
+          priority=1,
+          metadata=COALESCE(metadata, '{}'::jsonb) || '${sqlEscape(meta)}'::jsonb,
+          updated_at=NOW()
+        WHERE id IN (SELECT id FROM existing)
+        RETURNING id
+      )
+      INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata)
+      SELECT '${source}', '${sqlEscape(title)}', '${sqlEscape(desc)}', 1, 'ready', FALSE, 'Investigate gog OAuth auth failure and re-authorize if needed.', '${sqlEscape(meta)}'::jsonb
+      WHERE NOT EXISTS (SELECT 1 FROM updated);
+    `;
+    run(PSQL_BIN, [db, "-c", sql], env);
+  };
+
+  const resolveAlert = (title: string, meta = "{}") => {
+    const outcome = "Auto-resolved: Gog OAuth probe passed after env-aware calendar read.";
+    const sql = `
+      UPDATE cortana_tasks
+      SET
+        status='completed',
+        completed_at=COALESCE(completed_at, NOW()),
+        outcome=CASE
+          WHEN COALESCE(outcome, '') = '' THEN '${sqlEscape(outcome)}'
+          WHEN POSITION('${sqlEscape(outcome)}' IN outcome) > 0 THEN outcome
+          ELSE outcome || E'\\n${sqlEscape(outcome)}'
+        END,
+        metadata=COALESCE(metadata, '{}'::jsonb) || '${sqlEscape(meta)}'::jsonb,
+        updated_at=NOW()
+      WHERE source='${source}'
+        AND title='${sqlEscape(title)}'
+        AND status IN ('ready','in_progress','scheduled');
+    `;
     run(PSQL_BIN, [db, "-c", sql], env);
   };
 
@@ -99,6 +142,10 @@ async function main(): Promise<void> {
   }
 
   if (probe.rc === 0) {
+    resolveAlert(
+      "gog OAuth requires manual re-auth",
+      `{"account":"${account}","calendarId":"${calendarId}","probe_rc":${probe.rc},"resolved_by":"${source}"}`,
+    );
     logEvent(
       "info",
       "gog OAuth check passed",
