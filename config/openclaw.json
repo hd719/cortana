@@ -190,7 +190,7 @@
     "profile": "full",
     "web": {
       "search": {
-        "provider": "brave",
+        "provider": "duckduckgo",
         "maxResults": 5,
         "timeoutSeconds": 30
       }
@@ -469,7 +469,7 @@
       "memory-core",
       "active-memory",
       "memory-wiki",
-      "brave",
+      "duckduckgo",
       "openai",
       "browser"
     ],
@@ -487,13 +487,8 @@
           "personality": "off"
         }
       },
-      "brave": {
-        "enabled": true,
-        "config": {
-          "webSearch": {
-            "apiKey": "REDACTED_USE_LIVE_CONFIG"
-          }
-        }
+      "duckduckgo": {
+        "enabled": true
       },
       "memory-core": {
         "enabled": true,
