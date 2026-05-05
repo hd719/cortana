@@ -298,7 +298,10 @@
     }
   ],
   "messages": {
-    "ackReactionScope": "group-mentions"
+    "ackReactionScope": "group-mentions",
+    "groupChat": {
+      "visibleReplies": "message_tool"
+    }
   },
   "commands": {
     "native": "auto",
@@ -314,7 +317,6 @@
       "mode": "enforce",
       "pruneAfter": "2d",
       "maxEntries": 20,
-      "rotateBytes": "10mb",
       "resetArchiveRetention": "7d"
     },
     "resetByType": {
@@ -373,49 +375,65 @@
         8171372724
       ],
       "groupPolicy": "allowlist",
-      "streaming": "off",
+      "streaming": {
+        "mode": "off"
+      },
       "accounts": {
         "researcher": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
-          "streaming": "off"
+          "streaming": {
+            "mode": "off"
+          }
         },
         "default": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
-          "streaming": "off"
+          "streaming": {
+            "mode": "off"
+          }
         },
         "huragok": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
-          "streaming": "off"
+          "streaming": {
+            "mode": "off"
+          }
         },
         "oracle": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
-          "streaming": "off"
+          "streaming": {
+            "mode": "off"
+          }
         },
         "monitor": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
-          "streaming": "off"
+          "streaming": {
+            "mode": "off"
+          }
         },
         "arbiter": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",
-          "streaming": "off"
+          "streaming": {
+            "mode": "off"
+          }
         },
         "spartan": {
           "dmPolicy": "pairing",
           "botToken": "__SPARTAN_BOT_TOKEN__",
           "groupPolicy": "allowlist",
-          "streaming": "off"
+          "streaming": {
+            "mode": "off"
+          }
         }
       }
     }
@@ -452,8 +470,10 @@
       "active-memory",
       "memory-wiki",
       "brave",
-      "openai"
+      "openai",
+      "browser"
     ],
+    "bundledDiscovery": "allowlist",
     "slots": {
       "memory": "memory-core"
     },
@@ -528,6 +548,9 @@
             "createDashboards": true
           }
         }
+      },
+      "browser": {
+        "enabled": true
       }
     }
   }

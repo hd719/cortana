@@ -15,6 +15,21 @@ describe("runtime-config-sync", () => {
     expect(new Set(cronAgents.map((agent: any) => agent.model))).toEqual(new Set(["openai-codex/gpt-5.3-codex"]));
   });
 
+  it("tracks OpenClaw doctor config migrations without dropping enabled plugins", () => {
+    const configPath = path.resolve(__dirname, "../../config/openclaw.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+
+    expect(config.plugins.bundledDiscovery).toBe("allowlist");
+    expect(config.plugins.allow).toContain("brave");
+    expect(config.plugins.allow).toContain("browser");
+    expect(config.plugins.entries.brave.enabled).toBe(true);
+    expect(config.plugins.entries.browser.enabled).toBe(true);
+    expect(config.messages.groupChat.visibleReplies).toBe("message_tool");
+    expect(config.session.maintenance.rotateBytes).toBeUndefined();
+    expect(config.channels.telegram.streaming).toEqual({ mode: "off" });
+    expect(config.channels.telegram.accounts.monitor.streaming).toEqual({ mode: "off" });
+  });
+
   it("preserves live secrets from prior runtime sources and strips unsupported threadBindings", () => {
     const source = {
       models: { providers: { openai: { apiKey: "REDACTED_USE_LIVE_CONFIG" } } },
