@@ -182,6 +182,17 @@ Stable operational routing/preferences must be updated together across the canon
 - Underlying execution can still belong to another specialist, but the user-facing ownership must remain Monitor-labeled.
 - Update `MEMORY.md`, `HEARTBEAT.md`, `docs/source/doctrine/agent-routing.md`, `README.md`, and `config/cron/jobs.json` in the same workflow whenever this contract changes.
 
+## Human-Required Action Queue
+
+Known blockers that require Hamel outside autonomous authority should be recorded in the durable human-required queue instead of repeatedly alerting as generic degradation.
+
+- Use `tools/human-actions/human-required-actions-cli.ts` for local operator upsert/list/digest/verify/close workflows.
+- Queue records must use typed category/system/severity values and stable fingerprints.
+- Evidence and metadata must be redacted before persistence; never store raw tokens, cookies, passwords, or API keys.
+- Repeated unchanged detections should update `detection_count` without sending another immediate alert.
+- New fingerprints, material next-action changes, severity increases, overdue items, and verification failures may alert through Monitor.
+- Human-required queue items are not ordinary task-board tasks; use `cortana_human_required_actions` as the source of truth.
+
 ## Gog Headless Rule
 
 - In OpenClaw sessions, cron jobs, or any other non-interactive execution, do not call raw `gog` directly for Gmail or Calendar work.

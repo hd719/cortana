@@ -1,6 +1,6 @@
 # Implementation Plan - Human-Required Action Queue
 
-**Document Status:** Draft
+**Document Status:** In Implementation
 
 ## Team
 
@@ -41,6 +41,8 @@ Week 3: Verification keys, Mission Control read API/UI integration, digest polic
 **cortana: store human-required blockers with dedupe, redacted evidence, and lifecycle state.**
 
 *Dependencies: None*
+
+**Implementation status:** V1 core is implemented in the first PR slice with the typed taxonomy, DB-backed queue store, CLI, redaction, dedupe/material-change policy, digest, close, and focused tests. Producer integrations and Mission Control read surfaces remain later verticals.
 
 #### Jira
 
