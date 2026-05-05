@@ -1,6 +1,6 @@
 # MEMORY.md - Durable Cortana Memory
 
-This is curated long-term memory for `main`. Daily/session details belong in `memory/YYYY-MM-DD.md`; only durable facts and operating lessons belong here.
+This is curated long-term memory for `main`. Generated daily/session details belong in `~/.openclaw/memory/daily/YYYY-MM-DD.md`; only durable facts and operating lessons belong here.
 
 ## Hamel
 

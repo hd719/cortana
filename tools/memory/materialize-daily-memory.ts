@@ -19,6 +19,7 @@ type MaterializeOptions = {
   externalRepoRoot?: string;
   logRoot?: string;
   stateRoot: string;
+  dailyMemoryRoot?: string;
   dates: string[];
   dryRun?: boolean;
   maxMessagesPerDay?: number;
@@ -28,6 +29,7 @@ type MaterializeResult = {
   date: string;
   path: string;
   wrote: boolean;
+  changed: boolean;
   sessionMessageCount: number;
   artifactCount: number;
   commitCount: number;
@@ -57,7 +59,8 @@ function usage(): string {
   return [
     "Usage: npx tsx tools/memory/materialize-daily-memory.ts [--date YYYY-MM-DD | --since YYYY-MM-DD --until YYYY-MM-DD | --today] [--dry-run]",
     "",
-    "Builds canonical memory/YYYY-MM-DD.md files from live OpenClaw session logs and runtime memory artifacts.",
+    "Builds canonical daily memory files from live OpenClaw session logs and runtime memory artifacts.",
+    "Default output: ~/.openclaw/memory/daily/YYYY-MM-DD.md",
   ].join("\n");
 }
 
@@ -127,6 +130,7 @@ function parseArgs(argv: string[]): MaterializeOptions {
   let repoRoot = process.env.CORTANA_REPO_ROOT || "/Users/hd/Developer/cortana";
   let externalRepoRoot = process.env.CORTANA_EXTERNAL_REPO_ROOT || "/Users/hd/Developer/cortana-external";
   let stateRoot = process.env.OPENCLAW_STATE_DIR || path.join(os.homedir(), ".openclaw");
+  let dailyMemoryRoot = process.env.OPENCLAW_DAILY_MEMORY_DIR || "";
   let logRoot = process.env.OPENCLAW_LOG_ROOT || path.join("/tmp", "openclaw");
   let dryRun = false;
   let maxMessagesPerDay = DEFAULT_MAX_MESSAGES;
@@ -151,6 +155,8 @@ function parseArgs(argv: string[]): MaterializeOptions {
       externalRepoRoot = argv[++i] ?? "";
     } else if (arg === "--state-root") {
       stateRoot = argv[++i] ?? "";
+    } else if (arg === "--daily-memory-root") {
+      dailyMemoryRoot = argv[++i] ?? "";
     } else if (arg === "--log-root") {
       logRoot = argv[++i] ?? "";
     } else if (arg === "--dry-run") {
@@ -183,6 +189,7 @@ function parseArgs(argv: string[]): MaterializeOptions {
     repoRoot,
     externalRepoRoot,
     stateRoot,
+    dailyMemoryRoot,
     logRoot,
     dates: validatedDates,
     dryRun,
@@ -489,10 +496,9 @@ function renderDailyBlock(
   commits: GitCommit[],
   logSignals: LogSignal[]
 ): string {
-  const generatedAt = new Date().toISOString();
   const lines = [
     DAILY_START,
-    `Generated: ${generatedAt}`,
+    "Generated: deterministic runtime daily memory",
     `Source: live OpenClaw session logs, git commits, gateway logs, and runtime memory artifacts.`,
     "",
     "## Source Counts",
@@ -557,8 +563,14 @@ function mergeManagedBlock(existing: string, block: string): string {
   return `${prefix}\n\n${block}`;
 }
 
+function displayPath(repoRoot: string, filePath: string): string {
+  const relativePath = path.relative(repoRoot, filePath);
+  if (!relativePath.startsWith("..") && !path.isAbsolute(relativePath)) return relativePath;
+  return filePath;
+}
+
 export function materializeDailyMemory(options: MaterializeOptions): MaterializeResult[] {
-  const memoryDir = path.join(options.repoRoot, "memory");
+  const memoryDir = options.dailyMemoryRoot || path.join(options.stateRoot, "memory", "daily");
   fs.mkdirSync(memoryDir, { recursive: true });
   const externalRepoRoot = options.externalRepoRoot ?? "/Users/hd/Developer/cortana-external";
   const logRoot = options.logRoot ?? path.join("/tmp", "openclaw");
@@ -576,11 +588,14 @@ export function materializeDailyMemory(options: MaterializeOptions): Materialize
     const existing = fs.existsSync(dailyPath) ? fs.readFileSync(dailyPath, "utf8") : `# Daily Memory - ${date}\n\n`;
     const next = mergeManagedBlock(existing, block);
 
-    if (!options.dryRun) fs.writeFileSync(dailyPath, next, "utf8");
+    const changed = next !== existing;
+
+    if (!options.dryRun && changed) fs.writeFileSync(dailyPath, next, "utf8");
     results.push({
       date,
       path: dailyPath,
-      wrote: !options.dryRun,
+      wrote: !options.dryRun && changed,
+      changed,
       sessionMessageCount: messages.length,
       artifactCount: artifacts.length,
       commitCount: commits.length,
@@ -596,8 +611,9 @@ async function main(): Promise<void> {
     const options = parseArgs(process.argv.slice(2));
     const results = materializeDailyMemory(options);
     for (const result of results) {
+      const action = options.dryRun && result.changed ? "would-write" : result.wrote ? "wrote" : "unchanged";
       console.log(
-        `${options.dryRun ? "would-write" : "wrote"} ${path.relative(options.repoRoot, result.path)} messages=${result.sessionMessageCount} commits=${result.commitCount} logs=${result.logSignalCount} artifacts=${result.artifactCount}`
+        `${action} ${displayPath(options.repoRoot, result.path)} messages=${result.sessionMessageCount} commits=${result.commitCount} logs=${result.logSignalCount} artifacts=${result.artifactCount}`
       );
     }
   } catch (error) {

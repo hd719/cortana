@@ -22,7 +22,7 @@ Read first:
 4. `IDENTITY.md`
 5. `BOOTSTRAP.md` if this is `main`
 6. `MEMORY.md` if this is `main`
-7. today's and yesterday's `memory/YYYY-MM-DD.md` if present
+7. today's and yesterday's runtime daily memory from `~/.openclaw/memory/daily/YYYY-MM-DD.md` if present
 
 Then inspect:
 1. `/Users/hd/Developer/cortana`
@@ -180,7 +180,7 @@ Remote login shell is `zsh` with `nomatch` enabled.
 
 Files are memory.
 
-- `memory/YYYY-MM-DD.md`: daily raw continuity
+- `~/.openclaw/memory/daily/YYYY-MM-DD.md`: generated daily raw continuity; runtime-owned, not committed
 - `MEMORY.md`: curated durable memory for `main`
 - `identities/<agent>/MEMORY.md`: durable specialist memory
 - `identities/<agent>/memory/*.md`: specialist daily continuity

@@ -29,6 +29,7 @@ describe("materializeDailyMemory", () => {
     const root = makeTempRoot();
     const repoRoot = path.join(root, "repo");
     const stateRoot = path.join(root, "state");
+    const dailyRoot = path.join(stateRoot, "memory", "daily");
 
     writeJsonl(path.join(stateRoot, "agents", "main", "sessions", "abc.jsonl"), [
       { type: "session", timestamp: "2026-05-05T12:00:00.000Z" },
@@ -61,7 +62,9 @@ describe("materializeDailyMemory", () => {
 
     expect(result.sessionMessageCount).toBe(2);
     expect(result.artifactCount).toBe(1);
-    const written = fs.readFileSync(path.join(repoRoot, "memory", "2026-05-05.md"), "utf8");
+    expect(result.path).toBe(path.join(dailyRoot, "2026-05-05.md"));
+    expect(fs.existsSync(path.join(repoRoot, "memory", "2026-05-05.md"))).toBe(false);
+    const written = fs.readFileSync(path.join(dailyRoot, "2026-05-05.md"), "utf8");
     expect(written).toContain("# Daily Memory - 2026-05-05");
     expect(written).toContain("Track Morocco flights for two business seats.");
     expect(written).toContain("I will watch Google Flights plus open fare feeds.");
@@ -73,7 +76,7 @@ describe("materializeDailyMemory", () => {
     const root = makeTempRoot();
     const repoRoot = path.join(root, "repo");
     const stateRoot = path.join(root, "state");
-    const dailyPath = path.join(repoRoot, "memory", "2026-05-05.md");
+    const dailyPath = path.join(stateRoot, "memory", "daily", "2026-05-05.md");
     fs.mkdirSync(path.dirname(dailyPath), { recursive: true });
     fs.writeFileSync(
       dailyPath,
@@ -131,7 +134,7 @@ describe("materializeDailyMemory", () => {
       dates: ["2026-05-05"],
     });
 
-    const written = fs.readFileSync(path.join(repoRoot, "memory", "2026-05-05.md"), "utf8");
+    const written = fs.readFileSync(path.join(stateRoot, "memory", "daily", "2026-05-05.md"), "utf8");
     expect(written).toContain("[redacted-token]");
     expect(written).not.toContain("sk-abcdefghijklmnopqrstuvwxyz123456");
   });
@@ -194,7 +197,7 @@ describe("materializeDailyMemory", () => {
       dates: ["2026-05-05"],
     });
 
-    const written = fs.readFileSync(path.join(repoRoot, "memory", "2026-05-05.md"), "utf8");
+    const written = fs.readFileSync(path.join(stateRoot, "memory", "daily", "2026-05-05.md"), "utf8");
     expect(written).toContain("## Git Activity");
     expect(written).toContain("[cortana]");
     expect(written).toContain("Fix memory backfill");
@@ -202,5 +205,35 @@ describe("materializeDailyMemory", () => {
     expect(written).toContain("Repair Mission Control memory view");
     expect(written).toContain("## Operational Log Signals");
     expect(written).toContain("memory embeddings rate limited");
+  });
+
+  it("does not rewrite an unchanged generated daily file", () => {
+    const root = makeTempRoot();
+    const repoRoot = path.join(root, "repo");
+    const stateRoot = path.join(root, "state");
+    const dailyPath = path.join(stateRoot, "memory", "daily", "2026-05-05.md");
+
+    const [first] = materializeDailyMemory({
+      repoRoot,
+      externalRepoRoot: path.join(root, "external"),
+      stateRoot,
+      logRoot: path.join(root, "logs"),
+      dates: ["2026-05-05"],
+    });
+    const firstContent = fs.readFileSync(dailyPath, "utf8");
+
+    const [second] = materializeDailyMemory({
+      repoRoot,
+      externalRepoRoot: path.join(root, "external"),
+      stateRoot,
+      logRoot: path.join(root, "logs"),
+      dates: ["2026-05-05"],
+    });
+
+    expect(first.wrote).toBe(true);
+    expect(first.changed).toBe(true);
+    expect(second.wrote).toBe(false);
+    expect(second.changed).toBe(false);
+    expect(fs.readFileSync(dailyPath, "utf8")).toBe(firstContent);
   });
 });

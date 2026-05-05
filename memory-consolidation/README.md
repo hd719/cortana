@@ -5,7 +5,7 @@ Cortana's sleep cycle. Runs nightly to process raw daily memories into long-term
 ## Architecture
 
 ```
-Daily Memory Files (memory/YYYY-MM-DD.md, last 1-3 days)
+Runtime Daily Memory Files (~/.openclaw/memory/daily/YYYY-MM-DD.md, last 1-3 days)
     │
     ▼
 ┌─────────────────────────────────────────────────┐
@@ -41,7 +41,7 @@ MEMORY.md          cortana_memory     memory/archive/
 ## Components
 
 ### 1. Review
-Scan `memory/YYYY-MM-DD.md` for the last 1-3 unconsolidated days. Read each file fully. Also pull recent rows from:
+Scan `~/.openclaw/memory/daily/YYYY-MM-DD.md` for the last 1-3 unconsolidated days. Read each file fully. Also pull recent rows from:
 - `cortana_feedback` (corrections, preferences)
 - `cortana_patterns` (detected routines)
 - `cortana_events` (system events, errors)
@@ -138,7 +138,7 @@ You are Cortana running the nightly Memory Consolidation cycle. This is your sle
 
 1. **Review**: Read daily memory files for unconsolidated days:
    - Check cortana_memory_consolidation for last successful run to know which days are new
-   - Read memory/YYYY-MM-DD.md for each unconsolidated day
+   - Read ~/.openclaw/memory/daily/YYYY-MM-DD.md for each unconsolidated day
    - Query recent cortana_feedback, cortana_patterns, cortana_events, cortana_tasks
 
 2. **Distill**: From the raw logs, extract:
@@ -178,7 +178,7 @@ You are Cortana running the nightly Memory Consolidation cycle. This is your sle
 6. **Archive**: Move consolidated daily files older than 3 days:
    ```bash
    mkdir -p ~/Developer/cortana/memory/archive/YYYY/MM/
-   mv ~/Developer/cortana/memory/YYYY-MM-DD.md ~/Developer/cortana/memory/archive/YYYY/MM/
+   cp ~/.openclaw/memory/daily/YYYY-MM-DD.md ~/.openclaw/memory/archive/YYYY/MM/
    ```
 
 7. **Dream** (if interesting connections exist):
