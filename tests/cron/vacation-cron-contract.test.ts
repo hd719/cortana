@@ -10,6 +10,10 @@ type CronJob = {
   payload?: {
     message?: string;
   };
+  metadata?: {
+    commandJobSpec?: { command?: string; args?: string[]; owner?: string };
+    legacyAgentTurn?: { message?: string };
+  };
   delivery?: {
     accountId?: string;
   };
@@ -34,7 +38,13 @@ describe("vacation cron contract", () => {
   it("keeps the fragile guard pointed at the canonical vacation-mode guard script", () => {
     const jobs = readJobs();
     const guard = jobs.find((job) => job.name === "🏖️ Vacation Mode Fragile Guard (15m)");
-    expect(guard?.payload?.message).toContain("tools/monitoring/vacation-mode-guard.ts");
+    expect(guard?.payload?.message).toContain("command-job-runner.ts --job-id vacation-mode-fragile-guard-20260411 --alert");
+    expect(guard?.metadata?.commandJobSpec).toMatchObject({
+      command: "npx",
+      args: ["tsx", "/Users/hd/Developer/cortana/tools/monitoring/vacation-mode-guard.ts"],
+      owner: "monitor",
+    });
+    expect(guard?.metadata?.legacyAgentTurn?.message).toContain("tools/monitoring/vacation-mode-guard.ts");
     expect(guard?.delivery?.accountId).toBe("monitor");
   });
 });

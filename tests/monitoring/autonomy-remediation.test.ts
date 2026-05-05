@@ -9,6 +9,7 @@ const fsMock = vi.hoisted(() => ({
 const spawnSync = vi.hoisted(() => vi.fn());
 const upsertOpenIncident = vi.hoisted(() => vi.fn());
 const resolveIncident = vi.hoisted(() => vi.fn());
+const upsertHumanRequiredAction = vi.hoisted(() => vi.fn());
 
 vi.mock("node:fs", () => ({
   default: fsMock,
@@ -21,6 +22,9 @@ vi.mock("../../tools/monitoring/autonomy-incidents.ts", () => ({
   upsertOpenIncident,
   resolveIncident,
 }));
+vi.mock("../../tools/human-actions/human-required-actions.ts", () => ({
+  upsertHumanRequiredAction,
+}));
 
 describe("autonomy-remediation", () => {
   beforeEach(() => {
@@ -30,6 +34,7 @@ describe("autonomy-remediation", () => {
     spawnSync.mockReset();
     upsertOpenIncident.mockReset();
     resolveIncident.mockReset();
+    upsertHumanRequiredAction.mockReset();
     fsMock.existsSync.mockReturnValue(true);
   });
 

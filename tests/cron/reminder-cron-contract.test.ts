@@ -5,6 +5,10 @@ import { describe, expect, it } from "vitest";
 type CronJob = {
   id?: string;
   payload?: { message?: string; timeoutSeconds?: number };
+  metadata?: {
+    commandJobSpec?: { command?: string; args?: string[]; cwd?: string; owner?: string };
+    legacyAgentTurn?: { message?: string };
+  };
 };
 
 function loadJobs(): CronJob[] {
@@ -42,15 +46,20 @@ describe("reminder cron contract", () => {
     const jobs = loadJobs();
     const restart = jobs.find((job) => job.id === "a9c37f59-8f34-4c59-bb53-8a2b6d3fb3f8");
     const message = String(restart?.payload?.message ?? "");
+    const legacy = String(restart?.metadata?.legacyAgentTurn?.message ?? "");
 
     expect(restart?.payload?.timeoutSeconds).toBe(120);
-    expect(message).toContain("First action must be one `exec` tool call");
-    expect(message).toContain("Do not read files, search the repo, inspect skills");
-    expect(message).toContain("bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh --restart-if-pending");
-    expect(message).toContain("workdir: /Users/hd/.openclaw/workspaces/cron-maintenance");
-    expect(message).toContain("host: gateway");
-    expect(message).toContain("security: full");
-    expect(message).toContain("ask: off");
-    expect(message).toContain("Do not ask for approval.");
+    expect(message).toContain("command-job-runner.ts --job-id a9c37f59-8f34-4c59-bb53-8a2b6d3fb3f8 --alert");
+    expect(message).toContain("host `gateway`");
+    expect(message).toContain("security `full`");
+    expect(message).toContain("ask `off`");
+    expect(restart?.metadata?.commandJobSpec).toMatchObject({
+      command: "bash",
+      args: ["/Users/hd/Developer/cortana/tools/openclaw/post-update.sh", "--restart-if-pending"],
+      cwd: "/Users/hd/.openclaw/workspaces/cron-maintenance",
+      owner: "monitor",
+    });
+    expect(legacy).toContain("First action must be one `exec` tool call");
+    expect(legacy).toContain("Do not ask for approval.");
   });
 });

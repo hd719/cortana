@@ -1,6 +1,6 @@
 # Implementation Plan - Human-Required Action Queue
 
-**Document Status:** In Implementation
+**Document Status:** Complete
 
 ## Team
 
@@ -15,12 +15,14 @@
 
 ## Dependency Map
 
+**Implementation status:** Complete. The queue schema/library, typed taxonomy, CLI, verification/closure flow, autonomy/browser/OpenAI-auth producer integrations, Mission Control read API, and Autonomy page queue display are implemented.
+
 | Vertical | Dependencies | Can Start? |
 |----------|--------------|------------|
-| V1 - Queue schema and library | None | Start now |
-| V2 - Writers and suppression | V1 | Start after schema |
-| V3 - Verification and CLI closure | V1, V2 | Start after writers |
-| V4 - Mission Control read surface | V1 | Can run in parallel after schema |
+| V1 - Queue schema and library | None | Complete |
+| V2 - Writers and suppression | V1 | Complete |
+| V3 - Verification and CLI closure | V1, V2 | Complete |
+| V4 - Mission Control read surface | V1 | Complete |
 
 ---
 
@@ -42,7 +44,7 @@ Week 3: Verification keys, Mission Control read API/UI integration, digest polic
 
 *Dependencies: None*
 
-**Implementation status:** Queue storage/library and CLI/verification are implemented with typed taxonomy, DB-backed queue store, redaction, dedupe/material-change policy, digest, close, and focused tests. Producer integrations and Mission Control read surfaces remain later verticals.
+**Implementation status:** Complete. Queue storage/library and CLI/verification are implemented with typed taxonomy, DB-backed queue store, redaction, dedupe/material-change policy, digest, close, and focused tests.
 
 #### Jira
 

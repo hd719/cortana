@@ -469,7 +469,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: 🧹 System - Session Cleanup\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/session/session-hygiene.ts`\n\nRules:\n- The script is the source of truth.\n- It already covers oversized `main` sessions and oversized monitor direct sessions.\n- If stdout is exactly `NO_REPLY`, return exactly `NO_REPLY` and do not send anything.\n- Otherwise send stdout as the full Telegram message via the message tool, then return exactly `NO_REPLY`.",
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id fb9ba4df-0008-48a1-b56e-45ce35bc0fee --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "model": "openai-codex/gpt-5.4",
         "timeoutSeconds": 120,
         "lightContext": true
@@ -487,6 +487,26 @@
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
         "lastDelivered": false
+      },
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/session/session-hygiene.ts"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 120000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: 🧹 System - Session Cleanup\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/session/session-hygiene.ts`\n\nRules:\n- The script is the source of truth.\n- It already covers oversized `main` sessions and oversized monitor direct sessions.\n- If stdout is exactly `NO_REPLY`, return exactly `NO_REPLY` and do not send anything.\n- Otherwise send stdout as the full Telegram message via the message tool, then return exactly `NO_REPLY`."
+        }
       }
     },
     {
@@ -681,16 +701,14 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nImmune scan. User-facing owner lane is cron-health.\n\nExecution contract:\n- First action must be one `exec` tool call.\n- Do not read files, search the repo, inspect skills, or use any other tool before that exec call.\n- Use this exact command and settings, non-interactively:\n  command: bash /Users/hd/Developer/cortana/tools/monitoring/run-immune-scan.sh\n  workdir: /Users/hd/.openclaw/workspaces/cron-health\n  host: gateway\n  security: full\n  ask: off\n  timeout: 120\n  yieldMs: 20000\n\nPolicy:\n- If exec outputs nothing, return exactly NO_REPLY.\n- If exec outputs lines, return them exactly once with no extra commentary.\n- Keep output to 5 lines max.",
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id becbf6fc-066d-48c8-b8f2-05b2489ef91e --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "model": "openai-codex/gpt-5.4",
         "timeoutSeconds": 180,
         "lightContext": true
       },
       "delivery": {
         "mode": "none",
-        "channel": "telegram",
-        "to": "8171372724",
-        "bestEffort": true
+        "accountId": "monitor"
       },
       "state": {
         "lastRunAtMs": 1773742349647,
@@ -702,7 +720,27 @@
         "lastDeliveryStatus": "not-delivered",
         "lastDelivered": false
       },
-      "agentId": "cron-health"
+      "agentId": "cron-health",
+      "metadata": {
+        "commandJobSpec": {
+          "command": "bash",
+          "args": [
+            "/Users/hd/Developer/cortana/tools/monitoring/run-immune-scan.sh"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-health",
+          "timeoutMs": 180000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon",
+          "allowEmptySuccess": true
+        },
+        "legacyAgentTurn": {
+          "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nImmune scan. User-facing owner lane is cron-health.\n\nExecution contract:\n- First action must be one `exec` tool call.\n- Do not read files, search the repo, inspect skills, or use any other tool before that exec call.\n- Use this exact command and settings, non-interactively:\n  command: bash /Users/hd/Developer/cortana/tools/monitoring/run-immune-scan.sh\n  workdir: /Users/hd/.openclaw/workspaces/cron-health\n  host: gateway\n  security: full\n  ask: off\n  timeout: 120\n  yieldMs: 20000\n\nPolicy:\n- If exec outputs nothing, return exactly NO_REPLY.\n- If exec outputs lines, return them exactly once with no extra commentary.\n- Keep output to 5 lines max."
+        }
+      }
     },
     {
       "id": "fd0ee16f-2259-4759-963f-85d5119447eb",
@@ -755,7 +793,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 120,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/cron-slo-monitor.ts\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- If script outputs alert text, send it via message tool to telegram target 8171372724 exactly once.\n- Keep concise.",
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id cron-slo-daily-monitor-20260303 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "lightContext": true
       },
       "delivery": {
@@ -772,7 +810,27 @@
         "consecutiveErrors": 0,
         "lastDelivered": false
       },
-      "updatedAtMs": 1773749708975
+      "updatedAtMs": 1773749708975,
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/monitoring/cron-slo-monitor.ts"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 120000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/cron-slo-monitor.ts\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- If script outputs alert text, send it via message tool to telegram target 8171372724 exactly once.\n- Keep concise."
+        }
+      }
     },
     {
       "id": "cron-runtime-repo-drift-monitor-20260303",
@@ -790,7 +848,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 120,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/runtime-repo-drift-monitor.ts --source-repo /Users/hd/Developer/cortana\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- If drift exists, send output via message tool to telegram target 8171372724 exactly once. Keep the alert under 150 words.\n- Runtime repo defaults to the canonical source repo unless CORTANA_RUNTIME_REPO overrides it.\n- This monitor is read-only. Runtime deploys happen explicitly through /Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh.",
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id cron-runtime-repo-drift-monitor-20260303 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "lightContext": true
       },
       "delivery": {
@@ -807,7 +865,29 @@
         "consecutiveErrors": 0,
         "lastDelivered": false
       },
-      "updatedAtMs": 1773750013521
+      "updatedAtMs": 1773750013521,
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/monitoring/runtime-repo-drift-monitor.ts",
+            "--source-repo",
+            "/Users/hd/Developer/cortana"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 120000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/runtime-repo-drift-monitor.ts --source-repo /Users/hd/Developer/cortana\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- If drift exists, send output via message tool to telegram target 8171372724 exactly once. Keep the alert under 150 words.\n- Runtime repo defaults to the canonical source repo unless CORTANA_RUNTIME_REPO overrides it.\n- This monitor is read-only. Runtime deploys happen explicitly through /Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh."
+        }
+      }
     },
     {
       "id": "d2d2c973-c6ea-4e42-a821-3d0ebf5f4c11",
@@ -819,13 +899,15 @@
         "anchorMs": 1772591843523
       },
       "payload": {
-        "message": "Silent safety job. Run `npx tsx /Users/hd/Developer/cortana/tools/alerting/cron-restart-recovery.ts`. Return `NO_REPLY` on healthy paths. Only surface actionable recovery output.",
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id d2d2c973-c6ea-4e42-a821-3d0ebf5f4c11 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.4",
-        "lightContext": true
+        "lightContext": true,
+        "timeoutSeconds": 120
       },
       "delivery": {
-        "mode": "none"
+        "mode": "none",
+        "accountId": "monitor"
       },
       "state": {
         "nextRunAtMs": 1773761443255,
@@ -840,7 +922,27 @@
       "wakeMode": "now",
       "sessionTarget": "isolated",
       "updatedAtMs": 1773760855381,
-      "agentId": "cron-maintenance"
+      "agentId": "cron-maintenance",
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/alerting/cron-restart-recovery.ts"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 120000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "Silent safety job. Run `npx tsx /Users/hd/Developer/cortana/tools/alerting/cron-restart-recovery.ts`. Return `NO_REPLY` on healthy paths. Only surface actionable recovery output."
+        }
+      }
     },
     {
       "id": "repo-drift-watchdog-daily",
@@ -858,7 +960,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: 🧭 Repo - Drift Watchdog\nDELIVERY: send via message tool (channel=telegram, target=8171372724) only on drift.\n\nRun: /Users/hd/Developer/cortana/tools/repo/drift-watchdog.sh\n- If exit code is 0: return NO_REPLY and do not send a message.\n- If exit code is non-zero: send the script output as a concise alert to Telegram, then return one-line confirmation.",
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id repo-drift-watchdog-daily --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 90,
         "lightContext": true
@@ -876,6 +978,23 @@
       "delivery": {
         "mode": "none",
         "accountId": "monitor"
+      },
+      "metadata": {
+        "commandJobSpec": {
+          "command": "/Users/hd/Developer/cortana/tools/repo/drift-watchdog.sh",
+          "args": [],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 90000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nPREFIX: 🧭 Repo - Drift Watchdog\nDELIVERY: send via message tool (channel=telegram, target=8171372724) only on drift.\n\nRun: /Users/hd/Developer/cortana/tools/repo/drift-watchdog.sh\n- If exit code is 0: return NO_REPLY and do not send a message.\n- If exit code is non-zero: send the script output as a concise alert to Telegram, then return one-line confirmation."
+        }
       }
     },
     {
@@ -935,8 +1054,8 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "timeoutSeconds": 90,
-        "message": "Maintenance watchdog.\n\nRouting owner:\n- Monitor is the user-facing owner lane for operational maintenance alerts.\n- Healthy/no-action paths must stay silent and return exactly `NO_REPLY`.\n\nFirst action: exec exactly `/Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 120, yieldMs 20000.\n\nIf the script needs escalation, send one concise Telegram alert via `message` with:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nOtherwise return exactly `NO_REPLY`.",
+        "timeoutSeconds": 120,
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id subagent-reliability-reaper-15m --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "lightContext": true
       },
       "delivery": {
@@ -953,7 +1072,32 @@
         "consecutiveErrors": 0,
         "lastDelivered": false
       },
-      "updatedAtMs": 1773760512072
+      "updatedAtMs": 1773760512072,
+      "metadata": {
+        "commandJobSpec": {
+          "command": "/Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh",
+          "args": [
+            "--active-minutes",
+            "15",
+            "--max-runtime-seconds",
+            "900",
+            "--cooldown-seconds",
+            "900",
+            "--no-emit-terminal"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 120000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "Maintenance watchdog.\n\nRouting owner:\n- Monitor is the user-facing owner lane for operational maintenance alerts.\n- Healthy/no-action paths must stay silent and return exactly `NO_REPLY`.\n\nFirst action: exec exactly `/Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh --active-minutes 15 --max-runtime-seconds 900 --cooldown-seconds 900 --no-emit-terminal` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 120, yieldMs 20000.\n\nIf the script needs escalation, send one concise Telegram alert via `message` with:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nOtherwise return exactly `NO_REPLY`."
+        }
+      }
     },
     {
       "id": "session-lifecycle-policy-daily",
@@ -969,8 +1113,8 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "timeoutSeconds": 60,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx --yes tsx /Users/hd/Developer/cortana/tools/session/session-lifecycle-policy.ts\nPolicy:\n- If output is NO_REPLY, return exactly NO_REPLY.\n- Otherwise send one concise Monitor-owned alert with counts + breaches under 150 words, then return exactly NO_REPLY.",
+        "timeoutSeconds": 90,
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id session-lifecycle-policy-daily --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "lightContext": true
       },
       "delivery": {
@@ -987,7 +1131,28 @@
         "consecutiveErrors": 0,
         "lastDelivered": false
       },
-      "updatedAtMs": 1773750632069
+      "updatedAtMs": 1773750632069,
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "--yes",
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/session/session-lifecycle-policy.ts"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 60000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx --yes tsx /Users/hd/Developer/cortana/tools/session/session-lifecycle-policy.ts\nPolicy:\n- If output is NO_REPLY, return exactly NO_REPLY.\n- Otherwise send one concise Monitor-owned alert with counts + breaches under 150 words, then return exactly NO_REPLY."
+        }
+      }
     },
     {
       "id": "ops-routing-drift-check-daily-20260312",
@@ -1005,7 +1170,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.4",
         "timeoutSeconds": 90,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/ops-routing-drift-check.ts --repo-root /Users/hd/Developer/cortana\nPolicy:\n- If the script outputs NO_REPLY, return exactly NO_REPLY.\n- If drift exists, send the output exactly once as a Monitor-owned ops alert.\n- Stable routing/preferences updates belong in MEMORY.md, HEARTBEAT.md, docs/source/doctrine/agent-routing.md, docs/source/doctrine/operating-rules.md, README.md, and config/cron/jobs.json together.",
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id ops-routing-drift-check-daily-20260312 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "lightContext": true
       },
       "delivery": {
@@ -1022,7 +1187,29 @@
         "lastDeliveryStatus": "not-delivered",
         "consecutiveErrors": 0
       },
-      "updatedAtMs": 1773751207528
+      "updatedAtMs": 1773751207528,
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/monitoring/ops-routing-drift-check.ts",
+            "--repo-root",
+            "/Users/hd/Developer/cortana"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 90000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/ops-routing-drift-check.ts --repo-root /Users/hd/Developer/cortana\nPolicy:\n- If the script outputs NO_REPLY, return exactly NO_REPLY.\n- If drift exists, send the output exactly once as a Monitor-owned ops alert.\n- Stable routing/preferences updates belong in MEMORY.md, HEARTBEAT.md, docs/source/doctrine/agent-routing.md, docs/source/doctrine/operating-rules.md, README.md, and config/cron/jobs.json together."
+        }
+      }
     },
     {
       "id": "0f2b73e9-2f7d-4e8e-88eb-a6fd33d4d7a1",
@@ -1040,9 +1227,10 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts preflight`.\nRouting:\n- This preflight is Monitor-owned on the user-facing side.\n- If it exits 0: return exactly NO_REPLY.\n- If it exits non-zero: do not add extra commentary; the script already alerted Hamel through the Monitor guard. Return exactly NO_REPLY.\n- Monitor is the user-facing owner lane for operational maintenance alerts.\n- Quiet maintenance watchers should return exactly NO_REPLY on healthy paths.\n",
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id 0f2b73e9-2f7d-4e8e-88eb-a6fd33d4d7a1 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "model": "openai-codex/gpt-5.3-codex",
-        "lightContext": true
+        "lightContext": true,
+        "timeoutSeconds": 120
       },
       "state": {
         "consecutiveErrors": 0,
@@ -1057,6 +1245,27 @@
       "delivery": {
         "mode": "none",
         "accountId": "monitor"
+      },
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts",
+            "preflight"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 120000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P1",
+          "system": "OpenClaw",
+          "actionNeeded": "now"
+        },
+        "legacyAgentTurn": {
+          "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts preflight`.\nRouting:\n- This preflight is Monitor-owned on the user-facing side.\n- If it exits 0: return exactly NO_REPLY.\n- If it exits non-zero: do not add extra commentary; the script already alerted Hamel through the Monitor guard. Return exactly NO_REPLY.\n- Monitor is the user-facing owner lane for operational maintenance alerts.\n- Quiet maintenance watchers should return exactly NO_REPLY on healthy paths.\n"
+        }
       }
     },
     {
@@ -1075,9 +1284,10 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts sweep`.\nRouting:\n- This sweep is Monitor-owned on the user-facing side.\n- If it exits 0: return exactly NO_REPLY.\n- If it exits non-zero: do not add extra commentary; the script already retried/alerted through the Monitor guard. Return exactly NO_REPLY.\n- Monitor is the user-facing owner lane for operational maintenance alerts.\n- Quiet maintenance watchers should return exactly NO_REPLY on healthy/recovered paths.\n",
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id 4a84dbcc-88ff-4a46-9933-f62b5fd15778 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "model": "openai-codex/gpt-5.3-codex",
-        "lightContext": true
+        "lightContext": true,
+        "timeoutSeconds": 120
       },
       "state": {
         "consecutiveErrors": 0,
@@ -1092,6 +1302,27 @@
       "delivery": {
         "mode": "none",
         "accountId": "monitor"
+      },
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts",
+            "sweep"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 120000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P1",
+          "system": "OpenClaw",
+          "actionNeeded": "now"
+        },
+        "legacyAgentTurn": {
+          "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts sweep`.\nRouting:\n- This sweep is Monitor-owned on the user-facing side.\n- If it exits 0: return exactly NO_REPLY.\n- If it exits non-zero: do not add extra commentary; the script already retried/alerted through the Monitor guard. Return exactly NO_REPLY.\n- Monitor is the user-facing owner lane for operational maintenance alerts.\n- Quiet maintenance watchers should return exactly NO_REPLY on healthy/recovered paths.\n"
+        }
       }
     },
     {
@@ -1328,12 +1559,32 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.4",
         "timeoutSeconds": 120,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nExecution contract:\n- First action must be one `exec` tool call.\n- Do not read files, search the repo, inspect skills, or use any other tool before that exec call.\n- Use this exact command and settings, non-interactively:\n  command: bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh --restart-if-pending\n  workdir: /Users/hd/.openclaw/workspaces/cron-maintenance\n  host: gateway\n  security: full\n  ask: off\n  timeout: 120\n  yieldMs: 20000\n\nRules:\n- Do not ask for approval.\n- Do not substitute a different command.\n- If the script indicates there was no pending restart, return exactly NO_REPLY.\n- If it performed the deferred restart path, send one short monitor-owned message confirming the restart window ran.\n- If it fails, send one short monitor-owned failure alert under 150 words.",
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id a9c37f59-8f34-4c59-bb53-8a2b6d3fb3f8 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "lightContext": true
       },
       "delivery": {
         "mode": "none",
         "accountId": "monitor"
+      },
+      "metadata": {
+        "commandJobSpec": {
+          "command": "bash",
+          "args": [
+            "/Users/hd/Developer/cortana/tools/openclaw/post-update.sh",
+            "--restart-if-pending"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 120000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nExecution contract:\n- First action must be one `exec` tool call.\n- Do not read files, search the repo, inspect skills, or use any other tool before that exec call.\n- Use this exact command and settings, non-interactively:\n  command: bash /Users/hd/Developer/cortana/tools/openclaw/post-update.sh --restart-if-pending\n  workdir: /Users/hd/.openclaw/workspaces/cron-maintenance\n  host: gateway\n  security: full\n  ask: off\n  timeout: 120\n  yieldMs: 20000\n\nRules:\n- Do not ask for approval.\n- Do not substitute a different command.\n- If the script indicates there was no pending restart, return exactly NO_REPLY.\n- If it performed the deferred restart path, send one short monitor-owned message confirming the restart window ran.\n- If it fails, send one short monitor-owned failure alert under 150 words."
+        }
       }
     },
     {
@@ -1352,12 +1603,32 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 120,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/critical-synthetic-probe.ts\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- Only actionable failures should trigger a message.\n- Preserve the script's classification labels (self_healable/human_auth/human_permission/control_plane/repo_runtime_drift).\n- Send alert text via message tool to telegram target 8171372724 exactly once.",
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id critical-synthetic-probes-daily-20260330 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "lightContext": true
       },
       "delivery": {
         "mode": "none",
         "accountId": "monitor"
+      },
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/monitoring/critical-synthetic-probe.ts"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 120000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P1",
+          "system": "OpenClaw",
+          "actionNeeded": "now"
+        },
+        "legacyAgentTurn": {
+          "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: monitor\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRun: npx tsx /Users/hd/Developer/cortana/tools/monitoring/critical-synthetic-probe.ts\nPolicy:\n- If script outputs NO_REPLY, return NO_REPLY.\n- Only actionable failures should trigger a message.\n- Preserve the script's classification labels (self_healable/human_auth/human_permission/control_plane/repo_runtime_drift).\n- Send alert text via message tool to telegram target 8171372724 exactly once."
+        }
       }
     },
     {
@@ -1419,13 +1690,33 @@
       "payload": {
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
-        "timeoutSeconds": 90,
-        "message": "Vacation-mode watchdog.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/monitoring/vacation-mode-guard.ts` with workdir `/Users/hd/.openclaw/workspaces/cron-health`, host `gateway`, security `full`, ask `off`, timeout 120, yieldMs 20000.\n\nIf stdout is `NO_REPLY`, return `NO_REPLY`. Otherwise send stdout once via `message` to Telegram target `8171372724` with accountId `monitor`, then return `NO_REPLY`.",
+        "timeoutSeconds": 120,
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id vacation-mode-fragile-guard-20260411 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "lightContext": true
       },
       "delivery": {
         "mode": "none",
         "accountId": "monitor"
+      },
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/monitoring/vacation-mode-guard.ts"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-health",
+          "timeoutMs": 120000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "Vacation-mode watchdog.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/monitoring/vacation-mode-guard.ts` with workdir `/Users/hd/.openclaw/workspaces/cron-health`, host `gateway`, security `full`, ask `off`, timeout 120, yieldMs 20000.\n\nIf stdout is `NO_REPLY`, return `NO_REPLY`. Otherwise send stdout once via `message` to Telegram target `8171372724` with accountId `monitor`, then return `NO_REPLY`."
+        }
       }
     },
     {
@@ -1500,6 +1791,50 @@
       "delivery": {
         "mode": "none",
         "channel": "last",
+        "accountId": "monitor"
+      }
+    },
+    {
+      "id": "autonomy-ops-artifact-refresh-20260505",
+      "agentId": "cron-maintenance",
+      "name": "🧭 Autonomy Ops Artifact Refresh (5m)",
+      "enabled": true,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/5 * * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "model": "openai-codex/gpt-5.4",
+        "timeoutSeconds": 90,
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id autonomy-ops-artifact-refresh-20260505 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
+        "lightContext": true
+      },
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/monitoring/write-autonomy-ops-artifact.ts"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 90000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "Refresh the Mission Control Autonomy Ops artifact by running `npx tsx /Users/hd/Developer/cortana/tools/monitoring/write-autonomy-ops-artifact.ts`. Return `NO_REPLY` on success."
+        }
+      },
+      "delivery": {
+        "mode": "none",
         "accountId": "monitor"
       }
     }

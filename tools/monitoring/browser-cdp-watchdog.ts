@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { spawnSync } from "node:child_process";
+import { upsertHumanRequiredAction } from "../human-actions/human-required-actions.ts";
 
 type BrowserProfile = {
   cdpUrl?: string;
@@ -54,6 +55,38 @@ function compact(text: string, max = 180): string {
   const normalized = text.replace(/\s+/g, " ").trim();
   if (!normalized) return "unknown";
   return normalized.length <= max ? normalized : `${normalized.slice(0, max - 1)}…`;
+}
+
+function queueHumanRequiredAction(input: {
+  fingerprint: string;
+  summary: string;
+  requiredAction: string;
+  detail: string;
+  profileName?: string;
+  cdpUrl?: string;
+}): void {
+  try {
+    upsertHumanRequiredAction({
+      fingerprint: input.fingerprint,
+      system: "browser_session",
+      category: "human_browser",
+      ownerLane: "monitor",
+      severity: "warning",
+      summary: input.summary,
+      requiredAction: input.requiredAction,
+      verificationKey: "browser_cdp_health",
+      evidence: {
+        detail: input.detail,
+        profileName: input.profileName,
+        cdpUrl: input.cdpUrl,
+      },
+      metadata: {
+        source: "browser-cdp-watchdog",
+      },
+    });
+  } catch (error) {
+    process.stderr.write(`human-required queue write failed: ${error instanceof Error ? error.message : String(error)}\n`);
+  }
 }
 
 function resolveProfile(config: OpenClawConfig): { name: string; profile: BrowserProfile; cdpUrl: string } | null {
@@ -130,6 +163,12 @@ function verifyCdp(url: string, attempts = 8, sleepMs = 1000): { ok: boolean; de
 function main(): void {
   const config = readJson<OpenClawConfig>(CONFIG_PATH);
   if (!config) {
+    queueHumanRequiredAction({
+      fingerprint: "browser-cdp-watchdog:runtime-config-unavailable",
+      summary: "Browser/CDP runtime config is unavailable",
+      requiredAction: "Inspect ~/.openclaw/openclaw.json on the Mac mini and restore the browser profile config, then rerun the browser CDP watchdog.",
+      detail: "runtime config unavailable",
+    });
     console.log("🌐 Browser/CDP watchdog actionable failure.\n- control_plane: runtime config unavailable");
     return;
   }
@@ -153,6 +192,14 @@ function main(): void {
   if (recent.length >= MAX_RESTARTS_PER_WINDOW) {
     state.restartTimestamps = recent;
     writeState(state);
+    queueHumanRequiredAction({
+      fingerprint: `browser-cdp-watchdog:${profileName}:budget-spent`,
+      summary: "Browser/CDP relay remains unhealthy after the restart budget was spent",
+      requiredAction: "Open the configured browser profile locally, confirm the remote debugging relay is running, then rerun the browser CDP watchdog.",
+      detail: initial.detail,
+      profileName,
+      cdpUrl,
+    });
     console.log(
       [
         "🌐 Browser/CDP watchdog actionable failure.",
@@ -173,6 +220,14 @@ function main(): void {
     return;
   }
 
+  queueHumanRequiredAction({
+    fingerprint: `browser-cdp-watchdog:${profileName}:after-restart`,
+    summary: "Browser/CDP relay is still unhealthy after bounded restart",
+    requiredAction: "Open the configured browser profile locally, confirm the remote debugging relay is reachable, then rerun the browser CDP watchdog.",
+    detail: verified.detail,
+    profileName,
+    cdpUrl,
+  });
   console.log(
     [
       "🌐 Browser/CDP watchdog actionable failure.",

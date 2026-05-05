@@ -1007,6 +1007,18 @@ npx tsx tools/monitoring/cron-state-reconciler.ts --apply --json
 
 Do not run apply mode unless you are prepared for the tool to back up runtime state, update stale status metadata, restart/reload the gateway scheduler, and verify live state after reload.
 
+The daily cron digest and delivery monitor consume the reconciler report at `~/.openclaw/reports/cron-state-reconciler/latest.json`. Post-merge sync refreshes that report after runtime deploy.
+
+### Autonomy Ops read model
+
+Mission Control `/autonomy` reads the cached artifact at `~/.openclaw/reports/autonomy-ops/latest.json`. Refresh it manually with:
+
+```bash
+npx tsx tools/monitoring/write-autonomy-ops-artifact.ts --json
+```
+
+The source cron job `autonomy-ops-artifact-refresh-20260505` refreshes this artifact every five minutes through the deterministic command runner. The Mission Control refresh endpoint may run only that artifact writer and should return stale data instead of triggering remediation.
+
 ### Session hygiene
 
 ```bash

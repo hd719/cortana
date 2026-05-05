@@ -9,6 +9,17 @@ import { resolveHomePath, PSQL_BIN } from "../lib/paths.js";
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   !!value && typeof value === "object" && !Array.isArray(value);
 
+function loadStaleRuntimeOnlyJobIds(): Set<string> {
+  const report = readJsonFile<Record<string, unknown>>(resolveHomePath(".openclaw", "reports", "cron-state-reconciler", "latest.json"));
+  const rows = report && Array.isArray(report.jobs) ? report.jobs : [];
+  const stale = new Set<string>();
+  for (const row of rows) {
+    if (!isRecord(row)) continue;
+    if (row.classification === "stale_error_state") stale.add(String(row.id ?? ""));
+  }
+  return stale;
+}
+
 const coerceBool = (value: unknown): unknown => {
   if (typeof value === "boolean") return value;
   if (typeof value === "string") {
@@ -28,10 +39,12 @@ async function main(): Promise<number> {
 
   const nowMs = Date.now();
   const failures: Array<{ name: string; runTime: string }> = [];
+  const staleRuntimeOnlyJobIds = loadStaleRuntimeOnlyJobIds();
 
   for (const job of jobs) {
     if (!isRecord(job)) continue;
     if (!job.enabled) continue;
+    if (staleRuntimeOnlyJobIds.has(String(job.id ?? ""))) continue;
 
     const delivery = isRecord(job.delivery) ? job.delivery : null;
     const mode = typeof delivery?.mode === "string" ? delivery.mode.trim().toLowerCase() : null;

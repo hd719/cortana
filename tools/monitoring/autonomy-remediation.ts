@@ -5,6 +5,8 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { loadAutonomyConfig } from "./autonomy-lanes.ts";
 import { resolveIncident, upsertOpenIncident } from "./autonomy-incidents.ts";
+import { upsertHumanRequiredAction } from "../human-actions/human-required-actions.ts";
+import type { HumanActionCategory, HumanActionSeverity, HumanActionSystem } from "../human-actions/human-required-taxonomy.ts";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..");
 const STATE_FILE = process.env.AUTONOMY_REMEDIATION_STATE_FILE ?? path.join(os.tmpdir(), "cortana-autonomy-remediation-state.json");
@@ -636,6 +638,54 @@ RETURNING id::text;
   return created ? Number(created) : null;
 }
 
+function humanActionSystemFor(item: RemediationItem): HumanActionSystem {
+  if (item.system === "browser") return "browser_session";
+  if (item.system === "cron" && /auth|openai|provider/i.test(`${item.detail} ${item.verification ?? ""}`)) return "openai_auth";
+  return "system";
+}
+
+function humanActionCategoryFor(item: RemediationItem): HumanActionCategory {
+  if (item.system === "browser") return "human_browser";
+  if (/auth|oauth|token|login|reauth/i.test(`${item.detail} ${item.verification ?? ""}`)) return "human_auth";
+  return "human_setup";
+}
+
+function humanActionSeverityFor(item: RemediationItem): HumanActionSeverity {
+  if (item.familyCritical || item.system === "cron") return "critical";
+  return item.status === "escalate" ? "warning" : "info";
+}
+
+function queueHumanRequiredAction(item: RemediationItem, followUpTaskId: number | null): void {
+  if (!["escalate", "skipped"].includes(item.status)) return;
+  const system = humanActionSystemFor(item);
+  try {
+    upsertHumanRequiredAction({
+      system,
+      category: humanActionCategoryFor(item),
+      severity: humanActionSeverityFor(item),
+      ownerLane: item.familyCritical ? "main" : "monitor",
+      summary: `${item.system} ${item.status}: ${item.detail}`.slice(0, 240),
+      requiredAction: item.escalationPath ?? item.action ?? "Review the autonomy follow-up and perform the required local operator action.",
+      fingerprint: `autonomy_remediation:${item.system}`,
+      verificationKey: system === "browser_session" ? "browser_cdp_health" : system === "system" && item.system === "gateway" ? "openclaw_gateway_health" : null,
+      evidence: {
+        source: "autonomy-remediation",
+        system: item.system,
+        status: item.status,
+        detail: item.detail,
+        verificationStatus: item.verificationStatus ?? "uncertain",
+      },
+      metadata: {
+        followUpTaskId,
+        familyCritical: item.familyCritical ?? false,
+        laneLabel: item.laneLabel ?? null,
+      },
+    });
+  } catch (error) {
+    process.stderr.write(`human-required queue write failed: ${error instanceof Error ? error.message : String(error)}\n`);
+  }
+}
+
 function resolveOpenFollowUps(item: RemediationItem): number[] {
   const system = sqlEscape(item.system);
   const resolutionStatus = sqlEscape(item.status);
@@ -773,6 +823,7 @@ VALUES (
 
   const followUpTaskId = createOrReuseFollowUp(item);
   item.followUpTaskId = followUpTaskId;
+  queueHumanRequiredAction(item, followUpTaskId);
   const severity = item.status === 'remediated' ? 'info' : item.familyCritical ? 'error' : 'warning';
   psql(`
 INSERT INTO cortana_events (event_type, source, severity, message, metadata)
