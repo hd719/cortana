@@ -9,6 +9,8 @@ import { runAutonomyDrill } from "./autonomy-drill.ts";
 
 const STATE_FILE = process.env.AUTONOMY_OPS_STATE_FILE ?? path.join(os.tmpdir(), "cortana-autonomy-ops-state.json");
 
+export type AutonomyOpsSummary = ReturnType<typeof buildAutonomyOpsSummary>;
+
 export function buildAutonomyOpsSummary() {
   const status = collectAutonomyStatus();
   const rollout = buildRolloutSummary();
@@ -100,13 +102,13 @@ export function renderAutonomyOpsSummary(summary: ReturnType<typeof buildAutonom
 }
 
 
-function main() {
+export function runAutonomyOpsCli(argv = process.argv.slice(2)): void {
   const summary = buildAutonomyOpsSummary();
   const fingerprint = fingerprintSummary(summary);
   const prior = readState();
   const unchanged = prior.fingerprint === fingerprint;
 
-  if (process.argv.includes("--json")) {
+  if (argv.includes("--json")) {
     console.log(JSON.stringify({ ...summary, unchanged }, null, 2));
     return;
   }
@@ -125,4 +127,6 @@ function main() {
   process.exit(summary.operatorState === "attention" ? 1 : 0);
 }
 
-main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runAutonomyOpsCli();
+}

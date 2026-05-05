@@ -153,10 +153,10 @@ function parseScenarios(argv: string[]): DrillScenario[] {
   return values;
 }
 
-function main() {
-  const scenarios = parseScenarios(process.argv.slice(2));
+export function runAutonomyDrillCli(argv = process.argv.slice(2)): void {
+  const scenarios = parseScenarios(argv);
   const summary = runAutonomyDrill(scenarios);
-  if (process.argv.includes("--json")) {
+  if (argv.includes("--json")) {
     console.log(JSON.stringify(summary, null, 2));
     return;
   }
@@ -166,4 +166,6 @@ function main() {
   }
 }
 
-main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runAutonomyDrillCli();
+}

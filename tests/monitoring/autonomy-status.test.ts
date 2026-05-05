@@ -74,7 +74,8 @@ describe("autonomy-status", () => {
 
     setArgv([]);
     const consoleSpy = captureConsole();
-    await importFresh("../../tools/monitoring/autonomy-status.ts");
+    const { runAutonomyStatusCli } = await importFresh("../../tools/monitoring/autonomy-status.ts");
+    runAutonomyStatusCli();
     await flushModuleSideEffects();
     consoleSpy.restore();
 
@@ -117,7 +118,8 @@ describe("autonomy-status", () => {
 
     setArgv(["--json"]);
     const consoleSpy = captureConsole();
-    await importFresh("../../tools/monitoring/autonomy-status.ts");
+    const { runAutonomyStatusCli } = await importFresh("../../tools/monitoring/autonomy-status.ts");
+    runAutonomyStatusCli(["--json"]);
     await flushModuleSideEffects();
     consoleSpy.restore();
 
@@ -172,7 +174,8 @@ describe("autonomy-status", () => {
 
     setArgv(["--json"]);
     const consoleSpy = captureConsole();
-    await importFresh("../../tools/monitoring/autonomy-status.ts");
+    const { runAutonomyStatusCli } = await importFresh("../../tools/monitoring/autonomy-status.ts");
+    runAutonomyStatusCli(["--json"]);
     await flushModuleSideEffects();
     consoleSpy.restore();
 

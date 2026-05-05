@@ -31,7 +31,8 @@ describe("autonomy-rollout", () => {
     });
 
     setArgv([]);
-    await importFresh("../../tools/monitoring/autonomy-rollout.ts");
+    const { runAutonomyRolloutCli } = await importFresh("../../tools/monitoring/autonomy-rollout.ts");
+    runAutonomyRolloutCli();
     await flushModuleSideEffects();
     consoleSpy.restore();
 
@@ -53,7 +54,8 @@ describe("autonomy-rollout", () => {
     });
 
     setArgv([]);
-    await importFresh("../../tools/monitoring/autonomy-rollout.ts");
+    const { runAutonomyRolloutCli } = await importFresh("../../tools/monitoring/autonomy-rollout.ts");
+    runAutonomyRolloutCli();
     await flushModuleSideEffects();
     consoleSpy.restore();
 
@@ -77,7 +79,8 @@ describe("autonomy-rollout", () => {
     });
 
     setArgv([]);
-    await importFresh("../../tools/monitoring/autonomy-rollout.ts");
+    const { runAutonomyRolloutCli } = await importFresh("../../tools/monitoring/autonomy-rollout.ts");
+    runAutonomyRolloutCli();
     await flushModuleSideEffects();
     consoleSpy.restore();
 
@@ -101,7 +104,8 @@ describe("autonomy-rollout", () => {
     });
 
     setArgv(["--json"]);
-    await importFresh("../../tools/monitoring/autonomy-rollout.ts");
+    const { runAutonomyRolloutCli } = await importFresh("../../tools/monitoring/autonomy-rollout.ts");
+    runAutonomyRolloutCli(["--json"]);
     await flushModuleSideEffects();
     consoleSpy.restore();
 

@@ -75,9 +75,9 @@ export function renderRolloutSummary(summary: RolloutSummary): string {
   return lines.join("\n");
 }
 
-function main() {
+export function runAutonomyRolloutCli(argv = process.argv.slice(2)): void {
   const summary = buildRolloutSummary();
-  if (process.argv.includes("--json")) {
+  if (argv.includes("--json")) {
     console.log(JSON.stringify(summary, null, 2));
     return;
   }
@@ -90,4 +90,6 @@ function main() {
   process.exit(summary.status === "attention" ? 1 : 0);
 }
 
-main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runAutonomyRolloutCli();
+}
