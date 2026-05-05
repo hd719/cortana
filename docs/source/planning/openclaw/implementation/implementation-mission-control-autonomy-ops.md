@@ -27,7 +27,7 @@
 ## Recommended Execution Order
 
 ```text
-Week 1: cortana JSON artifact writer and schema tests
+Week 1: cortana JSON artifact writer, per-source freshness schema, and schema tests
 Week 2: Mission Control read API, fixtures, page, sidebar nav
 Week 3: Refresh endpoint, cron writer, smoke validation, docs
 ```
@@ -46,12 +46,13 @@ Week 3: Refresh endpoint, cron writer, smoke validation, docs
 
 - Sub-task 1: Create `/Users/hd/Developer/cortana/tools/monitoring/write-autonomy-ops-artifact.ts`.
 - Sub-task 2: Refactor `/Users/hd/Developer/cortana/tools/monitoring/autonomy-ops.ts` only as needed to export a stable schema.
-- Sub-task 3: Add `/Users/hd/Developer/cortana/tests/monitoring/autonomy-ops-artifact.test.ts` with `live`, `watch`, `attention`, stale-source, and missing-source fixtures.
+- Sub-task 3: Add `/Users/hd/Developer/cortana/tests/monitoring/autonomy-ops-artifact.test.ts` with `live`, `watch`, `attention`, stale-source, missing-source, and fresh-artifact/stale-source fixtures.
 
 #### Testing
 
-- Artifact includes `schemaVersion`, `generatedAt`, `freshUntil`, `operatorState`, sections, counts, and source freshness.
+- Artifact includes `schemaVersion`, `generatedAt`, `freshUntil`, `operatorState`, sections, counts, and per-source freshness/confidence fields.
 - Missing source degrades confidence but does not fabricate green status.
+- A freshly generated artifact with a stale required source cannot produce `operatorState=live`.
 - Writer uses atomic write.
 
 ---
@@ -75,6 +76,7 @@ Week 3: Refresh endpoint, cron writer, smoke validation, docs
 - Fresh artifact returns `{ ok: true, stale: false }`.
 - Stale artifact returns data with `stale: true`.
 - Missing or invalid artifact returns an error shape without crashing.
+- Source entries missing required freshness metadata are treated as missing/stale and prevent live posture.
 
 ### Vertical 3 - Operator page
 
@@ -98,6 +100,7 @@ Week 3: Refresh endpoint, cron writer, smoke validation, docs
 
 - UI fixtures render `live`, `watch`, and `attention`.
 - Stale cache is visibly labeled.
+- Stale required sources are visibly listed even when the artifact file itself is fresh.
 - Sidebar link appears in desktop and mobile nav.
 
 ---
@@ -167,5 +170,5 @@ Refresh and cron wiring are easier to validate after the static read path works.
 
 The smallest credible build is a cached artifact plus a read-only page. Mutating controls should wait until stale-vs-active and human-required data are trusted.
 
-- **Biggest risks:** cross-repo schema drift, accidental remediation from refresh, stale dashboard confidence.
+- **Biggest risks:** cross-repo schema drift, accidental remediation from refresh, stale dashboard confidence, hiding stale source data inside a freshly written artifact.
 - **Assumptions:** Mission Control can read local artifacts, operator access stays private, v1 is read-only.

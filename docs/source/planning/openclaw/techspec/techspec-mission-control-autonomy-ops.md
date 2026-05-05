@@ -66,9 +66,14 @@ Recommended payload:
   },
   "sources": [
     {
-      "name": "autonomy-ops",
+      "name": "openclaw-status",
       "status": "fresh",
-      "generatedAt": "2026-05-03T00:00:00.000Z"
+      "generatedAt": "2026-05-03T00:00:00.000Z",
+      "freshUntil": "2026-05-03T00:05:00.000Z",
+      "lastSuccessfulAt": "2026-05-03T00:00:00.000Z",
+      "requiredForState": true,
+      "error": null,
+      "confidenceImpact": "operator_state"
     }
   ]
 }
@@ -76,7 +81,19 @@ Recommended payload:
 
 ### Cache Changes
 
-Mission Control should treat the artifact as stale after `freshUntil`. Stale data can render, but the UI must label it and avoid presenting stale posture as current truth.
+Mission Control should treat the artifact as stale after top-level `freshUntil`. Stale data can render, but the UI must label it and avoid presenting stale posture as current truth.
+
+Per-source freshness rules:
+
+- Every source entry must include `name`, `status`, `generatedAt`, `freshUntil`, `lastSuccessfulAt`, `requiredForState`, `error`, and `confidenceImpact`.
+- Source statuses are `fresh`, `stale`, `missing`, or `error`.
+- `requiredForState=true` means the source can constrain the top-level `operatorState`. A required stale/missing/error source prevents `operatorState=live` even when the artifact file itself was freshly written.
+- `confidenceImpact` is one of `operator_state`, `section_only`, or `informational`.
+- Top-level `operatorState` is the worst applicable state after source roll-up:
+  - `attention` for active critical failure, overdue family-critical human action, or required source error.
+  - `watch` for stale required source, missing required source, unresolved non-critical human action, or degraded-but-not-critical signal.
+  - `live` only when all required sources are fresh and no section contains active blockers.
+- A freshly generated artifact may contain stale source data, but it must surface those stale sources in `sections.staleSignals` and cannot label the whole system live.
 
 ---
 
@@ -117,6 +134,7 @@ Safe degradation:
 - If the artifact is missing, Mission Control shows an unavailable state with the expected refresh command.
 - If refresh fails, Mission Control keeps the last cached payload with a stale/error label.
 - If a source is unavailable, the source entry degrades confidence instead of guessing.
+- If source metadata is missing or fails schema validation, Mission Control treats that source as `missing` and prevents `operatorState=live`.
 
 ---
 
@@ -237,13 +255,15 @@ Success means:
 
 - Fresh `live`, `watch`, and `attention` fixtures render correctly.
 - Missing and stale artifacts render as unavailable/stale, not healthy.
+- A fresh artifact with stale required source data renders as `watch` or `attention`, never `live`.
 - Page load does not invoke remediation.
 - Sidebar exposes `/autonomy` on desktop and mobile.
 
 ---
 
-## Risks / Open Questions
+## Risks / Follow-ups
 
 - Cross-repo rollout requires synchronized PRs or staged compatibility.
 - Artifact schema drift between repos must be caught by versioned validation.
+- Source-level freshness drift must be visible even when the artifact writer ran recently.
 - A refresh endpoint can become a hidden shell-out path unless the read-only command allowlist is strict.

@@ -51,6 +51,7 @@ The first version should expose a read-only Mission Control page backed by a sma
 - Page distinguishes `live`, `watch`, and `attention`.
 - Human-required items are visible and deduped.
 - Stale/noisy signals are labeled separately from active failures.
+- A freshly written artifact with stale required source data cannot show `live`.
 - Page load does not trigger remediation actions.
 - API response is covered by tests using fixture payloads.
 
@@ -102,7 +103,7 @@ The first version should expose a read-only Mission Control page backed by a sma
 | Status | User story | Notes |
 |--------|------------|-------|
 | Accepted | As Mission Control, I want a stable JSON autonomy payload so that UI logic does not shell out in React components. | API/server side only. |
-| Accepted | As an operator, I want source, timestamp, and freshness for each included signal. | Prevent stale dashboard truth. |
+| Accepted | As an operator, I want source, timestamp, freshness, and confidence impact for each included signal. | Prevent stale dashboard truth. |
 
 ---
 
@@ -122,6 +123,7 @@ The first version should expose a read-only Mission Control page backed by a sma
 |--------|------------|-------|
 | Accepted | As an operator, I want stale historical failures labeled as stale instead of active. | Depends on reconciler when available. |
 | Accepted | As Hamel, I want human-required setup items visible without repeated watchdog alerts. | Example: Apple Health install, OAuth reauth. |
+| Accepted | As Monitor, I want stale or missing required sources to degrade the top-level state. | Fresh artifact does not mean fresh source truth. |
 
 ---
 
@@ -146,8 +148,9 @@ The first version should expose a read-only Mission Control page backed by a sma
 - `openclaw status --deep`
 - cron state / cron reconciler output
 
-### Open Questions
+### Implementation Decisions
 
-- Should `cortana` write a periodic JSON artifact for Mission Control to read?
-- Should Mission Control call scripts on demand, or only read cached output?
-- Which page owns the navigation placement: Dashboard, Services, or a new Autonomy tab?
+- `cortana` writes a periodic JSON artifact for Mission Control to read.
+- Mission Control page load reads cached output only. Explicit refresh may run bounded read-only scripts with stale-cache fallback.
+- Navigation uses a top-level `Autonomy` page.
+- Every source in the artifact carries source-level freshness and confidence impact. Required stale/missing/error sources prevent `operatorState=live`.

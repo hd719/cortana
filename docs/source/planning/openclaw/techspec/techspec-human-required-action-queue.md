@@ -24,7 +24,7 @@ Implementation decision for open PRD questions:
 
 - Storage: use a new `cortana_human_required_actions` table, not `cortana_tasks`. These records have different dedupe, evidence, authority, and verification semantics. Items can link to `cortana_tasks` later.
 - Mission Control v1: read-only display first. Manual close is available through a CLI in v1; Mission Control mutation can be v2 unless needed for operator ergonomics.
-- Reminder cadence: send one immediate state-change alert for new or materially changed items, include non-critical open items in a daily digest, and escalate family-critical items according to their lane threshold. Do not send repeated identical alerts.
+- Reminder cadence: send one immediate state-change alert for new or materially changed items, include non-critical open items in a daily digest, and escalate family-critical items according to their lane threshold. Do not send repeated identical alerts. "Materially changed" must be decided by typed fields, not prompt judgment.
 
 ---
 
@@ -45,7 +45,8 @@ Implementation decision for open PRD questions:
 | NOT NULL | `status` | TEXT | `open`, `verified`, `resolved`, `ignored`, `expired`. |
 | NOT NULL | `summary` | TEXT | Short operator-facing label. |
 | NOT NULL | `required_action` | TEXT | Human-readable next step. |
-| NOT NULL DEFAULT '' | `verification_command` | TEXT | Safe read-only command if available. |
+| NULL | `verification_key` | TEXT | Allowlisted read-only verification id if available. |
+| NOT NULL DEFAULT '{}' | `verification_args` | JSONB | Typed parameters for the allowlisted verification id. |
 | NOT NULL DEFAULT '{}' | `evidence` | JSONB | Redacted evidence. |
 | NOT NULL DEFAULT '{}' | `metadata` | JSONB | Source-specific context; no secrets. |
 | NOT NULL DEFAULT 1 | `detection_count` | INTEGER | Number of matching detections. |
@@ -74,7 +75,30 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_human_required_actions_open_fingerprint
 Notes:
 
 - No raw tokens, cookies, credentials, or portal secrets are allowed in `evidence` or `metadata`.
-- `verification_command` must be allowlisted before execution.
+- Store verification as `verification_key` plus typed `verification_args`, not arbitrary shell text.
+- Verification keys must resolve through an allowlist before execution.
+
+Alert state-change policy:
+
+| Event | Immediate Alert? | Notes |
+|-------|------------------|-------|
+| New open fingerprint | Yes | Creates the initial operator-visible item. |
+| Severity increases | Yes | Includes `info -> warning`, `warning -> critical`, or family-critical lane escalation. |
+| Required action changes | Yes | A new human step is needed. |
+| Evidence digest changes materially | Yes | Use typed digest fields such as provider error code, auth scope, permission name, or portal URL category. |
+| Detection repeats unchanged before `next_remind_at` | No | Increment `detection_count` and update `last_seen_at`. |
+| Item reaches `next_remind_at` | Digest only unless critical | Non-critical reminders stay in the daily autonomy digest. |
+| Item reaches `due_at` | Yes | Alert even when the fingerprint is unchanged. |
+| Family-critical item remains open past lane threshold | Yes | Re-alert according to `config/autonomy-lanes.json`. |
+| Verification fails after human action | Yes | The item is still open and needs a corrected action. |
+| Verification passes | No alert by default | Close as `verified`; include in next summary if useful. |
+| Previously open item is no longer detected | No immediate alert | Mark `expired` only after the source-specific expiry window. |
+
+Fingerprint and material-change rules:
+
+- `fingerprint` should identify the stable blocker, not every observation. Example dimensions: `system`, `category`, account/provider identifier, permission/scope name, and owner lane.
+- Material-change digest should exclude timestamps, counters, raw error strings, and volatile stack traces.
+- Severity, due policy, required action, verification key, and material evidence digest must be compared on every update before deciding whether to suppress.
 
 ---
 
@@ -111,6 +135,7 @@ No new network exposure. Mission Control manual mutation, if added later, must f
 - Known human-only blockers create or update one open queue item by fingerprint.
 - New or materially changed items can alert once through Monitor.
 - Unchanged open items suppress repeated identical alerts.
+- Suppression never hides due/overdue, severity-increased, verification-failed, or family-critical threshold events.
 - Daily autonomy summaries include waiting-on-Hamel items.
 - Verification commands can close items automatically after the human action is completed.
 - Family-critical blockers keep stricter escalation and should not be suppressed past the lane threshold.
@@ -244,13 +269,15 @@ Success means:
 - Repeated identical detections update one row.
 - New state-change sends at most one alert.
 - Daily digest includes open non-critical items without repeated immediate alerts.
+- Severity increases, overdue state, verification failure, and family-critical threshold events bypass duplicate suppression.
 - Verification closes a resolved item with evidence.
 - Secret-like values are rejected or redacted before persistence.
 
 ---
 
-## Risks / Open Questions
+## Risks / Follow-ups
 
 - Fingerprints must be stable enough to dedupe but specific enough to avoid merging distinct blockers.
 - Existing watchdogs may need careful tuning to classify human-required versus transient runtime failures.
+- Suppression policy must not hide worsening or overdue blockers.
 - Mission Control manual close is useful but should wait until the read model is trusted.

@@ -23,7 +23,7 @@ Affected repos and runtime surfaces:
 
 Implementation decision for open PRD questions:
 
-- Direct command cron payload: design the `cortana` contract first as `kind=command`, then adapt it to either native OpenClaw support or a script wrapper that can be referenced by existing cron config.
+- Direct command cron payload: pin the tracked `cortana` contract to the existing cron job envelope and put the new execution mode under `payload.kind=command`. Do not introduce top-level `type=command` jobs. If live OpenClaw does not accept `payload.kind=command` by implementation time, v1 must deploy wrapper-mode `agentTurn` entries and preserve the canonical command spec in metadata until native support exists.
 - Run evidence storage: write both OpenClaw cron state and `cortana_events` where available. Cron state remains the scheduler-visible status; `cortana_events` is the audit/autonomy surface.
 - Actionable output delivery: use `/Users/hd/Developer/cortana/tools/notifications/telegram-delivery-guard.sh` for v1 so account routing stays under the existing Monitor contract. A native runtime sender can be added later behind the same interface.
 
@@ -61,26 +61,44 @@ Notes:
 
 Add a reversible command-runner representation for eligible jobs. Preserve the legacy `agentTurn` definition in metadata or adjacent disabled config until the rollout is proven.
 
-Recommended command job shape:
+Canonical command job shape before runtime adaptation:
 
 ```json
 {
   "id": "main-bootstrap-refresh",
-  "type": "command",
-  "command": "npx",
-  "args": ["tsx", "tools/context/refresh-main-bootstrap.ts"],
-  "cwd": "/Users/hd/Developer/cortana",
-  "timeoutMs": 120000,
-  "quietSuccess": "NO_REPLY",
-  "owner": "monitor",
-  "fallback": {
-    "type": "agentTurn",
-    "enabled": true
+  "agentId": "cron-maintenance",
+  "name": "Main Bootstrap Refresh",
+  "enabled": true,
+  "schedule": {
+    "kind": "cron",
+    "expr": "*/30 * * * *",
+    "tz": "America/New_York"
+  },
+  "sessionTarget": "isolated",
+  "wakeMode": "now",
+  "payload": {
+    "kind": "command",
+    "command": "npx",
+    "args": ["tsx", "tools/context/refresh-main-bootstrap.ts"],
+    "cwd": "/Users/hd/Developer/cortana",
+    "timeoutMs": 120000,
+    "quietSuccess": "NO_REPLY",
+    "owner": "monitor",
+    "fallback": {
+      "kind": "agentTurn",
+      "enabled": true,
+      "message": "Run the canonical command-runner fallback for main-bootstrap-refresh."
+    }
   }
 }
 ```
 
-If OpenClaw does not accept `type=command`, generate wrapper scripts under `tools/cron/command-jobs/` and point existing cron entries at the wrapper.
+Runtime adaptation rules:
+
+- Source validation must reject command-job config unless the payload is nested under `payload.kind=command`.
+- Runtime sync must prove native `payload.kind=command` support before deploying it to `~/.openclaw`.
+- If native support is absent, generate wrapper scripts under `tools/cron/command-jobs/` and deploy ordinary `payload.kind=agentTurn` cron entries that call the wrapper. The wrapper entry must include `metadata.commandJobSpec` so rollback and later native migration are deterministic.
+- Smoke tests must compare source config and live `~/.openclaw/cron/jobs.json` after sync. A code diff alone is not proof of migration.
 
 ---
 
@@ -223,7 +241,7 @@ Success means:
 
 ---
 
-## Risks / Open Questions
+## Risks / Follow-ups
 
 - OpenClaw direct command cron support may require wrapper mode in v1.
 - Some prompts may look deterministic but encode subtle judgment; those should remain excluded.

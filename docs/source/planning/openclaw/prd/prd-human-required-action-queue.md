@@ -41,14 +41,14 @@ Implementation spans:
 - `cortana` for classification, queue storage, and Monitor-owned alert policy
 - `cortana-external` for Mission Control display
 
-The queue should store structured action items with owner, system, reason, required human step, evidence, due/expiry policy, and verification command. Scripts and watchdogs should write to the queue instead of sending repeated alerts for the same known manual blocker.
+The queue should store structured action items with owner, system, reason, required human step, evidence, due/expiry policy, and allowlisted verification key. Scripts and watchdogs should write to the queue instead of sending repeated alerts for the same known manual blocker.
 
 ---
 
 ## Success Metrics
 
 - Known human-required blockers appear once in the queue with a clear next action.
-- Repeated identical alerts are suppressed while an item is open.
+- Repeated identical alerts are suppressed while an item is open, except for typed state changes, due/overdue reminders, verification failures, and family-critical escalation thresholds.
 - Completion can be verified by a deterministic check.
 - Mission Control shows all open human-required items.
 - No secrets or raw tokens are written to queue records.
@@ -61,7 +61,7 @@ The queue should store structured action items with owner, system, reason, requi
 - PostgreSQL `cortana` DB is available for durable queue storage.
 - Mission Control can read the queue through its existing Cortana DB connection.
 - Human-required items can be fingerprinted for dedupe.
-- Verification commands can be safe read-only checks.
+- Verification keys can resolve to safe read-only checks through an allowlist.
 
 ---
 
@@ -94,7 +94,7 @@ The queue should store structured action items with owner, system, reason, requi
 |------|---------|
 | Human-required action | A blocker that needs Hamel to perform a step outside autonomous authority. |
 | Fingerprint | Stable dedupe key for one recurring blocker. |
-| Verification command | Read-only command proving the human action has resolved the blocker. |
+| Verification key | Allowlisted read-only check proving the human action has resolved the blocker. |
 
 ---
 
@@ -122,6 +122,7 @@ The queue should store structured action items with owner, system, reason, requi
 |--------|------------|-------|
 | Accepted | As Hamel, I want one clear alert when a new manual action is needed. | State-change only. |
 | Accepted | As Hamel, I do not want repeated identical alerts while the item is still open. | Exception: overdue or family-critical escalation. |
+| Accepted | As Monitor, I want severity increases, required-action changes, verification failures, and due/overdue items to bypass duplicate suppression. | Prevent over-suppression. |
 
 ---
 
@@ -160,8 +161,8 @@ The queue should store structured action items with owner, system, reason, requi
 - Google/Gog OAuth consent expired.
 - Browser CDP profile needs manual login renewal.
 
-### Open Questions
+### Implementation Decisions
 
-- Should queue storage be a new table or reuse `cortana_tasks` with metadata?
-- Should Mission Control v1 allow manual close, or read-only display first?
-- What cadence should remind Hamel about open non-critical items?
+- Queue storage is a new `cortana_human_required_actions` table, not `cortana_tasks`.
+- Mission Control v1 is read-only; manual close is available through CLI first.
+- Non-critical open items appear in the daily digest. Immediate re-alerts are reserved for new/materially changed items, overdue items, verification failures, and family-critical lane thresholds.

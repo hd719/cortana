@@ -58,12 +58,13 @@ Mission Control can later consume this classification, but the first version sho
 - Reconciler output identifies evidence source for every repair decision.
 - Repairs are logged to `cortana_events`.
 - No silent repair occurs without fresh success evidence.
+- Apply-mode repair is verified against live gateway-visible state after scheduler reload/restart.
 
 ---
 
 ## Assumptions
 
-- Runtime cron state remains JSON-backed under `~/.openclaw/cron/jobs.json`.
+- Runtime cron state remains JSON-backed under `~/.openclaw/cron/jobs.json`, but the gateway scheduler may also hold in-memory state that must be reloaded or restarted after direct file repair.
 - Recent success evidence can be found in cron state, OpenClaw sessions, or `cortana_events`.
 - Some jobs may lack enough evidence and should remain `unknown`, not auto-repaired.
 - Source config remains canonical for intended schedule/prompt shape.
@@ -127,6 +128,7 @@ Mission Control can later consume this classification, but the first version sho
 | Accepted | As an operator, I want stale error metadata repaired only when a fresh successful run exists. | No repair from hope. |
 | Accepted | As a developer, I want `--dry-run` and `--apply` modes. | Automation can start read-only. |
 | Accepted | As Monitor, I want every repair logged with before/after state. | Use `cortana_events`. |
+| Accepted | As an operator, I want apply mode to reload/restart the scheduler and verify live state before claiming repair. | File mutation alone is not fixed. |
 
 ---
 
@@ -150,8 +152,8 @@ npx tsx tools/monitoring/cron-state-reconciler.ts --dry-run
 npx tsx tools/monitoring/cron-state-reconciler.ts --apply
 ```
 
-### Open Questions
+### Implementation Decisions
 
-- Should the reconciler directly mutate `~/.openclaw/cron/jobs.json`, or call an OpenClaw CLI repair command?
-- How recent must success evidence be for repair: 15 minutes, one schedule interval, or job-specific?
-- Should this run after every post-merge runtime sync?
+- Prefer a native OpenClaw CLI/RPC repair command. If none exists, direct JSON repair must use backup, lock, atomic write, gateway scheduler reload/restart, and post-reload verification.
+- Success evidence freshness is job-specific: `max(2 * schedule interval, 30 minutes)`, capped at `24 hours` for daily jobs, and must be newer than the latest known error.
+- Run dry-run after post-merge runtime sync and daily/attention cron health workflows. Do not run on every heartbeat unless the system is already in `attention`.

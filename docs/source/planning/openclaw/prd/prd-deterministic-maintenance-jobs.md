@@ -65,7 +65,7 @@ Runtime-owned behavior must be deployed through `tools/deploy/sync-runtime-from-
 
 ## Assumptions
 
-- OpenClaw cron can support or be extended to support direct command-style execution.
+- OpenClaw cron can support or be extended to support direct command-style execution under the existing cron job envelope.
 - Existing maintenance scripts are the right source of deterministic behavior.
 - Monitor remains the user-facing owner for operational maintenance alerts.
 - Runtime sync can safely deploy tracked cron config changes.
@@ -120,6 +120,7 @@ Runtime-owned behavior must be deployed through `tools/deploy/sync-runtime-from-
 | Accepted | As an operator, I want direct jobs to treat exact `NO_REPLY` as silent success so that healthy checks do not page me. | No Telegram send on healthy paths. |
 | Accepted | As Monitor, I want actionable script output to be delivered with `accountId=monitor` so that ownership stays correct. | Same routing contract as current prompts. |
 | Accepted | As a developer, I want exit code, stdout, stderr, duration, and timeout captured deterministically. | Log to cron state and/or events. |
+| Accepted | As a developer, I want the direct command contract pinned to `payload.kind=command` or an explicit wrapper-mode fallback. | No top-level command job shape. |
 
 ---
 
@@ -155,8 +156,9 @@ Initial candidates include:
 - Browser CDP Watchdog
 - OpenAI Auth Preflight/Sweep
 
-### Open Questions
+### Implementation Decisions
 
-- Does OpenClaw already have a direct command cron payload shape, or does it need one?
-- Should direct jobs write to `cortana_events`, OpenClaw cron state, or both?
-- Should actionable output be sent by OpenClaw runtime directly or through existing `telegram-delivery-guard.sh`?
+- The tracked command job shape uses the existing cron job envelope with `payload.kind=command`. Top-level `type=command` jobs are invalid.
+- If live OpenClaw does not support `payload.kind=command`, v1 deploys wrapper-mode `payload.kind=agentTurn` entries and preserves the canonical command spec in metadata.
+- Direct jobs write scheduler-visible cron state and `cortana_events` where available.
+- Actionable output uses the existing `telegram-delivery-guard.sh` in v1 so Monitor routing stays unchanged.

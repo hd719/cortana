@@ -46,13 +46,14 @@ Week 3: Expand to remaining eligible jobs, monitor 14-day watch window
 
 - Sub-task 1: Create `/Users/hd/Developer/cortana/tools/cron/deterministic-job-inventory.ts` to scan `/Users/hd/Developer/cortana/config/cron/jobs.json`.
 - Sub-task 2: Classify candidates with include/exclude reason, command, owner, quiet-path rule, timeout, and fallback eligibility.
-- Sub-task 3: Add fixture coverage in `/Users/hd/Developer/cortana/tests/cron/deterministic-maintenance-jobs.test.ts`.
+- Sub-task 3: Add fixture coverage in `/Users/hd/Developer/cortana/tests/cron/deterministic-maintenance-jobs.test.ts`, including rejection of top-level `type=command` jobs.
 
 #### Testing
 
 - Inventory includes the known candidate jobs from the PRD.
 - Judgment-heavy prompts are excluded with reasons.
 - Missing command or unclear output contract prevents migration.
+- Command payloads must be nested under `payload.kind=command`; top-level command job shapes are invalid.
 
 ### Vertical 2 - Command runner
 
@@ -85,7 +86,7 @@ Week 3: Expand to remaining eligible jobs, monitor 14-day watch window
 
 #### Jira
 
-- Sub-task 1: Update `/Users/hd/Developer/cortana/config/cron/jobs.json` for 2-3 low-risk jobs, preserving fallback metadata.
+- Sub-task 1: Update `/Users/hd/Developer/cortana/config/cron/jobs.json` for 2-3 low-risk jobs, preserving fallback metadata and using wrapper-mode `agentTurn` entries unless native `payload.kind=command` support has been proven live.
 - Sub-task 2: Create `/Users/hd/Developer/cortana/tools/cron/smoke-command-jobs.ts` for no-alert local smoke checks.
 - Sub-task 3: Update `/Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh` to validate command-job config before sync.
 
@@ -94,12 +95,14 @@ Week 3: Expand to remaining eligible jobs, monitor 14-day watch window
 - Start with quiet maintenance jobs that already have strong script output contracts.
 - Do not migrate trading, summaries, inbox, or research synthesis jobs in this phase.
 - Roll back by toggling the job to its fallback definition, not by reverting unrelated cron config.
+- Do not deploy native command payloads until `sync-runtime-from-cortana.sh` proves OpenClaw accepts and reloads them. Wrapper mode is the v1 fallback.
 
 #### Testing
 
 - `npx tsx tools/cron/smoke-command-jobs.ts --no-alert`
 - `/Users/hd/Developer/cortana/tools/deploy/sync-runtime-from-cortana.sh`
 - `openclaw cron list`
+- Compare the synced `~/.openclaw/cron/jobs.json` entry against the expected native or wrapper-mode runtime shape.
 
 ---
 
@@ -152,7 +155,7 @@ The pilot proves OpenClaw runtime compatibility before broader config churn.
 
 ### External Dependencies
 
-- OpenClaw cron support for direct command payloads, or wrapper compatibility.
+- OpenClaw cron support for `payload.kind=command`, or wrapper compatibility through ordinary `payload.kind=agentTurn`.
 - Existing Telegram delivery guard.
 - Cortana DB availability for audit events.
 

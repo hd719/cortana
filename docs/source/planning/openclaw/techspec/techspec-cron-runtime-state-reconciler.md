@@ -19,7 +19,7 @@ Implementation belongs in `cortana`. Mission Control can consume the classificat
 
 Implementation decision for open PRD questions:
 
-- Runtime mutation path: prefer an OpenClaw CLI repair command if one exists by implementation time. If not, v1 may perform guarded JSON repair of `~/.openclaw/cron/jobs.json` with backup, schema validation, file locking, and atomic write. All mutation stays behind `--apply`; default mode is dry-run.
+- Runtime mutation path: prefer an OpenClaw CLI/RPC repair command if one exists by implementation time because the gateway scheduler owns live cron state. If not, v1 may perform guarded JSON repair of `~/.openclaw/cron/jobs.json` only with backup, schema validation, file locking, atomic write, explicit scheduler reload/restart, and post-reload verification. All mutation stays behind `--apply`; default mode is dry-run.
 - Evidence freshness: use job-specific freshness. Required freshness is `max(2 * schedule interval, 30 minutes)`, capped at `24 hours` for daily jobs. Repair also requires successful evidence newer than the latest known error.
 - Run cadence: run after post-merge runtime sync and in daily/attention cron health workflows. Do not run on every heartbeat unless the system is already in `attention`.
 
@@ -43,7 +43,16 @@ No required schema change.
 
 #### READ `~/.openclaw/cron/jobs.json`
 
-Live cron state remains runtime-owned. The reconciler reads this file in dry-run mode and may repair stale status metadata in apply mode.
+Live cron state remains runtime-owned. The reconciler reads this file in dry-run mode and may repair stale status metadata in apply mode only through the mutation contract below.
+
+Mutation contract:
+
+- Native OpenClaw repair/reload command wins when available.
+- Direct JSON mutation is allowed only while holding a reconciler lock and after writing a timestamped backup.
+- Direct JSON mutation must change only stale status metadata such as `lastStatus`, `lastRunStatus`, `consecutiveErrors`, stale `runningAtMs`, or equivalent scheduler status fields. It must never change schedule, enabled state, payload, delivery, prompt, command, or owner.
+- After direct mutation, the reconciler must trigger a gateway scheduler reload or restart. If no bounded reload API exists, the runbook path is `openclaw gateway restart`.
+- After reload/restart, the reconciler must re-read live cron state and confirm the intended repaired metadata is visible. If verification fails, apply mode exits non-zero and reports the mismatch.
+- The report must include whether the repair used `native`, `json_plus_reload`, or `dry_run` mode.
 
 #### READ `config/cron/jobs.json`
 
@@ -67,7 +76,10 @@ Report shape:
       "evidence": "latest_success_after_error",
       "lastRuntimeStatus": "error",
       "freshUntil": "2026-05-03T00:30:00.000Z",
-      "repairable": true
+      "repairable": true,
+      "repairMode": "json_plus_reload",
+      "requiresSchedulerReload": true,
+      "reloadVerified": true
     }
   ]
 }
@@ -115,6 +127,7 @@ Safe degradation:
 
 - Missing runtime state produces `unknown` or `needs_human`, never repair.
 - Invalid JSON aborts apply mode before writing and leaves the original file untouched.
+- Scheduler reload/restart failure leaves the backup in place and reports `unknown`, not repaired.
 - Database logging failure does not block a dry-run report, but apply mode should include a warning.
 
 ---
@@ -199,12 +212,13 @@ Success means:
 - Recovered jobs with stale error metadata classify as `stale_error_state`.
 - Jobs with fresh errors classify as `active_failure`.
 - Ambiguous jobs classify as `unknown`.
-- Apply mode creates a backup, writes atomically, logs an event, and changes only repairable fields.
+- Apply mode creates a backup, writes atomically, reloads/restarts the scheduler when needed, verifies live state after reload, logs an event, and changes only repairable fields.
 
 ---
 
-## Risks / Open Questions
+## Risks / Follow-ups
 
 - Runtime cron JSON shape may change across OpenClaw versions.
 - Session/event evidence may be incomplete for older jobs.
 - Repairing runtime-owned state is inherently sensitive; native OpenClaw CLI support would reduce this risk.
+- Direct JSON repair can diverge from gateway in-memory state unless reload/restart and verification are mandatory.

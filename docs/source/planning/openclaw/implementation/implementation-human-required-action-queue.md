@@ -28,8 +28,8 @@
 
 ```text
 Week 1: DB schema, typed taxonomy, queue library, tests
-Week 2: Watchdog/remediation writers, alert suppression, CLI list/close
-Week 3: Verification commands, Mission Control read API/UI integration, digest policy
+Week 2: Watchdog/remediation writers, typed alert policy, CLI list/close
+Week 3: Verification keys, Mission Control read API/UI integration, digest policy
 ```
 
 ---
@@ -52,6 +52,7 @@ Week 3: Verification commands, Mission Control read API/UI integration, digest p
 
 - Schema ensure creates `cortana_human_required_actions`.
 - Repeated fingerprint updates one open item.
+- Material-change digest excludes volatile timestamps and raw stack traces.
 - Secret-like evidence is rejected or redacted.
 - Closed item plus same fingerprint creates a new open occurrence only when appropriate.
 
@@ -75,13 +76,15 @@ Week 3: Verification commands, Mission Control read API/UI integration, digest p
 
 - Start with a narrow taxonomy: OAuth/auth, OS permission/setup, provider portal, browser session.
 - Transient runtime failures should not be prematurely classified as human-required.
-- Family-critical blockers can suppress duplicates only until their lane escalation threshold.
+- Family-critical blockers can suppress exact duplicates only until their lane escalation threshold.
+- Suppression decisions must compare typed severity, required action, verification key, due policy, and material evidence digest.
 
 #### Testing
 
 - First detection creates an item and permits one state-change alert.
 - Repeated unchanged detection increments counters and suppresses immediate duplicate alert.
 - Materially changed evidence updates the item and allows a new state-change alert.
+- Severity increase, overdue state, verification failure, and family-critical threshold events bypass duplicate suppression.
 
 ### Vertical 3 - CLI and verification
 
@@ -93,12 +96,12 @@ Week 3: Verification commands, Mission Control read API/UI integration, digest p
 
 - Sub-task 1: Create `/Users/hd/Developer/cortana/tools/human-actions/human-required-actions-cli.ts`.
 - Sub-task 2: Implement `list`, `upsert`, `verify`, `close`, and `digest`.
-- Sub-task 3: Add verification allowlist and closure tests.
+- Sub-task 3: Add verification-key allowlist and closure tests.
 
 #### Testing
 
 - `list --status open` returns redacted operator output.
-- `verify --id <id>` runs only allowlisted read-only commands.
+- `verify --id <id>` resolves only allowlisted `verification_key` entries and typed arguments before running a read-only check.
 - `close --id <id> --reason resolved` records `resolved_by` and note.
 - Clean digest can emit `NO_REPLY`.
 
@@ -149,6 +152,7 @@ Mission Control should read the durable table directly rather than a temporary a
 - Durable manual-action queue.
 - Typed taxonomy and fingerprint dedupe.
 - Alert suppression for unchanged open items.
+- Typed alert state-change policy with due/overdue and family-critical bypasses.
 - CLI list/verify/close.
 - Read-only Mission Control display.
 
@@ -170,5 +174,5 @@ Mission Control should read the durable table directly rather than a temporary a
 
 The MVP is the table, library, CLI, and one real producer. Mission Control can follow once the read shape is stable.
 
-- **Biggest risks:** over-suppressing urgent failures, unstable fingerprints, accidental secret persistence.
+- **Biggest risks:** over-suppressing urgent failures, unstable fingerprints, accidental secret persistence, treating arbitrary stored command text as executable verification.
 - **Assumptions:** DB is available, manual blockers can be safely fingerprinted, non-critical reminders belong in daily digest.

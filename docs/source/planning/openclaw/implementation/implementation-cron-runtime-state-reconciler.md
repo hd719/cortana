@@ -86,19 +86,22 @@ Week 3: Apply-mode repair, post-merge/digest integration, runbook update
 #### Jira
 
 - Sub-task 1: Add `--apply` mode to `/Users/hd/Developer/cortana/tools/monitoring/cron-state-reconciler.ts`.
-- Sub-task 2: Implement backup, validation, file lock, atomic write, and before/after event logging.
+- Sub-task 2: Implement backup, validation, file lock, atomic write, scheduler reload/restart, post-reload verification, and before/after event logging.
 - Sub-task 3: Add tests for invalid JSON, write failure, non-repairable fields, and DB logging behavior.
 
 #### Important Planning Notes
 
 - If OpenClaw exposes a repair CLI by implementation time, use that adapter instead of direct file mutation.
 - Apply mode should change only stale status metadata, not schedule, prompt, command, or enabled state.
+- Direct JSON mutation is incomplete until the gateway scheduler has reloaded and the reconciler has re-read live cron state to verify the repaired metadata is visible.
 - Stale repair should stay quiet unless the repair itself fails.
 
 #### Testing
 
 - Apply mode creates a backup before write.
 - Only repairable fields change.
+- Reload/restart failure exits non-zero and does not claim repair success.
+- Post-reload live-state verification is required before emitting repaired status.
 - Event metadata includes evidence source and before/after state.
 
 ---
@@ -153,6 +156,7 @@ Workflow integration should not invite operators to use apply mode until repair 
 ### External Dependencies
 
 - Runtime cron state under `~/.openclaw/cron/jobs.json`.
+- OpenClaw gateway reload/restart support when native repair is unavailable.
 - Cortana DB event logging.
 - OpenClaw CLI repair support if available.
 
@@ -168,5 +172,5 @@ Workflow integration should not invite operators to use apply mode until repair 
 
 The MVP is dry-run classification plus a JSON report. Apply-mode repair can ship after classification is trusted.
 
-- **Biggest risks:** runtime state shape drift, incomplete evidence, unsafe direct mutation.
+- **Biggest risks:** runtime state shape drift, incomplete evidence, unsafe direct mutation, file truth diverging from the gateway scheduler's in-memory state.
 - **Assumptions:** source config is canonical for intended jobs, success after latest error is required for repair, clean output remains `NO_REPLY`.
