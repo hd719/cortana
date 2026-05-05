@@ -3,6 +3,21 @@ type CronConfig = { jobs?: CronJob[]; [key: string]: unknown };
 
 type CronDelivery = { mode?: string; to?: string };
 
+export type CommandJobSpec = {
+  id: string;
+  command: string;
+  args: string[];
+  cwd: string;
+  timeoutMs: number;
+  quietSuccess: string;
+  owner: string;
+  alertType?: string;
+  severity?: string;
+  system?: string;
+  actionNeeded?: string;
+  allowEmptySuccess?: boolean;
+};
+
 type RuntimeStateKey =
   | "state"
   | "updatedAtMs"
@@ -42,6 +57,7 @@ const toRecord = (value: unknown): Record<string, unknown> | null =>
   value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : null;
 
 const toText = (value: unknown): string => (typeof value === "string" ? value : "");
+const toTextArray = (value: unknown): string[] => Array.isArray(value) ? value.filter((entry): entry is string => typeof entry === "string") : [];
 
 function extractManagedByMarker(job: CronJob): string | null {
   const description = typeof job.description === "string" ? job.description : "";
@@ -125,4 +141,65 @@ export function expectsSilentSuccess(job: CronJob): boolean {
   const message = toText(payload?.message);
   return ["NO_REPLY", "output NOTHING", "return NOTHING", "return exactly NO_REPLY", "stay silent", "silent, no message", "If healthy: output NOTHING"]
     .some((hint) => message.includes(hint));
+}
+
+function normalizeCommandJobSpec(raw: unknown, fallbackId: string): CommandJobSpec | null {
+  const spec = toRecord(raw);
+  if (!spec) return null;
+
+  const command = toText(spec.command).trim();
+  const cwd = toText(spec.cwd).trim();
+  const quietSuccess = toText(spec.quietSuccess || "NO_REPLY").trim();
+  const timeoutMs = Number(spec.timeoutMs);
+  if (!command || !cwd || !Number.isFinite(timeoutMs) || timeoutMs <= 0) return null;
+
+  return {
+    id: toText(spec.id).trim() || fallbackId,
+    command,
+    args: toTextArray(spec.args),
+    cwd,
+    timeoutMs,
+    quietSuccess: quietSuccess || "NO_REPLY",
+    owner: toText(spec.owner).trim() || "monitor",
+    alertType: toText(spec.alertType).trim() || undefined,
+    severity: toText(spec.severity).trim() || undefined,
+    system: toText(spec.system).trim() || undefined,
+    actionNeeded: toText(spec.actionNeeded).trim() || undefined,
+    allowEmptySuccess: spec.allowEmptySuccess === true,
+  };
+}
+
+export function getCommandJobSpec(job: CronJob): CommandJobSpec | null {
+  const id = String(job.id ?? "");
+  const metadata = toRecord(job.metadata);
+  const fromMetadata = normalizeCommandJobSpec(metadata?.commandJobSpec, id);
+  if (fromMetadata) return fromMetadata;
+
+  const payload = toRecord(job.payload);
+  if (payload?.kind !== "command") return null;
+  return normalizeCommandJobSpec(payload, id);
+}
+
+export function validateCommandJobConfig(config: CronConfig): string[] {
+  const jobs = Array.isArray(config.jobs) ? config.jobs : [];
+  const errors: string[] = [];
+
+  for (const job of jobs) {
+    const id = String(job.id ?? "<missing-id>");
+    if (job.type === "command") {
+      errors.push(`${id}: top-level type=command is invalid; use payload.kind=command or metadata.commandJobSpec`);
+    }
+
+    const metadata = toRecord(job.metadata);
+    if (metadata?.commandJobSpec !== undefined && !normalizeCommandJobSpec(metadata.commandJobSpec, id)) {
+      errors.push(`${id}: metadata.commandJobSpec is incomplete or invalid`);
+    }
+
+    const payload = toRecord(job.payload);
+    if (payload?.kind === "command" && !normalizeCommandJobSpec(payload, id)) {
+      errors.push(`${id}: payload.kind=command is incomplete or invalid`);
+    }
+  }
+
+  return errors;
 }

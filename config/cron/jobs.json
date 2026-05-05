@@ -892,9 +892,29 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "timeoutSeconds": 60,
-        "message": "Quiet maintenance refresh for main-session live context.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/context/refresh-main-bootstrap.ts` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 120, yieldMs 20000.\n\nIf exec exits 0, return exactly `bootstrap refreshed`. Otherwise return stderr only. Do not use message.",
+        "timeoutSeconds": 90,
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id main-bootstrap-refresh-15m --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "lightContext": true
+      },
+      "metadata": {
+        "commandJobSpec": {
+          "command": "bash",
+          "args": [
+            "-lc",
+            "npx tsx /Users/hd/Developer/cortana/tools/context/refresh-main-bootstrap.ts >/dev/null && printf 'NO_REPLY\\n'"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 120000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "Quiet maintenance refresh for main-session live context.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/context/refresh-main-bootstrap.ts` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 120, yieldMs 20000.\n\nIf exec exits 0, return exactly `bootstrap refreshed`. Otherwise return stderr only. Do not use message."
+        }
       },
       "delivery": {
         "mode": "none",
@@ -1356,8 +1376,28 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.4",
         "timeoutSeconds": 90,
-        "message": "Maintenance watchdog.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/monitoring/browser-cdp-watchdog.ts` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 120, yieldMs 20000.\n\nIf stdout is `NO_REPLY`, return `NO_REPLY`. Otherwise send stdout once via `message` to Telegram target `8171372724` with accountId `monitor`, then return `NO_REPLY`.",
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id browser-cdp-watchdog-20260330 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
         "lightContext": true
+      },
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/monitoring/browser-cdp-watchdog.ts"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
+          "timeoutMs": 120000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "cron_command_actionable",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        },
+        "legacyAgentTurn": {
+          "message": "Maintenance watchdog.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/monitoring/browser-cdp-watchdog.ts` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 120, yieldMs 20000.\n\nIf stdout is `NO_REPLY`, return `NO_REPLY`. Otherwise send stdout once via `message` to Telegram target `8171372724` with accountId `monitor`, then return `NO_REPLY`."
+        }
       },
       "delivery": {
         "mode": "none",

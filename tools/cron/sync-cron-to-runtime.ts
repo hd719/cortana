@@ -3,7 +3,13 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { mergeRuntimeCronState, normalizeRuntimeCronConfig, splitRuntimeOnlyJobs, stableCronSemanticDigest } from "../lib/runtime-cron-jobs.js";
+import {
+  mergeRuntimeCronState,
+  normalizeRuntimeCronConfig,
+  splitRuntimeOnlyJobs,
+  stableCronSemanticDigest,
+  validateCommandJobConfig,
+} from "../lib/runtime-cron-jobs.js";
 
 type CronJob = Record<string, unknown>;
 type CronConfig = {
@@ -54,6 +60,11 @@ function main(): void {
   }
 
   const repoConfig = readJson(repoFile);
+  const commandJobErrors = validateCommandJobConfig(repoConfig);
+  if (commandJobErrors.length > 0) {
+    throw new Error(`invalid command job config:\n${commandJobErrors.join("\n")}`);
+  }
+
   const runtimeConfig = readJson(runtimeFile);
   const merged = mergeRuntimeCronState(repoConfig, runtimeConfig);
   const normalizedRuntimeConfig = normalizeRuntimeCronConfig(repoConfig, runtimeConfig);

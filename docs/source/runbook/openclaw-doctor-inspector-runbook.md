@@ -137,6 +137,25 @@ Interpretation rule:
 - Do not trust `consecutiveErrors>=2` alone as proof of an active outage.
 - Re-check the latest rerun result for each named job before acting.
 
+### Deterministic command cron checks
+
+Some maintenance crons carry a canonical command contract in `metadata.commandJobSpec` while still using an OpenClaw-compatible `agentTurn` wrapper. This is intentional until the installed OpenClaw scheduler supports native command payloads.
+
+Use these checks before and after editing migrated command jobs:
+
+```bash
+npx tsx tools/cron/deterministic-job-inventory.ts --json
+npx tsx tools/cron/smoke-command-jobs.ts --no-alert --json
+npx tsx tools/cron/sync-cron-to-runtime.ts --check --repo-root /Users/hd/Developer/cortana --runtime-home /Users/hd
+```
+
+Rules:
+
+- Top-level `type=command` cron jobs are invalid.
+- Native `payload.kind=command` must not be deployed until live OpenClaw support is proven.
+- Exact quiet success is normalized to `NO_REPLY`; actionable output is owned by Monitor through the command runner.
+- A code diff is not enough. Verify the runner locally and then verify runtime sync/live cron state.
+
 ### Heartbeat silent-path failure strings
 
 These exact or near-exact failures matter:
