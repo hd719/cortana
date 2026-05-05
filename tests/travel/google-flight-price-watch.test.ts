@@ -1,32 +1,32 @@
 import { describe, expect, it } from "vitest";
 import {
-  buildNoEmailStatus,
-  shouldSendNoEmailStatus,
+  extractRoute,
+  isFlightAlert,
 } from "../../tools/travel/google-flight-price-watch.ts";
 
 describe("google-flight-price-watch", () => {
-  it("sends one no-email status per day", () => {
-    expect(shouldSendNoEmailStatus({ version: 1, sentMessageIds: [] }, "2026-05-05")).toBe(true);
+  it("matches Marrakesh/RAK Google Flights alerts", () => {
     expect(
-      shouldSendNoEmailStatus(
-        { version: 1, sentMessageIds: [], lastNoEmailStatusDate: "2026-05-05" },
-        "2026-05-05",
-      ),
-    ).toBe(false);
-    expect(
-      shouldSendNoEmailStatus(
-        { version: 1, sentMessageIds: [], lastNoEmailStatusDate: "2026-05-04" },
-        "2026-05-05",
+      isFlightAlert(
+        "Track prices from Newark to Marrakesh departing 2026-08-12",
+        "Google Flights <googletravel-noreply@google.com>",
+        "Flight price alert",
       ),
     ).toBe(true);
   });
 
-  it("keeps the no-email status concise and actionable", () => {
-    const status = buildNoEmailStatus();
+  it("does not match Casablanca/CMN alerts after CMN tracking is removed", () => {
+    expect(
+      isFlightAlert(
+        "Track prices from Newark to Casablanca CMN departing 2026-08-12",
+        "Google Flights <googletravel-noreply@google.com>",
+        "Flight price alert",
+      ),
+    ).toBe(false);
+  });
 
-    expect(status).toContain("Morocco Flights - watcher alive");
-    expect(status).toContain("No matching Google Flights price-alert emails");
-    expect(status).toContain("enable Google Flights price tracking");
-    expect(status.split(/\s+/).length).toBeLessThanOrEqual(60);
+  it("summarizes unknown destinations as Marrakesh rather than broad Morocco", () => {
+    expect(extractRoute("Google Flights price alert from EWR to RAK")).toBe("EWR -> RAK");
+    expect(extractRoute("Google Flights price alert from New York")).toBe("New York -> Marrakesh");
   });
 });
