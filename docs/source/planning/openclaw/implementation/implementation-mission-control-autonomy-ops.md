@@ -1,6 +1,6 @@
 # Implementation Plan - Mission Control Autonomy Ops
 
-**Document Status:** Draft
+**Document Status:** In Implementation
 
 ## Team
 
@@ -41,6 +41,8 @@ Week 3: Refresh endpoint, cron writer, smoke validation, docs
 **cortana: write one stable Autonomy Ops JSON payload for Mission Control.**
 
 *Dependencies: None*
+
+**Implementation status:** V1 artifact writer is implemented in the first PR slice with a guarded/import-safe autonomy summary, versioned cached JSON schema, source freshness degradation, atomic writes, and focused tests. Mission Control API/page and periodic refresh wiring remain later verticals.
 
 #### Jira
 

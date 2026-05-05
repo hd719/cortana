@@ -27,7 +27,8 @@ describe("autonomy-drill", () => {
     const exitSpy = mockExit();
 
     setArgv([]);
-    await importFresh("../../tools/monitoring/autonomy-drill.ts");
+    const { runAutonomyDrillCli } = await importFresh("../../tools/monitoring/autonomy-drill.ts");
+    runAutonomyDrillCli();
     await flushModuleSideEffects();
     consoleSpy.restore();
 
@@ -44,7 +45,8 @@ describe("autonomy-drill", () => {
     const consoleSpy = captureConsole();
     setArgv(["--json", "--scenario", "family_critical"]);
 
-    await importFresh("../../tools/monitoring/autonomy-drill.ts");
+    const { runAutonomyDrillCli } = await importFresh("../../tools/monitoring/autonomy-drill.ts");
+    runAutonomyDrillCli(["--json", "--scenario", "family_critical"]);
     await flushModuleSideEffects();
     consoleSpy.restore();
 

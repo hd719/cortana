@@ -43,7 +43,8 @@ describe("autonomy-ops", () => {
     runAutonomyDrill.mockReturnValue({ status: "live", familyCriticalFailures: 0, scenarios: [] });
 
     setArgv([]);
-    await importFresh("../../tools/monitoring/autonomy-ops.ts");
+    const { runAutonomyOpsCli } = await importFresh("../../tools/monitoring/autonomy-ops.ts");
+    runAutonomyOpsCli();
     await flushModuleSideEffects();
     consoleSpy.restore();
 
@@ -74,7 +75,8 @@ describe("autonomy-ops", () => {
     });
 
     setArgv([]);
-    await importFresh("../../tools/monitoring/autonomy-ops.ts");
+    const { runAutonomyOpsCli } = await importFresh("../../tools/monitoring/autonomy-ops.ts");
+    runAutonomyOpsCli();
     await flushModuleSideEffects();
     consoleSpy.restore();
 
@@ -113,7 +115,8 @@ describe("autonomy-ops", () => {
     setArgv([]);
     const firstConsole = captureConsole();
     const firstExit = mockExit();
-    await importFresh("../../tools/monitoring/autonomy-ops.ts");
+    const firstModule = await importFresh("../../tools/monitoring/autonomy-ops.ts");
+    firstModule.runAutonomyOpsCli();
     await flushModuleSideEffects();
     firstConsole.restore();
     firstExit.mockRestore();
@@ -121,7 +124,8 @@ describe("autonomy-ops", () => {
     setArgv([]);
     const secondConsole = captureConsole();
     const secondExit = mockExit();
-    await importFresh("../../tools/monitoring/autonomy-ops.ts");
+    const secondModule = await importFresh("../../tools/monitoring/autonomy-ops.ts");
+    secondModule.runAutonomyOpsCli();
     await flushModuleSideEffects();
     secondConsole.restore();
 

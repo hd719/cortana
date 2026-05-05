@@ -59,7 +59,8 @@ describe("autonomy-scorecard", () => {
 
     setArgv(["--json"]);
     const consoleSpy = captureConsole();
-    await importFresh("../../tools/monitoring/autonomy-scorecard.ts");
+    const { runAutonomyScorecardCli } = await importFresh("../../tools/monitoring/autonomy-scorecard.ts");
+    runAutonomyScorecardCli();
     await flushModuleSideEffects();
     consoleSpy.restore();
 

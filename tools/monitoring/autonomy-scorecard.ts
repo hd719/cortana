@@ -163,9 +163,11 @@ SELECT json_build_object(
   };
 }
 
-function main() {
+export function runAutonomyScorecardCli(): void {
   const payload = collectAutonomyScorecard();
   console.log(JSON.stringify(payload, null, 2));
 }
 
-main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runAutonomyScorecardCli();
+}

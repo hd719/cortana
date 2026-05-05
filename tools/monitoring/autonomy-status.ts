@@ -175,13 +175,15 @@ export function renderAutonomyStatus(summary: AutonomyStatusSummary): string {
   return lines.join("\n");
 }
 
-function main() {
+export function runAutonomyStatusCli(argv = process.argv.slice(2)): void {
   const summary = collectAutonomyStatus();
-  if (process.argv.includes("--json")) {
+  if (argv.includes("--json")) {
     console.log(JSON.stringify(summary, null, 2));
     return;
   }
   console.log(renderAutonomyStatus(summary));
 }
 
-main();
+if (import.meta.url === `file://${process.argv[1]}`) {
+  runAutonomyStatusCli();
+}
