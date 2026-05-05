@@ -72,6 +72,9 @@ identities/*/DREAMS.md
 memory/archive/
 memory/.dreams/
 memory/dreaming/
+# Canonical daily memory files are live runtime artifacts. Mission Control reads
+# them from disk; they do not need VCS promotion.
+memory/[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9].md
 memory/*-delivery-test.md
 
 memory/*-sent.json
