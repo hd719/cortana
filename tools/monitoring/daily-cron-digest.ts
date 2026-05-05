@@ -64,6 +64,7 @@ type BuildDigestOptions = {
   health: HealthSnapshot;
   latestEntriesByJobId: Record<string, CronRunEntry | null>;
   latestFinishedByJobId: Record<string, CronRunEntry | null>;
+  reconcilerSummary?: string | null;
 };
 
 type FieldMatcher = {
@@ -395,7 +396,35 @@ function buildDigest(options: BuildDigestOptions): string {
     lines.push("Pattern: no current failure cluster.");
   }
 
+  if (options.reconcilerSummary) {
+    lines.push(options.reconcilerSummary);
+  }
+
   return lines.join("\n");
+}
+
+function readCronReconcilerSummary(): string | null {
+  const reportPath = resolveRuntimeStatePath("reports", "cron-state-reconciler", "latest.json");
+  try {
+    const raw = fs.readFileSync(reportPath, "utf8");
+    const parsed = JSON.parse(raw) as {
+      summary?: { activeFailure?: number; staleErrorState?: number; unknown?: number; needsHuman?: number };
+      jobs?: Array<{ classification?: string; name?: string; evidence?: string }>;
+    };
+    const summary = parsed.summary;
+    if (!summary) return null;
+    const actionable = (summary.activeFailure ?? 0) + (summary.unknown ?? 0) + (summary.needsHuman ?? 0);
+    const stale = summary.staleErrorState ?? 0;
+    if (!actionable && !stale) return "Reconciler: all cron state clean.";
+    const examples = (parsed.jobs ?? [])
+      .filter((job) => ["active_failure", "unknown", "needs_human", "stale_error_state"].includes(String(job.classification ?? "")))
+      .slice(0, 2)
+      .map((job) => `${job.classification}: ${job.name ?? "unknown"}`)
+      .join("; ");
+    return `Reconciler: ${actionable} active/unknown, ${stale} stale metadata${examples ? ` (${examples})` : ""}.`;
+  } catch {
+    return null;
+  }
 }
 
 function readRuntimeJobs(jobsPath: string): RuntimeJob[] {
@@ -523,6 +552,7 @@ async function main(): Promise<void> {
     health: readHealthSnapshot(),
     latestEntriesByJobId,
     latestFinishedByJobId,
+    reconcilerSummary: readCronReconcilerSummary(),
   });
 
   console.log(output);

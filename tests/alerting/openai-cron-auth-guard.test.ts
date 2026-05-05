@@ -3,6 +3,7 @@ import { flushModuleSideEffects, importFresh, mockExit, resetProcess, setArgv, u
 
 const readJsonFile = vi.hoisted(() => vi.fn());
 const spawnSync = vi.hoisted(() => vi.fn());
+const upsertHumanRequiredAction = vi.hoisted(() => vi.fn());
 const fsMock = vi.hoisted(() => ({
   existsSync: vi.fn(),
   mkdirSync: vi.fn(),
@@ -16,6 +17,9 @@ vi.mock("../../tools/lib/json-file.js", () => ({
 vi.mock("child_process", () => ({
   spawnSync,
 }));
+vi.mock("../../tools/human-actions/human-required-actions.js", () => ({
+  upsertHumanRequiredAction,
+}));
 vi.mock("node:fs", () => ({
   default: fsMock,
   ...fsMock,
@@ -25,6 +29,7 @@ describe("openai-cron-auth-guard", () => {
   beforeEach(() => {
     readJsonFile.mockReset();
     spawnSync.mockReset();
+    upsertHumanRequiredAction.mockReset();
     fsMock.existsSync.mockReset();
     fsMock.mkdirSync.mockReset();
     fsMock.writeFileSync.mockReset();
@@ -193,6 +198,11 @@ describe("openai-cron-auth-guard", () => {
       ["cron", "run", "job-1"],
       expect.anything()
     );
+    expect(upsertHumanRequiredAction).toHaveBeenCalledWith(expect.objectContaining({
+      system: "openai_auth",
+      category: "human_auth",
+      fingerprint: "openai-cron-auth-guard:sweep:auth",
+    }));
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 

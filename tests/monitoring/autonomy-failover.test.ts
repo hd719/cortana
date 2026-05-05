@@ -8,12 +8,16 @@ const fsMock = vi.hoisted(() => ({
 const spawnSync = vi.hoisted(() => vi.fn());
 const upsertOpenIncident = vi.hoisted(() => vi.fn());
 const resolveIncident = vi.hoisted(() => vi.fn());
+const upsertHumanRequiredAction = vi.hoisted(() => vi.fn());
 
 vi.mock("node:fs", () => ({ default: fsMock, ...fsMock }));
 vi.mock("node:child_process", () => ({ spawnSync }));
 vi.mock("../../tools/monitoring/autonomy-incidents.ts", () => ({
   upsertOpenIncident,
   resolveIncident,
+}));
+vi.mock("../../tools/human-actions/human-required-actions.ts", () => ({
+  upsertHumanRequiredAction,
 }));
 
 describe("autonomy family-critical failover", () => {
@@ -23,6 +27,7 @@ describe("autonomy family-critical failover", () => {
     spawnSync.mockReset();
     upsertOpenIncident.mockReset();
     resolveIncident.mockReset();
+    upsertHumanRequiredAction.mockReset();
     resetProcess();
   });
 

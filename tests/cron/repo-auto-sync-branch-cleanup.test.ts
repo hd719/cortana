@@ -11,7 +11,15 @@ describe("maintenance cron routing", () => {
     const jobsPath = path.resolve("config/cron/jobs.json");
     const raw = fs.readFileSync(jobsPath, "utf8");
     const json = JSON.parse(raw) as {
-      jobs: Array<{ id?: string; delivery?: { accountId?: string }; payload?: { message?: string } }>;
+      jobs: Array<{
+        id?: string;
+        delivery?: { accountId?: string };
+        payload?: { message?: string };
+        metadata?: {
+          commandJobSpec?: { command?: string; args?: string[]; owner?: string };
+          legacyAgentTurn?: { message?: string };
+        };
+      }>;
     };
 
     const job = json.jobs.find((j) => j.id === "49b29596-dd12-493d-820a-b3c234753783");
@@ -30,11 +38,16 @@ describe("maintenance cron routing", () => {
     expect(job?.delivery?.accountId).toBe("monitor");
 
     const message = String(job?.payload?.message ?? "");
-    expect(message).toContain("Monitor is the user-facing owner lane for operational maintenance alerts");
-    expect(message).toContain("Healthy/no-action paths must stay silent and return exactly `NO_REPLY`");
-    expect(message).toContain("/Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh");
-    expect(message).toContain("accountId: monitor");
+    const legacy = String(job?.metadata?.legacyAgentTurn?.message ?? "");
+    expect(message).toContain("command-job-runner.ts --job-id subagent-reliability-reaper-15m --alert");
     expect(message).toContain("return exactly `NO_REPLY`");
+    expect(job?.metadata?.commandJobSpec).toMatchObject({
+      command: "/Users/hd/Developer/cortana/tools/subagent-watchdog/check-subagents-with-retry.sh",
+      args: ["--active-minutes", "15", "--max-runtime-seconds", "900", "--cooldown-seconds", "900", "--no-emit-terminal"],
+      owner: "monitor",
+    });
+    expect(legacy).toContain("Monitor is the user-facing owner lane for operational maintenance alerts");
+    expect(legacy).toContain("Healthy/no-action paths must stay silent and return exactly `NO_REPLY`");
   });
 
   it("sanitizes marker-prefixed branch tokens (regression for '+ fix/...')", () => {

@@ -5,6 +5,7 @@ import path from "path";
 import { spawnSync } from "child_process";
 import { readJsonFile } from "../lib/json-file.js";
 import { resolveHomePath } from "../lib/paths.js";
+import { upsertHumanRequiredAction } from "../human-actions/human-required-actions.js";
 import {
   loadRoutePolicy as loadProviderRoutePolicy,
   loadState as loadProviderHealthState,
@@ -253,6 +254,35 @@ function sendGuard(message: string, alertType: string, dedupeKey: string): void 
   });
 }
 
+function queueOpenAIHumanRequiredAction(input: {
+  fingerprint: string;
+  summary: string;
+  requiredAction: string;
+  detail: string;
+  jobs?: string[];
+}): void {
+  try {
+    upsertHumanRequiredAction({
+      fingerprint: input.fingerprint,
+      system: "openai_auth",
+      category: "human_auth",
+      ownerLane: "monitor",
+      severity: "critical",
+      summary: input.summary,
+      requiredAction: input.requiredAction,
+      evidence: {
+        detail: input.detail,
+        jobs: input.jobs ?? [],
+      },
+      metadata: {
+        source: "openai-cron-auth-guard",
+      },
+    });
+  } catch (error) {
+    process.stderr.write(`human-required queue write failed: ${error instanceof Error ? error.message : String(error)}\n`);
+  }
+}
+
 function retryJob(jobId: string): { ok: boolean; detail: string } {
   const proc = spawnSync("openclaw", ["cron", "run", jobId], { encoding: "utf8", timeout: 240000 });
   const detail = `${(proc.stdout ?? "")}${(proc.stderr ?? "")}`.trim().slice(0, 500);
@@ -275,6 +305,15 @@ async function runPreflight(): Promise<number> {
   const driftText = modelDrift.length
     ? `non-openai or unconfigured routing on: ${modelDrift.map((job) => `${job.name}→${String((job.payload as JsonMap | undefined)?.model ?? "")}`).join(", ")}`
     : "model routing aligned";
+  if (probe.kind === "auth") {
+    queueOpenAIHumanRequiredAction({
+      fingerprint: "openai-cron-auth-guard:preflight:auth",
+      summary: "OpenAI auth preflight failed for critical cron jobs",
+      requiredAction: "Re-authenticate OpenAI/Codex locally on the Mac mini, then rerun `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts preflight`.",
+      detail: probe.detail,
+      jobs: jobs.map((job) => String(job.name ?? job.id ?? "unknown")),
+    });
+  }
   sendGuard(
     `🚨 OpenAI cron auth preflight failed\nProbe: ${probe.detail}\nProbe kind: ${probe.kind}\nCritical jobs: ${jobs.length}\nRouting: ${driftText}`,
     "openai_cron_auth_preflight",
@@ -298,6 +337,15 @@ async function runSweep(): Promise<number> {
   const probe = await probeOpenAIAuth();
   if (!probe.ok) {
     const lines = affected.map((row) => `${row.job.name}: auth-still-broken — ${String(row.authText).slice(0, 200)}`);
+    if (probe.kind === "auth") {
+      queueOpenAIHumanRequiredAction({
+        fingerprint: "openai-cron-auth-guard:sweep:auth",
+        summary: "OpenAI auth failures still block critical cron jobs",
+        requiredAction: "Re-authenticate OpenAI/Codex locally on the Mac mini, then rerun `npx tsx /Users/hd/Developer/cortana/tools/alerting/openai-cron-auth-guard.ts sweep`.",
+        detail: probe.detail,
+        jobs: affected.map((row) => String(row.job.name ?? row.job.id ?? "unknown")),
+      });
+    }
     sendGuard(
       `🚨 OpenAI auth failures hit critical cron jobs\nProbe: ${probe.detail}\n${lines.join("\n")}`,
       "openai_cron_auth_failure",

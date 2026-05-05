@@ -27,10 +27,13 @@ const JUDGMENT_HEAVY = [
   /trading/i,
   /canslim/i,
   /fitness/i,
+  /whoop/i,
   /calendar/i,
   /reminders/i,
   /earnings/i,
   /morocco/i,
+  /memory/i,
+  /x session/i,
 ];
 
 function parseArgs(argv: string[]): { repoRoot: string; json: boolean } {

@@ -1,6 +1,6 @@
 # Technical Specification - Mission Control Autonomy Ops
 
-**Document Status:** In Implementation
+**Document Status:** Complete
 
 ## Team
 
@@ -127,7 +127,7 @@ No new external exposure. Mission Control remains local/Tailscale-private. The r
 - The page separates active failures, stale signals, auto-fixed items, human-required blockers, and family-critical lane status.
 - Page load never mutates runtime state or starts remediation.
 - Stale cache is labeled as stale instead of hidden or treated as healthy.
-- Human-required items are visible and deduped when the queue exists; before then, `autonomy-status` waiting-on-human output remains the source.
+- Human-required items are visible and deduped through the durable queue; `autonomy-status` waiting-on-human output remains supplemental source context.
 
 Safe degradation:
 

@@ -87,11 +87,28 @@ describe("deterministic maintenance jobs", () => {
           delivery: { accountId: "monitor" },
           payload: { kind: "agentTurn", message: "Run: npx tsx brief.ts\nIf output is NO_REPLY, return exactly NO_REPLY." },
         },
+        {
+          id: "whoop",
+          name: "Whoop Recovery Risk Alert",
+          enabled: true,
+          delivery: { accountId: "spartan" },
+          payload: { kind: "agentTurn", message: "Run: npx tsx tools/fitness/fitness-alerts-data.ts\nIf primary_alert is null: return exactly NO_REPLY." },
+        },
       ],
     });
 
     expect(rows.find((row) => row.id === "migrated")).toMatchObject({ included: true, migrationMode: "metadata-command-spec" });
     expect(rows.find((row) => row.id === "brief")).toMatchObject({ included: false, reason: "excluded as judgment-heavy or user-facing" });
+    expect(rows.find((row) => row.id === "whoop")).toMatchObject({ included: false, reason: "excluded as judgment-heavy or user-facing" });
+  });
+
+  it("keeps all deterministic source cron jobs on command metadata specs", () => {
+    const sourceConfig = JSON.parse(fs.readFileSync("config/cron/jobs.json", "utf8"));
+    const rows = inventoryCronJobs(sourceConfig);
+    const missing = rows.filter((row) => row.included && row.migrationMode !== "metadata-command-spec");
+
+    expect(missing).toEqual([]);
+    expect(rows.filter((row) => row.migrationMode === "metadata-command-spec").length).toBeGreaterThan(10);
   });
 
   it("runs quiet success locally without sending alerts", () => {

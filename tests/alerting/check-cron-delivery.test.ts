@@ -119,6 +119,37 @@ describe("check-cron-delivery", () => {
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
+  it("skips jobs already classified as stale runtime metadata by the reconciler", async () => {
+    const exitSpy = mockExit();
+    const consoleCapture = captureConsole();
+    setArgv([]);
+    useFixedTime("2025-01-01T00:00:00Z");
+
+    readJsonFile.mockImplementation((filePath: string) => {
+      if (filePath.includes("cron-state-reconciler")) {
+        return { jobs: [{ id: "stale-job", classification: "stale_error_state" }] };
+      }
+      return {
+        jobs: [
+          {
+            id: "stale-job",
+            name: "stale delivery history",
+            enabled: true,
+            delivery: { mode: "telegram" },
+            state: { lastStatus: "ok", lastDelivered: false, lastRunAtMs: Date.now() - 1000 },
+          },
+        ],
+      };
+    });
+
+    await importFresh("../../tools/alerting/check-cron-delivery.ts");
+    await flushModuleSideEffects();
+
+    expect(consoleCapture.logs.join(" ")).not.toContain("stale delivery history");
+    expect(spawnSync).not.toHaveBeenCalled();
+    expect(exitSpy).toHaveBeenCalledWith(0);
+  });
+
   it("logs failures but skips psql when executable missing", async () => {
     const exitSpy = mockExit();
     const consoleCapture = captureConsole();

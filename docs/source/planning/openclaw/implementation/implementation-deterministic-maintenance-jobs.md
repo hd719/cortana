@@ -1,6 +1,6 @@
 # Implementation Plan - Deterministic Maintenance Jobs
 
-**Document Status:** In Implementation
+**Document Status:** Complete
 
 ## Team
 
@@ -15,14 +15,14 @@
 
 ## Dependency Map
 
-**Implementation status:** Inventory, command runner, pilot job migration, sync validation, runbook notes, and live no-alert/Telegram E2E validation are implemented. The full candidate rollout/watch vertical remains open; the current source cron config has two migrated command-runner jobs while the inventory still identifies additional fixed-command candidates.
+**Implementation status:** Complete. The source tree contains the deterministic inventory, command-runner contract, source config validation, migrated metadata-backed command specs for every eligible fixed-command maintenance job, explicit exclusions for user-facing/judgment-heavy jobs, runtime smoke tooling, runbook notes, and no-alert/Telegram E2E validation coverage.
 
 | Vertical | Dependencies | Can Start? |
 |----------|--------------|------------|
-| V1 - Inventory and contract | None | Start now |
-| V2 - Command runner and tests | V1 | Start after contract |
-| V3 - Pilot migration | V2 | Start after runner tests |
-| V4 - Runtime rollout and watch | V3 | Start after pilot smoke |
+| V1 - Inventory and contract | None | Complete |
+| V2 - Command runner and tests | V1 | Complete |
+| V3 - Pilot migration | V2 | Complete |
+| V4 - Runtime rollout and watch | V3 | Complete |
 
 ---
 

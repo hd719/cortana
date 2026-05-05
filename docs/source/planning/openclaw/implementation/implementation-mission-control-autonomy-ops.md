@@ -1,6 +1,6 @@
 # Implementation Plan - Mission Control Autonomy Ops
 
-**Document Status:** In Implementation
+**Document Status:** Complete
 
 ## Team
 
@@ -15,12 +15,14 @@
 
 ## Dependency Map
 
+**Implementation status:** Complete. The autonomy artifact writer, Mission Control reader library, read API, refresh API, `/autonomy` operator page, sidebar nav entry, periodic artifact cron writer, and focused API/library/sidebar tests are implemented.
+
 | Vertical | Dependencies | Can Start? |
 |----------|--------------|------------|
-| V1 - Autonomy artifact | None | Start now |
-| V2 - Mission Control API | V1 schema | Start after schema |
-| V3 - Mission Control page | V2 | Start after API fixtures |
-| V4 - Runtime refresh and docs | V1, V2, V3 | Start after page renders |
+| V1 - Autonomy artifact | None | Complete |
+| V2 - Mission Control API | V1 schema | Complete |
+| V3 - Mission Control page | V2 | Complete |
+| V4 - Runtime refresh and docs | V1, V2, V3 | Complete |
 
 ---
 
@@ -42,7 +44,7 @@ Week 3: Refresh endpoint, cron writer, smoke validation, docs
 
 *Dependencies: None*
 
-**Implementation status:** V1 artifact writer is implemented in the first PR slice with a guarded/import-safe autonomy summary, versioned cached JSON schema, source freshness degradation, atomic writes, and focused tests. Mission Control API/page and periodic refresh wiring remain later verticals.
+**Implementation status:** Complete. V1 artifact writer is implemented with a guarded/import-safe autonomy summary, versioned cached JSON schema, source freshness degradation, atomic writes, and focused tests.
 
 #### Jira
 
@@ -89,7 +91,7 @@ Week 3: Refresh endpoint, cron writer, smoke validation, docs
 #### Jira
 
 - Sub-task 1: Create `/Users/hd/Developer/cortana-external/apps/mission-control/app/autonomy/page.tsx`.
-- Sub-task 2: Create `/Users/hd/Developer/cortana-external/apps/mission-control/app/autonomy/autonomy-client.tsx`.
+- Sub-task 2: Render the page from server-side read models so page load remains read-only and does not run remediation.
 - Sub-task 3: Update `/Users/hd/Developer/cortana-external/apps/mission-control/components/sidebar.tsx` with a top-level `Autonomy` link.
 
 #### Important Planning Notes
