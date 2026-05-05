@@ -1,6 +1,7 @@
 import { spawnSync } from "node:child_process";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname } from "node:path";
+import { fileURLToPath } from "node:url";
 
 const ACCOUNT = process.env.GOG_ACCOUNT ?? "hameldesai3@gmail.com";
 const REPO_ROOT = "/Users/hd/Developer/cortana";
@@ -69,7 +70,25 @@ type ThreadOutput = {
 type SentState = {
   version: 1;
   sentMessageIds: string[];
+  lastNoEmailStatusDate?: string;
 };
+
+function formatEtDate(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  return `${year}-${month}-${day}`;
+}
+
+function todayEt(): string {
+  return process.env.FLIGHT_PRICE_WATCH_TODAY ?? formatEtDate(new Date());
+}
 
 function runGog(args: string[]): string {
   const result = spawnSync(
@@ -117,6 +136,8 @@ function readSentState(): SentState {
   return {
     version: 1,
     sentMessageIds: Array.isArray(parsed.sentMessageIds) ? parsed.sentMessageIds : [],
+    lastNoEmailStatusDate:
+      typeof parsed.lastNoEmailStatusDate === "string" ? parsed.lastNoEmailStatusDate : undefined,
   };
 }
 
@@ -125,7 +146,15 @@ function writeSentState(state: SentState): void {
   const uniqueIds = Array.from(new Set(state.sentMessageIds)).slice(-500);
   writeFileSync(
     SENT_PATH,
-    `${JSON.stringify({ version: 1, sentMessageIds: uniqueIds }, null, 2)}\n`,
+    `${JSON.stringify(
+      {
+        version: 1,
+        sentMessageIds: uniqueIds,
+        lastNoEmailStatusDate: state.lastNoEmailStatusDate,
+      },
+      null,
+      2,
+    )}\n`,
   );
 }
 
@@ -182,6 +211,18 @@ function summarize(threadId: string, message: GmailMessage, body: string): strin
   ].join("\n");
 }
 
+export function shouldSendNoEmailStatus(state: SentState, date: string): boolean {
+  return state.lastNoEmailStatusDate !== date;
+}
+
+export function buildNoEmailStatus(): string {
+  return [
+    "✈️ Morocco Flights - watcher alive",
+    "No matching Google Flights price-alert emails found in Gmail yet.",
+    "Action: enable Google Flights price tracking for Morocco business-class routes to this Gmail account.",
+  ].join("\n");
+}
+
 async function main(): Promise<void> {
   let search: SearchOutput;
   try {
@@ -193,6 +234,19 @@ async function main(): Promise<void> {
   }
 
   const sent = readSentState();
+
+  if ((search.threads ?? []).length === 0) {
+    const date = todayEt();
+    if (shouldSendNoEmailStatus(sent, date)) {
+      writeSentState({ ...sent, lastNoEmailStatusDate: date });
+      console.log(buildNoEmailStatus());
+      return;
+    }
+
+    console.log("NO_REPLY");
+    return;
+  }
+
   const sentIds = new Set(sent.sentMessageIds);
   const alerts: string[] = [];
   const newlySeen: string[] = [];
@@ -230,7 +284,10 @@ async function main(): Promise<void> {
   console.log(alerts[0].split("\n").slice(0, 5).join("\n"));
 }
 
-main().catch((error) => {
-  const detail = error instanceof Error ? error.message : String(error);
-  console.log(`✈️ Morocco Flights - watcher failed\n${detail.slice(0, 300)}`);
-});
+const thisFile = fileURLToPath(import.meta.url);
+if (process.argv[1] && process.argv[1] === thisFile) {
+  main().catch((error) => {
+    const detail = error instanceof Error ? error.message : String(error);
+    console.log(`✈️ Morocco Flights - watcher failed\n${detail.slice(0, 300)}`);
+  });
+}
