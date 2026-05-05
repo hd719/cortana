@@ -42,7 +42,7 @@ Week 3: Verification keys, Mission Control read API/UI integration, digest polic
 
 *Dependencies: None*
 
-**Implementation status:** V1 core is implemented in the first PR slice with the typed taxonomy, DB-backed queue store, CLI, redaction, dedupe/material-change policy, digest, close, and focused tests. Producer integrations and Mission Control read surfaces remain later verticals.
+**Implementation status:** Queue storage/library and CLI/verification are implemented with typed taxonomy, DB-backed queue store, redaction, dedupe/material-change policy, digest, close, and focused tests. Producer integrations and Mission Control read surfaces remain later verticals.
 
 #### Jira
 

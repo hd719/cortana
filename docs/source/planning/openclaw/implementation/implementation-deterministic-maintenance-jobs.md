@@ -1,6 +1,6 @@
 # Implementation Plan - Deterministic Maintenance Jobs
 
-**Document Status:** Draft
+**Document Status:** In Implementation
 
 ## Team
 
@@ -14,6 +14,8 @@
 ---
 
 ## Dependency Map
+
+**Implementation status:** Inventory, command runner, pilot job migration, sync validation, runbook notes, and live no-alert/Telegram E2E validation are implemented. The full candidate rollout/watch vertical remains open; the current source cron config has two migrated command-runner jobs while the inventory still identifies additional fixed-command candidates.
 
 | Vertical | Dependencies | Can Start? |
 |----------|--------------|------------|

@@ -1,6 +1,6 @@
 # Implementation Plan - Cron Runtime State Reconciler
 
-**Document Status:** Draft
+**Document Status:** In Implementation
 
 ## Team
 
@@ -14,6 +14,8 @@
 ---
 
 ## Dependency Map
+
+**Implementation status:** Evidence loading, deterministic classification, dry-run/report output, apply-mode repair, backup/reload verification, event logging, focused tests, and runbook instructions are implemented. Workflow wiring into post-merge checks and daily cron digest/alert consumers remains open.
 
 | Vertical | Dependencies | Can Start? |
 |----------|--------------|------------|
