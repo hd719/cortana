@@ -21,6 +21,17 @@ Use this area for durable planning artifacts that affect the command-brain side 
 
 ## Active Design Sets
 
+### OpenClaw Autonomy Improvements
+
+Draft planning set for the next autonomy hardening pass:
+
+| Initiative | PRD | Tech Spec | Implementation Plan |
+|------------|-----|-----------|---------------------|
+| Deterministic Maintenance Jobs | [PRD](./prd/prd-deterministic-maintenance-jobs.md) | [Tech Spec](./techspec/techspec-deterministic-maintenance-jobs.md) | [Implementation Plan](./implementation/implementation-deterministic-maintenance-jobs.md) |
+| Cron Runtime State Reconciler | [PRD](./prd/prd-cron-runtime-state-reconciler.md) | [Tech Spec](./techspec/techspec-cron-runtime-state-reconciler.md) | [Implementation Plan](./implementation/implementation-cron-runtime-state-reconciler.md) |
+| Mission Control Autonomy Ops | [PRD](./prd/prd-mission-control-autonomy-ops.md) | [Tech Spec](./techspec/techspec-mission-control-autonomy-ops.md) | [Implementation Plan](./implementation/implementation-mission-control-autonomy-ops.md) |
+| Human-Required Action Queue | [PRD](./prd/prd-human-required-action-queue.md) | [Tech Spec](./techspec/techspec-human-required-action-queue.md) | [Implementation Plan](./implementation/implementation-human-required-action-queue.md) |
+
 ### Vacation Ops Mode
 
 This planning set defines a bounded vacation mode for Cortana/OpenClaw operations:
