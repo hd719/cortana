@@ -1,6 +1,6 @@
 # Implementation Plan - Vacation Ops Mode and Readiness System
 
-**Document Status:** Draft v1
+**Document Status:** Complete
 
 ## Team
 
@@ -15,6 +15,8 @@
 ---
 
 ## Dependency Map
+
+**Implementation status:** Complete. The implemented surface includes the vacation schema/config, typed state layer, CLI, readiness checks, remediation ladder, state machine, summaries, cron guard/summary wiring, and focused tests across config, schema, state, readiness, remediation, summaries, and cron contracts.
 
 | Vertical | Dependencies | Can Start? |
 |----------|-------------|------------|

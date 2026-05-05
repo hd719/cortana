@@ -25,12 +25,12 @@ Use this area for durable planning artifacts that affect the command-brain side 
 
 Draft planning set for the next autonomy hardening pass:
 
-| Initiative | PRD | Tech Spec | Implementation Plan |
-|------------|-----|-----------|---------------------|
-| Deterministic Maintenance Jobs | [PRD](./prd/prd-deterministic-maintenance-jobs.md) | [Tech Spec](./techspec/techspec-deterministic-maintenance-jobs.md) | [Implementation Plan](./implementation/implementation-deterministic-maintenance-jobs.md) |
-| Cron Runtime State Reconciler | [PRD](./prd/prd-cron-runtime-state-reconciler.md) | [Tech Spec](./techspec/techspec-cron-runtime-state-reconciler.md) | [Implementation Plan](./implementation/implementation-cron-runtime-state-reconciler.md) |
-| Mission Control Autonomy Ops | [PRD](./prd/prd-mission-control-autonomy-ops.md) | [Tech Spec](./techspec/techspec-mission-control-autonomy-ops.md) | [Implementation Plan](./implementation/implementation-mission-control-autonomy-ops.md) |
-| Human-Required Action Queue | [PRD](./prd/prd-human-required-action-queue.md) | [Tech Spec](./techspec/techspec-human-required-action-queue.md) | [Implementation Plan](./implementation/implementation-human-required-action-queue.md) |
+| Initiative | Status | PRD | Tech Spec | Implementation Plan |
+|------------|--------|-----|-----------|---------------------|
+| Deterministic Maintenance Jobs | In implementation - inventory, runner, pilot migration, runtime validation done; broader candidate rollout/watch remains. | [PRD](./prd/prd-deterministic-maintenance-jobs.md) | [Tech Spec](./techspec/techspec-deterministic-maintenance-jobs.md) | [Implementation Plan](./implementation/implementation-deterministic-maintenance-jobs.md) |
+| Cron Runtime State Reconciler | In implementation - evidence/classification/apply/report/runbook done; post-merge and digest integration remains. | [PRD](./prd/prd-cron-runtime-state-reconciler.md) | [Tech Spec](./techspec/techspec-cron-runtime-state-reconciler.md) | [Implementation Plan](./implementation/implementation-cron-runtime-state-reconciler.md) |
+| Mission Control Autonomy Ops | In implementation - cached artifact done; Mission Control API, page, refresh, and cron writer remain. | [PRD](./prd/prd-mission-control-autonomy-ops.md) | [Tech Spec](./techspec/techspec-mission-control-autonomy-ops.md) | [Implementation Plan](./implementation/implementation-mission-control-autonomy-ops.md) |
+| Human-Required Action Queue | In implementation - durable queue and CLI done; real producers and Mission Control read surface remain. | [PRD](./prd/prd-human-required-action-queue.md) | [Tech Spec](./techspec/techspec-human-required-action-queue.md) | [Implementation Plan](./implementation/implementation-human-required-action-queue.md) |
 
 ### Vacation Ops Mode
 
@@ -40,6 +40,8 @@ This planning set defines a bounded vacation mode for Cortana/OpenClaw operation
 - downgrade non-critical automations while preserving core operator safety
 - send morning and evening vacation summaries
 - quarantine fragile automations that become noisy during the window
+
+Status: implemented. The source tree contains the schema/config foundation, canonical state and CLI, readiness engine, remediation/state-machine logic, summaries, cron wiring, and focused test coverage. Latest live status check reports no active vacation window and latest readiness outcome `pass`.
 
 Current source artifacts:
 

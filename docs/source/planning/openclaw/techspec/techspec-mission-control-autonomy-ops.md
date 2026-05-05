@@ -1,6 +1,6 @@
 # Technical Specification - Mission Control Autonomy Ops
 
-**Document Status:** Draft
+**Document Status:** In Implementation
 
 ## Team
 
