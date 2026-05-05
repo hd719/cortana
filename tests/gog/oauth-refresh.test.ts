@@ -64,6 +64,20 @@ describe("gog oauth refresh", () => {
 
     expect(probeCount).toBe(3);
     expect(consoleCapture.logs.join("\n")).toContain("gog oauth ok");
+    const sqlCalls = spawnSync.mock.calls.map((call) =>
+      String(call[1]?.[2] ?? ""),
+    );
+    expect(sqlCalls.some((sql) => sql.includes("UPDATE cortana_tasks"))).toBe(
+      true,
+    );
+    expect(sqlCalls.some((sql) => sql.includes("status='completed'"))).toBe(
+      true,
+    );
+    expect(
+      sqlCalls.some((sql) =>
+        sql.includes("gog OAuth requires manual re-auth"),
+      ),
+    ).toBe(true);
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
@@ -94,6 +108,15 @@ describe("gog oauth refresh", () => {
 
     await importFresh("../../tools/gog/oauth-refresh.ts");
 
+    const sqlCalls = spawnSync.mock.calls.map((call) =>
+      String(call[1]?.[2] ?? ""),
+    );
+    expect(sqlCalls.some((sql) => sql.includes("WITH existing AS"))).toBe(
+      true,
+    );
+    expect(sqlCalls.some((sql) => sql.includes("INSERT INTO cortana_tasks"))).toBe(
+      true,
+    );
     expect(consoleCapture.errors.join("\n")).toContain(
       "Manual re-auth required",
     );
