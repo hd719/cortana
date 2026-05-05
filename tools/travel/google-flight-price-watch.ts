@@ -26,13 +26,11 @@ const SEARCH_QUERY =
     "OR",
     '"tracked flight"',
     "OR",
-    '"Casablanca"',
-    "OR",
     '"Marrakesh"',
     "OR",
     '"Marrakech"',
     "OR",
-    '"Morocco"',
+    '"RAK"',
     ")",
   ].join(" ");
 
@@ -70,25 +68,7 @@ type ThreadOutput = {
 type SentState = {
   version: 1;
   sentMessageIds: string[];
-  lastNoEmailStatusDate?: string;
 };
-
-function formatEtDate(date: Date): string {
-  const parts = new Intl.DateTimeFormat("en-US", {
-    timeZone: "America/New_York",
-    year: "numeric",
-    month: "2-digit",
-    day: "2-digit",
-  }).formatToParts(date);
-  const year = parts.find((part) => part.type === "year")?.value;
-  const month = parts.find((part) => part.type === "month")?.value;
-  const day = parts.find((part) => part.type === "day")?.value;
-  return `${year}-${month}-${day}`;
-}
-
-function todayEt(): string {
-  return process.env.FLIGHT_PRICE_WATCH_TODAY ?? formatEtDate(new Date());
-}
 
 function runGog(args: string[]): string {
   const result = spawnSync(
@@ -136,8 +116,6 @@ function readSentState(): SentState {
   return {
     version: 1,
     sentMessageIds: Array.isArray(parsed.sentMessageIds) ? parsed.sentMessageIds : [],
-    lastNoEmailStatusDate:
-      typeof parsed.lastNoEmailStatusDate === "string" ? parsed.lastNoEmailStatusDate : undefined,
   };
 }
 
@@ -150,7 +128,6 @@ function writeSentState(state: SentState): void {
       {
         version: 1,
         sentMessageIds: uniqueIds,
-        lastNoEmailStatusDate: state.lastNoEmailStatusDate,
       },
       null,
       2,
@@ -165,12 +142,12 @@ function extractPrices(text: string): number[] {
   return Array.from(new Set(prices)).sort((a, b) => a - b);
 }
 
-function extractRoute(text: string): string {
+export function extractRoute(text: string): string {
   const normalized = text.replace(/\s+/g, " ");
   const from = normalized.match(/\b(Newark|New York|JFK|EWR)\b/i)?.[1];
-  const to = normalized.match(/\b(Casablanca|Marrakesh|Marrakech|CMN|RAK|Morocco)\b/i)?.[1];
-  if (!from && !to) return "NYC -> Morocco";
-  return `${from ?? "NYC"} -> ${to ?? "Morocco"}`;
+  const to = normalized.match(/\b(Marrakesh|Marrakech|RAK)\b/i)?.[1];
+  if (!from && !to) return "NYC -> Marrakesh";
+  return `${from ?? "NYC"} -> ${to ?? "Marrakesh"}`;
 }
 
 function verdict(price: number | null): string {
@@ -181,12 +158,12 @@ function verdict(price: number | null): string {
   return "Watch only; still expensive.";
 }
 
-function isFlightAlert(text: string, from: string, subject: string): boolean {
+export function isFlightAlert(text: string, from: string, subject: string): boolean {
   const haystack = `${from}\n${subject}\n${text}`;
   const googleish = /google|google flights|google travel/i.test(haystack);
   const flightish = /flight|tracked price|price alert|track prices|travel/i.test(haystack);
-  const moroccoish = /morocco|casablanca|marrakesh|marrakech|\bCMN\b|\bRAK\b/i.test(haystack);
-  return googleish && flightish && moroccoish;
+  const marrakeshish = /marrakesh|marrakech|\bRAK\b/i.test(haystack);
+  return googleish && flightish && marrakeshish;
 }
 
 function summarize(threadId: string, message: GmailMessage, body: string): string | null {
@@ -203,23 +180,11 @@ function summarize(threadId: string, message: GmailMessage, body: string): strin
   const gmailUrl = `https://mail.google.com/mail/u/0/#inbox/${threadId}`;
 
   return [
-    "✈️ Morocco Flights - Google price alert",
+    "✈️ Marrakesh Flights - Google price alert",
     `Route: ${route}`,
     `Lowest seen: ${priceText} total for 2 business seats`,
     `Verdict: ${verdict(lowest)}`,
     `Open: ${gmailUrl}`,
-  ].join("\n");
-}
-
-export function shouldSendNoEmailStatus(state: SentState, date: string): boolean {
-  return state.lastNoEmailStatusDate !== date;
-}
-
-export function buildNoEmailStatus(): string {
-  return [
-    "✈️ Morocco Flights - watcher alive",
-    "No matching Google Flights price-alert emails found in Gmail yet.",
-    "Action: enable Google Flights price tracking for Morocco business-class routes to this Gmail account.",
   ].join("\n");
 }
 
@@ -236,13 +201,6 @@ async function main(): Promise<void> {
   const sent = readSentState();
 
   if ((search.threads ?? []).length === 0) {
-    const date = todayEt();
-    if (shouldSendNoEmailStatus(sent, date)) {
-      writeSentState({ ...sent, lastNoEmailStatusDate: date });
-      console.log(buildNoEmailStatus());
-      return;
-    }
-
     console.log("NO_REPLY");
     return;
   }
