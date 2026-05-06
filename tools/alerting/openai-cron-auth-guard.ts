@@ -298,7 +298,7 @@ async function runPreflight(): Promise<number> {
   });
   const probe = await probeOpenAIAuth();
   if (probe.ok && modelDrift.length === 0) {
-    console.log(JSON.stringify({ ok: true, checked: jobs.length, probe: probe.detail }));
+    console.log("NO_REPLY");
     return 0;
   }
 
@@ -330,7 +330,7 @@ async function runSweep(): Promise<number> {
     .filter((row) => row.authText);
 
   if (affected.length === 0) {
-    console.log(JSON.stringify({ ok: true, affected: 0 }));
+    console.log("NO_REPLY");
     return 0;
   }
 
