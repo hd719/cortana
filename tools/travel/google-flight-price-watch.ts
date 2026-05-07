@@ -9,6 +9,7 @@ const GOG_HELPER = `${REPO_ROOT}/tools/gog/gog-with-env.ts`;
 const SENT_PATH =
   process.env.FLIGHT_PRICE_WATCH_SENT_PATH ??
   "/Users/hd/.openclaw/memory/google-flight-price-watch-sent.json";
+const CDP_TARGETS_URL = process.env.FLIGHT_PRICE_WATCH_CDP_TARGETS_URL ?? "http://127.0.0.1:18792/json";
 
 const SEARCH_QUERY =
   process.env.FLIGHT_PRICE_WATCH_QUERY ??
@@ -68,7 +69,50 @@ type ThreadOutput = {
 type SentState = {
   version: 1;
   sentMessageIds: string[];
+  lastSnapshotDate?: string;
+  lastSnapshotFailureDate?: string;
+  lastSnapshotPrices?: Record<string, number>;
 };
+
+type FlightSnapshot = {
+  route: string;
+  account: string;
+  trackLabel: string;
+  trackingEnabled: boolean;
+  priceInsight: string;
+  lowestPrice: number | null;
+  prices: number[];
+  url: string;
+};
+
+type CdpTarget = {
+  title?: string;
+  type?: string;
+  url?: string;
+  webSocketDebuggerUrl?: string;
+};
+
+type CdpClient = {
+  send(method: string, params?: Record<string, unknown>): Promise<any>;
+  close(): void;
+};
+
+function formatEtDate(date: Date): string {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/New_York",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(date);
+  const year = parts.find((part) => part.type === "year")?.value;
+  const month = parts.find((part) => part.type === "month")?.value;
+  const day = parts.find((part) => part.type === "day")?.value;
+  return `${year}-${month}-${day}`;
+}
+
+function todayEt(): string {
+  return process.env.FLIGHT_PRICE_WATCH_TODAY ?? formatEtDate(new Date());
+}
 
 function runGog(args: string[]): string {
   const result = spawnSync(
@@ -116,6 +160,13 @@ function readSentState(): SentState {
   return {
     version: 1,
     sentMessageIds: Array.isArray(parsed.sentMessageIds) ? parsed.sentMessageIds : [],
+    lastSnapshotDate: typeof parsed.lastSnapshotDate === "string" ? parsed.lastSnapshotDate : undefined,
+    lastSnapshotFailureDate:
+      typeof parsed.lastSnapshotFailureDate === "string" ? parsed.lastSnapshotFailureDate : undefined,
+    lastSnapshotPrices:
+      parsed.lastSnapshotPrices && typeof parsed.lastSnapshotPrices === "object"
+        ? parsed.lastSnapshotPrices
+        : undefined,
   };
 }
 
@@ -128,6 +179,9 @@ function writeSentState(state: SentState): void {
       {
         version: 1,
         sentMessageIds: uniqueIds,
+        lastSnapshotDate: state.lastSnapshotDate,
+        lastSnapshotFailureDate: state.lastSnapshotFailureDate,
+        lastSnapshotPrices: state.lastSnapshotPrices,
       },
       null,
       2,
@@ -140,6 +194,17 @@ function extractPrices(text: string): number[] {
     .map((match) => Number(match[1].replace(/,/g, "")))
     .filter((price) => Number.isFinite(price) && price >= 1000 && price <= 50000);
   return Array.from(new Set(prices)).sort((a, b) => a - b);
+}
+
+export function extractRoundTripPrices(text: string): number[] {
+  const prices = [...text.matchAll(/\$\s*([1-9]\d{0,2}(?:,\d{3})+|[1-9]\d{3,}) round trip/g)]
+    .map((match) => Number(match[1].replace(/,/g, "")))
+    .filter((price) => Number.isFinite(price) && price >= 1000 && price <= 50000);
+  return Array.from(new Set(prices)).sort((a, b) => a - b);
+}
+
+function formatPrice(price: number | null): string {
+  return price == null ? "unknown" : `$${price.toLocaleString("en-US")}`;
 }
 
 export function extractRoute(text: string): string {
@@ -156,6 +221,45 @@ function verdict(price: number | null): string {
   if (price <= 6500) return "Strong deal zone.";
   if (price <= 7500) return "Acceptable if the itinerary is good.";
   return "Watch only; still expensive.";
+}
+
+function materialDrop(route: string, price: number | null, state: SentState): boolean {
+  if (price == null) return false;
+  const previous = state.lastSnapshotPrices?.[route];
+  return typeof previous === "number" && previous - price >= 300;
+}
+
+export function shouldSendSnapshot(state: SentState, date: string, snapshots: FlightSnapshot[]): boolean {
+  if (snapshots.length === 0) return false;
+  if (state.lastSnapshotDate !== date) return true;
+  return snapshots.some((snapshot) => materialDrop(snapshot.route, snapshot.lowestPrice, state));
+}
+
+export function buildSnapshotMessage(snapshots: FlightSnapshot[]): string {
+  const ordered = [...snapshots].sort((a, b) => a.route.localeCompare(b.route));
+  const lowest = ordered
+    .map((snapshot) => snapshot.lowestPrice)
+    .filter((price): price is number => typeof price === "number")
+    .sort((a, b) => a - b)[0] ?? null;
+  const lines = [
+    "✈️ Marrakesh Flights - price snapshot",
+    "Google has not emailed yet; live browser check is working.",
+    ...ordered.map((snapshot) => {
+      const insight = snapshot.priceInsight ? `, ${snapshot.priceInsight}` : "";
+      const tracking = snapshot.trackingEnabled ? "tracking on" : "tracking off";
+      return `${snapshot.route}: ${formatPrice(snapshot.lowestPrice)} total for 2 business seats${insight}, ${tracking}`;
+    }),
+    `Verdict: ${verdict(lowest)}`,
+  ];
+  return lines.join("\n");
+}
+
+function snapshotPrices(snapshots: FlightSnapshot[]): Record<string, number> {
+  return Object.fromEntries(
+    snapshots
+      .filter((snapshot) => typeof snapshot.lowestPrice === "number")
+      .map((snapshot) => [snapshot.route, snapshot.lowestPrice as number]),
+  );
 }
 
 export function isFlightAlert(text: string, from: string, subject: string): boolean {
@@ -188,6 +292,129 @@ function summarize(threadId: string, message: GmailMessage, body: string): strin
   ].join("\n");
 }
 
+async function connectCdp(wsUrl: string): Promise<CdpClient> {
+  if (typeof WebSocket !== "function") {
+    throw new Error("Node WebSocket global is unavailable");
+  }
+
+  const ws = new WebSocket(wsUrl);
+  await new Promise<void>((resolve, reject) => {
+    ws.onopen = () => resolve();
+    ws.onerror = () => reject(new Error("CDP websocket connection failed"));
+  });
+
+  let id = 0;
+  const pending = new Map<number, { resolve(value: any): void; reject(error: Error): void }>();
+  ws.onmessage = (event) => {
+    const message = JSON.parse(String(event.data));
+    if (!message.id || !pending.has(message.id)) return;
+    const waiter = pending.get(message.id);
+    pending.delete(message.id);
+    if (message.error) waiter?.reject(new Error(JSON.stringify(message.error)));
+    else waiter?.resolve(message.result);
+  };
+
+  return {
+    send(method: string, params: Record<string, unknown> = {}) {
+      return new Promise((resolve, reject) => {
+        const messageId = ++id;
+        pending.set(messageId, { resolve, reject });
+        ws.send(JSON.stringify({ id: messageId, method, params }));
+      });
+    },
+    close() {
+      ws.close();
+    },
+  };
+}
+
+function extractSnapshotFromPage(value: any): FlightSnapshot | null {
+  const route = typeof value?.route === "string" ? value.route : "";
+  const prices = Array.isArray(value?.prices) ? value.prices.filter((price: unknown) => typeof price === "number") : [];
+  if (!route || prices.length === 0) return null;
+  return {
+    route,
+    account: typeof value.account === "string" ? value.account : "",
+    trackLabel: typeof value.trackLabel === "string" ? value.trackLabel : "",
+    trackingEnabled: value.checked === "true",
+    priceInsight: typeof value.priceInsight === "string" ? value.priceInsight : "",
+    lowestPrice: prices[0] ?? null,
+    prices,
+    url: typeof value.url === "string" ? value.url : "",
+  };
+}
+
+async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
+  const response = await fetch(CDP_TARGETS_URL);
+  if (!response.ok) throw new Error(`CDP target list failed: HTTP ${response.status}`);
+  const targets = (await response.json()) as CdpTarget[];
+  const pages = targets.filter(
+    (target) =>
+      target.type === "page" &&
+      typeof target.url === "string" &&
+      target.url.includes("google.com/travel/flights") &&
+      /Marrakesh|RAK|to%20RAK/i.test(`${target.title ?? ""} ${target.url}`) &&
+      typeof target.webSocketDebuggerUrl === "string",
+  );
+  if (pages.length === 0) {
+    throw new Error("no open Google Flights Marrakesh/RAK tabs found");
+  }
+
+  const snapshots: FlightSnapshot[] = [];
+  for (const page of pages) {
+    const client = await connectCdp(page.webSocketDebuggerUrl as string);
+    try {
+      await client.send("Runtime.enable");
+      await client.send("Page.enable");
+      if (process.env.FLIGHT_PRICE_WATCH_CDP_RELOAD !== "0") {
+        await client.send("Page.reload", { ignoreCache: true });
+        await new Promise((resolve) => setTimeout(resolve, 9000));
+      }
+      const result = await client.send("Runtime.evaluate", {
+        returnByValue: true,
+        awaitPromise: true,
+        expression: `(() => {
+          const norm = s => (s || '').replace(/\\s+/g, ' ').trim();
+          const body = norm(document.body.innerText);
+          const account = document.querySelector('[aria-label^="Google Account:"]')?.getAttribute('aria-label')?.replace(/\\s+/g, ' ').trim() || '';
+          const sw = [...document.querySelectorAll('[role="switch"]')].find(el => /Track prices/i.test(el.getAttribute('aria-label') || ''));
+          const trackLabel = sw?.getAttribute('aria-label') || '';
+          const prices = [...body.matchAll(/\\$\\s*([1-9]\\d{0,2}(?:,\\d{3})+|[1-9]\\d{3,}) round trip/g)]
+            .map(match => Number(match[1].replace(/,/g, '')))
+            .filter(price => Number.isFinite(price) && price >= 1000 && price <= 50000)
+            .filter((price, index, all) => all.indexOf(price) === index)
+            .sort((a, b) => a - b);
+          const routeMatch = trackLabel.match(/from (.*?) to (.*?) departing/i);
+          const route = routeMatch
+            ? routeMatch[1] + ' -> ' + routeMatch[2]
+            : document.title.replace(/ \\| Google Flights$/, '').replace(/ to /, ' -> ');
+          const insight = (body.match(/Prices are currently (high|typical|low|cheap|expensive)/i) || [])[0] || '';
+          return { route, account, trackLabel, checked: sw?.getAttribute('aria-checked') || null, priceInsight: insight, prices, url: location.href };
+        })()`,
+      });
+      const snapshot = extractSnapshotFromPage(result.result.value);
+      if (snapshot) snapshots.push(snapshot);
+    } finally {
+      client.close();
+    }
+  }
+
+  if (snapshots.length === 0) {
+    throw new Error("open Google Flights tabs did not expose parsable round-trip prices");
+  }
+
+  return snapshots;
+}
+
+function buildSnapshotFailure(error: unknown): string {
+  const detail = error instanceof Error ? error.message : String(error);
+  return [
+    "✈️ Marrakesh Flights - watcher degraded",
+    "Gmail has no Google Flights emails, and the browser price snapshot failed.",
+    `Detail: ${detail.slice(0, 180)}`,
+  ].join("\n");
+}
+
 async function main(): Promise<void> {
   let search: SearchOutput;
   try {
@@ -201,6 +428,26 @@ async function main(): Promise<void> {
   const sent = readSentState();
 
   if ((search.threads ?? []).length === 0) {
+    const date = todayEt();
+    try {
+      const snapshots = await readBrowserSnapshots();
+      if (shouldSendSnapshot(sent, date, snapshots)) {
+        writeSentState({
+          ...sent,
+          lastSnapshotDate: date,
+          lastSnapshotPrices: snapshotPrices(snapshots),
+        });
+        console.log(buildSnapshotMessage(snapshots));
+        return;
+      }
+    } catch (error) {
+      if (sent.lastSnapshotFailureDate !== date) {
+        writeSentState({ ...sent, lastSnapshotFailureDate: date });
+        console.log(buildSnapshotFailure(error));
+        return;
+      }
+    }
+
     console.log("NO_REPLY");
     return;
   }
@@ -231,7 +478,7 @@ async function main(): Promise<void> {
   }
 
   if (newlySeen.length > 0) {
-    writeSentState({ version: 1, sentMessageIds: [...sent.sentMessageIds, ...newlySeen] });
+    writeSentState({ ...sent, sentMessageIds: [...sent.sentMessageIds, ...newlySeen] });
   }
 
   if (alerts.length === 0) {
