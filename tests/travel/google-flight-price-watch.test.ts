@@ -1,8 +1,10 @@
 import { describe, expect, it } from "vitest";
 import {
   buildSnapshotMessage,
+  buildCdpNewTabUrl,
   extractRoute,
   extractRoundTripPrices,
+  missingGoogleFlightSearches,
   isFlightAlert,
   shouldSendSnapshot,
 } from "../../tools/travel/google-flight-price-watch.ts";
@@ -106,5 +108,45 @@ describe("google-flight-price-watch", () => {
       "12:50 PM Turkish Airlines $7,377 round trip Other departing flights $8,099 round trip";
 
     expect(extractRoundTripPrices(text)).toEqual([7377, 8099]);
+  });
+
+  it("identifies missing canonical Google Flights search tabs", () => {
+    const missing = missingGoogleFlightSearches([
+      {
+        type: "page",
+        title: "New York to Marrakesh | Google Flights",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+      },
+    ]);
+
+    expect(missing.map((search) => search.route)).toEqual(["Newark -> Marrakesh"]);
+  });
+
+  it("does not reopen tabs when both canonical searches are already present", () => {
+    const missing = missingGoogleFlightSearches([
+      {
+        type: "page",
+        title: "New York to Marrakesh | Google Flights",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+      },
+      {
+        type: "page",
+        title: "Newark to Marrakesh | Google Flights",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+      },
+    ]);
+
+    expect(missing).toEqual([]);
+  });
+
+  it("builds the Chrome DevTools new-tab URL for a missing search", () => {
+    expect(
+      buildCdpNewTabUrl(
+        "http://127.0.0.1:18792/json",
+        "https://www.google.com/travel/flights?q=Flights from JFK to RAK",
+      ),
+    ).toBe(
+      "http://127.0.0.1:18792/json/new?https%3A%2F%2Fwww.google.com%2Ftravel%2Fflights%3Fq%3DFlights%20from%20JFK%20to%20RAK",
+    );
   });
 });

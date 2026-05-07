@@ -10,6 +10,18 @@ const SENT_PATH =
   process.env.FLIGHT_PRICE_WATCH_SENT_PATH ??
   "/Users/hd/.openclaw/memory/google-flight-price-watch-sent.json";
 const CDP_TARGETS_URL = process.env.FLIGHT_PRICE_WATCH_CDP_TARGETS_URL ?? "http://127.0.0.1:18792/json";
+const GOOGLE_FLIGHT_SEARCHES = [
+  {
+    route: "New York -> Marrakesh",
+    url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+    urlNeedle: "Flights%20from%20JFK%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+  },
+  {
+    route: "Newark -> Marrakesh",
+    url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+    urlNeedle: "Flights%20from%20EWR%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+  },
+] as const;
 
 const SEARCH_QUERY =
   process.env.FLIGHT_PRICE_WATCH_QUERY ??
@@ -92,6 +104,8 @@ type CdpTarget = {
   webSocketDebuggerUrl?: string;
 };
 
+type GoogleFlightSearch = (typeof GOOGLE_FLIGHT_SEARCHES)[number];
+
 type CdpClient = {
   send(method: string, params?: Record<string, unknown>): Promise<any>;
   close(): void;
@@ -112,6 +126,24 @@ function formatEtDate(date: Date): string {
 
 function todayEt(): string {
   return process.env.FLIGHT_PRICE_WATCH_TODAY ?? formatEtDate(new Date());
+}
+
+export function missingGoogleFlightSearches(targets: CdpTarget[]): GoogleFlightSearch[] {
+  return GOOGLE_FLIGHT_SEARCHES.filter(
+    (search) =>
+      !targets.some(
+        (target) =>
+          target.type === "page" &&
+          typeof target.url === "string" &&
+          target.url.includes("google.com/travel/flights") &&
+          target.url.includes(search.urlNeedle),
+      ),
+  );
+}
+
+export function buildCdpNewTabUrl(targetsUrl: string, searchUrl: string): string {
+  const base = targetsUrl.replace(/\/json\/?$/, "/json/new");
+  return `${base}?${encodeURIComponent(searchUrl)}`;
 }
 
 function runGog(args: string[]): string {
@@ -328,6 +360,17 @@ async function connectCdp(wsUrl: string): Promise<CdpClient> {
   };
 }
 
+async function openCdpTab(search: GoogleFlightSearch): Promise<void> {
+  const url = buildCdpNewTabUrl(CDP_TARGETS_URL, search.url);
+  let response = await fetch(url, { method: "PUT" });
+  if (!response.ok && response.status === 405) {
+    response = await fetch(url);
+  }
+  if (!response.ok) {
+    throw new Error(`failed to open ${search.route}: HTTP ${response.status}`);
+  }
+}
+
 function extractSnapshotFromPage(value: any): FlightSnapshot | null {
   const route = typeof value?.route === "string" ? value.route : "";
   const prices = Array.isArray(value?.prices) ? value.prices.filter((price: unknown) => typeof price === "number") : [];
@@ -345,9 +388,19 @@ function extractSnapshotFromPage(value: any): FlightSnapshot | null {
 }
 
 async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
-  const response = await fetch(CDP_TARGETS_URL);
+  let response = await fetch(CDP_TARGETS_URL);
   if (!response.ok) throw new Error(`CDP target list failed: HTTP ${response.status}`);
-  const targets = (await response.json()) as CdpTarget[];
+  let targets = (await response.json()) as CdpTarget[];
+  const missing = missingGoogleFlightSearches(targets);
+  for (const search of missing) {
+    await openCdpTab(search);
+  }
+  if (missing.length > 0) {
+    await new Promise((resolve) => setTimeout(resolve, 5000));
+    response = await fetch(CDP_TARGETS_URL);
+    if (!response.ok) throw new Error(`CDP target refresh failed: HTTP ${response.status}`);
+    targets = (await response.json()) as CdpTarget[];
+  }
   const pages = targets.filter(
     (target) =>
       target.type === "page" &&
