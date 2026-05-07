@@ -10,7 +10,13 @@ const SENT_PATH =
   process.env.FLIGHT_PRICE_WATCH_SENT_PATH ??
   "/Users/hd/.openclaw/memory/google-flight-price-watch-sent.json";
 const CDP_TARGETS_URL = process.env.FLIGHT_PRICE_WATCH_CDP_TARGETS_URL ?? "http://127.0.0.1:18792/json";
-const GOOGLE_FLIGHT_SEARCHES = [
+export type GoogleFlightSearch = {
+  route: string;
+  url: string;
+  urlNeedle: string;
+};
+
+const GOOGLE_FLIGHT_SEARCHES: GoogleFlightSearch[] = [
   {
     route: "New York -> Marrakesh",
     url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
@@ -104,8 +110,6 @@ type CdpTarget = {
   webSocketDebuggerUrl?: string;
 };
 
-type GoogleFlightSearch = (typeof GOOGLE_FLIGHT_SEARCHES)[number];
-
 type CdpClient = {
   send(method: string, params?: Record<string, unknown>): Promise<any>;
   close(): void;
@@ -128,16 +132,22 @@ function todayEt(): string {
   return process.env.FLIGHT_PRICE_WATCH_TODAY ?? formatEtDate(new Date());
 }
 
-export function missingGoogleFlightSearches(targets: CdpTarget[]): GoogleFlightSearch[] {
-  return GOOGLE_FLIGHT_SEARCHES.filter(
+export function matchesGoogleFlightSearchTarget(target: CdpTarget, search: GoogleFlightSearch): boolean {
+  return (
+    target.type === "page" &&
+    typeof target.url === "string" &&
+    target.url.includes("google.com/travel/flights") &&
+    target.url.includes(search.urlNeedle)
+  );
+}
+
+export function missingGoogleFlightSearches(
+  targets: CdpTarget[],
+  searches: GoogleFlightSearch[] = GOOGLE_FLIGHT_SEARCHES,
+): GoogleFlightSearch[] {
+  return searches.filter(
     (search) =>
-      !targets.some(
-        (target) =>
-          target.type === "page" &&
-          typeof target.url === "string" &&
-          target.url.includes("google.com/travel/flights") &&
-          target.url.includes(search.urlNeedle),
-      ),
+      !targets.some((target) => matchesGoogleFlightSearchTarget(target, search)),
   );
 }
 
@@ -406,7 +416,7 @@ async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
       target.type === "page" &&
       typeof target.url === "string" &&
       target.url.includes("google.com/travel/flights") &&
-      /Marrakesh|RAK|to%20RAK/i.test(`${target.title ?? ""} ${target.url}`) &&
+      GOOGLE_FLIGHT_SEARCHES.some((search) => matchesGoogleFlightSearchTarget(target, search)) &&
       typeof target.webSocketDebuggerUrl === "string",
   );
   if (pages.length === 0) {

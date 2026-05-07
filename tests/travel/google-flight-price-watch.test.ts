@@ -139,6 +139,32 @@ describe("google-flight-price-watch", () => {
     expect(missing).toEqual([]);
   });
 
+  it("supports alternate search configs without changing matching logic", () => {
+    const missing = missingGoogleFlightSearches(
+      [
+        {
+          type: "page",
+          title: "Boston to Marrakesh | Google Flights",
+          url: "https://www.google.com/travel/flights?q=Flights%20from%20BOS%20to%20RAK%20August%2012%202026",
+        },
+      ],
+      [
+        {
+          route: "Boston -> Marrakesh",
+          url: "https://www.google.com/travel/flights?q=Flights%20from%20BOS%20to%20RAK%20August%2012%202026",
+          urlNeedle: "Flights%20from%20BOS%20to%20RAK%20August%2012%202026",
+        },
+        {
+          route: "Philadelphia -> Marrakesh",
+          url: "https://www.google.com/travel/flights?q=Flights%20from%20PHL%20to%20RAK%20August%2012%202026",
+          urlNeedle: "Flights%20from%20PHL%20to%20RAK%20August%2012%202026",
+        },
+      ],
+    );
+
+    expect(missing.map((search) => search.route)).toEqual(["Philadelphia -> Marrakesh"]);
+  });
+
   it("builds the Chrome DevTools new-tab URL for a missing search", () => {
     expect(
       buildCdpNewTabUrl(
