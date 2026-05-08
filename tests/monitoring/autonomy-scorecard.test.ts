@@ -89,4 +89,47 @@ describe("autonomy-scorecard", () => {
       taskId: 42,
     });
   });
+
+
+  it("bounds incident reviews in the scorecard SQL", async () => {
+    spawnSync.mockReturnValue({
+      status: 0,
+      stdout: JSON.stringify({
+        windowHours: 168,
+        counts: {},
+        activeFollowUps: [],
+        incidentReviews: [],
+      }),
+      stderr: "",
+    });
+
+    const { collectAutonomyScorecard } = await importFresh("../../tools/monitoring/autonomy-scorecard.ts");
+    collectAutonomyScorecard();
+
+    const sql = String(spawnSync.mock.calls[0][1].at(-1));
+    expect(sql).toContain("LIMIT 25");
+    expect(sql).toContain("LEFT(COALESCE(r.metadata->>'detail', r.message, ''), 600)");
+    expect(sql).toContain("LEFT(l.detail, 600)");
+  });
+
+  it("keeps psql buffer failures compact", async () => {
+    const error = Object.assign(new Error("spawnSync psql ENOBUFS"), { code: "ENOBUFS" });
+    spawnSync.mockReturnValue({
+      status: null,
+      error,
+      stdout: "x".repeat(5000),
+      stderr: "",
+    });
+
+    const { collectAutonomyScorecard } = await importFresh("../../tools/monitoring/autonomy-scorecard.ts");
+    expect(() => collectAutonomyScorecard()).toThrow(/psql failed \(ENOBUFS\)/);
+
+    try {
+      collectAutonomyScorecard();
+    } catch (err) {
+      expect(String((err as Error).message).length).toBeLessThan(1200);
+      expect(String((err as Error).message)).toContain("truncated");
+    }
+  });
+
 });
