@@ -41,14 +41,35 @@ type AutonomyScorecard = {
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(HERE, "..", "..");
 const DB = process.env.CORTANA_DB ?? "cortana";
+const DEFAULT_INCIDENT_REVIEW_LIMIT = 25;
+const DEFAULT_TEXT_LIMIT = 600;
+const ERROR_OUTPUT_LIMIT = 1000;
+
+function parsePositiveInt(raw: string | undefined, fallback: number, max: number): number {
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed) || parsed <= 0) return fallback;
+  return Math.min(Math.floor(parsed), max);
+}
+
+function truncateText(value: string, limit: number): string {
+  if (value.length <= limit) return value;
+  return `${value.slice(0, limit)}...[truncated ${value.length - limit} chars]`;
+}
+
+function psqlFailureMessage(proc: ReturnType<typeof spawnSync>): string {
+  const code = proc.error && "code" in proc.error ? String((proc.error as NodeJS.ErrnoException).code ?? "") : "";
+  const raw = String(proc.stderr || proc.stdout || proc.error?.message || "psql failed").trim();
+  const suffix = code ? ` (${code})` : "";
+  return `psql failed${suffix}: ${truncateText(raw, ERROR_OUTPUT_LIMIT)}`;
+}
 
 function runPsqlJson(sql: string): JsonMap {
   const proc = spawnSync("/opt/homebrew/opt/postgresql@17/bin/psql", [DB, "-X", "-q", "-t", "-A", "-v", "ON_ERROR_STOP=1", "-c", sql], {
     cwd: ROOT,
     encoding: "utf8",
   });
-  if (proc.status !== 0) {
-    throw new Error((proc.stderr || proc.stdout || "psql failed").trim());
+  if (proc.error || proc.status !== 0) {
+    throw new Error(psqlFailureMessage(proc));
   }
   const raw = String(proc.stdout ?? "").trim() || "{}";
   return JSON.parse(raw) as JsonMap;
@@ -56,6 +77,8 @@ function runPsqlJson(sql: string): JsonMap {
 
 export function collectAutonomyScorecard(windowHours = 168): AutonomyScorecard {
   const hours = Number.isFinite(windowHours) && windowHours > 0 ? Math.floor(windowHours) : 168;
+  const incidentReviewLimit = parsePositiveInt(process.env.AUTONOMY_SCORECARD_INCIDENT_REVIEW_LIMIT, DEFAULT_INCIDENT_REVIEW_LIMIT, 100);
+  const textLimit = parsePositiveInt(process.env.AUTONOMY_SCORECARD_TEXT_LIMIT, DEFAULT_TEXT_LIMIT, 2000);
   const sql = `
 WITH recent AS (
   SELECT
@@ -95,7 +118,7 @@ SELECT json_build_object(
     SELECT json_agg(json_build_object(
       'system', l.system,
       'status', l.status,
-      'detail', l.detail,
+      'detail', LEFT(l.detail, ${textLimit}),
       'taskId', l.followup_task_id,
       'createdAt', l.timestamp
     ) ORDER BY l.timestamp DESC)
@@ -111,19 +134,24 @@ SELECT json_build_object(
       'lane', COALESCE(r.metadata->>'lane_label', CASE WHEN COALESCE((r.metadata->>'family_critical')::boolean, false) THEN 'family-critical' ELSE 'routine' END),
       'familyCritical', COALESCE((r.metadata->>'family_critical')::boolean, false),
       'status', COALESCE(r.metadata->>'status', ''),
-      'whatFailed', COALESCE(r.metadata->>'detail', r.message, ''),
-      'actionTaken', COALESCE(r.metadata->>'action', 'none'),
+      'whatFailed', LEFT(COALESCE(r.metadata->>'detail', r.message, ''), ${textLimit}),
+      'actionTaken', LEFT(COALESCE(r.metadata->>'action', 'none'), ${textLimit}),
       'verificationStatus', COALESCE(r.metadata->>'verification_status', 'uncertain'),
       'recovered', COALESCE(r.metadata->>'status', '') = 'remediated',
-      'followUp', COALESCE(r.metadata->>'escalation_path', 'review locally'),
-      'policyLesson', COALESCE(r.metadata->>'policy_lesson', 'n/a'),
+      'followUp', LEFT(COALESCE(r.metadata->>'escalation_path', 'review locally'), ${textLimit}),
+      'policyLesson', LEFT(COALESCE(r.metadata->>'policy_lesson', 'n/a'), ${textLimit}),
       'taskId', NULLIF(r.metadata->>'followup_task_id', '')::int,
       'createdAt', r.timestamp
     ) ORDER BY r.timestamp DESC)
-    FROM cortana_events r
-    WHERE r.source = 'autonomy-remediation'
-      AND r.event_type = 'autonomy_action_result'
-      AND r.timestamp >= NOW() - INTERVAL '${hours} hours'
+    FROM (
+      SELECT *
+      FROM cortana_events
+      WHERE source = 'autonomy-remediation'
+        AND event_type = 'autonomy_action_result'
+        AND timestamp >= NOW() - INTERVAL '${hours} hours'
+      ORDER BY timestamp DESC
+      LIMIT ${incidentReviewLimit}
+    ) r
   ), '[]'::json)
 )::text;
 `;
