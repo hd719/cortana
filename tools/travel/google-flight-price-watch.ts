@@ -18,14 +18,14 @@ export type GoogleFlightSearch = {
 
 const GOOGLE_FLIGHT_SEARCHES: GoogleFlightSearch[] = [
   {
-    route: "New York -> Marrakesh",
-    url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
-    urlNeedle: "Flights%20from%20JFK%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+    route: "New York -> Rabat",
+    url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+    urlNeedle: "Flights%20from%20JFK%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
   },
   {
-    route: "Newark -> Marrakesh",
-    url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
-    urlNeedle: "Flights%20from%20EWR%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+    route: "Newark -> Rabat",
+    url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+    urlNeedle: "Flights%20from%20EWR%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
   },
 ] as const;
 
@@ -45,11 +45,9 @@ const SEARCH_QUERY =
     "OR",
     '"tracked flight"',
     "OR",
-    '"Marrakesh"',
+    '"Rabat"',
     "OR",
-    '"Marrakech"',
-    "OR",
-    '"RAK"',
+    '"RBA"',
     ")",
   ].join(" ");
 
@@ -252,9 +250,9 @@ function formatPrice(price: number | null): string {
 export function extractRoute(text: string): string {
   const normalized = text.replace(/\s+/g, " ");
   const from = normalized.match(/\b(Newark|New York|JFK|EWR)\b/i)?.[1];
-  const to = normalized.match(/\b(Marrakesh|Marrakech|RAK)\b/i)?.[1];
-  if (!from && !to) return "NYC -> Marrakesh";
-  return `${from ?? "NYC"} -> ${to ?? "Marrakesh"}`;
+  const to = normalized.match(/\b(Rabat|RBA)\b/i)?.[1];
+  if (!from && !to) return "NYC -> Rabat";
+  return `${from ?? "NYC"} -> ${to ?? "Rabat"}`;
 }
 
 function verdict(price: number | null): string {
@@ -268,6 +266,7 @@ function verdict(price: number | null): string {
 function materialDrop(route: string, price: number | null, state: SentState): boolean {
   if (price == null) return false;
   const previous = state.lastSnapshotPrices?.[route];
+  if (previous == null) return true;
   return typeof previous === "number" && previous - price >= 300;
 }
 
@@ -284,7 +283,7 @@ export function buildSnapshotMessage(snapshots: FlightSnapshot[]): string {
     .filter((price): price is number => typeof price === "number")
     .sort((a, b) => a - b)[0] ?? null;
   const lines = [
-    "✈️ Marrakesh Flights - price snapshot",
+    "✈️ Rabat Flights - price snapshot",
     "Google has not emailed yet; live browser check is working.",
     ...ordered.map((snapshot) => {
       const insight = snapshot.priceInsight ? `, ${snapshot.priceInsight}` : "";
@@ -308,8 +307,8 @@ export function isFlightAlert(text: string, from: string, subject: string): bool
   const haystack = `${from}\n${subject}\n${text}`;
   const googleish = /google|google flights|google travel/i.test(haystack);
   const flightish = /flight|tracked price|price alert|track prices|travel/i.test(haystack);
-  const marrakeshish = /marrakesh|marrakech|\bRAK\b/i.test(haystack);
-  return googleish && flightish && marrakeshish;
+  const rabatish = /rabat|\bRBA\b/i.test(haystack);
+  return googleish && flightish && rabatish;
 }
 
 function summarize(threadId: string, message: GmailMessage, body: string): string | null {
@@ -326,7 +325,7 @@ function summarize(threadId: string, message: GmailMessage, body: string): strin
   const gmailUrl = `https://mail.google.com/mail/u/0/#inbox/${threadId}`;
 
   return [
-    "✈️ Marrakesh Flights - Google price alert",
+    "✈️ Rabat Flights - Google price alert",
     `Route: ${route}`,
     `Lowest seen: ${priceText} total for 2 business seats`,
     `Verdict: ${verdict(lowest)}`,
@@ -420,7 +419,7 @@ async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
       typeof target.webSocketDebuggerUrl === "string",
   );
   if (pages.length === 0) {
-    throw new Error("no open Google Flights Marrakesh/RAK tabs found");
+    throw new Error("no open Google Flights Rabat/RBA tabs found");
   }
 
   const snapshots: FlightSnapshot[] = [];
@@ -472,7 +471,7 @@ async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
 function buildSnapshotFailure(error: unknown): string {
   const detail = error instanceof Error ? error.message : String(error);
   return [
-    "✈️ Marrakesh Flights - watcher degraded",
+    "✈️ Rabat Flights - watcher degraded",
     "Gmail has no Google Flights emails, and the browser price snapshot failed.",
     `Detail: ${detail.slice(0, 180)}`,
   ].join("\n");
