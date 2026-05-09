@@ -10,10 +10,10 @@ import {
 } from "../../tools/travel/google-flight-price-watch.ts";
 
 describe("google-flight-price-watch", () => {
-  it("matches Marrakesh/RAK Google Flights alerts", () => {
+  it("matches Rabat/RBA Google Flights alerts", () => {
     expect(
       isFlightAlert(
-        "Track prices from Newark to Marrakesh departing 2026-08-12",
+        "Track prices from Newark to Rabat departing 2026-08-12",
         "Google Flights <googletravel-noreply@google.com>",
         "Flight price alert",
       ),
@@ -30,17 +30,27 @@ describe("google-flight-price-watch", () => {
     ).toBe(false);
   });
 
-  it("summarizes unknown destinations as Marrakesh rather than broad Morocco", () => {
-    expect(extractRoute("Google Flights price alert from EWR to RAK")).toBe("EWR -> RAK");
-    expect(extractRoute("Google Flights price alert from New York")).toBe("New York -> Marrakesh");
+  it("does not match prior Marrakesh/RAK alerts after switching to Rabat", () => {
+    expect(
+      isFlightAlert(
+        "Track prices from Newark to Marrakesh RAK departing 2026-08-12",
+        "Google Flights <googletravel-noreply@google.com>",
+        "Flight price alert",
+      ),
+    ).toBe(false);
+  });
+
+  it("summarizes unknown destinations as Rabat rather than broad Morocco", () => {
+    expect(extractRoute("Google Flights price alert from EWR to RBA")).toBe("EWR -> RBA");
+    expect(extractRoute("Google Flights price alert from New York")).toBe("New York -> Rabat");
   });
 
   it("sends one browser price snapshot per day when Gmail has no alerts", () => {
     const snapshots = [
       {
-        route: "New York -> Marrakesh",
+        route: "New York -> Rabat",
         account: "Google Account: Hamel D (hameldesai3@gmail.com)",
-        trackLabel: "Track prices from New York to Marrakesh departing 2026-08-12 and returning 2026-08-20",
+        trackLabel: "Track prices from New York to Rabat departing 2026-08-12 and returning 2026-08-20",
         trackingEnabled: true,
         priceInsight: "Prices are currently high",
         lowestPrice: 7377,
@@ -52,7 +62,7 @@ describe("google-flight-price-watch", () => {
     expect(shouldSendSnapshot({ version: 1, sentMessageIds: [] }, "2026-05-07", snapshots)).toBe(true);
     expect(
       shouldSendSnapshot(
-        { version: 1, sentMessageIds: [], lastSnapshotDate: "2026-05-07", lastSnapshotPrices: { "New York -> Marrakesh": 7377 } },
+        { version: 1, sentMessageIds: [], lastSnapshotDate: "2026-05-07", lastSnapshotPrices: { "New York -> Rabat": 7377 } },
         "2026-05-07",
         snapshots,
       ),
@@ -62,9 +72,9 @@ describe("google-flight-price-watch", () => {
   it("sends another same-day snapshot on a material price drop", () => {
     const snapshots = [
       {
-        route: "Newark -> Marrakesh",
+        route: "Newark -> Rabat",
         account: "Google Account: Hamel D (hameldesai3@gmail.com)",
-        trackLabel: "Track prices from Newark to Marrakesh departing 2026-08-12 and returning 2026-08-20",
+        trackLabel: "Track prices from Newark to Rabat departing 2026-08-12 and returning 2026-08-20",
         trackingEnabled: true,
         priceInsight: "Prices are currently typical",
         lowestPrice: 6200,
@@ -75,8 +85,31 @@ describe("google-flight-price-watch", () => {
 
     expect(
       shouldSendSnapshot(
-        { version: 1, sentMessageIds: [], lastSnapshotDate: "2026-05-07", lastSnapshotPrices: { "Newark -> Marrakesh": 6700 } },
+        { version: 1, sentMessageIds: [], lastSnapshotDate: "2026-05-07", lastSnapshotPrices: { "Newark -> Rabat": 6700 } },
         "2026-05-07",
+        snapshots,
+      ),
+    ).toBe(true);
+  });
+
+  it("sends a same-day snapshot when a route is newly tracked", () => {
+    const snapshots = [
+      {
+        route: "Newark -> Rabat",
+        account: "Google Account: Hamel D (hameldesai3@gmail.com)",
+        trackLabel: "Track prices from Newark to Rabat departing 2026-08-12 and returning 2026-08-20",
+        trackingEnabled: true,
+        priceInsight: "Prices are currently high",
+        lowestPrice: 8666,
+        prices: [8666],
+        url: "https://www.google.com/travel/flights",
+      },
+    ];
+
+    expect(
+      shouldSendSnapshot(
+        { version: 1, sentMessageIds: [], lastSnapshotDate: "2026-05-08", lastSnapshotPrices: { "Newark -> Marrakesh": 8666 } },
+        "2026-05-08",
         snapshots,
       ),
     ).toBe(true);
@@ -85,9 +118,9 @@ describe("google-flight-price-watch", () => {
   it("builds a non-actionable live browser snapshot message", () => {
     const message = buildSnapshotMessage([
       {
-        route: "New York -> Marrakesh",
+        route: "New York -> Rabat",
         account: "Google Account: Hamel D (hameldesai3@gmail.com)",
-        trackLabel: "Track prices from New York to Marrakesh departing 2026-08-12 and returning 2026-08-20",
+        trackLabel: "Track prices from New York to Rabat departing 2026-08-12 and returning 2026-08-20",
         trackingEnabled: true,
         priceInsight: "Prices are currently high",
         lowestPrice: 7377,
@@ -98,7 +131,7 @@ describe("google-flight-price-watch", () => {
 
     expect(message).toContain("price snapshot");
     expect(message).toContain("Google has not emailed yet; live browser check is working.");
-    expect(message).toContain("New York -> Marrakesh: $7,377");
+    expect(message).toContain("New York -> Rabat: $7,377");
     expect(message).not.toContain("enable Google Flights");
   });
 
@@ -114,25 +147,25 @@ describe("google-flight-price-watch", () => {
     const missing = missingGoogleFlightSearches([
       {
         type: "page",
-        title: "New York to Marrakesh | Google Flights",
-        url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+        title: "New York to Rabat | Google Flights",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
       },
     ]);
 
-    expect(missing.map((search) => search.route)).toEqual(["Newark -> Marrakesh"]);
+    expect(missing.map((search) => search.route)).toEqual(["Newark -> Rabat"]);
   });
 
   it("does not reopen tabs when both canonical searches are already present", () => {
     const missing = missingGoogleFlightSearches([
       {
         type: "page",
-        title: "New York to Marrakesh | Google Flights",
-        url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+        title: "New York to Rabat | Google Flights",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
       },
       {
         type: "page",
-        title: "Newark to Marrakesh | Google Flights",
-        url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RAK%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+        title: "Newark to Rabat | Google Flights",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
       },
     ]);
 
@@ -144,35 +177,35 @@ describe("google-flight-price-watch", () => {
       [
         {
           type: "page",
-          title: "Boston to Marrakesh | Google Flights",
-          url: "https://www.google.com/travel/flights?q=Flights%20from%20BOS%20to%20RAK%20August%2012%202026",
+          title: "Boston to Rabat | Google Flights",
+          url: "https://www.google.com/travel/flights?q=Flights%20from%20BOS%20to%20RBA%20August%2012%202026",
         },
       ],
       [
         {
-          route: "Boston -> Marrakesh",
-          url: "https://www.google.com/travel/flights?q=Flights%20from%20BOS%20to%20RAK%20August%2012%202026",
-          urlNeedle: "Flights%20from%20BOS%20to%20RAK%20August%2012%202026",
+          route: "Boston -> Rabat",
+          url: "https://www.google.com/travel/flights?q=Flights%20from%20BOS%20to%20RBA%20August%2012%202026",
+          urlNeedle: "Flights%20from%20BOS%20to%20RBA%20August%2012%202026",
         },
         {
-          route: "Philadelphia -> Marrakesh",
-          url: "https://www.google.com/travel/flights?q=Flights%20from%20PHL%20to%20RAK%20August%2012%202026",
-          urlNeedle: "Flights%20from%20PHL%20to%20RAK%20August%2012%202026",
+          route: "Philadelphia -> Rabat",
+          url: "https://www.google.com/travel/flights?q=Flights%20from%20PHL%20to%20RBA%20August%2012%202026",
+          urlNeedle: "Flights%20from%20PHL%20to%20RBA%20August%2012%202026",
         },
       ],
     );
 
-    expect(missing.map((search) => search.route)).toEqual(["Philadelphia -> Marrakesh"]);
+    expect(missing.map((search) => search.route)).toEqual(["Philadelphia -> Rabat"]);
   });
 
   it("builds the Chrome DevTools new-tab URL for a missing search", () => {
     expect(
       buildCdpNewTabUrl(
         "http://127.0.0.1:18792/json",
-        "https://www.google.com/travel/flights?q=Flights from JFK to RAK",
+        "https://www.google.com/travel/flights?q=Flights from JFK to RBA",
       ),
     ).toBe(
-      "http://127.0.0.1:18792/json/new?https%3A%2F%2Fwww.google.com%2Ftravel%2Fflights%3Fq%3DFlights%20from%20JFK%20to%20RAK",
+      "http://127.0.0.1:18792/json/new?https%3A%2F%2Fwww.google.com%2Ftravel%2Fflights%3Fq%3DFlights%20from%20JFK%20to%20RBA",
     );
   });
 });
