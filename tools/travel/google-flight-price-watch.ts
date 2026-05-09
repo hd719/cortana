@@ -18,14 +18,24 @@ export type GoogleFlightSearch = {
 
 const GOOGLE_FLIGHT_SEARCHES: GoogleFlightSearch[] = [
   {
-    route: "New York -> Rabat",
-    url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
-    urlNeedle: "Flights%20from%20JFK%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+    route: "New York -> Rabat | Aug 5-17",
+    url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%205%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+    urlNeedle: "Flights%20from%20JFK%20to%20RBA%20August%205%202026%20to%20August%2017%202026%20business%20class%202%20adults",
   },
   {
-    route: "Newark -> Rabat",
-    url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
-    urlNeedle: "Flights%20from%20EWR%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+    route: "Newark -> Rabat | Aug 5-17",
+    url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RBA%20August%205%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+    urlNeedle: "Flights%20from%20EWR%20to%20RBA%20August%205%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+  },
+  {
+    route: "New York -> Rabat | Aug 7-17",
+    url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%207%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+    urlNeedle: "Flights%20from%20JFK%20to%20RBA%20August%207%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+  },
+  {
+    route: "Newark -> Rabat | Aug 7-17",
+    url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RBA%20August%207%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+    urlNeedle: "Flights%20from%20EWR%20to%20RBA%20August%207%202026%20to%20August%2017%202026%20business%20class%202%20adults",
   },
 ] as const;
 
@@ -98,10 +108,12 @@ type FlightSnapshot = {
   priceInsight: string;
   lowestPrice: number | null;
   prices: number[];
+  bestFlight: string;
   url: string;
 };
 
 type CdpTarget = {
+  id?: string;
   title?: string;
   type?: string;
   url?: string;
@@ -152,6 +164,35 @@ export function missingGoogleFlightSearches(
 export function buildCdpNewTabUrl(targetsUrl: string, searchUrl: string): string {
   const base = targetsUrl.replace(/\/json\/?$/, "/json/new");
   return `${base}?${encodeURIComponent(searchUrl)}`;
+}
+
+export function extractFlightNumbersFromGoogleFlightUrl(url: string): string[] {
+  let encoded: string | null = null;
+  try {
+    encoded = new URL(url).searchParams.get("tfs");
+  } catch {
+    encoded = null;
+  }
+  if (!encoded) return [];
+
+  const decoded = Buffer.from(encoded.replace(/-/g, "+").replace(/_/g, "/"), "base64");
+  const flightNumbers: string[] = [];
+  for (let index = 0; index < decoded.length - 7; index += 1) {
+    if (decoded[index] !== 42 || decoded[index + 1] !== 2) continue;
+    const carrier = decoded.subarray(index + 2, index + 4).toString("ascii");
+    const numberLengthIndex = index + 5;
+    const numberStart = index + 6;
+    const numberLength = decoded[numberLengthIndex];
+    const numberEnd = numberStart + numberLength;
+    if (decoded[index + 4] !== 50 || numberLength < 1 || numberLength > 4 || numberEnd > decoded.length) continue;
+
+    const number = decoded.subarray(numberStart, numberEnd).toString("ascii");
+    if (/^[A-Z]{2}$/.test(carrier) && /^\d{1,4}$/.test(number)) {
+      flightNumbers.push(`${carrier}${number}`);
+    }
+  }
+
+  return Array.from(new Set(flightNumbers));
 }
 
 function runGog(args: string[]): string {
@@ -243,8 +284,98 @@ export function extractRoundTripPrices(text: string): number[] {
   return Array.from(new Set(prices)).sort((a, b) => a - b);
 }
 
+function cleanAirlineText(value: string): string {
+  return value
+    .replace(/([a-z])([A-Z])/g, "$1, $2")
+    .replace(/\s*,\s*/g, ", ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+export function extractBestFlightDetails(text: string): string {
+  const lines = text
+    .split("\n")
+    .map((line) => line.replace(/\s+/g, " ").trim())
+    .filter(Boolean);
+  const priceIndex = lines.findIndex((line, index) => /^\$[0-9,]+$/.test(line) && /round trip/i.test(lines[index + 1] ?? ""));
+  if (priceIndex < 0) return "";
+
+  const routeIndex = lines
+    .slice(Math.max(0, priceIndex - 10), priceIndex)
+    .findIndex((line) => /\b[A-Z]{3}\s*[–-]\s*[A-Z]{3}\b/.test(line));
+  if (routeIndex < 0) return "";
+
+  const windowStart = Math.max(0, priceIndex - 10);
+  const absoluteRouteIndex = windowStart + routeIndex;
+  const route = lines[absoluteRouteIndex]?.replace(/\s+/g, "");
+  const duration = lines[absoluteRouteIndex - 1] ?? "";
+  const airlines = cleanAirlineText(lines[absoluteRouteIndex - 2] ?? "");
+  const arrival = lines[absoluteRouteIndex - 3] ?? "";
+  const departure = lines[absoluteRouteIndex - 5] ?? "";
+  const stops = lines[absoluteRouteIndex + 1] ?? "";
+  const connection = lines[absoluteRouteIndex + 2] ?? "";
+  const flightNumbers = Array.from(
+    new Set(lines.slice(windowStart, priceIndex).join(" ").match(/\b[A-Z]{2}\s?\d{2,4}\b/g) ?? []),
+  );
+
+  const parts = [
+    departure && arrival ? `${departure}-${arrival}` : "",
+    airlines,
+    route,
+    duration,
+    stops,
+    /\b[A-Z]{3}\b/.test(connection) ? `via ${connection}` : "",
+    flightNumbers.length > 0 ? `flight ${flightNumbers.join("/")}` : "flight # not shown",
+  ].filter(Boolean);
+
+  return parts.join(", ");
+}
+
 function formatPrice(price: number | null): string {
   return price == null ? "unknown" : `$${price.toLocaleString("en-US")}`;
+}
+
+function compactRoute(route: string): string {
+  return route
+    .replace("New York -> Rabat | Aug 5-17", "JFK Aug5")
+    .replace("Newark -> Rabat | Aug 5-17", "EWR Aug5")
+    .replace("New York -> Rabat | Aug 7-17", "JFK Aug7")
+    .replace("Newark -> Rabat | Aug 7-17", "EWR Aug7");
+}
+
+function compactDuration(value: string): string {
+  return value.replace(/\b(\d+)\s*hr\s*(\d+)\s*min\b/i, "$1h$2m");
+}
+
+function compactConnection(value: string): string {
+  const airport = value.match(/\b[A-Z]{3}\b/)?.[0];
+  return airport ? `via ${airport}` : "";
+}
+
+function compactPriceInsight(value: string): string {
+  return value.replace(/^Prices are currently\s+/i, "").trim();
+}
+
+function compactBestFlightDetails(value: string): string {
+  if (!value) return "";
+  const parts = value.split(",").map((part) => part.trim()).filter(Boolean);
+  const routeIndex = parts.findIndex((part) => /\b[A-Z]{3}\s*[–-]\s*[A-Z]{3}\b/.test(part));
+  if (routeIndex < 0) return value;
+
+  const time = parts[0] ?? "";
+  const airlines = parts.slice(1, routeIndex).join("/").replace(/\s*\/\s*/g, "/");
+  const duration = compactDuration(parts[routeIndex + 1] ?? "");
+  const stops = parts[routeIndex + 2] ?? "";
+  const connection = compactConnection(parts[routeIndex + 3] ?? "");
+  const flight = parts.find((part) => /^flight\b/i.test(part))?.replace(/^flight\s+/i, "") ?? "";
+
+  return [
+    time,
+    airlines,
+    duration,
+    [stops, connection].filter(Boolean).join(" "),
+    flight,
+  ].filter(Boolean).join(", ");
 }
 
 export function extractRoute(text: string): string {
@@ -277,7 +408,7 @@ export function shouldSendSnapshot(state: SentState, date: string, snapshots: Fl
 }
 
 export function buildSnapshotMessage(snapshots: FlightSnapshot[]): string {
-  const ordered = [...snapshots].sort((a, b) => a.route.localeCompare(b.route));
+  const ordered = snapshots;
   const lowest = ordered
     .map((snapshot) => snapshot.lowestPrice)
     .filter((price): price is number => typeof price === "number")
@@ -286,9 +417,12 @@ export function buildSnapshotMessage(snapshots: FlightSnapshot[]): string {
     "✈️ Rabat Flights - price snapshot",
     "Google has not emailed yet; live browser check is working.",
     ...ordered.map((snapshot) => {
-      const insight = snapshot.priceInsight ? `, ${snapshot.priceInsight}` : "";
+      const insight = compactPriceInsight(snapshot.priceInsight);
+      const insightText = insight ? `, ${insight}` : "";
       const tracking = snapshot.trackingEnabled ? "tracking on" : "tracking off";
-      return `${snapshot.route}: ${formatPrice(snapshot.lowestPrice)} total for 2 business seats${insight}, ${tracking}`;
+      const bestFlight = compactBestFlightDetails(snapshot.bestFlight);
+      const bestFlightText = bestFlight ? `; top ${bestFlight}` : "";
+      return `${compactRoute(snapshot.route)}: ${formatPrice(snapshot.lowestPrice)} for 2 biz${insightText}, ${tracking}${bestFlightText}`;
     }),
     `Verdict: ${verdict(lowest)}`,
   ];
@@ -369,7 +503,7 @@ async function connectCdp(wsUrl: string): Promise<CdpClient> {
   };
 }
 
-async function openCdpTab(search: GoogleFlightSearch): Promise<void> {
+async function openCdpTab(search: GoogleFlightSearch): Promise<CdpTarget | null> {
   const url = buildCdpNewTabUrl(CDP_TARGETS_URL, search.url);
   let response = await fetch(url, { method: "PUT" });
   if (!response.ok && response.status === 405) {
@@ -378,10 +512,11 @@ async function openCdpTab(search: GoogleFlightSearch): Promise<void> {
   if (!response.ok) {
     throw new Error(`failed to open ${search.route}: HTTP ${response.status}`);
   }
+  return (await response.json().catch(() => null)) as CdpTarget | null;
 }
 
-function extractSnapshotFromPage(value: any): FlightSnapshot | null {
-  const route = typeof value?.route === "string" ? value.route : "";
+function extractSnapshotFromPage(value: any, search?: GoogleFlightSearch): FlightSnapshot | null {
+  const route = search?.route ?? (typeof value?.route === "string" ? value.route : "");
   const prices = Array.isArray(value?.prices) ? value.prices.filter((price: unknown) => typeof price === "number") : [];
   if (!route || prices.length === 0) return null;
   return {
@@ -392,8 +527,153 @@ function extractSnapshotFromPage(value: any): FlightSnapshot | null {
     priceInsight: typeof value.priceInsight === "string" ? value.priceInsight : "",
     lowestPrice: prices[0] ?? null,
     prices,
+    bestFlight: typeof value.bestFlight === "string" ? value.bestFlight : "",
     url: typeof value.url === "string" ? value.url : "",
   };
+}
+
+function flightSearchPages(
+  targets: CdpTarget[],
+  search: GoogleFlightSearch,
+): Array<CdpTarget & { webSocketDebuggerUrl: string }> {
+  return targets.filter(
+    (target): target is CdpTarget & { webSocketDebuggerUrl: string } =>
+      matchesGoogleFlightSearchTarget(target, search) &&
+      typeof target.webSocketDebuggerUrl === "string",
+  );
+}
+
+async function readSnapshotFromPage(
+  page: CdpTarget & { webSocketDebuggerUrl: string },
+  search: GoogleFlightSearch,
+): Promise<FlightSnapshot | null> {
+  const client = await connectCdp(page.webSocketDebuggerUrl);
+  try {
+    await client.send("Runtime.enable");
+    await client.send("Page.enable");
+    if (process.env.FLIGHT_PRICE_WATCH_CDP_RELOAD !== "0") {
+      await client.send("Page.reload", { ignoreCache: true });
+      await new Promise((resolve) => setTimeout(resolve, 9000));
+    }
+    const result = await client.send("Runtime.evaluate", {
+      returnByValue: true,
+      awaitPromise: true,
+      expression: `(async () => {
+          const norm = s => (s || '').replace(/\\s+/g, ' ').trim();
+          const cleanAirlineText = value => (value || '')
+            .replace(/([a-z])([A-Z])/g, '$1, $2')
+            .replace(/\\s*,\\s*/g, ', ')
+            .replace(/\\s+/g, ' ')
+            .trim();
+          const extractBestFlight = () => {
+            const lines = (document.body.innerText || '').split('\\n').map(line => norm(line)).filter(Boolean);
+            const priceIndex = lines.findIndex((line, index) => /^\\$[0-9,]+$/.test(line) && /round trip/i.test(lines[index + 1] || ''));
+            if (priceIndex < 0) return '';
+            const windowStart = Math.max(0, priceIndex - 10);
+            const routeOffset = lines.slice(windowStart, priceIndex).findIndex(line => /\\b[A-Z]{3}\\s*[–-]\\s*[A-Z]{3}\\b/.test(line));
+            if (routeOffset < 0) return '';
+            const routeIndex = windowStart + routeOffset;
+            const route = (lines[routeIndex] || '').replace(/\\s+/g, '');
+            const duration = lines[routeIndex - 1] || '';
+            const airlines = cleanAirlineText(lines[routeIndex - 2] || '');
+            const arrival = lines[routeIndex - 3] || '';
+            const departure = lines[routeIndex - 5] || '';
+            const stops = lines[routeIndex + 1] || '';
+            const connection = lines[routeIndex + 2] || '';
+            const flightNumbers = [...new Set((lines.slice(windowStart, priceIndex).join(' ').match(/\\b[A-Z]{2}\\s?\\d{2,4}\\b/g) || []))];
+            return [
+              departure && arrival ? departure + '-' + arrival : '',
+              airlines,
+              route,
+              duration,
+              stops,
+              /\\b[A-Z]{3}\\b/.test(connection) ? 'via ' + connection : '',
+              flightNumbers.length ? 'flight ' + flightNumbers.join('/') : 'flight # not shown',
+            ].filter(Boolean).join(', ');
+          };
+          const body = norm(document.body.innerText);
+          const account = document.querySelector('[aria-label^="Google Account:"]')?.getAttribute('aria-label')?.replace(/\\s+/g, ' ').trim() || '';
+          let sw = [...document.querySelectorAll('[role="switch"]')].find(el => /Track prices/i.test(el.getAttribute('aria-label') || ''));
+          if (sw?.getAttribute('aria-checked') === 'false') {
+            sw.click();
+            await new Promise(resolve => setTimeout(resolve, 1500));
+            sw = [...document.querySelectorAll('[role="switch"]')].find(el => /Track prices/i.test(el.getAttribute('aria-label') || ''));
+          }
+          const trackLabel = sw?.getAttribute('aria-label') || '';
+          const prices = [...body.matchAll(/\\$\\s*([1-9]\\d{0,2}(?:,\\d{3})+|[1-9]\\d{3,}) round trip/g)]
+            .map(match => Number(match[1].replace(/,/g, '')))
+            .filter(price => Number.isFinite(price) && price >= 1000 && price <= 50000)
+            .filter((price, index, all) => all.indexOf(price) === index)
+            .sort((a, b) => a - b);
+          const routeMatch = trackLabel.match(/from (.*?) to (.*?) departing/i);
+          const route = routeMatch
+            ? routeMatch[1] + ' -> ' + routeMatch[2]
+            : document.title.replace(/ \\| Google Flights$/, '').replace(/ to /, ' -> ');
+          const insight = (body.match(/Prices are currently (high|typical|low|cheap|expensive)/i) || [])[0] || '';
+          return { route, account, trackLabel, checked: sw?.getAttribute('aria-checked') || null, priceInsight: insight, prices, bestFlight: extractBestFlight(), url: location.href };
+        })()`,
+    });
+    return extractSnapshotFromPage(result.result.value, search);
+  } finally {
+    client.close();
+  }
+}
+
+async function readSelectedFlightNumbers(search: GoogleFlightSearch): Promise<string[]> {
+  if (process.env.FLIGHT_PRICE_WATCH_FLIGHT_NUMBER_LOOKUP === "0") return [];
+
+  const opened = await openCdpTab(search);
+  const openedId = opened?.id;
+  try {
+    await new Promise((resolve) => setTimeout(resolve, 10000));
+    const response = await fetch(CDP_TARGETS_URL);
+    if (!response.ok) return [];
+    const targets = (await response.json()) as CdpTarget[];
+    const page = targets.find(
+      (target): target is CdpTarget & { webSocketDebuggerUrl: string } =>
+        target.id === openedId && typeof target.webSocketDebuggerUrl === "string",
+    );
+    if (!page) return [];
+
+    const client = await connectCdp(page.webSocketDebuggerUrl);
+    try {
+      await client.send("Runtime.enable");
+      const result = await client.send("Runtime.evaluate", {
+        returnByValue: true,
+        awaitPromise: true,
+        expression: `(async () => {
+          const button = [...document.querySelectorAll('button,[role="button"]')]
+            .find(el => /Select flight/i.test(el.getAttribute('aria-label') || el.innerText || ''));
+          if (!button) return '';
+          button.scrollIntoView({ block: 'center' });
+          button.click();
+          await new Promise(resolve => setTimeout(resolve, 5000));
+          return location.href;
+        })()`,
+      });
+      const selectedUrl = typeof result.result.value === "string" ? result.result.value : "";
+      return extractFlightNumbersFromGoogleFlightUrl(selectedUrl);
+    } finally {
+      client.close();
+    }
+  } finally {
+    if (openedId) {
+      await fetch(CDP_TARGETS_URL.replace(/\/json\/?$/, `/json/close/${openedId}`)).catch(() => undefined);
+    }
+  }
+}
+
+async function enrichSnapshotsWithFlightNumbers(snapshots: Map<string, FlightSnapshot>): Promise<void> {
+  for (const search of GOOGLE_FLIGHT_SEARCHES) {
+    const snapshot = snapshots.get(search.route);
+    if (!snapshot || !snapshot.bestFlight.includes("flight # not shown")) continue;
+    let flightNumbers: string[] = [];
+    for (let attempt = 0; attempt < 2 && flightNumbers.length === 0; attempt += 1) {
+      flightNumbers = await readSelectedFlightNumbers(search).catch(() => []);
+    }
+    if (flightNumbers.length === 0) continue;
+    snapshot.bestFlight = snapshot.bestFlight.replace("flight # not shown", `flight ${flightNumbers.join("/")}`);
+  }
 }
 
 async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
@@ -410,62 +690,51 @@ async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
     if (!response.ok) throw new Error(`CDP target refresh failed: HTTP ${response.status}`);
     targets = (await response.json()) as CdpTarget[];
   }
-  const pages = targets.filter(
-    (target) =>
-      target.type === "page" &&
-      typeof target.url === "string" &&
-      target.url.includes("google.com/travel/flights") &&
-      GOOGLE_FLIGHT_SEARCHES.some((search) => matchesGoogleFlightSearchTarget(target, search)) &&
-      typeof target.webSocketDebuggerUrl === "string",
-  );
-  if (pages.length === 0) {
-    throw new Error("no open Google Flights Rabat/RBA tabs found");
-  }
-
-  const snapshots: FlightSnapshot[] = [];
-  for (const page of pages) {
-    const client = await connectCdp(page.webSocketDebuggerUrl as string);
-    try {
-      await client.send("Runtime.enable");
-      await client.send("Page.enable");
-      if (process.env.FLIGHT_PRICE_WATCH_CDP_RELOAD !== "0") {
-        await client.send("Page.reload", { ignoreCache: true });
-        await new Promise((resolve) => setTimeout(resolve, 9000));
+  const snapshots = new Map<string, FlightSnapshot>();
+  let missingSnapshots: GoogleFlightSearch[] = [];
+  for (const search of GOOGLE_FLIGHT_SEARCHES) {
+    for (const page of flightSearchPages(targets, search)) {
+      const snapshot = await readSnapshotFromPage(page, search);
+      if (snapshot) {
+        snapshots.set(search.route, snapshot);
+        break;
       }
-      const result = await client.send("Runtime.evaluate", {
-        returnByValue: true,
-        awaitPromise: true,
-        expression: `(() => {
-          const norm = s => (s || '').replace(/\\s+/g, ' ').trim();
-          const body = norm(document.body.innerText);
-          const account = document.querySelector('[aria-label^="Google Account:"]')?.getAttribute('aria-label')?.replace(/\\s+/g, ' ').trim() || '';
-          const sw = [...document.querySelectorAll('[role="switch"]')].find(el => /Track prices/i.test(el.getAttribute('aria-label') || ''));
-          const trackLabel = sw?.getAttribute('aria-label') || '';
-          const prices = [...body.matchAll(/\\$\\s*([1-9]\\d{0,2}(?:,\\d{3})+|[1-9]\\d{3,}) round trip/g)]
-            .map(match => Number(match[1].replace(/,/g, '')))
-            .filter(price => Number.isFinite(price) && price >= 1000 && price <= 50000)
-            .filter((price, index, all) => all.indexOf(price) === index)
-            .sort((a, b) => a - b);
-          const routeMatch = trackLabel.match(/from (.*?) to (.*?) departing/i);
-          const route = routeMatch
-            ? routeMatch[1] + ' -> ' + routeMatch[2]
-            : document.title.replace(/ \\| Google Flights$/, '').replace(/ to /, ' -> ');
-          const insight = (body.match(/Prices are currently (high|typical|low|cheap|expensive)/i) || [])[0] || '';
-          return { route, account, trackLabel, checked: sw?.getAttribute('aria-checked') || null, priceInsight: insight, prices, url: location.href };
-        })()`,
-      });
-      const snapshot = extractSnapshotFromPage(result.result.value);
-      if (snapshot) snapshots.push(snapshot);
-    } finally {
-      client.close();
     }
+    if (!snapshots.has(search.route)) missingSnapshots.push(search);
   }
 
-  if (snapshots.length === 0) {
-    throw new Error("open Google Flights tabs did not expose parsable round-trip prices");
+  if (missingSnapshots.length > 0) {
+    for (const search of missingSnapshots) {
+      await openCdpTab(search);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 7000));
+    response = await fetch(CDP_TARGETS_URL);
+    if (!response.ok) throw new Error(`CDP target retry refresh failed: HTTP ${response.status}`);
+    targets = (await response.json()) as CdpTarget[];
+
+    const stillMissing: GoogleFlightSearch[] = [];
+    for (const search of missingSnapshots) {
+      for (const page of flightSearchPages(targets, search)) {
+        const snapshot = await readSnapshotFromPage(page, search);
+        if (snapshot) {
+          snapshots.set(search.route, snapshot);
+          break;
+        }
+      }
+      if (!snapshots.has(search.route)) stillMissing.push(search);
+    }
+    missingSnapshots = stillMissing;
   }
 
-  return snapshots;
+  if (missingSnapshots.length > 0) {
+    throw new Error(`missing parsable Google Flights snapshots: ${missingSnapshots.map((search) => search.route).join("; ")}`);
+  }
+
+  await enrichSnapshotsWithFlightNumbers(snapshots);
+
+  return GOOGLE_FLIGHT_SEARCHES.map((search) => snapshots.get(search.route)).filter(
+    (snapshot): snapshot is FlightSnapshot => Boolean(snapshot),
+  );
 }
 
 function buildSnapshotFailure(error: unknown): string {

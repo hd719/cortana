@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   buildSnapshotMessage,
   buildCdpNewTabUrl,
+  extractBestFlightDetails,
+  extractFlightNumbersFromGoogleFlightUrl,
   extractRoute,
   extractRoundTripPrices,
   missingGoogleFlightSearches,
@@ -55,6 +57,7 @@ describe("google-flight-price-watch", () => {
         priceInsight: "Prices are currently high",
         lowestPrice: 7377,
         prices: [7377, 8099],
+        bestFlight: "5:00 PM-10:45 AM+1, Air France, Delta, KLM, EWR-RBA, 12 hr 45 min, 1 stop, via 2 hr 30 min CDG, flight # not shown",
         url: "https://www.google.com/travel/flights",
       },
     ];
@@ -79,6 +82,7 @@ describe("google-flight-price-watch", () => {
         priceInsight: "Prices are currently typical",
         lowestPrice: 6200,
         prices: [6200],
+        bestFlight: "5:00 PM-10:45 AM+1, Air France, Delta, KLM, EWR-RBA, 12 hr 45 min, 1 stop, via 2 hr 30 min CDG, flight # not shown",
         url: "https://www.google.com/travel/flights",
       },
     ];
@@ -102,6 +106,7 @@ describe("google-flight-price-watch", () => {
         priceInsight: "Prices are currently high",
         lowestPrice: 8666,
         prices: [8666],
+        bestFlight: "5:00 PM-10:45 AM+1, Air France, Delta, KLM, EWR-RBA, 12 hr 45 min, 1 stop, via 2 hr 30 min CDG, flight # not shown",
         url: "https://www.google.com/travel/flights",
       },
     ];
@@ -125,6 +130,7 @@ describe("google-flight-price-watch", () => {
         priceInsight: "Prices are currently high",
         lowestPrice: 7377,
         prices: [7377],
+        bestFlight: "5:00 PM-10:45 AM+1, Air France, Delta, KLM, JFK-RBA, 12 hr 45 min, 1 stop, via 2 hr 30 min CDG, flight AF11/AF1458",
         url: "https://www.google.com/travel/flights",
       },
     ]);
@@ -132,7 +138,66 @@ describe("google-flight-price-watch", () => {
     expect(message).toContain("price snapshot");
     expect(message).toContain("Google has not emailed yet; live browser check is working.");
     expect(message).toContain("New York -> Rabat: $7,377");
+    expect(message).toContain("top 5:00 PM-10:45 AM+1, Air France/Delta/KLM");
+    expect(message).toContain("AF11/AF1458");
     expect(message).not.toContain("enable Google Flights");
+  });
+
+  it("keeps all configured date-window route lines in the compact snapshot", () => {
+    const snapshots = [
+      ["New York -> Rabat | Aug 5-17", 10844, "JFK-RBA"],
+      ["Newark -> Rabat | Aug 5-17", 10870, "EWR-RBA"],
+      ["New York -> Rabat | Aug 7-17", 11104, "JFK-RBA"],
+      ["Newark -> Rabat | Aug 7-17", 11130, "EWR-RBA"],
+    ].map(([route, lowestPrice, airportPair]) => ({
+      route: String(route),
+      account: "Google Account: Hamel D (hameldesai3@gmail.com)",
+      trackLabel: "Track prices",
+      trackingEnabled: true,
+      priceInsight: "Prices are currently typical",
+      lowestPrice: Number(lowestPrice),
+      prices: [Number(lowestPrice)],
+      bestFlight: `5:00 PM-10:45 AM+1, Air France, Delta, KLM, ${airportPair}, 12 hr 45 min, 1 stop, via 2 hr 30 min CDG, flight # not shown`,
+      url: "https://www.google.com/travel/flights",
+    }));
+
+    const message = buildSnapshotMessage(snapshots);
+
+    expect(message).toContain("JFK Aug5: $10,844");
+    expect(message).toContain("EWR Aug5: $10,870");
+    expect(message).toContain("JFK Aug7: $11,104");
+    expect(message).toContain("EWR Aug7: $11,130");
+    expect(message).toContain("Air France/Delta/KLM");
+  });
+
+  it("extracts top flight airline and connection details from Google Flights text", () => {
+    expect(
+      extractBestFlightDetails(
+        [
+          "Departing flights",
+          "Sorted by top flights",
+          "5:00 PM",
+          " – ",
+          "10:45 AM+1",
+          "Air FranceDelta, KLM",
+          "12 hr 45 min",
+          "EWR–RBA",
+          "1 stop",
+          "2 hr 30 min CDG",
+          "3,234 kg CO2e",
+          "+6% emissions",
+          "$10,604",
+          "round trip",
+        ].join("\n"),
+      ),
+    ).toBe("5:00 PM-10:45 AM+1, Air France, Delta, KLM, EWR–RBA, 12 hr 45 min, 1 stop, via 2 hr 30 min CDG, flight # not shown");
+  });
+
+  it("extracts selected-flight numbers from Google Flights tfs URLs", () => {
+    const url =
+      "https://www.google.com/travel/flights/search?tfs=CBwQAhpgEgoyMDI2LTA4LTA1Ih4KA0pGSxIKMjAyNi0wOC0wNRoDQ0RHKgJBRjICMTEiIAoDQ0RHEgoyMDI2LTA4LTA1GgNSQkEqAkFGMgQxNDU4agcIARIDSkZLcgcIARIDUkJBGh4SCjIwMjYtMDgtMTdqBwgBEgNSQkFyBwgBEgNKRktAAUABSANwAYIBCwj___________8BmAEB";
+
+    expect(extractFlightNumbersFromGoogleFlightUrl(url)).toEqual(["AF11", "AF1458"]);
   });
 
   it("ignores adjacent-date suggestion prices in browser snapshots", () => {
@@ -148,11 +213,15 @@ describe("google-flight-price-watch", () => {
       {
         type: "page",
         title: "New York to Rabat | Google Flights",
-        url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%205%202026%20to%20August%2017%202026%20business%20class%202%20adults",
       },
     ]);
 
-    expect(missing.map((search) => search.route)).toEqual(["Newark -> Rabat"]);
+    expect(missing.map((search) => search.route)).toEqual([
+      "Newark -> Rabat | Aug 5-17",
+      "New York -> Rabat | Aug 7-17",
+      "Newark -> Rabat | Aug 7-17",
+    ]);
   });
 
   it("does not reopen tabs when both canonical searches are already present", () => {
@@ -160,12 +229,22 @@ describe("google-flight-price-watch", () => {
       {
         type: "page",
         title: "New York to Rabat | Google Flights",
-        url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%205%202026%20to%20August%2017%202026%20business%20class%202%20adults",
       },
       {
         type: "page",
         title: "Newark to Rabat | Google Flights",
-        url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RBA%20August%2012%202026%20to%20August%2020%202026%20business%20class%202%20adults",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RBA%20August%205%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+      },
+      {
+        type: "page",
+        title: "New York to Rabat | Google Flights",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%207%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+      },
+      {
+        type: "page",
+        title: "Newark to Rabat | Google Flights",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RBA%20August%207%202026%20to%20August%2017%202026%20business%20class%202%20adults",
       },
     ]);
 

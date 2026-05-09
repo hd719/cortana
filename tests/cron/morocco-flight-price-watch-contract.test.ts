@@ -22,6 +22,10 @@ describe("Morocco flight price watch cron contract", () => {
     expect(message).toContain("one daily live browser price snapshot");
     expect(message).toContain("informational, not a setup action");
     expect(message).toContain("Rabat/RBA");
+    expect(message).toContain("Aug 5-17 and Aug 7-17");
+    expect(message).toContain("airline/visible flight-number details");
+    expect(message).toContain("preserve every configured route line");
+    expect(message).toContain("Preserve all route lines exactly");
     expect(message).toContain("Gmail plus live Google Flights browser tabs");
     expect(message).toContain("If script outputs alert/snapshot/failure text: send it exactly once");
     expect(message).toContain("telegram target 8171372724 with accountId monitor");
