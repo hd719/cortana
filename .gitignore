@@ -17,6 +17,7 @@ node_modules/
 cortical-loop/logs/
 cortical-loop/state/
 tmp/
+tmp-*
 tmp/research/
 tmp-backtest-compute-*/
 tmp-notify-*/
@@ -67,6 +68,7 @@ BOOTSTRAP.md
 identities/main/IDENTITY.md
 
 # Runtime-derived memory and dreaming artifacts
+.openclaw-repair/
 DREAMS.md
 identities/*/DREAMS.md
 memory/archive/

@@ -10,6 +10,7 @@
     "ops:repo-hygiene": "bash tools/repo/repo-auto-sync.sh",
     "ops:post-merge": "bash tools/repo/post-pr-cleanup.sh",
     "ops:deploy-runtime": "bash tools/deploy/sync-runtime-from-cortana.sh",
+    "repo:artifact-guard": "bash tools/repo/tracked-artifact-guard.sh",
     "ops:routing-drift": "pnpm exec tsx tools/monitoring/ops-routing-drift-check.ts",
     "release:done-gates": "pnpm exec tsx tools/release/done-gates.ts",
     "session:lifecycle": "pnpm exec tsx tools/session/session-lifecycle-policy.ts",
