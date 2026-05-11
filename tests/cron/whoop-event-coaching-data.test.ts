@@ -6,8 +6,83 @@ import {
   buildWhoopCoachingIdempotencyKey,
   coachingLaneForWhoopEvent,
   localDateForEvent,
+  markWhoopCoachingDelivered,
+  markWhoopCoachingFailed,
+  nextWhoopCoachingArtifact,
+  type SpartanWhoopCoachingLane,
+  type WhoopEventAnalysisCandidate,
+  type WhoopEventCoachingStore,
   whoopEventLookbackMinutes,
 } from "../../tools/fitness/whoop-event-coaching-data.ts";
+
+function fakeStore(candidates: WhoopEventAnalysisCandidate[]): WhoopEventCoachingStore & { claimed: Set<string> } {
+  const claimed = new Set<string>();
+  return {
+    claimed,
+    ensureSchema: () => undefined,
+    fetchCandidates: () => candidates,
+    claimCandidate: (_candidate, _lane, idempotencyKey) => {
+      if (claimed.has(idempotencyKey)) return false;
+      claimed.add(idempotencyKey);
+      return true;
+    },
+    markDelivered: (idempotencyKey) => claimed.has(idempotencyKey),
+    markFailed: (idempotencyKey) => claimed.has(idempotencyKey),
+  };
+}
+
+describe("whoop event coaching data service", () => {
+  it("claims one eligible workout event, emits a coaching artifact, then dedupes the next pass", () => {
+    const store = fakeStore([
+      {
+        trace_id: "trace-1",
+        event_type: "workout.updated",
+        resource_id: "workout-123",
+        whoop_user_id: "user-1",
+        observed_at: "2026-05-11T14:00:00.000Z",
+        artifact: { summary: { headline: "Run logged" } },
+        created_at: "2026-05-11T14:01:00.000Z",
+      },
+    ]);
+
+    const first = nextWhoopCoachingArtifact({
+      store,
+      buildFitnessContext: (lane) => ({ lane, readiness: "green" }),
+      now: () => new Date("2026-05-11T14:02:00.000Z"),
+    });
+
+    expect(first).toMatchObject({
+      source: "whoop_webhook",
+      coaching_lane: "post_workout",
+      idempotency_key: "whoop:workout:user-1:workout-123",
+      event_type: "workout.updated",
+      fitness_context: { lane: "post_workout", readiness: "green" },
+    });
+    expect(first?.mark_delivered_command).toContain("--mark-delivered=whoop:workout:user-1:workout-123");
+    expect(store.claimed.has("whoop:workout:user-1:workout-123")).toBe(true);
+
+    expect(nextWhoopCoachingArtifact({
+      store,
+      buildFitnessContext: () => ({ should_not_run: true }),
+      now: () => new Date("2026-05-11T14:03:00.000Z"),
+    })).toBeNull();
+  });
+
+  it("reports missing delivery state instead of claiming success", () => {
+    const store = fakeStore([]);
+
+    expect(markWhoopCoachingDelivered({ store }, "missing-key")).toEqual({
+      ok: false,
+      idempotency_key: "missing-key",
+      status: "missing",
+    });
+    expect(markWhoopCoachingFailed({ store }, "missing-key", "send failed")).toEqual({
+      ok: false,
+      idempotency_key: "missing-key",
+      status: "missing",
+    });
+  });
+});
 
 describe("whoop event coaching data helpers", () => {
   it("classifies WHOOP update events into Spartan coaching lanes", () => {
@@ -58,7 +133,7 @@ describe("whoop event coaching data helpers", () => {
 
   it("builds coach-facing reasons from event artifacts", () => {
     const reason = buildSpartanCoachingReason({
-      lane: "post_workout",
+      lane: "post_workout" as SpartanWhoopCoachingLane,
       eventType: "workout.updated",
       artifact: { summary: { headline: "Workout updated" } },
     });

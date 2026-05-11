@@ -3,9 +3,10 @@
 import { spawnSync } from "node:child_process";
 import { runPsql } from "../lib/db.js";
 
-type JsonRecord = Record<string, unknown>;
+export type JsonRecord = Record<string, unknown>;
 
 export type SpartanWhoopCoachingLane = "post_workout" | "wake_recovery" | "audit_only";
+export type DeliverableSpartanWhoopCoachingLane = Exclude<SpartanWhoopCoachingLane, "audit_only">;
 
 export type WhoopEventAnalysisCandidate = {
   trace_id: string;
@@ -17,9 +18,39 @@ export type WhoopEventAnalysisCandidate = {
   created_at: string;
 };
 
+export type SpartanWhoopCoachingArtifact = {
+  generated_at: string;
+  source: "whoop_webhook";
+  coaching_lane: DeliverableSpartanWhoopCoachingLane;
+  idempotency_key: string;
+  event_type: string;
+  trace_id: string;
+  resource_id: string | null;
+  observed_at: string | null;
+  event_artifact: JsonRecord;
+  fitness_context: JsonRecord;
+  mark_delivered_command: string;
+  mark_failed_command: string;
+};
+
+export type WhoopEventDeliveryResult = {
+  ok: boolean;
+  idempotency_key: string;
+  status: "delivered" | "failed" | "missing";
+};
+
+export type WhoopEventCoachingStore = {
+  ensureSchema(): void;
+  fetchCandidates(lookbackMinutes: number): WhoopEventAnalysisCandidate[];
+  claimCandidate(candidate: WhoopEventAnalysisCandidate, lane: DeliverableSpartanWhoopCoachingLane, idempotencyKey: string, artifact: JsonRecord): boolean;
+  markDelivered(idempotencyKey: string): boolean;
+  markFailed(idempotencyKey: string, error: string): boolean;
+};
+
 const CLAIM_WINDOW_MINUTES = 15;
 const DEFAULT_LOOKBACK_MINUTES = 180;
 const TIME_ZONE = "America/New_York";
+const SCRIPT_PATH = "/Users/hd/Developer/cortana/tools/fitness/whoop-event-coaching-data.ts";
 
 function esc(value: string): string {
   return value.replace(/'/g, "''");
@@ -121,6 +152,17 @@ export function buildSpartanCoachingReason(input: {
   return `${headline}; retained for audit only.`;
 }
 
+function buildClaimArtifact(candidate: WhoopEventAnalysisCandidate, lane: DeliverableSpartanWhoopCoachingLane, idempotencyKey: string): JsonRecord {
+  return {
+    ...candidate.artifact,
+    spartan_event_coaching: {
+      lane,
+      idempotency_key: idempotencyKey,
+      reason: buildSpartanCoachingReason({ lane, eventType: candidate.event_type, artifact: candidate.artifact }),
+    },
+  };
+}
+
 export function buildSpartanEventCoachingSchemaSql(): string {
   return `
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -147,15 +189,17 @@ CREATE INDEX IF NOT EXISTS idx_spartan_event_coaching_trace ON spartan_event_coa
 `;
 }
 
-function ensureSchema(): void {
-  const result = runPsql(buildSpartanEventCoachingSchemaSql());
-  if (result.status !== 0) {
-    throw new Error((result.stderr || "failed to ensure spartan event coaching schema").trim());
-  }
-}
+export function createPsqlWhoopEventCoachingStore(): WhoopEventCoachingStore {
+  return {
+    ensureSchema() {
+      const result = runPsql(buildSpartanEventCoachingSchemaSql());
+      if (result.status !== 0) {
+        throw new Error((result.stderr || "failed to ensure spartan event coaching schema").trim());
+      }
+    },
 
-function fetchRecentCandidates(): WhoopEventAnalysisCandidate[] {
-  const result = runPsql(`
+    fetchCandidates(lookbackMinutes) {
+      const result = runPsql(`
 SELECT COALESCE(json_agg(row_to_json(t)), '[]'::json)::text
 FROM (
   SELECT
@@ -170,26 +214,18 @@ FROM (
   JOIN whoop_webhook_events e ON e.trace_id = a.trace_id
   WHERE a.notification_status = 'sent'
     AND COALESCE(a.artifact->'policy'->>'decision', '') = 'SEND'
-    AND a.created_at >= now() - interval '${whoopEventLookbackMinutes()} minutes'
+    AND a.created_at >= now() - interval '${lookbackMinutes} minutes'
   ORDER BY a.created_at ASC
 ) t;
 `);
-  if (result.status !== 0) {
-    throw new Error((result.stderr || "failed to fetch whoop event analysis candidates").trim());
-  }
-  return parseJsonArray<WhoopEventAnalysisCandidate>(String(result.stdout ?? ""));
-}
-
-function claimCandidate(candidate: WhoopEventAnalysisCandidate, lane: Exclude<SpartanWhoopCoachingLane, "audit_only">, idempotencyKey: string): boolean {
-  const artifact = {
-    ...candidate.artifact,
-    spartan_event_coaching: {
-      lane,
-      idempotency_key: idempotencyKey,
-      reason: buildSpartanCoachingReason({ lane, eventType: candidate.event_type, artifact: candidate.artifact }),
+      if (result.status !== 0) {
+        throw new Error((result.stderr || "failed to fetch whoop event analysis candidates").trim());
+      }
+      return parseJsonArray<WhoopEventAnalysisCandidate>(String(result.stdout ?? ""));
     },
-  };
-  const result = runPsql(`
+
+    claimCandidate(candidate, lane, idempotencyKey, artifact) {
+      const result = runPsql(`
 WITH claimed AS (
   INSERT INTO spartan_event_coaching_log (
     idempotency_key, lane, trace_id, event_type, resource_id, status, artifact, claimed_at, error
@@ -214,37 +250,49 @@ WITH claimed AS (
     claimed_at = now(),
     error = NULL,
     updated_at = now()
-  WHERE spartan_event_coaching_log.status = 'failed'
-     OR (spartan_event_coaching_log.status = 'claimed' AND spartan_event_coaching_log.claimed_at < now() - interval '${CLAIM_WINDOW_MINUTES} minutes')
+  WHERE spartan_event_coaching_log.status IN ('failed','claimed')
+    AND spartan_event_coaching_log.claimed_at < now() - interval '${CLAIM_WINDOW_MINUTES} minutes'
   RETURNING idempotency_key
 )
 SELECT COALESCE((SELECT idempotency_key FROM claimed), '') AS idempotency_key;
 `);
-  if (result.status !== 0) {
-    throw new Error((result.stderr || "failed to claim spartan event coaching candidate").trim());
-  }
-  return String(result.stdout ?? "").trim() === idempotencyKey;
-}
+      if (result.status !== 0) {
+        throw new Error((result.stderr || "failed to claim spartan event coaching candidate").trim());
+      }
+      return String(result.stdout ?? "").trim() === idempotencyKey;
+    },
 
-function markDelivered(idempotencyKey: string): void {
-  const result = runPsql(`
-UPDATE spartan_event_coaching_log
-SET status = 'delivered', delivered_at = now(), error = NULL, updated_at = now()
-WHERE idempotency_key = ${sqlText(idempotencyKey)};
+    markDelivered(idempotencyKey) {
+      const result = runPsql(`
+WITH updated AS (
+  UPDATE spartan_event_coaching_log
+  SET status = 'delivered', delivered_at = now(), error = NULL, updated_at = now()
+  WHERE idempotency_key = ${sqlText(idempotencyKey)}
+  RETURNING idempotency_key
+)
+SELECT COALESCE((SELECT idempotency_key FROM updated), '') AS idempotency_key;
 `);
-  if (result.status !== 0) throw new Error((result.stderr || "failed to mark event coaching delivered").trim());
-}
+      if (result.status !== 0) throw new Error((result.stderr || "failed to mark event coaching delivered").trim());
+      return String(result.stdout ?? "").trim() === idempotencyKey;
+    },
 
-function markFailed(idempotencyKey: string, error: string): void {
-  const result = runPsql(`
-UPDATE spartan_event_coaching_log
-SET status = 'failed', error = ${sqlText(error.slice(0, 1000))}, updated_at = now()
-WHERE idempotency_key = ${sqlText(idempotencyKey)};
+    markFailed(idempotencyKey, error) {
+      const result = runPsql(`
+WITH updated AS (
+  UPDATE spartan_event_coaching_log
+  SET status = 'failed', error = ${sqlText(error.slice(0, 1000))}, updated_at = now()
+  WHERE idempotency_key = ${sqlText(idempotencyKey)}
+  RETURNING idempotency_key
+)
+SELECT COALESCE((SELECT idempotency_key FROM updated), '') AS idempotency_key;
 `);
-  if (result.status !== 0) throw new Error((result.stderr || "failed to mark event coaching failed").trim());
+      if (result.status !== 0) throw new Error((result.stderr || "failed to mark event coaching failed").trim());
+      return String(result.stdout ?? "").trim() === idempotencyKey;
+    },
+  };
 }
 
-function buildFitnessContext(lane: SpartanWhoopCoachingLane): JsonRecord {
+export function buildFitnessContext(lane: SpartanWhoopCoachingLane): JsonRecord {
   if (lane === "wake_recovery") {
     return runJsonScript("/Users/hd/Developer/cortana/tools/fitness/morning-brief-data.ts");
   }
@@ -254,28 +302,16 @@ function buildFitnessContext(lane: SpartanWhoopCoachingLane): JsonRecord {
   return {};
 }
 
-function main(): void {
-  const markDeliveredArg = process.argv.find((arg) => arg.startsWith("--mark-delivered="));
-  if (markDeliveredArg) {
-    ensureSchema();
-    const key = markDeliveredArg.split("=")[1] ?? "";
-    markDelivered(key);
-    process.stdout.write(`${JSON.stringify({ ok: true, idempotency_key: key, status: "delivered" })}\n`);
-    return;
-  }
+export function nextWhoopCoachingArtifact(options: {
+  store: WhoopEventCoachingStore;
+  buildFitnessContext?: (lane: DeliverableSpartanWhoopCoachingLane) => JsonRecord;
+  env?: NodeJS.ProcessEnv;
+  now?: () => Date;
+}): SpartanWhoopCoachingArtifact | null {
+  const buildContext = options.buildFitnessContext ?? buildFitnessContext;
+  options.store.ensureSchema();
+  const candidates = options.store.fetchCandidates(whoopEventLookbackMinutes(options.env));
 
-  const markFailedArg = process.argv.find((arg) => arg.startsWith("--mark-failed="));
-  if (markFailedArg) {
-    ensureSchema();
-    const key = markFailedArg.split("=")[1] ?? "";
-    const error = process.argv.find((arg) => arg.startsWith("--error="))?.split("=").slice(1).join("=") ?? "unknown";
-    markFailed(key, error);
-    process.stdout.write(`${JSON.stringify({ ok: true, idempotency_key: key, status: "failed" })}\n`);
-    return;
-  }
-
-  ensureSchema();
-  const candidates = fetchRecentCandidates();
   for (const candidate of candidates) {
     const lane = coachingLaneForWhoopEvent(candidate.event_type);
     if (lane === "audit_only") continue;
@@ -287,11 +323,12 @@ function main(): void {
       whoopUserId,
     });
     if (!idempotencyKey) continue;
-    if (!claimCandidate(candidate, lane, idempotencyKey)) continue;
 
-    const fitnessContext = buildFitnessContext(lane);
-    process.stdout.write(`${JSON.stringify({
-      generated_at: new Date().toISOString(),
+    const claimArtifact = buildClaimArtifact(candidate, lane, idempotencyKey);
+    if (!options.store.claimCandidate(candidate, lane, idempotencyKey, claimArtifact)) continue;
+
+    return {
+      generated_at: (options.now ?? (() => new Date()))().toISOString(),
       source: "whoop_webhook",
       coaching_lane: lane,
       idempotency_key: idempotencyKey,
@@ -300,14 +337,53 @@ function main(): void {
       resource_id: candidate.resource_id,
       observed_at: candidate.observed_at,
       event_artifact: candidate.artifact,
-      fitness_context: fitnessContext,
-      mark_delivered_command: `npx tsx /Users/hd/Developer/cortana/tools/fitness/whoop-event-coaching-data.ts --mark-delivered=${idempotencyKey}`,
-      mark_failed_command: `npx tsx /Users/hd/Developer/cortana/tools/fitness/whoop-event-coaching-data.ts --mark-failed=${idempotencyKey} --error=<reason>`,
-    })}\n`);
+      fitness_context: buildContext(lane),
+      mark_delivered_command: `npx tsx ${SCRIPT_PATH} --mark-delivered=${idempotencyKey}`,
+      mark_failed_command: `npx tsx ${SCRIPT_PATH} --mark-failed=${idempotencyKey} --error=<reason>`,
+    };
+  }
+
+  return null;
+}
+
+export function markWhoopCoachingDelivered(options: { store: WhoopEventCoachingStore }, idempotencyKey: string): WhoopEventDeliveryResult {
+  options.store.ensureSchema();
+  const ok = options.store.markDelivered(idempotencyKey);
+  return { ok, idempotency_key: idempotencyKey, status: ok ? "delivered" : "missing" };
+}
+
+export function markWhoopCoachingFailed(options: { store: WhoopEventCoachingStore }, idempotencyKey: string, error: string): WhoopEventDeliveryResult {
+  options.store.ensureSchema();
+  const ok = options.store.markFailed(idempotencyKey, error);
+  return { ok, idempotency_key: idempotencyKey, status: ok ? "failed" : "missing" };
+}
+
+function parseArgValue(prefix: string): string | null {
+  const raw = process.argv.find((arg) => arg.startsWith(prefix));
+  return raw ? (raw.split("=").slice(1).join("=") || null) : null;
+}
+
+function main(): void {
+  const store = createPsqlWhoopEventCoachingStore();
+  const markDeliveredKey = parseArgValue("--mark-delivered=");
+  if (markDeliveredKey != null) {
+    const result = markWhoopCoachingDelivered({ store }, markDeliveredKey);
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    if (!result.ok) process.exitCode = 1;
     return;
   }
 
-  process.stdout.write("NO_REPLY\n");
+  const markFailedKey = parseArgValue("--mark-failed=");
+  if (markFailedKey != null) {
+    const error = parseArgValue("--error=") ?? "unknown";
+    const result = markWhoopCoachingFailed({ store }, markFailedKey, error);
+    process.stdout.write(`${JSON.stringify(result)}\n`);
+    if (!result.ok) process.exitCode = 1;
+    return;
+  }
+
+  const artifact = nextWhoopCoachingArtifact({ store });
+  process.stdout.write(artifact ? `${JSON.stringify(artifact)}\n` : "NO_REPLY\n");
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
