@@ -249,9 +249,9 @@
       "id": "a519512a-5fb8-459f-8780-31e53793c1d4",
       "agentId": "cron-fitness",
       "name": "🏋️ Fitness Morning Brief (Hamel)",
-      "enabled": true,
+      "enabled": false,
       "createdAtMs": 1769794739989,
-      "updatedAtMs": 1773870846864,
+      "updatedAtMs": 1778513085858,
       "schedule": {
         "kind": "cron",
         "expr": "12 8 * * *",
@@ -274,11 +274,38 @@
         "lastRunStatus": "ok",
         "lastDeliveryStatus": "not-delivered",
         "nextRunAtMs": 1773835920000,
-        "lastDelivered": false
+        "lastDelivered": false,
+        "retiredReason": "Replaced by Spartan WHOOP Event Coach webhook-driven flow."
       },
       "delivery": {
         "mode": "none",
         "accountId": "spartan"
+      }
+    },
+    {
+      "id": "spartan-whoop-event-coach-20260511",
+      "agentId": "cron-fitness",
+      "name": "⚔️ Spartan WHOOP Event Coach",
+      "createdAtMs": 1778513085858,
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "delivery": {
+        "mode": "none",
+        "accountId": "spartan"
+      },
+      "enabled": true,
+      "updatedAtMs": 1778513085858,
+      "schedule": {
+        "kind": "cron",
+        "expr": "*/2 * * * *",
+        "tz": "America/New_York"
+      },
+      "payload": {
+        "kind": "agentTurn",
+        "model": "openai-codex/gpt-5.3-codex",
+        "timeoutSeconds": 240,
+        "lightContext": true,
+        "message": "OUTPUT LIMIT: 140 words or less.\n\nSpartan WHOOP Event Coach. This replaces fixed morning/workout timing with live WHOOP webhook-triggered coaching.\n\nExecution contract:\n1. First run exactly:\n   `npx tsx /Users/hd/Developer/cortana/tools/fitness/whoop-event-coaching-data.ts`\n2. If stdout is exactly `NO_REPLY`, return exactly `NO_REPLY` and do not send Telegram.\n3. If stdout is JSON, treat it as source of truth. It includes `coaching_lane`, `event_artifact`, `fitness_context`, `idempotency_key`, and `mark_delivered_command`.\n4. Draft one Telegram message. Do not use the Write tool. Do not use the message tool.\n5. Send the draft with one exec command using this exact shape:\n   `MESSAGE=$(cat <<'EOF'\n<final Telegram message>\nEOF\n); openclaw message send --channel telegram --account spartan --target 8171372724 --message \"$MESSAGE\" --json`\n6. Only after that send succeeds, execute `mark_delivered_command` exactly once. Do not mark delivered before sending.\n\nVoice rules are inline because this cron runs from an isolated workspace:\n- Sound like a real coach texting one athlete: warm, direct, calm, practical.\n- No label stacks, no report tone, no stiff metric narration.\n- No macho theater, cheesy hype, dashboards, or generic filler.\n- Avoid literal labels like `Action:`, `Confidence:`, `Summary:`, `Context:`, and `Key insight:`.\n\nMessage shape:\n- Prefix: ⚔️ Spartan - WHOOP Event Coach\n- 3-4 short sentences max.\n- Lead with what Hamel should do now.\n- Use only the 1-2 facts that changed the call.\n- End with one concrete action.\n\nLane rules:\n- For `post_workout`, coach from the workout update plus current load/recovery context. Do not repeat the precursor message.\n- For `wake_recovery`, coach from sleep/recovery plus the morning mission context.\n- If context is degraded, say uncertainty plainly and keep the recommendation conservative.\n- If the final draft sounds robotic, rewrite once before sending."
       }
     },
     {
@@ -287,7 +314,7 @@
       "name": "🌙 Fitness Evening Recap (Hamel)",
       "enabled": true,
       "createdAtMs": 1769794739997,
-      "updatedAtMs": 1773870846864,
+      "updatedAtMs": 1778513312852,
       "schedule": {
         "kind": "cron",
         "expr": "30 20 * * *",
@@ -299,7 +326,7 @@
         "kind": "agentTurn",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 180,
-        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message must be 140 words or less.\n\nFitness Evening Recap for Hamel (8:30 PM ET).\nPrefix: 🏋️ Fitness - Evening Recap.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts`\nUse artifact JSON as primary source.\n\nBefore drafting, read:\n`/Users/hd/Developer/cortana/identities/spartan/VOICE.md`\nUse the closest matching scenario, banned phrasing list, and rewrite gate from that file.\n\nVoice:\n- Sound like a real coach following up after the day.\n- Human, warm, grounded, and practical.\n- Conversational, not robotic.\n- Write like a text follow-up, not a summary report.\n- No label stacks or report-style wording.\n\nMessage shape:\n- Start with the day’s load verdict in natural language.\n- Use the 1-2 facts that matter most tonight.\n- Finish with one concrete action for tonight.\n- Optional final beat: one high-priority insight if it changes the next 24 hours.\n\nUse these artifact fields as source of truth, but do not narrate them mechanically:\n- `today_training_output` only for training load, using cycle-first `total_strain_today` plus Tonal sessions/volume and `color_emoji`\n- `today_nutrition` plus `nutrition_assumption` when logs are incomplete\n- `tonight_sleep_target`\n- `pending_health_insights` only when worth surfacing\n\nRules:\n- Do not call evening load signal \"readiness\".\n- Do not rehash morning readiness details or weekly trends.\n- Keep the age-100 objective in mind, but say it plainly instead of forcing the phrase every night.\n- If meals are unlogged, do not stop at \"unknown\"; apply the conservative assumption from `nutrition_assumption` and state confidence.\n- If artifact reports stale data or errors, say uncertainty explicitly.\n- No fluff.\n- If the final draft trips the VOICE rewrite gate, rewrite once before sending.\n\nInsight handling:\n- Use only `pending_health_insights` from artifact.\n- Only surface IDs from `surfaced_insight_ids`.\n- After sending, execute `insight_mark_sql` exactly once when present.\n- Never run broad acted_on updates by domain.",
+        "message": "⚠️ DELIVERY ROUTING (MANDATORY): Use the `message` tool for any user-visible output with exactly:\n- action: send\n- channel: telegram\n- target: 8171372724\n- accountId: spartan\nDo not rely on announce delivery.\n\nOUTPUT LIMIT: Any user-visible message must be 140 words or less.\n\nFitness Evening Recap for Hamel (8:30 PM ET).\nPrefix: 🏋️ Fitness - Evening Recap.\n\nRun exactly:\n`npx tsx /Users/hd/Developer/cortana/tools/fitness/evening-recap-data.ts`\nUse artifact JSON as primary source.\n\nBefore drafting, read:\n`/Users/hd/Developer/cortana/identities/spartan/VOICE.md`\nUse the closest matching scenario, banned phrasing list, and rewrite gate from that file.\n\nVoice:\n- Sound like a real coach following up after the day.\n- Human, warm, grounded, and practical.\n- Conversational, not robotic.\n- Write like a text follow-up, not a summary report.\n- No label stacks or report-style wording.\n\nMessage shape:\n- Start with the day’s load verdict in natural language.\n- Use the 1-2 facts that matter most tonight.\n- Finish with one concrete action for tonight.\n- Optional final beat: one high-priority insight if it changes the next 24 hours.\n\nUse these artifact fields as source of truth, but do not narrate them mechanically:\n- `today_training_output` only for training load, using cycle-first `total_strain_today` plus Tonal sessions/volume and `color_emoji`\n- `today_nutrition` plus `nutrition_assumption` when logs are incomplete\n- `tonight_sleep_target`\n- `evening_alerts`, especially overreach/protein/pain/schedule risk when it changes tonight’s action\n- `pending_health_insights` only when worth surfacing\n\nRules:\n- Do not call evening load signal \"readiness\".\n- Do not rehash morning readiness details or weekly trends.\n- Fold overreach into the evening call: if `evening_alerts.primary_alert` is overreach or protein risk, make that the one practical tonight action instead of sending a separate alert.\n- Keep the age-100 objective in mind, but say it plainly instead of forcing the phrase every night.\n- If meals are unlogged, do not stop at \"unknown\"; apply the conservative assumption from `nutrition_assumption` and state confidence.\n- If artifact reports stale data or errors, say uncertainty explicitly.\n- No fluff.\n- If the final draft trips the VOICE rewrite gate, rewrite once before sending.\n\nInsight handling:\n- Use only `pending_health_insights` from artifact.\n- Only surface IDs from `surfaced_insight_ids`.\n- After sending, execute `insight_mark_sql` exactly once when present.\n- Never run broad acted_on updates by domain.",
         "lightContext": true
       },
       "state": {
@@ -1495,9 +1522,9 @@
       "id": "whoop-recovery-risk-alert-20260318",
       "agentId": "cron-fitness",
       "name": "🫀 Whoop Recovery Risk Alert",
-      "enabled": true,
+      "enabled": false,
       "createdAtMs": 1773870846864,
-      "updatedAtMs": 1773870846864,
+      "updatedAtMs": 1778513085858,
       "schedule": {
         "kind": "cron",
         "expr": "5 9 * * *",
@@ -1515,15 +1542,18 @@
       "delivery": {
         "mode": "none",
         "accountId": "spartan"
+      },
+      "state": {
+        "retiredReason": "Replaced by Spartan WHOOP Event Coach webhook-driven flow."
       }
     },
     {
       "id": "whoop-overreach-guard-20260318",
       "agentId": "cron-fitness",
       "name": "🫀 Whoop Overreach Guard",
-      "enabled": true,
+      "enabled": false,
       "createdAtMs": 1773870846864,
-      "updatedAtMs": 1773870846864,
+      "updatedAtMs": 1778513085858,
       "schedule": {
         "kind": "cron",
         "expr": "15 19 * * *",
@@ -1541,6 +1571,9 @@
       "delivery": {
         "mode": "none",
         "accountId": "spartan"
+      },
+      "state": {
+        "retiredReason": "Folded into Fitness Evening Recap and Spartan WHOOP Event Coach."
       }
     },
     {

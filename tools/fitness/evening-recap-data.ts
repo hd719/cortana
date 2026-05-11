@@ -1,10 +1,12 @@
 #!/usr/bin/env npx tsx
 
 import { spawnSync } from "node:child_process";
+import { dedupeAlertDecisions, evaluateAlertPolicy, type AlertDecision } from "./alert-policy.js";
 import { collectRecentMealEntries, summarizeMealRollup } from "./meal-log.js";
 import { chooseSurfacedInsightIds, fetchPendingHealthInsights, markInsightsSql } from "./insights-db.js";
 import { upsertFitnessDailySnapshot } from "./facts-db.js";
 import { fetchCoachCaffeineDaySummary, upsertCoachDecision, upsertCoachNutrition } from "./coach-db.js";
+import { fetchCoachCheckinDaySignals, type CoachCheckinDaySignals } from "./checkin-db.js";
 import { loadAppleHealthWindow } from "./health-source-service.js";
 import { buildAthleteStateForDate } from "./athlete-state-data.js";
 import { replaceMuscleVolumeDaily, upsertAthleteStateDaily } from "./athlete-state-db.js";
@@ -227,6 +229,49 @@ function buildTonightSleepTarget(opts: {
     lights_out_local: "22:15",
     reason: "High training load needs a larger sleep window to keep tomorrow from sliding.",
     concrete_action: `Set lights-out for 10:15 PM ET and protect a ${cappedGoal}h sleep window.`,
+  };
+}
+
+function plannedIntensityForEvening(mode: string | null | undefined): "hard" | "moderate" | "easy" | "recovery" | undefined {
+  if (mode === "push") return "hard";
+  if (mode === "controlled_train") return "moderate";
+  if (mode === "recover") return "recovery";
+  if (mode === "zone2_mobility") return "easy";
+  return undefined;
+}
+
+export function buildEveningAlertSummary(input: {
+  dateLocal: string;
+  readinessBand: "green" | "yellow" | "red" | "unknown";
+  totalStrainToday: number | null;
+  tonalSessionsToday: number | null;
+  proteinActualG: number | null;
+  proteinTargetG: number | null;
+  daySignals?: CoachCheckinDaySignals | null;
+  recommendationMode?: string | null;
+}): {
+  requested_types: Array<"overreach" | "protein_miss" | "pain" | "schedule_conflict">;
+  alerts: AlertDecision[];
+  primary_alert: AlertDecision | null;
+} {
+  const requestedTypes = ["overreach", "protein_miss", "pain", "schedule_conflict"] as const;
+  const alerts = dedupeAlertDecisions(evaluateAlertPolicy({
+    dateLocal: input.dateLocal,
+    readinessBand: input.readinessBand,
+    totalStrainToday: input.totalStrainToday,
+    tonalSessionsToday: input.tonalSessionsToday,
+    proteinActualG: input.proteinActualG,
+    proteinTargetG: input.proteinTargetG,
+    painFlag: input.daySignals?.pain_flag ?? false,
+    sorenessScore: input.daySignals?.soreness_score ?? null,
+    scheduleConstraint: input.daySignals?.schedule_constraint ?? null,
+    plannedIntensity: plannedIntensityForEvening(input.recommendationMode),
+  })).filter((alert) => requestedTypes.includes(alert.alert_type as (typeof requestedTypes)[number]));
+
+  return {
+    requested_types: [...requestedTypes],
+    alerts,
+    primary_alert: alerts[0] ?? null,
   };
 }
 
@@ -459,9 +504,20 @@ function main(): void {
   });
   if (!snapshotWrite.ok) errors.push(`fitness_daily_snapshot_upsert_failed:${snapshotWrite.error ?? "unknown"}`);
 
+  const eveningDaySignals = fetchCoachCheckinDaySignals(today);
+  const eveningAlerts = buildEveningAlertSummary({
+    dateLocal: today,
+    readinessBand: athleteStateBuild.athleteState.readinessBand ?? loadBand,
+    totalStrainToday: athleteStateBuild.athleteState.whoopStrain ?? whoopSummary.total_strain_today,
+    tonalSessionsToday: athleteStateBuild.athleteState.tonalSessions ?? todayWorkouts.length,
+    proteinActualG: athleteStateBuild.athleteState.proteinG,
+    proteinTargetG: mealRollup.target.proteinMinG,
+    daySignals: eveningDaySignals,
+    recommendationMode: recommendation.mode,
+  });
   const highCaffeine = caffeineSummary.total_mg >= 300;
   const lateCaffeine = caffeineSummary.latest_after_cutoff;
-  const overreachWarning = whoopSummary.total_strain_today >= 14 || highCaffeine || lateCaffeine;
+  const overreachWarning = whoopSummary.total_strain_today >= 14 || highCaffeine || lateCaffeine || eveningAlerts.alerts.some((alert) => alert.alert_type === "overreach");
   const decisionWrite = upsertCoachDecision({
     tsUtc: new Date().toISOString(),
     readinessCall: toCoachReadiness(athleteStateBuild.athleteState.readinessBand ?? loadBand),
@@ -530,6 +586,7 @@ function main(): void {
     athlete_state: athleteStateBuild.athleteState,
     muscle_volume_today: athleteStateBuild.muscleVolumeRows,
     tonight_sleep_target: sleepTarget,
+    evening_alerts: eveningAlerts,
     data_freshness: {
       is_stale: (recoveryFreshnessHours ?? 99) > 18 || (sleepFreshnessHours ?? 99) > 18,
       recovery_hours: recoveryFreshnessHours,
