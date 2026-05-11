@@ -5,10 +5,12 @@ import { describe, expect, it } from "vitest";
 type CronJob = {
   id?: string;
   agentId?: string;
+  enabled?: boolean;
   delivery?: { accountId?: string };
   payload?: { model?: string; message?: string; timeoutSeconds?: number };
   schedule?: { expr?: string; tz?: string };
   name?: string;
+  state?: Record<string, unknown>;
 };
 
 function loadJobs(): CronJob[] {
@@ -19,14 +21,18 @@ function loadJobs(): CronJob[] {
 }
 
 describe("fitness cron contract", () => {
-  it("routes morning/evening/weekly briefs to Spartan and keeps healthcheck on Monitor", () => {
+  it("routes event/evening/weekly briefs to Spartan and keeps healthcheck on Monitor", () => {
     const jobs = loadJobs();
+    const eventCoach = jobs.find((job) => job.id === "spartan-whoop-event-coach-20260511");
     const morning = jobs.find((job) => job.id === "a519512a-5fb8-459f-8780-31e53793c1d4");
     const evening = jobs.find((job) => job.id === "e4db8a8d-945c-4af2-a8d5-e54f2fb4e792");
     const weekly = jobs.find((job) => job.id === "5aa1f47e-27e6-49cd-a20d-3dac0f1b8428");
     const monthly = jobs.find((job) => job.id === "monthly-fitness-overview-20260318");
     const healthcheck = jobs.find((job) => job.id === "661b21f1-741e-41a1-b41e-f413abeb2cdd");
 
+    expect(eventCoach?.enabled).toBe(true);
+    expect(eventCoach?.delivery?.accountId).toBe("spartan");
+    expect(morning?.enabled).toBe(false);
     expect(morning?.delivery?.accountId).toBe("spartan");
     expect(evening?.delivery?.accountId).toBe("spartan");
     expect(weekly?.delivery?.accountId).toBe("spartan");
@@ -34,7 +40,30 @@ describe("fitness cron contract", () => {
     expect(healthcheck?.delivery?.accountId).toBe("monitor");
   });
 
-  it("keeps non-overlapping briefing prompt contracts and removes broad insight marking", () => {
+  it("defines the event-driven WHOOP coach with dedupe and delivery handoff", () => {
+    const jobs = loadJobs();
+    const eventCoach = jobs.find((job) => job.id === "spartan-whoop-event-coach-20260511");
+    const message = String(eventCoach?.payload?.message ?? "");
+
+    expect(eventCoach?.agentId).toBe("cron-fitness");
+    expect(eventCoach?.schedule?.expr).toBe("*/2 * * * *");
+    expect(eventCoach?.schedule?.tz).toBe("America/New_York");
+    expect(eventCoach?.payload?.model).toBe("openai-codex/gpt-5.3-codex");
+    expect(message).toContain("tools/fitness/whoop-event-coaching-data.ts");
+    expect(message).toContain("mark_delivered_command");
+    expect(message).toContain("openclaw message send --channel telegram --account spartan");
+    expect(message).toContain("Do not use the Write tool");
+    expect(message).toContain("Do not use the message tool");
+    expect(message).toContain("MESSAGE=$(cat <<'EOF'");
+    expect(message).toContain("Do not mark delivered before sending");
+    expect(message).toContain("wake_recovery");
+    expect(message).toContain("post_workout");
+    expect(message).not.toContain("identities/spartan/VOICE.md");
+    expect(message).toContain("isolated workspace");
+    expect(message).toContain("Do not repeat the precursor message");
+  });
+
+  it("keeps non-overlapping briefing prompt contracts and folds overreach into evening", () => {
     const jobs = loadJobs();
     const morning = jobs.find((job) => job.id === "a519512a-5fb8-459f-8780-31e53793c1d4");
     const evening = jobs.find((job) => job.id === "e4db8a8d-945c-4af2-a8d5-e54f2fb4e792");
@@ -82,6 +111,7 @@ describe("fitness cron contract", () => {
     expect(eveningMessage).toContain("VOICE rewrite gate");
     expect(eveningMessage).toContain("do not stop at \"unknown\"");
     expect(eveningMessage).toContain("Do not rehash morning readiness");
+    expect(eveningMessage).toContain("overreach");
 
     expect(weeklyMessage).toContain("tools/fitness/weekly-insights-data.ts");
     expect(weeklyMessage).toContain("identities/spartan/VOICE.md");
@@ -109,37 +139,33 @@ describe("fitness cron contract", () => {
     expect(weeklyMessage).toContain("do not fail the cron");
   });
 
-  it("defines whoop alert-only monitors with expected schedules and Spartan routing", () => {
+  it("keeps freshness guard active and retires fixed recovery/overreach alert crons", () => {
     const jobs = loadJobs();
     const freshness = jobs.find((job) => job.id === "whoop-data-freshness-guard-20260318");
     const recoveryRisk = jobs.find((job) => job.id === "whoop-recovery-risk-alert-20260318");
     const overreach = jobs.find((job) => job.id === "whoop-overreach-guard-20260318");
 
-    for (const job of [freshness, recoveryRisk, overreach]) {
-      expect(job?.agentId).toBe("cron-fitness");
-      expect(job?.delivery?.accountId).toBe("spartan");
-      expect(String(job?.payload?.message ?? "")).toContain("return exactly NO_REPLY");
-      expect(job?.payload?.model).toBe("openai-codex/gpt-5.3-codex");
-      expect(String(job?.payload?.message ?? "")).toContain("tools/fitness/fitness-alerts-data.ts");
-      expect(String(job?.payload?.message ?? "")).toContain("mark_delivered_command");
-      expect(String(job?.payload?.message ?? "")).toContain("identities/spartan/VOICE.md");
-      expect(String(job?.payload?.message ?? "")).toContain("2 short sentences");
-      expect(String(job?.payload?.message ?? "")).toContain("Lead with what Hamel should do now");
-      expect(String(job?.payload?.message ?? "")).toContain("Do not use labels, bullets, report tone");
-      expect(String(job?.payload?.message ?? "")).toContain("VOICE rewrite gate");
-    }
+    expect(freshness?.enabled).toBe(true);
+    expect(recoveryRisk?.enabled).toBe(false);
+    expect(overreach?.enabled).toBe(false);
+    expect(recoveryRisk?.state?.retiredReason).toContain("webhook-driven");
+    expect(overreach?.state?.retiredReason).toContain("Evening Recap");
 
+    expect(freshness?.agentId).toBe("cron-fitness");
+    expect(freshness?.delivery?.accountId).toBe("spartan");
+    expect(String(freshness?.payload?.message ?? "")).toContain("return exactly NO_REPLY");
+    expect(freshness?.payload?.model).toBe("openai-codex/gpt-5.3-codex");
+    expect(String(freshness?.payload?.message ?? "")).toContain("tools/fitness/fitness-alerts-data.ts");
+    expect(String(freshness?.payload?.message ?? "")).toContain("mark_delivered_command");
+    expect(String(freshness?.payload?.message ?? "")).toContain("identities/spartan/VOICE.md");
+    expect(String(freshness?.payload?.message ?? "")).toContain("2 short sentences");
+    expect(String(freshness?.payload?.message ?? "")).toContain("Lead with what Hamel should do now");
+    expect(String(freshness?.payload?.message ?? "")).toContain("Do not use labels, bullets, report tone");
+    expect(String(freshness?.payload?.message ?? "")).toContain("VOICE rewrite gate");
     expect(freshness?.schedule?.expr).toBe("20 6,12,18 * * *");
-    expect(recoveryRisk?.schedule?.expr).toBe("5 9 * * *");
-    expect(overreach?.schedule?.expr).toBe("15 19 * * *");
     expect(String(freshness?.payload?.message ?? "")).toContain("--types=freshness");
     expect(String(freshness?.payload?.message ?? "")).toContain("keep today easy");
     expect(String(freshness?.payload?.message ?? "")).toContain("Zone 2 until data refreshes");
-    expect(String(recoveryRisk?.payload?.message ?? "")).toContain("--types=recovery_risk");
-    expect(String(recoveryRisk?.payload?.message ?? "")).toContain("if hard, pull back; if moderate, keep it controlled; if easy or recovery, stay there");
-    expect(String(overreach?.payload?.message ?? "")).toContain("--types=overreach,protein_miss,pain,schedule_conflict");
-    expect(String(overreach?.payload?.message ?? "")).toContain("Choose the single dominant issue");
-    expect(String(overreach?.payload?.message ?? "")).toContain("protein-first meal or shake tonight");
   });
 
   it("defines monthly fitness overview cron with DB artifact contract", () => {
