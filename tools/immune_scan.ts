@@ -33,13 +33,30 @@ function isExecutable(filePath: string): boolean {
   }
 }
 
-function readFileContains(filePath: string, needle: string): boolean {
+function readJsonObject(filePath: string): Record<string, unknown> | null {
   try {
     const content = fs.readFileSync(filePath, "utf8");
-    return content.includes(needle);
+    const parsed = JSON.parse(content);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed)
+      ? parsed as Record<string, unknown>
+      : null;
   } catch {
+    return null;
+  }
+}
+
+function nonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function hasValidTonalTokenFile(filePath: string): boolean {
+  const token = readJsonObject(filePath);
+  if (!token) return false;
+  if (!nonEmptyString(token.id_token) || !nonEmptyString(token.refresh_token) || !nonEmptyString(token.expires_at)) {
     return false;
   }
+  const expiryMs = Date.parse(token.expires_at);
+  return Number.isFinite(expiryMs) && expiryMs > Date.now();
 }
 
 function listLargeSessions(dir: string, thresholdBytes: number): string[] {
@@ -335,7 +352,7 @@ async function main(): Promise<number> {
 
   const tokensFile = path.join(os.homedir(), "Developer", "cortana-external", "tonal_tokens.json");
   if (fs.existsSync(tokensFile)) {
-    if (!readFileContains(tokensFile, '"access_token"')) {
+    if (!hasValidTonalTokenFile(tokensFile)) {
       issues += "tonal: NO TOKEN\n";
     }
   } else {

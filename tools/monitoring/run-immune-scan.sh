@@ -5,12 +5,22 @@ export PATH="/opt/homebrew/opt/postgresql@17/bin:/opt/homebrew/bin:/usr/local/bi
 
 issues=()
 
-if [[ -f "$HOME/Developer/cortana-external/tonal_tokens.json" ]]; then
-  if ! jq -e '.access_token and (.access_token | length > 0)' "$HOME/Developer/cortana-external/tonal_tokens.json" >/dev/null 2>&1; then
-    issues+=("tonal: NO TOKEN")
+tonal_health="$(curl -sf --max-time 10 http://127.0.0.1:3033/tonal/health 2>/dev/null || true)"
+if [[ -n "$tonal_health" ]]; then
+  if ! jq -e '.status == "healthy" and .authenticated == true and .refresh_token_present == true' <<<"$tonal_health" >/dev/null 2>&1; then
+    issues+=("tonal: AUTH DEGRADED")
   fi
 else
-  issues+=("tonal: TOKEN FILE MISSING")
+  tonal_tokens="$HOME/Developer/cortana-external/tonal_tokens.json"
+  if [[ -f "$tonal_tokens" ]]; then
+    if ! jq -e '(.id_token // "" | length > 0) and (.refresh_token // "" | length > 0) and (.expires_at // "" | length > 0)' "$tonal_tokens" >/dev/null 2>&1; then
+      issues+=("tonal: NO TOKEN")
+    elif ! node -e 'const fs = require("fs"); const token = JSON.parse(fs.readFileSync(process.argv[1], "utf8")); process.exit(Date.parse(token.expires_at) > Date.now() ? 0 : 1);' "$tonal_tokens" >/dev/null 2>&1; then
+      issues+=("tonal: TOKEN EXPIRED")
+    fi
+  else
+    issues+=("tonal: TOKEN FILE MISSING")
+  fi
 fi
 
 if pg_isready -d cortana -q >/dev/null 2>&1; then

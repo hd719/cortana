@@ -78,6 +78,7 @@ This is curated long-term memory for `main`. Generated daily/session details bel
 - Delivery health means execution plus message delivery (`lastDeliveryStatus` / `lastDelivered`), not execution alone.
 - For Telegram delivery proof, send an explicit manual test to the intended Telegram target/account and confirm receipt.
 - Model/verbosity overrides may appear not to apply mid-session; verify with `/status`.
+- Cron-health `tonal: NO TOKEN` from immune scan can be a false positive if `/tonal/health` is healthy; Tonal tokens use `id_token`/`refresh_token`, not `access_token`. Verify service health before auth reset.
 
 ## Health And Fitness
 
