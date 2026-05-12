@@ -19,14 +19,17 @@ describe("Morocco flight price watch cron contract", () => {
     const message = String(job?.payload?.message ?? "");
 
     expect(job?.name).toBe("✈️ Morocco Flight Price Watch");
-    expect(message).toContain("one daily live browser price snapshot");
+    expect(message).toContain("live browser snapshot so Hamel knows the watcher is healthy");
+    expect(message).toContain("live browser price snapshot on every scheduled run");
     expect(message).toContain("informational, not a setup action");
     expect(message).toContain("Rabat/RBA");
     expect(message).toContain("Aug 5-17 and Aug 7-17");
+    expect(message).toContain("FLIGHT_PRICE_WATCH_ALWAYS_SNAPSHOT=1");
     expect(message).toContain("FLIGHT_PRICE_WATCH_BROWSER_BUDGET_MS=30000");
     expect(message).toContain("FLIGHT_PRICE_WATCH_CDP_RELOAD=auto");
     expect(message).toContain("FLIGHT_PRICE_WATCH_FLIGHT_NUMBER_LOOKUP=0");
     expect(message).toContain("bounded browser price snapshots");
+    expect(message).toContain("continuous browser snapshots");
     expect(message).toContain("visible airline/flight details");
     expect(message).toContain("preserve every configured route line");
     expect(message).toContain("Preserve all route lines exactly");
