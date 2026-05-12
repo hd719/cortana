@@ -56,7 +56,6 @@ const TRANSIENT_PATTERNS = [
 ];
 const CRITICAL_JOB_NAMES = [
   "☀️ Morning brief (Hamel)",
-  "📈 Stock Market Brief (daily)",
   "🏋️ Fitness Morning Brief (Hamel)",
   "📅 Calendar reminders → Telegram (ALL calendars)",
   "⏰ Apple Reminders alerts → Telegram (Monitor)",

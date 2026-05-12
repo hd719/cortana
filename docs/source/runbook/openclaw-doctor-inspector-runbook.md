@@ -120,14 +120,14 @@ These exact or near-exact alerts appeared during this lane:
 ```text
 High: heartbeat needs attention
 
-- Cron delivery monitoring: 3 jobs hit consecutiveErrors>=2 (X session healthcheck, Fitness service healthcheck, Trading Backtest Notify); CANSLIM Alert Scan is near timeout.
+- Cron delivery monitoring: 3 jobs hit consecutiveErrors>=2 (X session healthcheck, Fitness service healthcheck, Retired trading notify); retired CANSLIM scan is near timeout.
 - Task board hygiene: tomorrow reset left no ready work.
 ```
 
 ```text
 High: cron delivery still degraded
 
-- Cron delivery monitoring: 3 jobs remain at consecutiveErrors>=2 (X session healthcheck, Fitness service healthcheck, Trading Backtest Notify); CANSLIM Alert Scan is still near timeout.
+- Cron delivery monitoring: 3 jobs remain at consecutiveErrors>=2 (X session healthcheck, Fitness service healthcheck, Retired trading notify); retired CANSLIM scan is still near timeout.
 - Likely root cause: unstable job runtime or downstream service/dependency failures, not general heartbeat drift.
 ```
 

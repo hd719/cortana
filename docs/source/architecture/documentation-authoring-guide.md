@@ -158,7 +158,7 @@ Current planning domains:
 
 - `spartan/`
 
-Trading planning docs are now owned by `cortana-external/backtester/docs/source/prd/`, not by `cortana/docs/source/planning/`.
+Trading Ops planning docs are owned by `cortana-external` runtime docs when they describe UI/service behavior; command doctrine stays in `cortana`.
 
 Within a planning domain, use typed subfolders when appropriate:
 

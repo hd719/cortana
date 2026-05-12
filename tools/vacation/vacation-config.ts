@@ -49,7 +49,6 @@ export const REQUIRED_SYSTEM_KEYS = [
   "gmail_inbox_triage",
   "fitness_service",
   "schwab_quote_smoke",
-  "backtester_app",
   "github_identity",
   "browser_cdp",
 ] as const;

@@ -49,7 +49,7 @@ function commandFor(systemKey: string, action: VacationActionKind): [string, str
       if (systemKey === "gateway_service") {
         return ["launchctl", ["kickstart", "-k", `gui/${process.getuid()}/ai.openclaw.gateway`]];
       }
-      if (["fitness_service", "schwab_quote_smoke", "backtester_app"].includes(systemKey)) {
+      if (["fitness_service", "schwab_quote_smoke"].includes(systemKey)) {
         return ["launchctl", ["kickstart", "-k", `gui/${process.getuid()}/com.cortana.fitness-service`]];
       }
       if (systemKey === "browser_cdp") {

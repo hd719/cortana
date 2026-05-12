@@ -9,7 +9,7 @@ Documentation placement and authoring rules live in [`docs/source/architecture/d
 ## Repo Split
 
 - `cortana` = command brain: doctrine, routing, memory, cron prompts, and compiled knowledge.
-- `cortana-external` = runtime body: Mission Control, external service code, trading/backtester runtime, and operator-facing runtime surfaces.
+- `cortana-external` = runtime body: Mission Control, external service code, trading ops runtime, and operator-facing runtime surfaces.
 - If work crosses both repos, update the source docs here and the runtime implementation there together.
 - Start with [`docs/source/architecture/repo-split-map.md`](docs/source/architecture/repo-split-map.md) when the ownership boundary is unclear.
 
@@ -646,9 +646,9 @@ Internal operator scripts, grouped by domain. Highlights:
   - `tools/alerting/emit-alert-intent.sh` – normalized alert-intent event emission
   - `tools/immune/` + `immune-system/` – incident capture + playbooks
 - **Finance/market**
-  - `tools/market-intel/` – market-intel refreshes and supporting artifact generation for the external trading runtime
-  - `tools/trade-alerts/`, `tools/earnings-alert/` – trading/earnings pipelines
-  - `tools/trading/` – production trading pipeline: compute artifacts, notify delivery, and bounded rechecks
+  - `tools/market-intel/` – market intelligence helpers used by briefings and compounder workflows
+  - `tools/earnings-alert/` – earnings pipeline
+  - `tools/trading/` – Trading Ops guardrails and operator checks
 - **Fitness/behavioral**
   - `tools/fitness/` – Whoop/Tonal pipelines (via external fitness service)
   - `tools/behavioral-twin/` – pattern modeling for routines/sleep/etc.
@@ -738,8 +738,8 @@ Heartbeat rules live in `HEARTBEAT.md` and related docs/scripts:
 - Rotating checks for:
   - Email (Gmail), calendar (CalDAV + Google), newsletters
   - Fitness: Whoop/Tonal sync and recovery/strain analysis
-  - Market/news: stock market open/close, CANSLIM scans, earnings
-  - Trading automation now uses a production two-stage artifact flow (`tools/trading/run-backtest-compute.sh` -> `tools/trading/run-backtest-notify.sh`) with a bounded recheck lane for the current BUY/WATCH set
+  - Market/news: stock market open/close, earnings
+  - Trading Ops uses Mission Control and external-service live health surfaces
   - Memory consolidation, reflection, and learning
   - Cron health, tool health, budget, and proprioception
   - SAE Cross-Domain Reasoner re-enabled as a scheduled layer 15 minutes after World State Builder (7:15am, 1:15pm, 9:15pm ET) to connect sleep/work/markets into actionable insights
@@ -973,7 +973,7 @@ Representative highlights that are already live:
 - **Doc gardener** automated documentation maintenance workflow
 - **Self‑diagnostic** (`tools/health/self-diagnostic.sh`) for Cortana health
 - **Task board state enforcer** CLI for atomic task transitions
-- **Market‑intel pipeline** (`tools/market-intel`) combining quote + X sentiment + portfolio overlay
+- **Market-intel helpers** (`tools/market-intel`) combining quote + X sentiment + portfolio overlay
 - **X/Twitter integration hardening** (`bird`, auth health checks, watchdog coverage)
 - **Vector + local embeddings stack** (`pgvector`, fastembed) for semantic memory
 - **Proprioception + immune expansion** (budget/throttle, risk gates, auto‑heal workflows)
@@ -1189,7 +1189,6 @@ Monitor is the user-facing owner lane for inbox/email ops and operational mainte
 
 Stable routing phrases:
 - Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.
-- Monitor is the user-facing owner lane for trading alert scans.
 - Quiet maintenance watchers should return exactly `NO_REPLY` on healthy paths.
 - Maintenance watchdog prompts should explicitly say Monitor owns user-visible maintenance alerts and that healthy/no-action paths return exactly `NO_REPLY`.
 

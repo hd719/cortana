@@ -123,7 +123,7 @@ Requirements:
 - real OpenClaw runtime state
 - real `gog` auth store
 - real service launch agents
-- real cron state and mission-control/backtester surfaces
+- real cron state and Mission Control surfaces
 
 ---
 
@@ -340,13 +340,12 @@ Severity if failed: P0
 
 #### QA Story C2 - Readiness includes every Tier 1 system exactly once
 
-As Hamel, I want the readiness audit to check Gog, reminders, Morning Brief, Gmail/inbox, fitness, Schwab, backtester, GitHub identity, and browser CDP so that the unattended system is actually usable.
+As Hamel, I want the readiness audit to check Gog, reminders, Morning Brief, Gmail/inbox, fitness, Schwab, GitHub identity, and browser CDP so that the unattended system is actually usable.
 
 Acceptance criteria:
 - each required Tier 1 system appears in result rows
 - each check has evidence and status
 - `GitHub identity` explicitly verifies `cortana-hd`
-- backtester app health uses the existing readiness / market-data surfaces plus the local app probe path in v1; no dedicated endpoint is required
 
 Severity if failed: P1
 

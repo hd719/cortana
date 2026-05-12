@@ -47,8 +47,6 @@ export function getDefaultAutonomyConfig(): Required<ConfigShape> {
       quarantineAfterConsecutiveErrors: 1,
       fragileCronMatchers: [
         "🐦 Health - X Session Check",
-        "📈 Stock Market Brief (daily)",
-        "🧠 Polymarket Market Intel Refresh",
       ],
       tightenAlerting: true,
     },

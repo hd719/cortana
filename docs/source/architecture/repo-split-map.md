@@ -5,7 +5,7 @@ Use this page when you need the fastest answer to "which repo owns this?"
 ## The Split
 
 - `cortana` is the command brain: doctrine, routing, memory, cron prompts, and compiled knowledge.
-- `cortana-external` is the runtime body: Mission Control, external service code, trading/backtester runtime, and other operator-facing runtime surfaces.
+- `cortana-external` is the runtime body: Mission Control, external service code, trading ops runtime, and other operator-facing runtime surfaces.
 
 ## Read First
 

@@ -16,7 +16,6 @@ This update bundles low-risk reliability improvements across cron scheduling and
 
 3. **Collect → summarize split for heavy jobs**
    - Added pre-collection jobs:
-     - `📈 Stock Market Brief (collect)` → `/tmp/cron-stock-market-brief.json`
      - `🌙 Fitness Evening Recap (collect)` → `/tmp/cron-fitness-evening-recap.json`
    - Existing brief/recap jobs now prefer artifact-first summarization with fallback inline collection.
 

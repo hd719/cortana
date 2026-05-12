@@ -151,32 +151,6 @@ function writeSessionStore(agentId: string, entries: Record<string, unknown>) {
   return { home, sessionsDir, storePath };
 }
 
-describe("vacation market checks", () => {
-  it("computes premarket next-open timing from the current session", () => {
-    const runtimeCronFile = writeRuntimeCron("📈 Stock Market Brief (daily)", "2026-03-31T12:00:00.000Z");
-    const result = runSystemCheck(config, {
-      runtimeCronFile,
-      now: () => new Date("2026-03-31T13:00:00.000Z"),
-    }, "market_scans");
-
-    expect(result.detail.marketHours).toBe(false);
-    expect(result.detail.marketPhase).toBe("PREMARKET");
-    expect(result.detail.minutesBeforeNextOpen).toBe(30);
-  });
-
-  it("marks regular-hours market checks as market-hours instead of pre-open", () => {
-    const runtimeCronFile = writeRuntimeCron("📈 Stock Market Brief (daily)", "2026-03-31T14:30:00.000Z");
-    const result = runSystemCheck(config, {
-      runtimeCronFile,
-      now: () => new Date("2026-03-31T15:00:00.000Z"),
-    }, "market_scans");
-
-    expect(result.detail.marketHours).toBe(true);
-    expect(result.detail.marketPhase).toBe("OPEN");
-    expect(result.detail.minutesBeforeNextOpen).toBe(0);
-  });
-});
-
 describe("vacation tier0 delivery checks", () => {
   it("fails telegram delivery when status is healthy but no delivery ledger verifies a critical lane", () => {
     const jobName = "📅 Calendar reminders → Telegram (ALL calendars)";

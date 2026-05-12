@@ -46,7 +46,6 @@ const ALERT_STATE_FILE = process.env.RUNTIME_REPO_DRIFT_ALERT_STATE_FILE
   || path.join(os.homedir(), ".openclaw", "tmp", "runtime-repo-drift-monitor-state.json");
 const IGNORED_RUNTIME_STATE_PATHS = new Set([
   "memory/apple-reminders-sent.json",
-  "var/backtests/rechecks/state.json",
 ]);
 
 type AlertState = {

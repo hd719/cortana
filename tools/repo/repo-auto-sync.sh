@@ -15,9 +15,7 @@ VOLATILE_STATE_FILES=(
   "memory/cron-health-48h-errors.json"
   "memory/heartbeat-state.json"
 )
-VOLATILE_STATUS_PREFIXES=(
-  "var/backtests/runs/"
-)
+VOLATILE_STATUS_PREFIXES=()
 PROMOTABLE_MEMORY_FILES=(
   "DREAMS.md"
 )
@@ -180,6 +178,10 @@ status_line_is_volatile() {
   local path="${line:3}"
   path="${path##* -> }"
   local prefix
+
+  if (( ${#VOLATILE_STATUS_PREFIXES[@]} == 0 )); then
+    return 1
+  fi
 
   for prefix in "${VOLATILE_STATUS_PREFIXES[@]}"; do
     if [[ "$path" == "$prefix"* ]]; then
@@ -356,8 +358,9 @@ restore_volatile_runtime_state() {
     fi
   done
 
-  for prefix in "${VOLATILE_STATUS_PREFIXES[@]}"; do
-    while IFS= read -r line; do
+  if (( ${#VOLATILE_STATUS_PREFIXES[@]} > 0 )); then
+    for prefix in "${VOLATILE_STATUS_PREFIXES[@]}"; do
+      while IFS= read -r line; do
       [[ -z "$line" ]] && continue
       if [[ "${line:0:2}" == "??" ]]; then
         continue
@@ -367,8 +370,9 @@ restore_volatile_runtime_state() {
       if git -C "$repo" restore --worktree -- "$path" >/dev/null 2>&1; then
         restored+=("$path")
       fi
-    done < <(git -C "$repo" status --porcelain -- "$prefix")
-  done
+      done < <(git -C "$repo" status --porcelain -- "$prefix")
+    done
+  fi
 
   if (( ${#restored[@]} > 0 )); then
     printf 'INFO repo=%s step=preflight-clean detail=volatile-runtime-state-restored files=%q\n' \

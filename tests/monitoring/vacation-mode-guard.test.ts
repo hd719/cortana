@@ -42,7 +42,7 @@ describe("vacation mode guard", () => {
 
     loadVacationOpsConfig.mockReturnValue({
       guard: {
-        fragileCronMatchers: ["Stock Market Brief"],
+        fragileCronMatchers: ["Fragile Cron"],
         quarantineAfterConsecutiveErrors: 1,
       },
     });
@@ -67,7 +67,7 @@ describe("vacation mode guard", () => {
         jobs: [
           {
             id: "fragile-job",
-            name: "📈 Stock Market Brief (daily)",
+            name: "⚠️ Fragile Cron (daily)",
             enabled: true,
             state: { consecutiveErrors: 2 },
           },
@@ -91,7 +91,7 @@ describe("vacation mode guard", () => {
     expect(reconcileVacationMirror).toHaveBeenCalledTimes(2);
     expect(
       fs.existsSync(
-        path.join(quarantineDir, "📈 Stock Market Brief (daily).quarantined"),
+        path.join(quarantineDir, "⚠️ Fragile Cron (daily).quarantined"),
       ),
     ).toBe(true);
   });

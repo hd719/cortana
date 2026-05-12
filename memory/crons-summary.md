@@ -14,7 +14,7 @@
 | 4:00am | 🏠 Home Assistant healthcheck |
 | 5:00am | 🖥️ Mac mini process (also 1pm, 9pm) |
 | 7:00am | ☀️ Morning Brief |
-| 7:30am | 📊 Stock Market Brief (M-F) |
+| 7:30am | retired stock-market brief |
 | 8:00am | 🏋️ Fitness & Sleep Brief |
 
 ## 🌞 DAYTIME

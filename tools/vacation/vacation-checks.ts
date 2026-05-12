@@ -610,18 +610,6 @@ function checkSchwabQuoteSmoke(config: VacationOpsConfig, env: VacationCheckEnvi
   }, quote.freshnessAt);
 }
 
-function checkBacktesterApp(config: VacationOpsConfig, env: VacationCheckEnvironment): VacationCheckResultRow {
-  const readinessPath = path.join(externalRepoRoot(), "backtester", "var", "readiness", "pre-open-canary-latest.json");
-  const readiness = readJson<Record<string, unknown>>(readinessPath);
-  const ready = httpProbe(env, `${env.marketDataBaseUrl ?? "http://127.0.0.1:3033"}/market-data/ready`);
-  const ok = ready.ok && Boolean(readiness);
-  return buildResult(config, "backtester_app", ok ? "green" : "red", {
-    readinessPath,
-    readiness,
-    readyProbe: ready.detail,
-  }, readiness && typeof readiness.checked_at === "string" ? String(readiness.checked_at) : ready.freshnessAt);
-}
-
 function checkGithubIdentity(config: VacationOpsConfig, env: VacationCheckEnvironment): VacationCheckResultRow {
   const result = run(env, "gh", ["auth", "status", "--show-token"]);
   const merged = `${result.stdout}\n${result.stderr}`.trim();
@@ -792,16 +780,10 @@ export function runSystemCheck(config: VacationOpsConfig, env: VacationCheckEnvi
       return checkSchwabQuoteSmoke(config, env);
     case "financial_external_services":
       return checkFinancialExternalServices(config, env);
-    case "backtester_app":
-      return checkBacktesterApp(config, env);
     case "github_identity":
       return checkGithubIdentity(config, env);
     case "browser_cdp":
       return checkBrowserCdp(config, env);
-    case "market_scans":
-      return marketTier2Check(config, env, systemKey, "📈 Stock Market Brief (daily)");
-    case "trading_watchlist_refresh":
-      return marketTier2Check(config, env, systemKey, "📈 Stock Market Brief (collect)");
     case "secondary_dashboard_enrichments": {
       const probe = httpProbe(env, env.missionControlUrl ?? "http://127.0.0.1:3000/api/heartbeat-status");
       return buildResult(config, systemKey, probe.ok ? "green" : "yellow", probe.detail, probe.freshnessAt);
