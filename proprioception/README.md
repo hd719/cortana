@@ -55,7 +55,7 @@ Reads OpenAI usage data (Anthropic only as fallback) and computes:
 - **Spend to date** this billing cycle
 - **Burn rate** (daily average, 7-day rolling)
 - **Projected monthly spend** (burn rate × days remaining)
-- **Per-category breakdown** from session labels: `main`, `cron:*`, `subagent:*`, `covenant:*`
+- **Per-category breakdown** from session labels: `main`, `cron:*`, `subagent:*`
 - **Threshold alerts** at 50%, 75%, 90% of $200 budget
 
 Source: `node ~/Developer/cortana/skills/telegram-usage/handler.js` + session file sizes as proxy for token volume.
@@ -209,8 +209,8 @@ CREATE TABLE cortana_throttle_log (
 | Tier | Trigger | Actions |
 |------|---------|---------|
 | **0 — Normal** | Budget < 50% used with projected < $90 | All systems nominal |
-| **1 — Conservative** | Budget > 50% OR projected > $90 | Covenant agents switch to haiku. Non-essential crons reduce frequency (2x interval). SAE insights skip low-priority. |
-| **2 — Austere** | Budget > 75% OR projected > $95 | Disable Covenant agents except Monitor. Informational crons (RSS, librarian) pause. Sub-agent spawns require priority ≤ 3. Briefs use haiku. |
+| **1 — Conservative** | Budget > 50% OR projected > $90 | Non-essential crons reduce frequency (2x interval). SAE insights skip low-priority. |
+| **2 — Austere** | Budget > 75% OR projected > $95 | Informational crons (RSS, librarian) pause. Sub-agent spawns require priority <= 3. Briefs use haiku. |
 | **3 — Survival** | Budget > 90% OR projected > $99 | Only critical crons run (morning brief, watchdog, memory consolidation). All models → haiku. No sub-agent spawns. No proactive messages. |
 
 ### Throttle Rules
@@ -225,7 +225,7 @@ CREATE TABLE cortana_throttle_log (
 |----------|-------|-------------------|
 | **Critical** | morning-brief, watchdog/proprioception, memory-consolidation, cortical-loop evaluator | Never disabled |
 | **Important** | fitness-briefs, stock-brief, SAE world-state, SAE reasoner | Tier 2: reduce frequency. Tier 3: haiku only |
-| **Enhancement** | covenant agents, RSS scan, librarian, learning-loop | Tier 1: reduce frequency. Tier 2+: disabled |
+| **Enhancement** | RSS scan, librarian, learning-loop | Tier 1: reduce frequency. Tier 2+: disabled |
 
 ## Cron Schedule
 
@@ -269,9 +269,6 @@ VALUES ('proprioception_alert', 'Self-model health degraded', 'proprioception', 
 ### → Memory Consolidation
 Nightly consolidation reviews `cortana_throttle_log` and `cortana_cron_health` for patterns worth remembering (e.g., "Tonal goes down every Tuesday" → log to patterns).
 
-### → Covenant Agents
-Monitor agent can query `cortana_self_model` for anomaly detection across Cortana's own operational data, not just external patterns.
-
 ## Health Score Calculation
 
 ```
@@ -309,13 +306,13 @@ status:
     "morning-brief": 0.48,
     "sae-reasoner": 0.31,
     "fitness-morning": 0.22,
-    "covenant-huragok": 0.19,
-    "stock-brief": 0.15
+    "stock-brief": 0.19,
+    "fitness-evening": 0.15
   },
   "brief_engagement": 0.71,
   "alerts": [
     "Tonal API down since 09:15",
-    "covenant-oracle: 3 consecutive failures"
+    "memory-consolidation: 3 consecutive failures"
   ],
   "updated_at": "2026-02-17T10:30:00-05:00"
 }

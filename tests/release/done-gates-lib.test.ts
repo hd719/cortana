@@ -17,7 +17,7 @@ describe("done-gates-lib", () => {
   });
 
   it("fails when working tree has changes or main diverges", () => {
-    const result = evaluateMainClean(" M tools/covenant/spawn_guard.ts\n", "1 2");
+    const result = evaluateMainClean(" M tools/release/done-gates-lib.ts\n", "1 2");
     expect(result.ok).toBe(false);
     expect(result.reasons).toEqual([
       "working tree is dirty (commit/stash/discard local changes)",

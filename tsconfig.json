@@ -20,7 +20,6 @@
     "tools/trading/**/*.ts",
     "tools/vacation/**/*.ts",
     "tools/alerting/openai-cron-auth-guard.ts",
-    "tools/covenant/validate_agent_protocol.ts",
     "tools/notifications/flush-digest.ts",
     "tools/openclaw/gateway-env.ts",
     "tools/subagent-watchdog/check-subagents.ts",
