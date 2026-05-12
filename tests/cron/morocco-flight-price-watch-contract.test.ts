@@ -23,7 +23,11 @@ describe("Morocco flight price watch cron contract", () => {
     expect(message).toContain("informational, not a setup action");
     expect(message).toContain("Rabat/RBA");
     expect(message).toContain("Aug 5-17 and Aug 7-17");
-    expect(message).toContain("airline/visible flight-number details");
+    expect(message).toContain("FLIGHT_PRICE_WATCH_BROWSER_BUDGET_MS=30000");
+    expect(message).toContain("FLIGHT_PRICE_WATCH_CDP_RELOAD=auto");
+    expect(message).toContain("FLIGHT_PRICE_WATCH_FLIGHT_NUMBER_LOOKUP=0");
+    expect(message).toContain("bounded browser price snapshots");
+    expect(message).toContain("visible airline/flight details");
     expect(message).toContain("preserve every configured route line");
     expect(message).toContain("Preserve all route lines exactly");
     expect(message).toContain("Gmail plus live Google Flights browser tabs");
