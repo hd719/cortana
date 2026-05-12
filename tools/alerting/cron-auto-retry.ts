@@ -9,7 +9,6 @@ const PSQL_BIN = "/opt/homebrew/opt/postgresql@17/bin/psql";
 const SOURCE = "heartbeat";
 const DEFAULT_CRITICAL_JOB_NAMES = new Set([
   "☀️ Morning brief (Hamel)",
-  "📈 Stock Market Brief (daily)",
   "🏋️ Fitness Morning Brief (Hamel)",
   "📅 Calendar reminders → Telegram (ALL calendars)",
   "⏰ Apple Reminders alerts → Telegram (Monitor)",

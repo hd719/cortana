@@ -30,7 +30,6 @@ After the change:
 Locked product decisions for this build:
 
 - Default morning and evening summary times are `08:00` and `20:00` in the configured local timezone until user customization exists.
-- Backtester app health in v1 uses existing readiness and market-data surfaces plus the existing local app probe path; a dedicated endpoint is out of scope for v1.
 - Vacation mode writes only to its own canonical vacation tables and incident ledger; autonomy taxonomy, system keys, and `incident_key` references are read-only compatibility references, not write targets.
 - Mission Control and Tailscale are local-readiness and tailnet proxies only.
 - Natural-language activation is an edge wrapper over deterministic CLI/state transitions only.
@@ -38,7 +37,7 @@ Locked product decisions for this build:
 Affected repos and services:
 
 - Primary repo: `cortana`
-- Secondary repo surface: `cortana-external` for Mission Control health and market/backtester runtime checks
+- Secondary repo surface: `cortana-external` for Mission Control health and external-service readiness checks
 - Services touched by verification logic:
   - OpenClaw gateway
   - Telegram plugin and delivery paths
@@ -435,8 +434,6 @@ Secondary repo checks only, no primary implementation in phase 1:
   - consume existing health endpoint `/api/heartbeat-status`
 - `/Users/hd/Developer/cortana-external/watchdog/watchdog.sh`
   - may be referenced as evidence for existing health surfaces, but the vacation core remains in `cortana`
-- `/Users/hd/Developer/cortana-external/backtester`
-  - existing readiness artifacts and market-data health surfaces may be consumed by vacation checks
 
 LLM-agnostic implementation rule:
 
@@ -547,5 +544,4 @@ Success means:
 ## Operational Assumptions
 
 - Mission Control and Tailscale are accepted as local-readiness and tailnet proxies only; they are not treated as proof of Internet-wide reachability from a remote island.
-- Backtester app health in v1 relies on existing readiness and market-data artifacts plus the existing local app probe path; a dedicated endpoint is not part of this build.
 - Natural-language activation remains LLM-mediated at the edge; the implementation must ensure the edge can only call deterministic CLI/state transitions and cannot bypass them.

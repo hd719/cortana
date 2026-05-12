@@ -41,7 +41,7 @@ Migrated 4 major daily briefs to pull from sitrep + insights instead of gatherin
 
 **Consolidated crons:**
 1. **Morning Brief** (7:00→7:30 AM) — reads sitrep for weather, calendar, email, fitness, portfolio, tasks. Only fetches fresh news/RSS and API usage. Includes 🧠 Insights section.
-2. **Stock Market Brief** (7:30→7:45 AM weekdays) — reads sitrep finance data, only fetches fresh prices if stale. Includes finance insights.
+2. **retired stock-market brief** (7:30→7:45 AM weekdays) — reads sitrep finance data, only fetches fresh prices if stale. Includes finance insights.
 3. **Fitness Morning Brief** (8:00 AM) — reads sitrep health data, only fetches fresh Whoop if sitrep >2h stale. Includes health insights.
 4. **Fitness Evening Recap** (8:30 PM) — uses sitrep as baseline, fetches fresh evening data (needed since 9PM SAE hasn't run). Includes health insights.
 

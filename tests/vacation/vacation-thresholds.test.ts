@@ -3,6 +3,20 @@ import { deriveReadinessOutcome } from "../../tools/vacation/readiness-engine.ts
 import { loadVacationOpsConfig } from "../../tools/vacation/vacation-config.ts";
 
 const config = loadVacationOpsConfig();
+const configWithMarketDataTier2 = {
+  ...config,
+  systems: {
+    ...config.systems,
+    market_data_smoke: {
+      tier: 2,
+      required: false,
+      tier2Class: "market_trading" as const,
+      probe: "runtime_cron:market-data smoke",
+      freshnessSource: "cron_run",
+      remediation: ["rerun_smoke"],
+    },
+  },
+};
 
 const healthyRequired = Object.entries(config.systems)
   .filter(([, def]) => def.required)
@@ -15,11 +29,11 @@ const healthyRequired = Object.entries(config.systems)
   }));
 
 describe("vacation thresholds", () => {
-  it("warns when a market/trading tier-2 failure crosses its configured threshold", () => {
+  it("warns when a market-data tier-2 failure crosses its configured threshold", () => {
     const outcome = deriveReadinessOutcome([
       ...healthyRequired,
       {
-        system_key: "market_scans",
+        system_key: "market_data_smoke",
         tier: 2,
         status: "yellow",
         observed_at: "2026-04-11T12:00:00.000Z",
@@ -30,16 +44,16 @@ describe("vacation thresholds", () => {
           minutesBeforeNextOpen: 120,
         },
       },
-    ], config);
+    ], configWithMarketDataTier2);
     expect(outcome.outcome).toBe("warn");
-    expect(outcome.tier2WarnSystemKeys).toContain("market_scans");
+    expect(outcome.tier2WarnSystemKeys).toContain("market_data_smoke");
   });
 
   it("warns near the next market open even when outside market hours", () => {
     const outcome = deriveReadinessOutcome([
       ...healthyRequired,
       {
-        system_key: "market_scans",
+        system_key: "market_data_smoke",
         tier: 2,
         status: "yellow",
         observed_at: "2026-04-11T12:00:00.000Z",
@@ -50,16 +64,16 @@ describe("vacation thresholds", () => {
           minutesBeforeNextOpen: 25,
         },
       },
-    ], config);
+    ], configWithMarketDataTier2);
     expect(outcome.outcome).toBe("warn");
-    expect(outcome.tier2WarnSystemKeys).toContain("market_scans");
+    expect(outcome.tier2WarnSystemKeys).toContain("market_data_smoke");
   });
 
   it("does not use next-open proximity as a warning trigger during market hours", () => {
     const outcome = deriveReadinessOutcome([
       ...healthyRequired,
       {
-        system_key: "market_scans",
+        system_key: "market_data_smoke",
         tier: 2,
         status: "yellow",
         observed_at: "2026-04-11T12:00:00.000Z",
@@ -70,7 +84,7 @@ describe("vacation thresholds", () => {
           minutesBeforeNextOpen: 0,
         },
       },
-    ], config);
+    ], configWithMarketDataTier2);
     expect(outcome.outcome).toBe("pass");
   });
 

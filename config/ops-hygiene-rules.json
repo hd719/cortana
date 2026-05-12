@@ -53,8 +53,7 @@
         {
           "path": "README.md",
           "phrases": [
-            "Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.",
-            "Monitor is the user-facing owner lane for trading alert scans."
+            "Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts."
           ]
         }
       ]
@@ -90,8 +89,8 @@
         "gmail",
         "inbox",
         "email triage",
-        "calendar reminders \u2192 telegram",
-        "apple reminders alerts \u2192 telegram"
+        "calendar reminders -> telegram",
+        "apple reminders alerts -> telegram"
       ],
       "requireExplicitOwner": true,
       "requireQuietHealthy": true
@@ -132,20 +131,6 @@
       ],
       "requireExplicitOwner": true,
       "requireQuietHealthy": true
-    },
-    {
-      "id": "monitor-owns-trading-alert-scans",
-      "scopeLabel": "trading alert scans",
-      "expectedOwner": "monitor",
-      "jobKeywords": [
-        "canslim alert scan",
-        "dip buyer",
-        "trading-cron-alert.ts",
-        "trading backtest notify",
-        "backtest-notify"
-      ],
-      "requireExplicitOwner": true,
-      "requireQuietHealthy": false
     }
   ]
 }

@@ -64,7 +64,7 @@ function detectCategory(signalType: string, eventType: string, source: string, m
   const haystack = [signalType || "", eventType || "", source || "", message || "", mdText].join(" ").toLowerCase();
 
   const checks: Record<string, string[]> = {
-    portfolio: ["portfolio", "watchlist", "position", "trade", "canslim", "market"],
+    portfolio: ["portfolio", "watchlist", "position", "trade", "market"],
     email: ["email", "gmail", "inbox", "mail"],
     calendar: ["calendar", "meeting", "event", "khal", "caldav"],
     weather: ["weather", "forecast", "rain", "temperature"],

@@ -20,9 +20,7 @@
   ],
   "guard": {
     "fragileCronMatchers": [
-      "🐦 X session healthcheck (bird)",
-      "📈 Stock Market Brief (daily)",
-      "🧠 Polymarket Market Intel Refresh"
+      "🐦 X session healthcheck (bird)"
     ],
     "quarantineAfterConsecutiveErrors": 1
   },
@@ -208,17 +206,6 @@
         "rerun_smoke"
       ]
     },
-    "backtester_app": {
-      "tier": 1,
-      "required": true,
-      "probe": "backtester_runtime_health",
-      "freshnessSource": "artifact_and_http",
-      "remediation": [
-        "restart_service",
-        "runtime_sync",
-        "rerun_smoke"
-      ]
-    },
     "github_identity": {
       "tier": 1,
       "required": true,
@@ -236,28 +223,6 @@
       "freshnessSource": "immediate_probe",
       "remediation": [
         "restart_service",
-        "rerun_smoke"
-      ]
-    },
-    "market_scans": {
-      "tier": 2,
-      "required": false,
-      "tier2Class": "market_trading",
-      "probe": "runtime_cron:📈 Stock Market Brief (daily)",
-      "freshnessSource": "cron_run",
-      "remediation": [
-        "runtime_sync",
-        "rerun_smoke"
-      ]
-    },
-    "trading_watchlist_refresh": {
-      "tier": 2,
-      "required": false,
-      "tier2Class": "market_trading",
-      "probe": "runtime_cron:📈 Stock Market Brief (collect)",
-      "freshnessSource": "cron_run",
-      "remediation": [
-        "runtime_sync",
         "rerun_smoke"
       ]
     },

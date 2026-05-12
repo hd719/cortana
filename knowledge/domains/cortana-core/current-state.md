@@ -39,7 +39,7 @@ Examples of things that usually stay in `cortana-external`:
 
 - Mission Control and other runtime UIs
 - external service endpoints
-- trading/backtester runtime code
+- trading ops runtime code
 
 ## Operating Model
 

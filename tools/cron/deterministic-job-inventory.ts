@@ -25,7 +25,6 @@ const JUDGMENT_HEAVY = [
   /summary/i,
   /recap/i,
   /trading/i,
-  /canslim/i,
   /fitness/i,
   /whoop/i,
   /calendar/i,

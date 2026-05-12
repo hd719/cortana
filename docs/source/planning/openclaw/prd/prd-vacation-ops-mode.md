@@ -22,7 +22,7 @@
 - Apple Reminders checks
 - Morning Brief and other user-facing comms
 - market, fitness, maintenance, and health cron lanes
-- external services such as fitness service, Schwab market data, Mission Control, and backtester surfaces
+- external services such as fitness service, Schwab market data, Mission Control, and browser control surfaces
 
 The system already has many health checks, watchdogs, and cron-level probes, but it does not yet provide a single explicit operational model for extended unattended operation.
 
@@ -97,7 +97,7 @@ Primary repo:
 - `cortana`
 
 Secondary repo dependencies:
-- `cortana-external` for Mission Control, backtester app, and external service readiness checks where those systems are part of vacation-critical health
+- `cortana-external` for Mission Control and external service readiness checks where those systems are part of vacation-critical health
 
 Main implementation areas in `cortana` will likely include:
 
@@ -265,14 +265,12 @@ Tier 1 (`NO-GO` if broken after allowed remediation):
 - Gmail / inbox triage
 - fitness service
 - Schwab auth / quote smoke
-- backtester app health using existing readiness / market-data surfaces plus the local app probe path in v1
 - GitHub machine identity consistency (`cortana-hd`)
 - browser CDP watchdog path
 
 Tier 2 (`WARN` if broken):
-- market scans
-- trading precompute / watchlist refresh
-- selected backtester support paths that do not block reminders/comms/control plane
+- secondary market/news summaries
+- nonessential dashboard enrichments
 
 Tier 3 (`INFO` only):
 - secondary nice-to-have summaries or low-value informational scans
@@ -308,7 +306,7 @@ Stale degraded evidence must be overwritten by newer healthy verification for th
 | Accepted | As Hamel, I want the system to scan my Google Calendar travel plans and recommend an ideal prep window so that I can start prep about `24` hours before departure. | Recommendation only, not automatic activation. |
 | Accepted | As an operator, I want prep to explicitly surface any systems requiring interactive reauth before departure so that nothing human-dependent remains hidden. | This is the right time to refresh fragile auth. |
 | Accepted | As Hamel, I want real Telegram test messages sent to `monitor` during prep so that delivery health is verified end to end, not assumed. | Prefix should clearly indicate vacation preflight. |
-| Accepted | As an operator, I want prep to run exact smoke tests for Gog, reminders, Morning Brief, Schwab, Mission Control, Tailscale, and backtester surfaces so that the audit result is grounded in live behavior. | Dry-run alone is not enough. |
+| Accepted | As an operator, I want prep to run exact smoke tests for Gog, reminders, Morning Brief, Schwab, Mission Control, and Tailscale so that the audit result is grounded in live behavior. | Dry-run alone is not enough. |
 
 #### Prep workflow requirements
 
@@ -550,14 +548,11 @@ Tier 1 / user value and critical dependencies:
 - Gmail / inbox triage path
 - fitness service health
 - Schwab auth and quote smoke
-- backtester app health
 - GitHub machine identity consistency
 - browser CDP health
 
 Tier 2 / valuable but not immediate no-go if degraded:
-- trading watchlist support flows
-- trading precompute / notify support paths
-- Polymarket or secondary market intel jobs
+- secondary market/news summaries
 - nonessential dashboard enrichments
 
 Tier 3 / informational:
@@ -634,7 +629,6 @@ Observed operator requirements from this planning discussion:
 ### Resolved Decisions
 
 - Default morning and evening summary times are `08:00` and `20:00` in the vacation window's configured local timezone until user customization exists.
-- Backtester app health in v1 relies on existing readiness and market-data surfaces plus the existing local app probe path; a new dedicated endpoint is out of scope for v1.
 - Vacation mode uses its own canonical vacation tables and incident ledger; autonomy taxonomy, system keys, and `incident_key` references may be reused, but vacation mode does not write directly into autonomy tables.
 - Mission Control and Tailscale are accepted as local-readiness and tailnet proxies only, not proof of Internet-wide reachability.
 - Natural-language activation remains allowed only as an edge wrapper over deterministic CLI/state transitions.

@@ -26,8 +26,6 @@ type Job = {
 const runtimeJobsPath = path.join(os.homedir(), ".openclaw", "cron", "jobs.json");
 
 const KNOWN_NOISY_JOB_NAMES = new Set([
-  "📈 Stock Market Brief (daily)",
-  "📉 Dip Buyer Alert Scan (market sessions)",
 ]);
 
 const CRITICAL_JOB_NAMES = new Set([

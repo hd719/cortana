@@ -8,7 +8,7 @@ Fresh-session rule: read this file first, then rebuild context from live machine
 
 - Mac mini is canonical unless Hamel says otherwise.
 - `cortana` (`/Users/hd/Developer/cortana`) is the command brain: doctrine, routing, identity, memory policy, prompts, tracked OpenClaw config, and operator procedures.
-- `cortana-external` (`/Users/hd/Developer/cortana-external`) is the runtime body: Mission Control, external-service, trading/backtester, health endpoints, watchdog, UI, and launchd runtime surfaces.
+- `cortana-external` (`/Users/hd/Developer/cortana-external`) is the runtime body: Mission Control, external-service, trading ops, health endpoints, watchdog, UI, and launchd runtime surfaces.
 - `~/.openclaw` is live runtime state: deployed config, cron truth, queues, logs, bindings, runtime wiki, generated memory, and active service state.
 - `/Users/hd/openclaw` is only a compatibility shim, not an independent source checkout.
 - Source code is not proof of live behavior. Verify runtime state before claiming a runtime-visible issue is fixed.
@@ -104,7 +104,7 @@ Do not declare green until the relevant checks pass:
 ## Repo Ownership
 
 - Doctrine, routing, identity, prompts, memory policy, tracked config -> `cortana`
-- Mission Control, external-service, trading/backtester, watchdog, health endpoints -> `cortana-external`
+- Mission Control, external-service, trading ops, watchdog, health endpoints -> `cortana-external`
 - Live queues, cron state, logs, deployed config, runtime wiki -> `~/.openclaw`
 
 If a change crosses repos:
@@ -118,7 +118,7 @@ If a change crosses repos:
   `npx tsx /Users/hd/Developer/cortana/tools/context/main-operator-context.ts`
 - For Gmail/Google Calendar in headless OpenClaw sessions, do not call raw `gog`; use:
   `npx tsx /Users/hd/Developer/cortana/tools/gog/gog-with-env.ts ...`
-- Monitor owns inbox/email ops, operational maintenance alerts, and trading alert scans.
+- Monitor owns inbox/email ops and operational maintenance alerts.
 - Quiet healthy maintenance paths should return exactly `NO_REPLY`.
 - Approval requests needing Hamel route through `main`, not Monitor.
 

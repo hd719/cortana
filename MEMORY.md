@@ -96,7 +96,7 @@ This is curated long-term memory for `main`. Generated daily/session details bel
 - Local portfolio/trading checks must verify `ALPACA_TARGET_ENVIRONMENT` and credential source.
 - Account-context mismatch is a blocker, not a soft warning.
 - Use the Cortana X/Twitter account `@Cortana356047` in the OpenClaw browser profile for market sentiment; do not use Hamel's personal Chrome profile.
-- Standing X use cases: TSLA/NVDA/holdings sentiment, key finance account flow, tech news, earnings surprises, CANSLIM candidate screening.
+- Standing X use cases: TSLA/NVDA/holdings sentiment, key finance account flow, tech news, earnings surprises.
 
 ## Current Priorities
 

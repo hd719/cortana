@@ -185,7 +185,6 @@ Tier 1:
 - `gmail_inbox_triage`
 - `fitness_service`
 - `schwab_quote_smoke`
-- `backtester_app`
 - `github_identity`
 - `browser_cdp`
 
@@ -359,7 +358,6 @@ Tier 1:
   - simulate at least one allowed self-heal
   - validate auto-disable and restore
 - Sub-task 2: Validate Mission Control and Tailscale checks as local-readiness and tailnet proxy surfaces only.
-- Sub-task 3: Validate backtester app health against existing readiness / market-data surfaces plus the local app probe path in v1; no dedicated endpoint is in scope.
 - Sub-task 4: Patch any deterministic gaps discovered during rehearsal without expanding scope into unrelated feature work.
 
 #### Important Planning Notes
@@ -458,4 +456,4 @@ The smallest credible delivery order is:
 Do not invert that order.
 
 - **Biggest risks:** stale-state false positives, summary noise, hidden interactive-auth dependencies, and pause/restore drift on `Daily Auto-Update`.
-- **Assumptions:** Postgres remains available, existing check helpers are stable enough to reuse, Mission Control and Tailscale are proxy checks only, and existing backtester / market-data surfaces in `cortana-external` stay compatible with the checks defined in `cortana`.
+- **Assumptions:** Postgres remains available, existing check helpers are stable enough to reuse, Mission Control and Tailscale are proxy checks only, and existing market-data surfaces in `cortana-external` stay compatible with the checks defined in `cortana`.
