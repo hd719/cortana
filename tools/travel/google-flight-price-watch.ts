@@ -10,6 +10,10 @@ const SENT_PATH =
   process.env.FLIGHT_PRICE_WATCH_SENT_PATH ??
   "/Users/hd/.openclaw/memory/google-flight-price-watch-sent.json";
 const CDP_TARGETS_URL = process.env.FLIGHT_PRICE_WATCH_CDP_TARGETS_URL ?? "http://127.0.0.1:18792/json";
+const DEFAULT_BROWSER_BUDGET_MS = 30_000;
+const PAGE_READY_POLL_MS = 250;
+const TARGET_READY_POLL_MS = 500;
+
 export type GoogleFlightSearch = {
   route: string;
   url: string;
@@ -120,10 +124,51 @@ type CdpTarget = {
   webSocketDebuggerUrl?: string;
 };
 
+type CdpCommandResult = {
+  result?: {
+    value?: unknown;
+  };
+};
+
+type CdpResponseMessage = {
+  id?: number;
+  error?: unknown;
+  result?: CdpCommandResult;
+};
+
 type CdpClient = {
-  send(method: string, params?: Record<string, unknown>): Promise<any>;
+  send(method: string, params?: Record<string, unknown>): Promise<CdpCommandResult>;
   close(): void;
 };
+
+export type RunDeadline = {
+  remainingMs(): number;
+  expired(): boolean;
+  budgetMs(maxMs: number, minimumMs?: number): number;
+};
+
+export function createRunDeadline(timeoutMs: number, now: () => number = Date.now): RunDeadline {
+  const startedAtMs = now();
+  return {
+    remainingMs() {
+      return Math.max(0, startedAtMs + timeoutMs - now());
+    },
+    expired() {
+      return this.remainingMs() <= 0;
+    },
+    budgetMs(maxMs: number, minimumMs = 0) {
+      const remaining = this.remainingMs();
+      if (remaining < minimumMs) return 0;
+      return Math.max(0, Math.min(maxMs, remaining));
+    },
+  };
+}
+
+function configuredBrowserDeadline(): RunDeadline {
+  const raw = Number(process.env.FLIGHT_PRICE_WATCH_BROWSER_BUDGET_MS ?? DEFAULT_BROWSER_BUDGET_MS);
+  const timeoutMs = Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_BROWSER_BUDGET_MS;
+  return createRunDeadline(timeoutMs);
+}
 
 function formatEtDate(date: Date): string {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -479,14 +524,14 @@ async function connectCdp(wsUrl: string): Promise<CdpClient> {
   });
 
   let id = 0;
-  const pending = new Map<number, { resolve(value: any): void; reject(error: Error): void }>();
+  const pending = new Map<number, { resolve(value: CdpCommandResult): void; reject(error: Error): void }>();
   ws.onmessage = (event) => {
-    const message = JSON.parse(String(event.data));
+    const message = JSON.parse(String(event.data)) as CdpResponseMessage;
     if (!message.id || !pending.has(message.id)) return;
     const waiter = pending.get(message.id);
     pending.delete(message.id);
     if (message.error) waiter?.reject(new Error(JSON.stringify(message.error)));
-    else waiter?.resolve(message.result);
+    else waiter?.resolve(message.result ?? {});
   };
 
   return {
@@ -515,20 +560,25 @@ async function openCdpTab(search: GoogleFlightSearch): Promise<CdpTarget | null>
   return (await response.json().catch(() => null)) as CdpTarget | null;
 }
 
-function extractSnapshotFromPage(value: any, search?: GoogleFlightSearch): FlightSnapshot | null {
-  const route = search?.route ?? (typeof value?.route === "string" ? value.route : "");
-  const prices = Array.isArray(value?.prices) ? value.prices.filter((price: unknown) => typeof price === "number") : [];
+function asRecord(value: unknown): Record<string, unknown> {
+  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+function extractSnapshotFromPage(value: unknown, search?: GoogleFlightSearch): FlightSnapshot | null {
+  const record = asRecord(value);
+  const route = search?.route ?? (typeof record.route === "string" ? record.route : "");
+  const prices = Array.isArray(record.prices) ? record.prices.filter((price): price is number => typeof price === "number") : [];
   if (!route || prices.length === 0) return null;
   return {
     route,
-    account: typeof value.account === "string" ? value.account : "",
-    trackLabel: typeof value.trackLabel === "string" ? value.trackLabel : "",
-    trackingEnabled: value.checked === "true",
-    priceInsight: typeof value.priceInsight === "string" ? value.priceInsight : "",
+    account: typeof record.account === "string" ? record.account : "",
+    trackLabel: typeof record.trackLabel === "string" ? record.trackLabel : "",
+    trackingEnabled: record.checked === "true",
+    priceInsight: typeof record.priceInsight === "string" ? record.priceInsight : "",
     lowestPrice: prices[0] ?? null,
     prices,
-    bestFlight: typeof value.bestFlight === "string" ? value.bestFlight : "",
-    url: typeof value.url === "string" ? value.url : "",
+    bestFlight: typeof record.bestFlight === "string" ? record.bestFlight : "",
+    url: typeof record.url === "string" ? record.url : "",
   };
 }
 
@@ -536,29 +586,139 @@ function flightSearchPages(
   targets: CdpTarget[],
   search: GoogleFlightSearch,
 ): Array<CdpTarget & { webSocketDebuggerUrl: string }> {
-  return targets.filter(
-    (target): target is CdpTarget & { webSocketDebuggerUrl: string } =>
-      matchesGoogleFlightSearchTarget(target, search) &&
-      typeof target.webSocketDebuggerUrl === "string",
-  );
+  return selectGoogleFlightSearchPages(targets, search);
+}
+
+function isGenericGoogleFlightsPage(target: CdpTarget): boolean {
+  const title = target.title ?? "";
+  return /Find Cheap Flights Worldwide|Book Your Ticket|^Google Flights$/i.test(title);
+}
+
+function targetQuality(target: CdpTarget): number {
+  if (!target.webSocketDebuggerUrl) return 0;
+  if (isGenericGoogleFlightsPage(target)) return 1;
+  if (/\bto Rabat\b|\bRabat\b|\bRBA\b/i.test(target.title ?? "")) return 4;
+  if ((target.title ?? "").trim()) return 3;
+  return 2;
+}
+
+export function selectGoogleFlightSearchPages(
+  targets: CdpTarget[],
+  search: GoogleFlightSearch,
+): Array<CdpTarget & { webSocketDebuggerUrl: string }> {
+  return targets
+    .filter(
+      (target): target is CdpTarget & { webSocketDebuggerUrl: string } =>
+        matchesGoogleFlightSearchTarget(target, search) &&
+        typeof target.webSocketDebuggerUrl === "string",
+    )
+    .sort((left, right) => targetQuality(right) - targetQuality(left));
+}
+
+async function fetchCdpTargets(): Promise<CdpTarget[]> {
+  const response = await fetch(CDP_TARGETS_URL);
+  if (!response.ok) throw new Error(`CDP target list failed: HTTP ${response.status}`);
+  return (await response.json()) as CdpTarget[];
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForSearchTargets(
+  searches: GoogleFlightSearch[],
+  deadline: RunDeadline,
+  maxMs: number,
+): Promise<CdpTarget[]> {
+  const waitMs = deadline.budgetMs(maxMs, TARGET_READY_POLL_MS);
+  const stopAt = Date.now() + waitMs;
+  let targets = await fetchCdpTargets();
+  while (Date.now() < stopAt) {
+    const missing = missingGoogleFlightSearches(targets, searches);
+    if (missing.length === 0) return targets;
+    await sleep(Math.min(TARGET_READY_POLL_MS, Math.max(0, stopAt - Date.now())));
+    targets = await fetchCdpTargets();
+  }
+  return targets;
+}
+
+async function waitForTargetId(
+  targetId: string,
+  deadline: RunDeadline,
+  maxMs: number,
+): Promise<CdpTarget[]> {
+  const waitMs = deadline.budgetMs(maxMs, TARGET_READY_POLL_MS);
+  const stopAt = Date.now() + waitMs;
+  let targets = await fetchCdpTargets();
+  while (Date.now() < stopAt) {
+    if (targets.some((target) => target.id === targetId && typeof target.webSocketDebuggerUrl === "string")) return targets;
+    await sleep(Math.min(TARGET_READY_POLL_MS, Math.max(0, stopAt - Date.now())));
+    targets = await fetchCdpTargets();
+  }
+  return targets;
+}
+
+async function waitForGoogleFlightsContent(client: CdpClient, deadline: RunDeadline): Promise<void> {
+  const waitMs = deadline.budgetMs(10_000, PAGE_READY_POLL_MS);
+  if (waitMs <= 0) return;
+
+  await client.send("Runtime.evaluate", {
+    returnByValue: true,
+    awaitPromise: true,
+    expression: `(async () => {
+      const stopAt = Date.now() + ${waitMs};
+      const hasSnapshotContent = () => {
+        const body = document.body?.innerText || '';
+        return /\\$\\s*([1-9]\\d{0,2}(?:,\\d{3})+|[1-9]\\d{3,}) round trip/i.test(body);
+      };
+      while (Date.now() < stopAt) {
+        if (hasSnapshotContent()) return true;
+        await new Promise(resolve => setTimeout(resolve, ${PAGE_READY_POLL_MS}));
+      }
+      return hasSnapshotContent();
+    })()`,
+  });
+}
+
+function shouldReloadCdpPage(snapshot: FlightSnapshot | null): boolean {
+  const mode = (process.env.FLIGHT_PRICE_WATCH_CDP_RELOAD ?? "auto").toLowerCase();
+  if (mode === "0" || mode === "false" || mode === "off") return false;
+  if (mode === "1" || mode === "true" || mode === "on") return true;
+  return snapshot === null;
 }
 
 async function readSnapshotFromPage(
   page: CdpTarget & { webSocketDebuggerUrl: string },
   search: GoogleFlightSearch,
+  deadline: RunDeadline,
 ): Promise<FlightSnapshot | null> {
   const client = await connectCdp(page.webSocketDebuggerUrl);
   try {
     await client.send("Runtime.enable");
     await client.send("Page.enable");
-    if (process.env.FLIGHT_PRICE_WATCH_CDP_RELOAD !== "0") {
+
+    let snapshot = await evaluateSnapshotFromPage(client, search);
+    if (snapshot || !shouldReloadCdpPage(snapshot) || deadline.expired()) return snapshot;
+
+    if (deadline.budgetMs(10_000, 1_000) > 0) {
       await client.send("Page.reload", { ignoreCache: true });
-      await new Promise((resolve) => setTimeout(resolve, 9000));
+      await waitForGoogleFlightsContent(client, deadline);
+      snapshot = await evaluateSnapshotFromPage(client, search);
     }
-    const result = await client.send("Runtime.evaluate", {
-      returnByValue: true,
-      awaitPromise: true,
-      expression: `(async () => {
+    return snapshot;
+  } finally {
+    client.close();
+  }
+}
+
+async function evaluateSnapshotFromPage(
+  client: CdpClient,
+  search: GoogleFlightSearch,
+): Promise<FlightSnapshot | null> {
+  const result = await client.send("Runtime.evaluate", {
+    returnByValue: true,
+    awaitPromise: true,
+    expression: `(async () => {
           const norm = s => (s || '').replace(/\\s+/g, ' ').trim();
           const cleanAirlineText = value => (value || '')
             .replace(/([a-z])([A-Z])/g, '$1, $2')
@@ -596,8 +756,11 @@ async function readSnapshotFromPage(
           let sw = [...document.querySelectorAll('[role="switch"]')].find(el => /Track prices/i.test(el.getAttribute('aria-label') || ''));
           if (sw?.getAttribute('aria-checked') === 'false') {
             sw.click();
-            await new Promise(resolve => setTimeout(resolve, 1500));
-            sw = [...document.querySelectorAll('[role="switch"]')].find(el => /Track prices/i.test(el.getAttribute('aria-label') || ''));
+            const stopAt = Date.now() + 1500;
+            while (Date.now() < stopAt && sw?.getAttribute('aria-checked') === 'false') {
+              await new Promise(resolve => setTimeout(resolve, 150));
+              sw = [...document.querySelectorAll('[role="switch"]')].find(el => /Track prices/i.test(el.getAttribute('aria-label') || ''));
+            }
           }
           const trackLabel = sw?.getAttribute('aria-label') || '';
           const prices = [...body.matchAll(/\\$\\s*([1-9]\\d{0,2}(?:,\\d{3})+|[1-9]\\d{3,}) round trip/g)]
@@ -612,23 +775,23 @@ async function readSnapshotFromPage(
           const insight = (body.match(/Prices are currently (high|typical|low|cheap|expensive)/i) || [])[0] || '';
           return { route, account, trackLabel, checked: sw?.getAttribute('aria-checked') || null, priceInsight: insight, prices, bestFlight: extractBestFlight(), url: location.href };
         })()`,
-    });
-    return extractSnapshotFromPage(result.result.value, search);
-  } finally {
-    client.close();
-  }
+  });
+  return extractSnapshotFromPage(result.result?.value, search);
 }
 
-async function readSelectedFlightNumbers(search: GoogleFlightSearch): Promise<string[]> {
-  if (process.env.FLIGHT_PRICE_WATCH_FLIGHT_NUMBER_LOOKUP === "0") return [];
+function shouldLookupSelectedFlightNumbers(): boolean {
+  const mode = (process.env.FLIGHT_PRICE_WATCH_FLIGHT_NUMBER_LOOKUP ?? "0").toLowerCase();
+  return mode === "1" || mode === "true" || mode === "on";
+}
+
+async function readSelectedFlightNumbers(search: GoogleFlightSearch, deadline: RunDeadline): Promise<string[]> {
+  if (!shouldLookupSelectedFlightNumbers()) return [];
 
   const opened = await openCdpTab(search);
   const openedId = opened?.id;
   try {
-    await new Promise((resolve) => setTimeout(resolve, 10000));
-    const response = await fetch(CDP_TARGETS_URL);
-    if (!response.ok) return [];
-    const targets = (await response.json()) as CdpTarget[];
+    if (!openedId) return [];
+    const targets = await waitForTargetId(openedId, deadline, 10_000);
     const page = targets.find(
       (target): target is CdpTarget & { webSocketDebuggerUrl: string } =>
         target.id === openedId && typeof target.webSocketDebuggerUrl === "string",
@@ -647,11 +810,14 @@ async function readSelectedFlightNumbers(search: GoogleFlightSearch): Promise<st
           if (!button) return '';
           button.scrollIntoView({ block: 'center' });
           button.click();
-          await new Promise(resolve => setTimeout(resolve, 5000));
+          const stopAt = Date.now() + 5000;
+          while (Date.now() < stopAt && !location.href.includes('tfs=')) {
+            await new Promise(resolve => setTimeout(resolve, 250));
+          }
           return location.href;
         })()`,
       });
-      const selectedUrl = typeof result.result.value === "string" ? result.result.value : "";
+      const selectedUrl = typeof result.result?.value === "string" ? result.result.value : "";
       return extractFlightNumbersFromGoogleFlightUrl(selectedUrl);
     } finally {
       client.close();
@@ -663,13 +829,16 @@ async function readSelectedFlightNumbers(search: GoogleFlightSearch): Promise<st
   }
 }
 
-async function enrichSnapshotsWithFlightNumbers(snapshots: Map<string, FlightSnapshot>): Promise<void> {
+async function enrichSnapshotsWithFlightNumbers(snapshots: Map<string, FlightSnapshot>, deadline: RunDeadline): Promise<void> {
+  if (!shouldLookupSelectedFlightNumbers()) return;
   for (const search of GOOGLE_FLIGHT_SEARCHES) {
+    if (deadline.budgetMs(20_000, 15_000) <= 0) return;
     const snapshot = snapshots.get(search.route);
     if (!snapshot || !snapshot.bestFlight.includes("flight # not shown")) continue;
     let flightNumbers: string[] = [];
     for (let attempt = 0; attempt < 2 && flightNumbers.length === 0; attempt += 1) {
-      flightNumbers = await readSelectedFlightNumbers(search).catch(() => []);
+      if (deadline.budgetMs(15_000, 10_000) <= 0) break;
+      flightNumbers = await readSelectedFlightNumbers(search, deadline).catch(() => []);
     }
     if (flightNumbers.length === 0) continue;
     snapshot.bestFlight = snapshot.bestFlight.replace("flight # not shown", `flight ${flightNumbers.join("/")}`);
@@ -677,24 +846,22 @@ async function enrichSnapshotsWithFlightNumbers(snapshots: Map<string, FlightSna
 }
 
 async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
-  let response = await fetch(CDP_TARGETS_URL);
-  if (!response.ok) throw new Error(`CDP target list failed: HTTP ${response.status}`);
-  let targets = (await response.json()) as CdpTarget[];
+  const deadline = configuredBrowserDeadline();
+  let targets = await fetchCdpTargets();
   const missing = missingGoogleFlightSearches(targets);
   for (const search of missing) {
+    if (deadline.budgetMs(5_000, 500) <= 0) break;
     await openCdpTab(search);
   }
   if (missing.length > 0) {
-    await new Promise((resolve) => setTimeout(resolve, 5000));
-    response = await fetch(CDP_TARGETS_URL);
-    if (!response.ok) throw new Error(`CDP target refresh failed: HTTP ${response.status}`);
-    targets = (await response.json()) as CdpTarget[];
+    targets = await waitForSearchTargets(missing, deadline, 5_000);
   }
   const snapshots = new Map<string, FlightSnapshot>();
   let missingSnapshots: GoogleFlightSearch[] = [];
   for (const search of GOOGLE_FLIGHT_SEARCHES) {
     for (const page of flightSearchPages(targets, search)) {
-      const snapshot = await readSnapshotFromPage(page, search);
+      if (deadline.expired()) break;
+      const snapshot = await readSnapshotFromPage(page, search, deadline);
       if (snapshot) {
         snapshots.set(search.route, snapshot);
         break;
@@ -705,17 +872,16 @@ async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
 
   if (missingSnapshots.length > 0) {
     for (const search of missingSnapshots) {
+      if (deadline.budgetMs(7_000, 500) <= 0) break;
       await openCdpTab(search);
     }
-    await new Promise((resolve) => setTimeout(resolve, 7000));
-    response = await fetch(CDP_TARGETS_URL);
-    if (!response.ok) throw new Error(`CDP target retry refresh failed: HTTP ${response.status}`);
-    targets = (await response.json()) as CdpTarget[];
+    targets = await waitForSearchTargets(missingSnapshots, deadline, 7_000);
 
     const stillMissing: GoogleFlightSearch[] = [];
     for (const search of missingSnapshots) {
       for (const page of flightSearchPages(targets, search)) {
-        const snapshot = await readSnapshotFromPage(page, search);
+        if (deadline.expired()) break;
+        const snapshot = await readSnapshotFromPage(page, search, deadline);
         if (snapshot) {
           snapshots.set(search.route, snapshot);
           break;
@@ -730,7 +896,7 @@ async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
     throw new Error(`missing parsable Google Flights snapshots: ${missingSnapshots.map((search) => search.route).join("; ")}`);
   }
 
-  await enrichSnapshotsWithFlightNumbers(snapshots);
+  await enrichSnapshotsWithFlightNumbers(snapshots, deadline);
 
   return GOOGLE_FLIGHT_SEARCHES.map((search) => snapshots.get(search.route)).filter(
     (snapshot): snapshot is FlightSnapshot => Boolean(snapshot),

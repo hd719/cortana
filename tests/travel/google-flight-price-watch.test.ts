@@ -2,12 +2,14 @@ import { describe, expect, it } from "vitest";
 import {
   buildSnapshotMessage,
   buildCdpNewTabUrl,
+  createRunDeadline,
   extractBestFlightDetails,
   extractFlightNumbersFromGoogleFlightUrl,
   extractRoute,
   extractRoundTripPrices,
   missingGoogleFlightSearches,
   isFlightAlert,
+  selectGoogleFlightSearchPages,
   shouldSendSnapshot,
 } from "../../tools/travel/google-flight-price-watch.ts";
 
@@ -286,5 +288,51 @@ describe("google-flight-price-watch", () => {
     ).toBe(
       "http://127.0.0.1:18792/json/new?https%3A%2F%2Fwww.google.com%2Ftravel%2Fflights%3Fq%3DFlights%20from%20JFK%20to%20RBA",
     );
+  });
+
+  it("prefers loaded Google Flights tabs over generic duplicate tabs", () => {
+    const search = {
+      route: "New York -> Rabat | Aug 5-17",
+      url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%205%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+      urlNeedle: "Flights%20from%20JFK%20to%20RBA%20August%205%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+    };
+
+    const pages = selectGoogleFlightSearchPages(
+      [
+        {
+          id: "generic",
+          type: "page",
+          title: "Find Cheap Flights Worldwide & Book Your Ticket - Google Flights",
+          url: search.url,
+          webSocketDebuggerUrl: "ws://generic",
+        },
+        {
+          id: "loaded",
+          type: "page",
+          title: "New York to Rabat | Google Flights",
+          url: search.url,
+          webSocketDebuggerUrl: "ws://loaded",
+        },
+      ],
+      search,
+    );
+
+    expect(pages.map((page) => page.id)).toEqual(["loaded", "generic"]);
+  });
+
+  it("shares one browser deadline across optional work", () => {
+    let now = 1_000;
+    const deadline = createRunDeadline(30_000, () => now);
+
+    now = 10_000;
+    expect(deadline.remainingMs()).toBe(21_000);
+    expect(deadline.budgetMs(10_000, 1_000)).toBe(10_000);
+
+    now = 30_000;
+    expect(deadline.budgetMs(10_000, 1_000)).toBe(1_000);
+
+    now = 31_001;
+    expect(deadline.expired()).toBe(true);
+    expect(deadline.budgetMs(10_000, 1_000)).toBe(0);
   });
 });
