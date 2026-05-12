@@ -169,6 +169,11 @@ describe("google-flight-price-watch", () => {
     expect(message).toContain("EWR Aug5: $10,870");
     expect(message).toContain("JFK Aug7: $11,104");
     expect(message).toContain("EWR Aug7: $11,130");
+    expect(message).toContain("JFK Aug5: $10,844 for 2 biz");
+    expect(message).toContain("\n\nEWR Aug5: $10,870 for 2 biz");
+    expect(message).toContain("\n\nJFK Aug7: $11,104 for 2 biz");
+    expect(message).toContain("\n\nEWR Aug7: $11,130 for 2 biz");
+    expect(message).toContain("\n\nVerdict: Watch only; still expensive.");
     expect(message).toContain("Air France/Delta/KLM");
   });
 

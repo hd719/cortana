@@ -473,17 +473,20 @@ export function buildSnapshotMessage(snapshots: FlightSnapshot[]): string {
     .map((snapshot) => snapshot.lowestPrice)
     .filter((price): price is number => typeof price === "number")
     .sort((a, b) => a - b)[0] ?? null;
+  const routeLines = ordered.map((snapshot) => {
+    const insight = compactPriceInsight(snapshot.priceInsight);
+    const insightText = insight ? `, ${insight}` : "";
+    const tracking = snapshot.trackingEnabled ? "tracking on" : "tracking off";
+    const bestFlight = compactBestFlightDetails(snapshot.bestFlight);
+    const bestFlightText = bestFlight ? `; top ${bestFlight}` : "";
+    return `${compactRoute(snapshot.route)}: ${formatPrice(snapshot.lowestPrice)} for 2 biz${insightText}, ${tracking}${bestFlightText}`;
+  });
   const lines = [
     "✈️ Rabat Flights - price snapshot",
     "Google has not emailed yet; live browser check is working.",
-    ...ordered.map((snapshot) => {
-      const insight = compactPriceInsight(snapshot.priceInsight);
-      const insightText = insight ? `, ${insight}` : "";
-      const tracking = snapshot.trackingEnabled ? "tracking on" : "tracking off";
-      const bestFlight = compactBestFlightDetails(snapshot.bestFlight);
-      const bestFlightText = bestFlight ? `; top ${bestFlight}` : "";
-      return `${compactRoute(snapshot.route)}: ${formatPrice(snapshot.lowestPrice)} for 2 biz${insightText}, ${tracking}${bestFlightText}`;
-    }),
+    "",
+    ...routeLines.flatMap((line, index) => (index === 0 ? [line] : ["", line])),
+    "",
     `Verdict: ${verdict(lowest)}`,
   ];
   return lines.join("\n");
