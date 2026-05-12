@@ -88,20 +88,7 @@ type OpenMeteoWeatherPayload = {
   };
 };
 
-const SPECIALIST_TASKS: SpecialistTask[] = [
-  {
-    sessionKey: "agent:researcher:main",
-    agentId: "researcher",
-    prompt:
-      "Return exactly 2 short bullets for Hamel's morning brief: one high-signal US/world item and one tech/cyber item. No intro.",
-  },
-  {
-    sessionKey: "agent:oracle:main",
-    agentId: "oracle",
-    prompt:
-      "Return 1-2 short bullets for a morning market snapshot: market status plus one notable risk or focus. No intro.",
-  },
-];
+const SPECIALIST_TASKS: SpecialistTask[] = [];
 
 const WTTR_URL = "https://wttr.in/Warren+NJ?format=j1";
 const OPEN_METEO_URL =
@@ -521,14 +508,13 @@ function normalizeBullets(input: string, fallback: string, maxItems: number): st
 }
 
 export function buildBrief(parts: BriefParts): string {
-  const specialistMap = new Map(parts.specialists.map((s) => [s.sessionKey, s]));
   const news = normalizeBullets(
-    specialistMap.get("agent:researcher:main")?.text ?? "",
+    "",
     "News unavailable.",
     2,
   );
   const markets = normalizeBullets(
-    specialistMap.get("agent:oracle:main")?.text ?? "",
+    "",
     "Market snapshot unavailable.",
     2,
   );

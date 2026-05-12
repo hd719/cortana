@@ -4,7 +4,7 @@ import fs from "fs";
 import path from "path";
 import { getScriptDir, resolveRepoPath } from "../lib/paths.js";
 
-function usage(){console.log(`Usage:\n  run-deliberation.sh <session-uuid>\n\nWhat it does:\n  1) Fetches the council session context\n  2) Spawns Oracle agent to analyze + cast vote\n  3) Spawns Researcher agent to analyze + cast vote\n  4) Runs council-tally.sh to finalize decision`)}
+function usage(){console.log(`Usage:\n  run-deliberation.sh <session-uuid>\n\nWhat it does:\n  1) Fetches the council session context\n  2) Spawns Arbiter agent to analyze + cast vote\n  3) Spawns Monitor agent to analyze + cast vote\n  4) Runs council-tally.sh to finalize decision`)}
 const die=(m:string):never=>{console.log(JSON.stringify({ok:false,error:m}));process.exit(1)};
 
 function run(cmd:string,args:string[]){return spawnSync(cmd,args,{encoding:"utf8"});}
@@ -19,11 +19,11 @@ async function main():Promise<void>{
   const sessionJson=(s.stdout||"").trim(); const obj=JSON.parse(sessionJson); const sess=obj.session||{};
   const build=(role:string)=>JSON.stringify({role,instruction:"You are participating in a Council deliberation. Analyze the prompt and cast exactly one vote using the council CLI in this workspace.",required_steps:["Read session context.","Choose one of: approve, reject, abstain.",`Run: ${resolveRepoPath("tools","council","council.sh")} vote --session ${sid} --voter ${role} --vote <approve|reject|abstain> --confidence <0-1> --reasoning '<brief rationale>' --model '<model>'`,"Return a concise summary with vote + confidence."],session:{id:sess.id,title:sess.title,type:sess.type,initiator:sess.initiator,participants:sess.participants,context:sess.context??{}}});
   const runAgent=(role:string)=>run("openclaw",["agent","--agent",role,"--session-id",`council-${sid}-${role}`,"--message",build(role),"--timeout","900","--json"]);
-  const o=runAgent("oracle"); if(o.status!==0) die("Oracle agent run failed");
-  const orLog=`/tmp/council-${sid}-oracle.json`; fs.writeFileSync(orLog,o.stdout||"");
-  const r=runAgent("researcher"); if(r.status!==0) die("Researcher agent run failed");
-  const reLog=`/tmp/council-${sid}-researcher.json`; fs.writeFileSync(reLog,r.stdout||"");
+  const arbiter=runAgent("arbiter"); if(arbiter.status!==0) die("Arbiter agent run failed");
+  const arbiterLog=`/tmp/council-${sid}-arbiter.json`; fs.writeFileSync(arbiterLog,arbiter.stdout||"");
+  const monitor=runAgent("monitor"); if(monitor.status!==0) die("Monitor agent run failed");
+  const monitorLog=`/tmp/council-${sid}-monitor.json`; fs.writeFileSync(monitorLog,monitor.stdout||"");
   const t=run("tsx",[tally,"--session",sid]); if(t.status!==0) die("Failed to tally council decision");
-  console.log(JSON.stringify({ok:true,action:"run_deliberation",session_id:sid,oracle_log:orLog,researcher_log:reLog,tally:JSON.parse((t.stdout||"").trim())}));
+  console.log(JSON.stringify({ok:true,action:"run_deliberation",session_id:sid,arbiter_log:arbiterLog,monitor_log:monitorLog,tally:JSON.parse((t.stdout||"").trim())}));
 }
 main();

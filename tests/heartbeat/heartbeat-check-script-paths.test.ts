@@ -32,8 +32,6 @@ describe("heartbeat check script compatibility paths", () => {
     const readme = readFileSync("README.md", "utf8");
     const monitorHeartbeat = readFileSync("identities/monitor/HEARTBEAT.md", "utf8");
     const monitorSoul = readFileSync("identities/monitor/SOUL.md", "utf8");
-    const oracleHeartbeat = readFileSync("identities/oracle/HEARTBEAT.md", "utf8");
-    const oracleSoul = readFileSync("identities/oracle/SOUL.md", "utf8");
     const heartbeatDoctrine = readFileSync("docs/source/doctrine/heartbeat-ops.md", "utf8");
 
     expect(rootHeartbeat).toContain("tools/news/tech-news-check.ts");
@@ -57,9 +55,6 @@ describe("heartbeat check script compatibility paths", () => {
     expect(monitorSoul).toContain("do not send a Telegram message; return `NO_REPLY` in-session only");
     expect(monitorSoul).toContain("do not repeat the same alert in follow-up status-check prompts");
     expect(monitorSoul).toContain("Agent-to-agent announce step.");
-    expect(oracleHeartbeat).toContain("If no action is needed: HEARTBEAT_OK");
-    expect(oracleHeartbeat).toContain("delegated healthy tasks stay silent by returning `NO_REPLY` in-session only");
-    expect(oracleSoul).toContain("do not send a Telegram message; return `NO_REPLY` in-session only");
     expect(heartbeatDoctrine).toContain("If the active workspace `HEARTBEAT.md` defines an explicit healthy-path token");
     expect(heartbeatDoctrine).toContain("Exact-token precedence");
     expect(heartbeatDoctrine).toContain("Do not silently suppress an explicit healthy-path token");

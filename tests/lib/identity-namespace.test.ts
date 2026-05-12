@@ -18,19 +18,19 @@ describe("identity namespace resolution", () => {
   });
 
   it("resolves namespace per agent", () => {
-    const namespace = resolveNamespaceForAgent("researcher", {
+    const namespace = resolveNamespaceForAgent("monitor", {
       defaultNamespace: "main",
-      namespaces: { researcher: "researcher", huragok: "huragok" },
+      namespaces: { monitor: "monitor", spartan: "spartan" },
     });
 
-    expect(namespace).toBe("researcher");
-    expect(resolveNamespaceFilePath("/repo", namespace, "SOUL.md")).toBe("/repo/identities/researcher/SOUL.md");
+    expect(namespace).toBe("monitor");
+    expect(resolveNamespaceFilePath("/repo", namespace, "SOUL.md")).toBe("/repo/identities/monitor/SOUL.md");
   });
 
   it("falls back to default namespace when mapping missing", () => {
     const namespace = resolveNamespaceForAgent("unknown-agent", {
       defaultNamespace: "main",
-      namespaces: { researcher: "researcher" },
+      namespaces: { monitor: "monitor" },
     });
 
     expect(namespace).toBe("main");
@@ -39,7 +39,7 @@ describe("identity namespace resolution", () => {
   it("main default behavior is unchanged", () => {
     const namespace = resolveNamespaceForAgent("main", {
       defaultNamespace: "main",
-      namespaces: { researcher: "researcher", huragok: "huragok" },
+      namespaces: { monitor: "monitor", spartan: "spartan" },
     });
 
     expect(namespace).toBe("main");
@@ -49,22 +49,22 @@ describe("identity namespace resolution", () => {
     const files = [{ name: "SOUL.md", path: "/repo/SOUL.md", missing: false }];
     upsertBootstrapFile(files, {
       name: "SOUL.md",
-      path: "/repo/identities/researcher/SOUL.md",
+      path: "/repo/identities/monitor/SOUL.md",
       content: "research soul",
     });
 
     expect(files).toHaveLength(1);
-    expect(files[0]?.path).toBe("/repo/identities/researcher/SOUL.md");
+    expect(files[0]?.path).toBe("/repo/identities/monitor/SOUL.md");
     expect(files[0]?.missing).toBe(false);
   });
 
   it("parses agent id from session key", () => {
-    expect(resolveAgentIdFromSessionKey("agent:huragok:thread-1")).toBe("huragok");
+    expect(resolveAgentIdFromSessionKey("agent:spartan:thread-1")).toBe("spartan");
     expect(resolveAgentIdFromSessionKey("agent:main:main")).toBe("main");
     expect(resolveAgentIdFromSessionKey("weird")).toBe(null);
   });
 
-  it("resolves researcher durable memory targets when namespace paths exist", () => {
+  it("resolves monitor durable memory targets when namespace paths exist", () => {
     const workspace = fs.mkdtempSync(path.join(os.tmpdir(), "identity-ns-test-"));
     fs.mkdirSync(path.join(workspace, "config"), { recursive: true });
     fs.writeFileSync(
@@ -72,7 +72,7 @@ describe("identity namespace resolution", () => {
       JSON.stringify(
         {
           defaultNamespace: "main",
-          namespaces: { main: "main", researcher: "researcher", huragok: "huragok" },
+          namespaces: { main: "main", monitor: "monitor", spartan: "spartan" },
         },
         null,
         2,
@@ -80,15 +80,15 @@ describe("identity namespace resolution", () => {
       "utf8",
     );
 
-    const nsDir = path.join(workspace, "identities", "researcher");
+    const nsDir = path.join(workspace, "identities", "monitor");
     fs.mkdirSync(path.join(nsDir, "memory"), { recursive: true });
-    fs.writeFileSync(path.join(nsDir, "MEMORY.md"), "# Researcher memory\n", "utf8");
+    fs.writeFileSync(path.join(nsDir, "MEMORY.md"), "# Monitor memory\n", "utf8");
 
-    const result = resolveDurableMemoryTargets({ workspaceDir: workspace, agentId: "researcher" });
-    expect(result.namespace).toBe("researcher");
+    const result = resolveDurableMemoryTargets({ workspaceDir: workspace, agentId: "monitor" });
+    expect(result.namespace).toBe("monitor");
     expect(result.usedFallback).toBe(false);
-    expect(result.memoryFilePath).toBe(path.join(workspace, "identities", "researcher", "MEMORY.md"));
-    expect(result.memoryDirPath).toBe(path.join(workspace, "identities", "researcher", "memory"));
+    expect(result.memoryFilePath).toBe(path.join(workspace, "identities", "monitor", "MEMORY.md"));
+    expect(result.memoryDirPath).toBe(path.join(workspace, "identities", "monitor", "memory"));
   });
 
   it("falls back to main durable memory targets with warning when namespace paths are missing", () => {
@@ -99,7 +99,7 @@ describe("identity namespace resolution", () => {
       JSON.stringify(
         {
           defaultNamespace: "main",
-          namespaces: { main: "main", researcher: "researcher", huragok: "huragok" },
+          namespaces: { main: "main", monitor: "monitor", spartan: "spartan" },
         },
         null,
         2,
@@ -110,11 +110,11 @@ describe("identity namespace resolution", () => {
     const warnings: string[] = [];
     const result = resolveDurableMemoryTargets({
       workspaceDir: workspace,
-      agentId: "huragok",
+      agentId: "spartan",
       warn: (message) => warnings.push(message),
     });
 
-    expect(result.namespace).toBe("huragok");
+    expect(result.namespace).toBe("spartan");
     expect(result.usedFallback).toBe(true);
     expect(result.memoryFilePath).toBe(path.join(workspace, "MEMORY.md"));
     expect(result.memoryDirPath).toBe(path.join(workspace, "memory"));

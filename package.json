@@ -15,9 +15,7 @@
     "release:done-gates": "pnpm exec tsx tools/release/done-gates.ts",
     "session:lifecycle": "pnpm exec tsx tools/session/session-lifecycle-policy.ts",
     "deploy:drift-warning": "bash tools/release/deploy-drift-warning.sh",
-    "taskboard:integrity-guard": "pnpm exec tsx tools/task-board/integrity-guard.ts --pretty",
-    "researcher:start": "bash tools/researcher/start-researcher.sh",
-    "researcher:start:dry": "bash tools/researcher/start-researcher.sh --dry-run"
+    "taskboard:integrity-guard": "pnpm exec tsx tools/task-board/integrity-guard.ts --pretty"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

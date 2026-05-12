@@ -155,21 +155,6 @@
         "model": "openai-codex/gpt-5.3-codex"
       },
       {
-        "id": "huragok",
-        "workspace": "/Users/hd/Developer/cortana/identities/huragok",
-        "model": "openai-codex/gpt-5.3-codex"
-      },
-      {
-        "id": "researcher",
-        "workspace": "/Users/hd/Developer/cortana/identities/researcher",
-        "model": "openai-codex/gpt-5.3-codex"
-      },
-      {
-        "id": "oracle",
-        "workspace": "/Users/hd/Developer/cortana/identities/oracle",
-        "model": "openai-codex/gpt-5.3-codex"
-      },
-      {
         "id": "monitor",
         "workspace": "/Users/hd/Developer/cortana/identities/monitor",
         "model": "openai-codex/gpt-5.4"
@@ -202,10 +187,7 @@
       "enabled": true,
       "allow": [
         "main",
-        "huragok",
         "cron-*",
-        "researcher",
-        "oracle",
         "monitor",
         "arbiter",
         "spartan"
@@ -222,38 +204,6 @@
   },
   "bindings": [
     {
-      "agentId": "researcher",
-      "match": {
-        "channel": "telegram",
-        "accountId": "researcher"
-      }
-    },
-    {
-      "agentId": "huragok",
-      "match": {
-        "channel": "telegram",
-        "accountId": "huragok"
-      }
-    },
-    {
-      "agentId": "oracle",
-      "match": {
-        "channel": "telegram",
-        "accountId": "oracle",
-        "peer": {
-          "kind": "group",
-          "id": "-5006548746"
-        }
-      }
-    },
-    {
-      "agentId": "oracle",
-      "match": {
-        "channel": "telegram",
-        "accountId": "oracle"
-      }
-    },
-    {
       "agentId": "monitor",
       "match": {
         "channel": "telegram",
@@ -269,17 +219,6 @@
       "match": {
         "channel": "telegram",
         "accountId": "monitor"
-      }
-    },
-    {
-      "agentId": "oracle",
-      "match": {
-        "channel": "telegram",
-        "accountId": "default",
-        "peer": {
-          "kind": "group",
-          "id": "-5229462108"
-        }
       }
     },
     {
@@ -379,31 +318,7 @@
         "mode": "off"
       },
       "accounts": {
-        "researcher": {
-          "dmPolicy": "pairing",
-          "botToken": "REDACTED_USE_LIVE_CONFIG",
-          "groupPolicy": "allowlist",
-          "streaming": {
-            "mode": "off"
-          }
-        },
         "default": {
-          "dmPolicy": "pairing",
-          "botToken": "REDACTED_USE_LIVE_CONFIG",
-          "groupPolicy": "allowlist",
-          "streaming": {
-            "mode": "off"
-          }
-        },
-        "huragok": {
-          "dmPolicy": "pairing",
-          "botToken": "REDACTED_USE_LIVE_CONFIG",
-          "groupPolicy": "allowlist",
-          "streaming": {
-            "mode": "off"
-          }
-        },
-        "oracle": {
           "dmPolicy": "pairing",
           "botToken": "REDACTED_USE_LIVE_CONFIG",
           "groupPolicy": "allowlist",

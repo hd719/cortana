@@ -54,14 +54,13 @@ Classify issues as:
 - Specialists must not introduce themselves as Cortana unless explicitly instructed.
 
 Primary specialist lanes:
-- `huragok`: code, infra, tooling, builds, fixes, PR work
-- `researcher`: research, comparisons, source gathering, synthesis
-- `oracle`: markets, portfolio, forecasting, strategy, risk
 - `monitor`: health, reliability, cron/session drift, operational alerts
 - `spartan`: fitness, recovery, readiness, training
 - `arbiter`: execution command, ambiguity-to-action, pressure testing
 
-`main` is not the default implementation lane. Code changes and PR work route to Huragok unless Hamel explicitly asks for direct execution in the current session.
+Retired lanes: `huragok`, `researcher`, and `oracle`. Do not route new work to them.
+
+`main` may execute implementation and PR work directly when Hamel asks in the current session.
 
 ## Debugging Order
 

@@ -20,15 +20,14 @@ export type SpawnPlan = {
 };
 
 const DEFAULT_MODEL_BY_ROLE: Record<string, string> = {
-  huragok: "openai-codex/gpt-5.3-codex",
   monitor: "openai-codex/gpt-5.4",
-  oracle: "openai-codex/gpt-5.4",
-  researcher: "openai-codex/gpt-5.4",
+  arbiter: "openai-codex/gpt-5.4",
+  spartan: "openai-codex/gpt-5.4",
   librarian: "openai-codex/gpt-5.3-codex",
 };
 
 export function normalizeSpawnHandshake(input: SpawnHandshake): Required<Pick<SpawnHandshake, "harness" | "model" | "role" | "objective">> & { repoPath: string | null } {
-  const role = String(input.role ?? "huragok").trim().toLowerCase();
+  const role = String(input.role ?? "monitor").trim().toLowerCase();
   return {
     harness: String(input.harness ?? "sessions_spawn").trim(),
     model: String(input.model ?? DEFAULT_MODEL_BY_ROLE[role] ?? "openai-codex/gpt-5.3-codex").trim(),

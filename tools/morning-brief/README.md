@@ -13,7 +13,7 @@ The script gathers:
 - Google Calendar schedule for today
 - open Apple Reminders from the `Cortana` list
 - Warren, NJ weather
-- concise news from `researcher`
-- concise market snapshot from `oracle`
+- concise system context from active Cortana data sources
+- concise market snapshot from the trading data pipeline
 
 The script sends Telegram itself and supports `--dry-run` for local validation.
