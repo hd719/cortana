@@ -13,6 +13,7 @@ const CDP_TARGETS_URL = process.env.FLIGHT_PRICE_WATCH_CDP_TARGETS_URL ?? "http:
 const DEFAULT_BROWSER_BUDGET_MS = 30_000;
 const PAGE_READY_POLL_MS = 250;
 const TARGET_READY_POLL_MS = 500;
+const ALWAYS_SEND_SNAPSHOT = process.env.FLIGHT_PRICE_WATCH_ALWAYS_SNAPSHOT === "1";
 
 export type GoogleFlightSearch = {
   route: string;
@@ -461,8 +462,14 @@ function materialDrop(route: string, price: number | null, state: SentState): bo
   return typeof previous === "number" && previous - price >= 300;
 }
 
-export function shouldSendSnapshot(state: SentState, date: string, snapshots: FlightSnapshot[]): boolean {
+export function shouldSendSnapshot(
+  state: SentState,
+  date: string,
+  snapshots: FlightSnapshot[],
+  options: { alwaysSend?: boolean } = {},
+): boolean {
   if (snapshots.length === 0) return false;
+  if (options.alwaysSend) return true;
   if (state.lastSnapshotDate !== date) return true;
   return snapshots.some((snapshot) => materialDrop(snapshot.route, snapshot.lowestPrice, state));
 }
@@ -946,7 +953,7 @@ async function main(): Promise<void> {
     const date = todayEt();
     try {
       const snapshots = await readBrowserSnapshots();
-      if (shouldSendSnapshot(sent, date, snapshots)) {
+      if (shouldSendSnapshot(sent, date, snapshots, { alwaysSend: ALWAYS_SEND_SNAPSHOT })) {
         writeSentState({
           ...sent,
           lastSnapshotDate: date,

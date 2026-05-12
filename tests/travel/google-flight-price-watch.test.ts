@@ -74,6 +74,31 @@ describe("google-flight-price-watch", () => {
     ).toBe(false);
   });
 
+  it("can send every browser snapshot when continuous monitoring is enabled", () => {
+    const snapshots = [
+      {
+        route: "New York -> Rabat",
+        account: "Google Account: Hamel D (hameldesai3@gmail.com)",
+        trackLabel: "Track prices from New York to Rabat departing 2026-08-12 and returning 2026-08-20",
+        trackingEnabled: true,
+        priceInsight: "Prices are currently typical",
+        lowestPrice: 7377,
+        prices: [7377],
+        bestFlight: "5:00 PM-10:45 AM+1, Air France, Delta, KLM, JFK-RBA, 12 hr 45 min, 1 stop, via 2 hr 30 min CDG, flight # not shown",
+        url: "https://www.google.com/travel/flights",
+      },
+    ];
+
+    expect(
+      shouldSendSnapshot(
+        { version: 1, sentMessageIds: [], lastSnapshotDate: "2026-05-07", lastSnapshotPrices: { "New York -> Rabat": 7377 } },
+        "2026-05-07",
+        snapshots,
+        { alwaysSend: true },
+      ),
+    ).toBe(true);
+  });
+
   it("sends another same-day snapshot on a material price drop", () => {
     const snapshots = [
       {
