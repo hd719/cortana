@@ -10,7 +10,6 @@ Key domain pages:
 
 - [Cortana core overview](./domains/cortana-core/overview.md)
 - [Memory system overview](./domains/memory-system/overview.md)
-- [Covenant overview](./domains/covenant/overview.md)
 - [OpenClaw overview](./domains/openclaw/overview.md)
 - [Spartan overview](./domains/spartan/overview.md)
 

@@ -8,7 +8,6 @@ It does **not** replace:
 - live continuity in `memory/`
 - isolated OpenClaw runtime wiki content under `~/.openclaw/wiki/cortana`
 - agent namespace files in `identities/`
-- Covenant role scaffolds in `covenant/`
 
 In the LLM wiki model:
 - `research/` = exploration, collected inputs, and derived outputs
