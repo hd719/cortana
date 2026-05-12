@@ -3,16 +3,16 @@ import { normalizeSpawnHandshake, planSpawn, renderSpawnPrompt } from "../../too
 
 describe("spawn orchestrator boundary", () => {
   it("normalizes legacy sparse handshakes", () => {
-    expect(normalizeSpawnHandshake({ role: "Huragok", objective: "Fix CI" })).toMatchObject({
+    expect(normalizeSpawnHandshake({ role: "Monitor", objective: "Fix CI" })).toMatchObject({
       harness: "sessions_spawn",
-      role: "huragok",
-      model: "openai-codex/gpt-5.3-codex",
+      role: "monitor",
+      model: "openai-codex/gpt-5.4",
       objective: "Fix CI",
     });
   });
 
   it("blocks non sessions_spawn harnesses through the shared validator", () => {
-    const plan = planSpawn({ harness: "codex-cli", role: "huragok", model: "openai-codex/gpt-5.3-codex", objective: "Fix CI" });
+    const plan = planSpawn({ harness: "codex-cli", role: "monitor", model: "openai-codex/gpt-5.3-codex", objective: "Fix CI" });
     expect(plan.valid).toBe(false);
     expect(plan.validation.reason).toContain("not using sessions_spawn");
   });

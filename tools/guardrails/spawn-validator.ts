@@ -17,11 +17,10 @@ export type SpawnValidationInput = {
 };
 
 const ROLE_MODEL_RULES: Record<string, RegExp[]> = {
-  researcher: [/claude/i, /sonnet/i, /opus/i, /gpt/i],
   monitor: [/gpt/i, /claude/i],
-  oracle: [/gpt/i, /claude/i],
+  arbiter: [/gpt/i, /claude/i],
+  spartan: [/gpt/i, /claude/i],
   librarian: [/gpt/i, /claude/i],
-  huragok: [/gpt/i, /claude/i, /codex/i],
 };
 
 function normalizeRole(role?: string): string {

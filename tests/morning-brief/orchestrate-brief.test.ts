@@ -41,18 +41,7 @@ describe("buildBrief", () => {
       weather: "Warren+NJ: 54F and Sunny",
       schedule: ["9:00 AM - Standup", "1:00 PM - EM-605"],
       reminders: ["Submit quiz", "Call pharmacy"],
-      specialists: [
-        {
-          sessionKey: "agent:researcher:main",
-          ok: true,
-          text: "- CPI data due this week\n- Tech: major outage at cloud provider",
-        },
-        {
-          sessionKey: "agent:oracle:main",
-          ok: true,
-          text: "- PREMARKET\n- Watch rates after jobs data",
-        },
-      ],
+      specialists: [],
     });
 
     expect(brief).toContain("☀️ Brief - Morning Brief");
@@ -104,7 +93,7 @@ describe("sessionsSendWithRunCommand", () => {
       .fn<(cmd: string, args: string[], timeoutMs?: number) => Promise<string>>()
       .mockRejectedValueOnce(
         new Error(
-          "Command failed: openclaw agent --agent oracle --message test --json --timeout 240\n[openclaw] Failed to start CLI: PluginLoadFailureError: plugin load failed: active-memory: failed to install bundled runtime deps: Error: ENOTEMPTY",
+          "Command failed: openclaw agent --agent monitor --message test --json --timeout 240\n[openclaw] Failed to start CLI: PluginLoadFailureError: plugin load failed: active-memory: failed to install bundled runtime deps: Error: ENOTEMPTY",
         ),
       )
       .mockResolvedValueOnce(
@@ -117,8 +106,8 @@ describe("sessionsSendWithRunCommand", () => {
 
     const result = await sessionsSendWithRunCommand(
       {
-        sessionKey: "agent:oracle:main",
-        agentId: "oracle",
+        sessionKey: "agent:monitor:main",
+        agentId: "monitor",
         prompt: "test",
       },
       run,

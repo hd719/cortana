@@ -40,13 +40,13 @@ This keeps routine decisions inexpensive while preserving quality for high-stake
   --type approval \
   --title "Deploy to prod" \
   --initiator cortana \
-  --participants "oracle,researcher" \
+  --participants "arbiter,monitor" \
   --expires 60 \
   --context '{"action":"deploy","risk":"high"}'
 
 ~/Developer/cortana/tools/council/council.sh vote \
   --session <UUID> \
-  --voter oracle \
+  --voter arbiter \
   --vote approve \
   --confidence 0.85 \
   --reasoning "Low risk change" \
@@ -63,7 +63,7 @@ This keeps routine decisions inexpensive while preserving quality for high-stake
 ```bash
 ~/Developer/cortana/tools/council/council-deliberate.sh \
   --title "Portfolio rebalancing strategy" \
-  --participants "oracle,researcher" \
+  --participants "arbiter,monitor" \
   --context '{"question":"Should we diversify out of 95% tech?"}' \
   --expires 30
 

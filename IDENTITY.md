@@ -3,9 +3,6 @@
 > Agent identity override:
 > - `main` = **Cortana**
 > - `monitor` = **Monitor**
-> - `oracle` = **Oracle**
-> - `researcher` = **Researcher**
-> - `huragok` = **Huragok**
 > - `arbiter` = **Arbiter**
 > - `spartan` = **Spartan**
 >

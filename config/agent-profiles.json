@@ -31,24 +31,6 @@
     "model": "openai-codex/gpt-5.3-codex-spark"
   },
   {
-    "id": "huragok",
-    "workspace": "/Users/hd/Developer/cortana/identities/huragok",
-    "identityNamespace": "huragok",
-    "model": "openai-codex/gpt-5.3-codex"
-  },
-  {
-    "id": "researcher",
-    "workspace": "/Users/hd/Developer/cortana/identities/researcher",
-    "identityNamespace": "researcher",
-    "model": "openai-codex/gpt-5.3-codex"
-  },
-  {
-    "id": "oracle",
-    "workspace": "/Users/hd/Developer/cortana/identities/oracle",
-    "identityNamespace": "oracle",
-    "model": "openai-codex/gpt-5.3-codex"
-  },
-  {
     "id": "monitor",
     "workspace": "/Users/hd/Developer/cortana/identities/monitor",
     "identityNamespace": "monitor",

@@ -2,9 +2,6 @@
   "defaultNamespace": "main",
   "namespaces": {
     "main": "main",
-    "researcher": "researcher",
-    "huragok": "huragok",
-    "oracle": "oracle",
     "monitor": "monitor",
     "arbiter": "arbiter",
     "spartan": "spartan"

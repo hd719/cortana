@@ -1,8 +1,5 @@
 {
   "Cortana": "openai-codex/gpt-5.4",
-  "Huragok": "openai-codex/gpt-5.3-codex",
-  "Researcher": "openai-codex/gpt-5.3-codex",
-  "Oracle": "openai-codex/gpt-5.3-codex",
   "Librarian": "openai-codex/gpt-5.4",
   "Monitor": "openai-codex/gpt-5.4"
 }
