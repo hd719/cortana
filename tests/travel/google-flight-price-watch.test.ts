@@ -44,7 +44,7 @@ describe("google-flight-price-watch", () => {
     ).toBe(false);
   });
 
-  it("summarizes unknown destinations as Rabat rather than broad Morocco", () => {
+  it("summarizes missing destinations as Rabat rather than broad Morocco", () => {
     expect(extractRoute("Google Flights price alert from EWR to RBA")).toBe("EWR -> RBA");
     expect(extractRoute("Google Flights price alert from New York")).toBe("New York -> Rabat");
   });

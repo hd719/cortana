@@ -124,20 +124,35 @@ type CdpTarget = {
   webSocketDebuggerUrl?: string;
 };
 
+type JsonValue = string | number | boolean | null | JsonValue[] | { [key: string]: JsonValue };
+
+type FlightPageValue = {
+  route?: string;
+  account?: string;
+  trackLabel?: string;
+  checked?: string | null;
+  priceInsight?: string;
+  prices?: number[];
+  bestFlight?: string;
+  url?: string;
+};
+
+type CdpValue = FlightPageValue | string | boolean | null;
+
 type CdpCommandResult = {
   result?: {
-    value?: unknown;
+    value?: CdpValue;
   };
 };
 
 type CdpResponseMessage = {
   id?: number;
-  error?: unknown;
+  error?: string | { code?: number; message?: string; data?: string };
   result?: CdpCommandResult;
 };
 
 type CdpClient = {
-  send(method: string, params?: Record<string, unknown>): Promise<CdpCommandResult>;
+  send(method: string, params?: Record<string, JsonValue>): Promise<CdpCommandResult>;
   close(): void;
 };
 
@@ -252,7 +267,7 @@ function runGog(args: string[]): string {
   );
 
   if (result.status !== 0) {
-    const detail = (result.stderr || result.stdout || "unknown gog failure").trim();
+    const detail = (result.stderr || result.stdout || "gog failure without output").trim();
     throw new Error(detail);
   }
 
@@ -377,7 +392,7 @@ export function extractBestFlightDetails(text: string): string {
 }
 
 function formatPrice(price: number | null): string {
-  return price == null ? "unknown" : `$${price.toLocaleString("en-US")}`;
+  return price == null ? "not found" : `$${price.toLocaleString("en-US")}`;
 }
 
 function compactRoute(route: string): string {
@@ -500,7 +515,7 @@ function summarize(threadId: string, message: GmailMessage, body: string): strin
   const prices = extractPrices(combined);
   const lowest = prices[0] ?? null;
   const route = extractRoute(combined);
-  const priceText = lowest == null ? "unknown" : `$${lowest.toLocaleString("en-US")}`;
+  const priceText = lowest == null ? "not found" : `$${lowest.toLocaleString("en-US")}`;
   const gmailUrl = `https://mail.google.com/mail/u/0/#inbox/${threadId}`;
 
   return [
@@ -535,7 +550,7 @@ async function connectCdp(wsUrl: string): Promise<CdpClient> {
   };
 
   return {
-    send(method: string, params: Record<string, unknown> = {}) {
+    send(method: string, params: Record<string, JsonValue> = {}) {
       return new Promise((resolve, reject) => {
         const messageId = ++id;
         pending.set(messageId, { resolve, reject });
@@ -560,13 +575,13 @@ async function openCdpTab(search: GoogleFlightSearch): Promise<CdpTarget | null>
   return (await response.json().catch(() => null)) as CdpTarget | null;
 }
 
-function asRecord(value: unknown): Record<string, unknown> {
-  return value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+function isFlightPageValue(value: CdpValue | undefined): value is FlightPageValue {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
-function extractSnapshotFromPage(value: unknown, search?: GoogleFlightSearch): FlightSnapshot | null {
-  const record = asRecord(value);
-  const route = search?.route ?? (typeof record.route === "string" ? record.route : "");
+function extractSnapshotFromPage(value: CdpValue | undefined, search?: GoogleFlightSearch): FlightSnapshot | null {
+  const record = isFlightPageValue(value) ? value : {};
+  const route = search?.route ?? record.route ?? "";
   const prices = Array.isArray(record.prices) ? record.prices.filter((price): price is number => typeof price === "number") : [];
   if (!route || prices.length === 0) return null;
   return {
@@ -903,7 +918,7 @@ async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
   );
 }
 
-function buildSnapshotFailure(error: unknown): string {
+function buildSnapshotFailure(error: Error | string): string {
   const detail = error instanceof Error ? error.message : String(error);
   return [
     "✈️ Rabat Flights - watcher degraded",
@@ -940,7 +955,7 @@ async function main(): Promise<void> {
     } catch (error) {
       if (sent.lastSnapshotFailureDate !== date) {
         writeSentState({ ...sent, lastSnapshotFailureDate: date });
-        console.log(buildSnapshotFailure(error));
+        console.log(buildSnapshotFailure(error instanceof Error ? error : String(error)));
         return;
       }
     }
