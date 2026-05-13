@@ -11,6 +11,7 @@ import {
   isFlightAlert,
   parseSavedTrackerSnapshots,
   selectGoogleFlightSearchPages,
+  shouldReloadCdpPage,
   shouldSendSnapshot,
 } from "../../tools/travel/google-flight-price-watch.ts";
 
@@ -206,6 +207,20 @@ describe("google-flight-price-watch", () => {
     expect(message.indexOf("EWR\nCheapest: $10,870")).toBeLessThan(message.indexOf("JFK\nCheapest: $10,844"));
     expect(message).toContain("\n\nVerdict: Watch only; still expensive.");
     expect(message).toContain("Air France/Delta/KLM");
+  });
+
+  it("reloads search tabs by default so best-flight values are fresh", () => {
+    const priorMode = process.env.FLIGHT_PRICE_WATCH_CDP_RELOAD;
+    try {
+      process.env.FLIGHT_PRICE_WATCH_CDP_RELOAD = "auto";
+      expect(shouldReloadCdpPage()).toBe(true);
+
+      process.env.FLIGHT_PRICE_WATCH_CDP_RELOAD = "off";
+      expect(shouldReloadCdpPage()).toBe(false);
+    } finally {
+      if (priorMode === undefined) delete process.env.FLIGHT_PRICE_WATCH_CDP_RELOAD;
+      else process.env.FLIGHT_PRICE_WATCH_CDP_RELOAD = priorMode;
+    }
   });
 
   it("parses saved tracker prices as the snapshot source of truth", () => {
