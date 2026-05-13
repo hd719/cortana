@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   buildBrief,
   fetchWeatherWithRunCommand,
+  parsePeriod,
   parseCalendarEvents,
   sessionsSendWithRunCommand,
 } from "../../tools/morning-brief/orchestrate-brief.ts";
@@ -32,6 +33,16 @@ describe("parseCalendarEvents", () => {
       "9:00 AM - Standup",
       "10:00 AM - Design review",
     ]);
+  });
+});
+
+describe("parsePeriod", () => {
+  it("only accepts explicit period flags", () => {
+    expect(parsePeriod([])).toBe("morning");
+    expect(parsePeriod(["--dry-run"])).toBe("morning");
+    expect(parsePeriod(["noon"])).toBe("morning");
+    expect(parsePeriod(["--period", "noon"])).toBe("noon");
+    expect(parsePeriod(["--period=night"])).toBe("night");
   });
 });
 
@@ -90,6 +101,43 @@ describe("buildBrief", () => {
     expect(brief).toContain("Housing: Mortgage rates edge lower");
     expect(brief).not.toContain("News unavailable.");
     expect(brief).not.toContain("Market snapshot unavailable.");
+  });
+
+  it("renders a compact night brief with separate news categories", () => {
+    const brief = buildBrief({
+      period: "night",
+      weather: "Warren+NJ: 54F and Sunny",
+      schedule: ["9:00 AM - Work"],
+      reminders: ["Pack gym bag"],
+      specialists: [],
+      intel: {
+        generatedAt: "2026-05-13T12:00:00.000Z",
+        status: "ok",
+        errors: [],
+        items: [
+          { title: "Cyber 1", link: "https://example.test/c1", source: "S", category: "cyber", score: 12 },
+          { title: "Cyber 2", link: "https://example.test/c2", source: "S", category: "cyber", score: 11 },
+          { title: "Cyber 3", link: "https://example.test/c3", source: "S", category: "cyber", score: 10 },
+          { title: "Cyber 4", link: "https://example.test/c4", source: "S", category: "cyber", score: 9 },
+          { title: "Cyber 5", link: "https://example.test/c5", source: "S", category: "cyber", score: 8 },
+          { title: "Cyber 6", link: "https://example.test/c6", source: "S", category: "cyber", score: 7 },
+          { title: "Cyber 7", link: "https://example.test/c7", source: "S", category: "cyber", score: 6 },
+          { title: "Cyber 8", link: "https://example.test/c8", source: "S", category: "cyber", score: 5 },
+          { title: "Cyber 9", link: "https://example.test/c9", source: "S", category: "cyber", score: 4 },
+          { title: "Cyber 10", link: "https://example.test/c10", source: "S", category: "cyber", score: 3 },
+          { title: "Cyber 11", link: "https://example.test/c11", source: "S", category: "cyber", score: 2 },
+          { title: "Cyber 12", link: "https://example.test/c12", source: "S", category: "cyber", score: 1 },
+          { title: "Market 1", link: "https://example.test/m1", source: "S", category: "markets", score: 5 },
+        ],
+      },
+    });
+
+    expect(brief).toContain("🌙 Brief - Night Brief");
+    expect(brief).toContain("Cyber:");
+    expect(brief).toContain("- Cyber 10");
+    expect(brief).not.toContain("- Cyber 1 (S)");
+    expect(brief).toContain("Markets:");
+    expect(brief).toContain("Market 1");
   });
 });
 

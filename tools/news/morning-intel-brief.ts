@@ -2,7 +2,7 @@
 
 import { spawnSync } from "node:child_process";
 
-type IntelCategory = "cyber" | "tech" | "finance" | "markets" | "housing";
+export type IntelCategory = "cyber" | "tech" | "finance" | "markets" | "housing";
 
 export type FeedConfig = {
   name: string;
@@ -24,6 +24,10 @@ export type IntelBrief = {
   status: "ok" | "degraded";
   errors: string[];
   items: IntelItem[];
+};
+
+type IntelSectionOptions = {
+  offsetPerCategory?: number;
 };
 
 export const DEFAULT_FEEDS: FeedConfig[] = [
@@ -77,6 +81,7 @@ function decodeEntities(value: string): string {
     .replace(/&lt;/g, "<")
     .replace(/&gt;/g, ">")
     .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
     .replace(/&#39;/g, "'")
     .replace(/&#x27;/g, "'")
     .replace(/\s+/g, " ")
@@ -204,7 +209,7 @@ export async function collectMorningIntelBrief(feeds = DEFAULT_FEEDS, now = new 
     generatedAt: now.toISOString(),
     status: items.length > 0 ? "ok" : "degraded",
     errors,
-    items: dedupeAndRank(items),
+    items: dedupeAndRank(items, 12),
   };
 }
 
@@ -212,7 +217,13 @@ function itemLine(item: IntelItem): string {
   return `${item.title} (${item.source}) ${item.link}`;
 }
 
-export function buildMorningIntelSections(brief: IntelBrief): { news: string[]; markets: string[] } {
+function selectWindow<T>(items: T[], limit: number, offset: number): T[] {
+  if (items.length <= limit) return items.slice(0, limit);
+  const start = Math.min(offset, Math.max(0, items.length - limit));
+  return items.slice(start, start + limit);
+}
+
+export function buildMorningIntelSections(brief: IntelBrief, options: IntelSectionOptions = {}): { news: string[]; markets: string[] } {
   if (brief.items.length === 0) {
     const reason = brief.errors[0] ? ` (${brief.errors[0]})` : "";
     return {
@@ -223,11 +234,47 @@ export function buildMorningIntelSections(brief: IntelBrief): { news: string[]; 
 
   const newsItems = brief.items.filter((item) => item.category === "cyber" || item.category === "tech" || item.category === "finance");
   const marketItems = brief.items.filter((item) => item.category === "markets" || item.category === "housing");
+  const offset = options.offsetPerCategory ?? 0;
 
   return {
-    news: newsItems.slice(0, 4).map((item) => `${CATEGORY_LABELS[item.category]}: ${itemLine(item)}`),
-    markets: marketItems.slice(0, 4).map((item) => `${CATEGORY_LABELS[item.category]}: ${itemLine(item)}`),
+    news: selectWindow(newsItems, 4, offset).map((item) => `${CATEGORY_LABELS[item.category]}: ${itemLine(item)}`),
+    markets: selectWindow(marketItems, 4, offset).map((item) => `${CATEGORY_LABELS[item.category]}: ${itemLine(item)}`),
   };
+}
+
+export function buildMorningIntelCategorySections(
+  brief: IntelBrief,
+  limitPerCategory = 3,
+  options: IntelSectionOptions = {},
+): Record<IntelCategory, string[]> {
+  const sections: Record<IntelCategory, string[]> = {
+    cyber: [],
+    tech: [],
+    finance: [],
+    markets: [],
+    housing: [],
+  };
+
+  if (brief.items.length === 0) {
+    const reason = brief.errors[0] ? ` (${brief.errors[0]})` : "";
+    return {
+      cyber: [`Cyber unavailable${reason}.`],
+      tech: [`Tech unavailable${reason}.`],
+      finance: [`Finance unavailable${reason}.`],
+      markets: [`Markets unavailable${reason}.`],
+      housing: [`Housing unavailable${reason}.`],
+    };
+  }
+
+  for (const category of Object.keys(sections) as IntelCategory[]) {
+    const categoryItems = brief.items.filter((item) => item.category === category);
+    sections[category] = selectWindow(categoryItems, limitPerCategory, options.offsetPerCategory ?? 0).map((item) => `${itemLine(item)}`);
+    if (sections[category].length === 0) {
+      sections[category] = [`${CATEGORY_LABELS[category]} unavailable.`];
+    }
+  }
+
+  return sections;
 }
 
 export function renderMorningIntelBrief(brief: IntelBrief): string {

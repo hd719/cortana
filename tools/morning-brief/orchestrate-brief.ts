@@ -3,6 +3,7 @@
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import {
+  buildMorningIntelCategorySections,
   buildMorningIntelSections,
   collectMorningIntelBrief,
   type IntelBrief,
@@ -60,12 +61,15 @@ type ReminderItem = {
 };
 
 type BriefParts = {
+  period?: BriefPeriod;
   weather: string;
   schedule: string[];
   reminders: string[];
   specialists: SpecialistResult[];
   intel?: IntelBrief;
 };
+
+type BriefPeriod = "morning" | "noon" | "evening" | "night";
 
 type WttrWeatherPayload = {
   current_condition?: Array<{
@@ -446,7 +450,9 @@ export function parseCalendarEvents(rawEvents: GogCalendarEvent[]): string[] {
     .slice(0, 6);
 }
 
-async function fetchCalendarFrom(calendarId: string): Promise<GogCalendarEvent[]> {
+type ScheduleDay = "today" | "tomorrow";
+
+async function fetchCalendarFrom(calendarId: string, day: ScheduleDay): Promise<GogCalendarEvent[]> {
   const raw = await runCommand(
     "npx",
     [
@@ -458,9 +464,9 @@ async function fetchCalendarFrom(calendarId: string): Promise<GogCalendarEvent[]
       "list",
       calendarId,
       "--from",
-      "today",
+      day,
       "--to",
-      "today",
+      day,
       "--json",
     ],
     45_000,
@@ -470,14 +476,14 @@ async function fetchCalendarFrom(calendarId: string): Promise<GogCalendarEvent[]
   return Array.isArray(parsed?.events) ? parsed.events : [];
 }
 
-async function fetchSchedule(): Promise<string[]> {
+async function fetchSchedule(day: ScheduleDay = "today"): Promise<string[]> {
   try {
     const [primary, clawdbot] = await Promise.all([
-      fetchCalendarFrom("primary"),
-      fetchCalendarFrom("Clawdbot-Calendar"),
+      fetchCalendarFrom("primary", day),
+      fetchCalendarFrom("Clawdbot-Calendar", day),
     ]);
     const merged = parseCalendarEvents([...primary, ...clawdbot]);
-    return merged.length ? merged : ["No calendar blocks today."];
+    return merged.length ? merged : [`No calendar blocks ${day}.`];
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     return [`Calendar unavailable (${msg})`];
@@ -514,14 +520,79 @@ function normalizeBullets(input: string, fallback: string, maxItems: number): st
 }
 
 export function buildBrief(parts: BriefParts): string {
-  const intel = parts.intel ? buildMorningIntelSections(parts.intel) : null;
+  const period = parts.period ?? "morning";
+  const intelOffsetByPeriod: Record<BriefPeriod, number> = {
+    morning: 0,
+    noon: 3,
+    evening: 6,
+    night: 9,
+  };
+  const intelOptions = { offsetPerCategory: intelOffsetByPeriod[period] };
+  const intel = parts.intel ? buildMorningIntelSections(parts.intel, intelOptions) : null;
   const news = intel?.news ?? normalizeBullets("", "News unavailable.", 2);
   const markets = intel?.markets ?? normalizeBullets("", "Market snapshot unavailable.", 2);
+  const categoryIntel = parts.intel ? buildMorningIntelCategorySections(parts.intel, 3, intelOptions) : null;
 
   const renderSection = (title: string, items: string[]) => [
     `${title}:`,
     ...items.map((line) => `- ${line}`),
   ];
+
+  if (period === "noon") {
+    return [
+      "🕛 Brief - Noon Brief",
+      "",
+      ...renderSection("Deltas", [...news.slice(0, 3), ...markets.slice(0, 2)]),
+      "",
+      ...renderSection("Rest of Day", parts.schedule),
+      "",
+      ...renderSection("Reminders", parts.reminders.slice(0, 4)),
+      "",
+      ...renderSection("Weather", [parts.weather]),
+    ].join("\n");
+  }
+
+  if (period === "evening") {
+    return [
+      "🌆 Brief - Evening Brief",
+      "",
+      ...renderSection("World", news.slice(0, 4)),
+      "",
+      ...renderSection("Markets / Housing", markets.slice(0, 4)),
+      "",
+      ...renderSection("Tomorrow Prep", parts.schedule.slice(0, 4)),
+      "",
+      ...renderSection("Reminders", parts.reminders.slice(0, 4)),
+    ].join("\n");
+  }
+
+  if (period === "night") {
+    const categories = categoryIntel ?? {
+      cyber: ["Cyber unavailable."],
+      tech: ["Tech unavailable."],
+      finance: ["Finance unavailable."],
+      markets: ["Markets unavailable."],
+      housing: ["Housing unavailable."],
+    };
+
+    return [
+      "🌙 Brief - Night Brief",
+      "",
+      ...renderSection("Tomorrow", parts.schedule.slice(0, 5)),
+      "",
+      ...renderSection("Reminders", parts.reminders.slice(0, 5)),
+      "",
+      ...renderSection("Cyber", categories.cyber),
+      "",
+      ...renderSection("Tech", categories.tech),
+      "",
+      ...renderSection("Finance", categories.finance),
+      "",
+      ...renderSection("Markets", categories.markets),
+      "",
+      ...renderSection("Housing", categories.housing),
+    ].join("\n");
+  }
 
   const lines = [
     "☀️ Brief - Morning Brief",
@@ -561,11 +632,22 @@ async function sendTelegram(messageText: string): Promise<void> {
   }
 }
 
-export async function runMorningBrief(options: { dryRun?: boolean } = {}): Promise<string> {
+export function parsePeriod(argv: string[]): BriefPeriod {
+  const periodFlagIndex = argv.indexOf("--period");
+  const explicit =
+    argv.find((arg) => arg.startsWith("--period="))?.split("=")[1] ??
+    (periodFlagIndex >= 0 ? argv[periodFlagIndex + 1] : undefined);
+  if (explicit === "noon" || explicit === "evening" || explicit === "night") return explicit;
+  return "morning";
+}
+
+export async function runMorningBrief(options: { dryRun?: boolean; period?: BriefPeriod } = {}): Promise<string> {
+  const period = options.period ?? "morning";
+  const scheduleDay: ScheduleDay = period === "evening" || period === "night" ? "tomorrow" : "today";
   const [specialists, weather, schedule, reminders, intel] = await Promise.all([
     Promise.all(SPECIALIST_TASKS.map((task) => sessionsSend(task))),
     fetchWeather(),
-    fetchSchedule(),
+    fetchSchedule(scheduleDay),
     fetchReminders(),
     collectMorningIntelBrief().catch((error) => ({
       generatedAt: new Date().toISOString(),
@@ -575,7 +657,7 @@ export async function runMorningBrief(options: { dryRun?: boolean } = {}): Promi
     })),
   ]);
 
-  const brief = buildBrief({ specialists, weather, schedule, reminders, intel });
+  const brief = buildBrief({ period, specialists, weather, schedule, reminders, intel });
   if (!options.dryRun) {
     await sendTelegram(brief);
   }
@@ -584,8 +666,10 @@ export async function runMorningBrief(options: { dryRun?: boolean } = {}): Promi
 
 async function main(argv = process.argv.slice(2)): Promise<void> {
   const dryRun = argv.includes("--dry-run");
-  const brief = await runMorningBrief({ dryRun });
-  process.stdout.write(dryRun ? `${brief}\n` : "Morning brief sent.\n");
+  const period = parsePeriod(argv);
+  const brief = await runMorningBrief({ dryRun, period });
+  const sentLabel = period === "morning" ? "Morning" : period[0].toUpperCase() + period.slice(1);
+  process.stdout.write(dryRun ? `${brief}\n` : `${sentLabel} brief sent.\n`);
 }
 
 main().catch((error) => {
