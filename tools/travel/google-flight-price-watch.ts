@@ -14,6 +14,7 @@ const GOOGLE_FLIGHTS_SAVED_URL = "https://www.google.com/travel/flights/saves?gl
 const DEFAULT_BROWSER_BUDGET_MS = 30_000;
 const PAGE_READY_POLL_MS = 250;
 const TARGET_READY_POLL_MS = 500;
+const SEARCH_RELOAD_SETTLE_MS = 12_000;
 const ALWAYS_SEND_SNAPSHOT = process.env.FLIGHT_PRICE_WATCH_ALWAYS_SNAPSHOT === "1";
 
 export type GoogleFlightSearch = {
@@ -751,6 +752,33 @@ function flightSearchPages(
   return selectGoogleFlightSearchPages(targets, search);
 }
 
+async function reloadSearchPages(targets: CdpTarget[], deadline: RunDeadline): Promise<void> {
+  if (!shouldReloadCdpPage() || deadline.expired()) return;
+
+  const pages = new Map<string, CdpTarget & { webSocketDebuggerUrl: string }>();
+  for (const search of GOOGLE_FLIGHT_SEARCHES) {
+    for (const page of flightSearchPages(targets, search)) {
+      pages.set(page.id ?? page.webSocketDebuggerUrl, page);
+    }
+  }
+  if (pages.size === 0) return;
+
+  await Promise.allSettled(
+    [...pages.values()].map(async (page) => {
+      const client = await connectCdp(page.webSocketDebuggerUrl);
+      try {
+        await client.send("Page.enable");
+        await client.send("Page.reload", { ignoreCache: true });
+      } finally {
+        client.close();
+      }
+    }),
+  );
+
+  const settleMs = deadline.budgetMs(SEARCH_RELOAD_SETTLE_MS, 1_000);
+  if (settleMs > 0) await sleep(settleMs);
+}
+
 function isGenericGoogleFlightsPage(target: CdpTarget): boolean {
   const title = target.title ?? "";
   return /Find Cheap Flights Worldwide|Book Your Ticket|^Google Flights$/i.test(title);
@@ -837,28 +865,6 @@ async function waitForSavedTrackerTarget(deadline: RunDeadline, maxMs: number): 
   return null;
 }
 
-async function waitForGoogleFlightsContent(client: CdpClient, deadline: RunDeadline): Promise<void> {
-  const waitMs = deadline.budgetMs(10_000, PAGE_READY_POLL_MS);
-  if (waitMs <= 0) return;
-
-  await client.send("Runtime.evaluate", {
-    returnByValue: true,
-    awaitPromise: true,
-    expression: `(async () => {
-      const stopAt = Date.now() + ${waitMs};
-      const hasSnapshotContent = () => {
-        const body = document.body?.innerText || '';
-        return /\\$\\s*([1-9]\\d{0,2}(?:,\\d{3})+|[1-9]\\d{3,}) round trip/i.test(body);
-      };
-      while (Date.now() < stopAt) {
-        if (hasSnapshotContent()) return true;
-        await new Promise(resolve => setTimeout(resolve, ${PAGE_READY_POLL_MS}));
-      }
-      return hasSnapshotContent();
-    })()`,
-  });
-}
-
 async function waitForSavedTrackerContent(client: CdpClient, deadline: RunDeadline): Promise<void> {
   const waitMs = deadline.budgetMs(10_000, PAGE_READY_POLL_MS);
   if (waitMs <= 0) return;
@@ -890,11 +896,10 @@ async function evaluateSavedTrackerSnapshots(client: CdpClient): Promise<FlightS
   return parseSavedTrackerSnapshots(text, GOOGLE_FLIGHTS_SAVED_URL);
 }
 
-function shouldReloadCdpPage(snapshot: FlightSnapshot | null): boolean {
+export function shouldReloadCdpPage(): boolean {
   const mode = (process.env.FLIGHT_PRICE_WATCH_CDP_RELOAD ?? "auto").toLowerCase();
   if (mode === "0" || mode === "false" || mode === "off") return false;
-  if (mode === "1" || mode === "true" || mode === "on") return true;
-  return snapshot === null;
+  return true;
 }
 
 async function readSnapshotFromPage(
@@ -907,15 +912,7 @@ async function readSnapshotFromPage(
     await client.send("Runtime.enable");
     await client.send("Page.enable");
 
-    let snapshot = await evaluateSnapshotFromPage(client, search);
-    if (snapshot || !shouldReloadCdpPage(snapshot) || deadline.expired()) return snapshot;
-
-    if (deadline.budgetMs(10_000, 1_000) > 0) {
-      await client.send("Page.reload", { ignoreCache: true });
-      await waitForGoogleFlightsContent(client, deadline);
-      snapshot = await evaluateSnapshotFromPage(client, search);
-    }
-    return snapshot;
+    return await evaluateSnapshotFromPage(client, search);
   } finally {
     client.close();
   }
@@ -1089,6 +1086,8 @@ async function readSearchTabSnapshots(deadline: RunDeadline): Promise<FlightSnap
   if (missing.length > 0) {
     targets = await waitForSearchTargets(missing, deadline, 5_000);
   }
+  await reloadSearchPages(targets, deadline);
+  targets = await fetchCdpTargets();
   const snapshots = new Map<string, FlightSnapshot>();
   let missingSnapshots: GoogleFlightSearch[] = [];
   for (const search of GOOGLE_FLIGHT_SEARCHES) {
@@ -1109,6 +1108,8 @@ async function readSearchTabSnapshots(deadline: RunDeadline): Promise<FlightSnap
       await openCdpTab(search);
     }
     targets = await waitForSearchTargets(missingSnapshots, deadline, 7_000);
+    await reloadSearchPages(targets, deadline);
+    targets = await fetchCdpTargets();
 
     const stillMissing: GoogleFlightSearch[] = [];
     for (const search of missingSnapshots) {
