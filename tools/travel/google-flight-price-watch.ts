@@ -10,6 +10,7 @@ const SENT_PATH =
   process.env.FLIGHT_PRICE_WATCH_SENT_PATH ??
   "/Users/hd/.openclaw/memory/google-flight-price-watch-sent.json";
 const CDP_TARGETS_URL = process.env.FLIGHT_PRICE_WATCH_CDP_TARGETS_URL ?? "http://127.0.0.1:18792/json";
+const GOOGLE_FLIGHTS_SAVED_URL = "https://www.google.com/travel/flights/saves?gl=US&hl=en-US";
 const DEFAULT_BROWSER_BUDGET_MS = 30_000;
 const PAGE_READY_POLL_MS = 250;
 const TARGET_READY_POLL_MS = 500;
@@ -31,6 +32,16 @@ const GOOGLE_FLIGHT_SEARCHES: GoogleFlightSearch[] = [
     route: "Newark -> Rabat | Aug 5-17",
     url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RBA%20August%205%202026%20to%20August%2017%202026%20business%20class%202%20adults",
     urlNeedle: "Flights%20from%20EWR%20to%20RBA%20August%205%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+  },
+  {
+    route: "New York -> Rabat | Aug 6-17",
+    url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%206%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+    urlNeedle: "Flights%20from%20JFK%20to%20RBA%20August%206%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+  },
+  {
+    route: "Newark -> Rabat | Aug 6-17",
+    url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RBA%20August%206%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+    urlNeedle: "Flights%20from%20EWR%20to%20RBA%20August%206%202026%20to%20August%2017%202026%20business%20class%202%20adults",
   },
   {
     route: "New York -> Rabat | Aug 7-17",
@@ -112,6 +123,7 @@ type FlightSnapshot = {
   trackingEnabled: boolean;
   priceInsight: string;
   lowestPrice: number | null;
+  bestPrice?: number | null;
   prices: number[];
   bestFlight: string;
   url: string;
@@ -396,12 +408,66 @@ function formatPrice(price: number | null): string {
   return price == null ? "not found" : `$${price.toLocaleString("en-US")}`;
 }
 
+function formatOptionalPrice(price: number | null): string {
+  return price == null ? "unavailable" : formatPrice(price);
+}
+
 function compactRoute(route: string): string {
   return route
     .replace("New York -> Rabat | Aug 5-17", "JFK Aug5")
     .replace("Newark -> Rabat | Aug 5-17", "EWR Aug5")
+    .replace("New York -> Rabat | Aug 6-17", "JFK Aug6")
+    .replace("Newark -> Rabat | Aug 6-17", "EWR Aug6")
     .replace("New York -> Rabat | Aug 7-17", "JFK Aug7")
     .replace("Newark -> Rabat | Aug 7-17", "EWR Aug7");
+}
+
+function routeOrigin(route: string): "EWR" | "JFK" {
+  return /Newark|EWR/i.test(route) ? "EWR" : "JFK";
+}
+
+function routeDay(route: string): string {
+  return route.match(/Aug\s+([567])-17/i)?.[1] ?? "?";
+}
+
+function dateHeader(day: string): string {
+  const weekday = day === "5" ? "Wed" : day === "6" ? "Thu" : day === "7" ? "Fri" : "";
+  const dayText = weekday ? `Aug ${day} (${weekday})` : `Aug ${day}`;
+  return `${dayText} - Aug 17 (Mon) - 2 Biz Seats`;
+}
+
+function sortSnapshotForDisplay(left: FlightSnapshot, right: FlightSnapshot): number {
+  const dayCompare = Number(routeDay(left.route)) - Number(routeDay(right.route));
+  if (dayCompare !== 0) return dayCompare;
+  const order = { EWR: 0, JFK: 1 };
+  return order[routeOrigin(left.route)] - order[routeOrigin(right.route)];
+}
+
+function routeBlock(snapshot: FlightSnapshot): string {
+  const bestPrice = snapshot.bestPrice ?? null;
+  return [
+    routeOrigin(snapshot.route),
+    `Cheapest: ${formatPrice(snapshot.lowestPrice)}`,
+    `Best: ${formatOptionalPrice(bestPrice)}`,
+    `Flight: ${flightLineDetails(snapshot.bestFlight)}`,
+  ].join("\n");
+}
+
+function groupedRouteLines(snapshots: FlightSnapshot[]): string[] {
+  const lines: string[] = [];
+  let currentDay = "";
+  for (const snapshot of snapshots) {
+    const day = routeDay(snapshot.route);
+    if (day !== currentDay) {
+      if (lines.length > 0) lines.push("");
+      lines.push(dateHeader(day));
+      currentDay = day;
+    } else {
+      lines.push("");
+    }
+    lines.push(routeBlock(snapshot));
+  }
+  return lines;
 }
 
 function compactDuration(value: string): string {
@@ -437,6 +503,23 @@ function compactBestFlightDetails(value: string): string {
     [stops, connection].filter(Boolean).join(" "),
     flight,
   ].filter(Boolean).join(", ");
+}
+
+function flightLineDetails(value: string): string {
+  if (!value) return "unavailable";
+  const compact = compactBestFlightDetails(value);
+  const parts = compact.split(",").map((part) => part.trim()).filter(Boolean);
+  if (parts.length < 2) return compact || "unavailable";
+
+  const time = parts[0] ?? "";
+  const airlines = parts[1] ?? "";
+  const stops = parts.find((part) => /\bstop\b/i.test(part)) ?? "";
+  const flight = parts.find((part) => /^#|^[A-Z]{2}\d/i.test(part)) ?? "";
+  const timeText = time ? ` (${time.replace("-", " -> ")})` : "";
+
+  return [airlines ? `${airlines}${timeText}` : compact, stops, flight && flight !== "# not shown" ? flight : ""]
+    .filter(Boolean)
+    .join(", ");
 }
 
 export function extractRoute(text: string): string {
@@ -475,24 +558,17 @@ export function shouldSendSnapshot(
 }
 
 export function buildSnapshotMessage(snapshots: FlightSnapshot[]): string {
-  const ordered = snapshots;
+  const ordered = [...snapshots].sort(sortSnapshotForDisplay);
   const lowest = ordered
     .map((snapshot) => snapshot.lowestPrice)
     .filter((price): price is number => typeof price === "number")
     .sort((a, b) => a - b)[0] ?? null;
-  const routeLines = ordered.map((snapshot) => {
-    const insight = compactPriceInsight(snapshot.priceInsight);
-    const insightText = insight ? `, ${insight}` : "";
-    const tracking = snapshot.trackingEnabled ? "tracking on" : "tracking off";
-    const bestFlight = compactBestFlightDetails(snapshot.bestFlight);
-    const bestFlightText = bestFlight ? `; top ${bestFlight}` : "";
-    return `${compactRoute(snapshot.route)}: ${formatPrice(snapshot.lowestPrice)} for 2 biz${insightText}, ${tracking}${bestFlightText}`;
-  });
+  const routeLines = groupedRouteLines(ordered);
   const lines = [
-    "✈️ Rabat Flights - price snapshot",
-    "Google has not emailed yet; live browser check is working.",
+    "✈️ Rabat Flights - saved tracker snapshot",
+    "Cheapest comes from saved tracker; best/flight comes from search tabs.",
     "",
-    ...routeLines.flatMap((line, index) => (index === 0 ? [line] : ["", line])),
+    ...routeLines,
     "",
     `Verdict: ${verdict(lowest)}`,
   ];
@@ -574,13 +650,17 @@ async function connectCdp(wsUrl: string): Promise<CdpClient> {
 }
 
 async function openCdpTab(search: GoogleFlightSearch): Promise<CdpTarget | null> {
-  const url = buildCdpNewTabUrl(CDP_TARGETS_URL, search.url);
+  return openCdpUrl(search.url, search.route);
+}
+
+async function openCdpUrl(pageUrl: string, label: string): Promise<CdpTarget | null> {
+  const url = buildCdpNewTabUrl(CDP_TARGETS_URL, pageUrl);
   let response = await fetch(url, { method: "PUT" });
   if (!response.ok && response.status === 405) {
     response = await fetch(url);
   }
   if (!response.ok) {
-    throw new Error(`failed to open ${search.route}: HTTP ${response.status}`);
+    throw new Error(`failed to open ${label}: HTTP ${response.status}`);
   }
   return (await response.json().catch(() => null)) as CdpTarget | null;
 }
@@ -605,6 +685,63 @@ function extractSnapshotFromPage(value: CdpValue | undefined, search?: GoogleFli
     bestFlight: typeof record.bestFlight === "string" ? record.bestFlight : "",
     url: typeof record.url === "string" ? record.url : "",
   };
+}
+
+function parsePrice(value: string): number | null {
+  const match = value.match(/\$\s*([1-9]\d{0,2}(?:,\d{3})+|[1-9]\d{3,})/);
+  if (!match) return null;
+  const price = Number(match[1].replace(/,/g, ""));
+  return Number.isFinite(price) ? price : null;
+}
+
+function savedTrackerRoute(origin: string, destination: string, dateLine: string): string | null {
+  if (!/Rabat/i.test(destination)) return null;
+  const day = dateLine.match(/\bAug\s+([567])\b/)?.[1];
+  if (!day) return null;
+  if (/New York/i.test(origin)) return `New York -> Rabat | Aug ${day}-17`;
+  if (/Newark/i.test(origin)) return `Newark -> Rabat | Aug ${day}-17`;
+  return null;
+}
+
+export function parseSavedTrackerSnapshots(text: string, url = GOOGLE_FLIGHTS_SAVED_URL): FlightSnapshot[] {
+  const configuredRoutes = new Set(GOOGLE_FLIGHT_SEARCHES.map((search) => search.route));
+  const lines = text.split("\n").map((line) => line.trim()).filter(Boolean);
+  const snapshots = new Map<string, FlightSnapshot>();
+  let origin = "";
+  let destination = "";
+
+  for (let index = 0; index < lines.length; index += 1) {
+    if (/^From\s+/i.test(lines[index])) {
+      origin = lines[index].replace(/^From\s+/i, "");
+      destination = lines[index + 1] ?? "";
+      continue;
+    }
+
+    if (!/\bAug\s+[567]\b.*\bAug\s+17\b/i.test(lines[index])) continue;
+    const route = savedTrackerRoute(origin, destination, lines[index]);
+    if (!route || !configuredRoutes.has(route)) continue;
+
+    const block = lines.slice(index, index + 10);
+    const cheapestIndex = block.findIndex((line) => /^Cheapest flight$/i.test(line));
+    const price = cheapestIndex >= 0 ? parsePrice(block[cheapestIndex + 1] ?? "") : null;
+    if (price == null) continue;
+
+    snapshots.set(route, {
+      route,
+      account: "",
+      trackLabel: `${origin} to ${destination} ${lines[index]}`,
+      trackingEnabled: true,
+      priceInsight: "saved tracker",
+      lowestPrice: price,
+      prices: [price],
+      bestFlight: "",
+      url,
+    });
+  }
+
+  return GOOGLE_FLIGHT_SEARCHES.map((search) => snapshots.get(search.route)).filter(
+    (snapshot): snapshot is FlightSnapshot => Boolean(snapshot),
+  );
 }
 
 function flightSearchPages(
@@ -683,6 +820,23 @@ async function waitForTargetId(
   return targets;
 }
 
+async function waitForSavedTrackerTarget(deadline: RunDeadline, maxMs: number): Promise<CdpTarget | null> {
+  const waitMs = deadline.budgetMs(maxMs, TARGET_READY_POLL_MS);
+  const stopAt = Date.now() + waitMs;
+  let targets = await fetchCdpTargets();
+  while (Date.now() < stopAt) {
+    const target = targets.find(
+      (candidate) =>
+        /google\.com\/travel\/flights\/saves/i.test(candidate.url ?? "") &&
+        typeof candidate.webSocketDebuggerUrl === "string",
+    );
+    if (target) return target;
+    await sleep(Math.min(TARGET_READY_POLL_MS, Math.max(0, stopAt - Date.now())));
+    targets = await fetchCdpTargets();
+  }
+  return null;
+}
+
 async function waitForGoogleFlightsContent(client: CdpClient, deadline: RunDeadline): Promise<void> {
   const waitMs = deadline.budgetMs(10_000, PAGE_READY_POLL_MS);
   if (waitMs <= 0) return;
@@ -703,6 +857,37 @@ async function waitForGoogleFlightsContent(client: CdpClient, deadline: RunDeadl
       return hasSnapshotContent();
     })()`,
   });
+}
+
+async function waitForSavedTrackerContent(client: CdpClient, deadline: RunDeadline): Promise<void> {
+  const waitMs = deadline.budgetMs(10_000, PAGE_READY_POLL_MS);
+  if (waitMs <= 0) return;
+
+  await client.send("Runtime.evaluate", {
+    returnByValue: true,
+    awaitPromise: true,
+    expression: `(async () => {
+      const stopAt = Date.now() + ${waitMs};
+      const hasSavedTrackerContent = () => {
+        const body = document.body?.innerText || '';
+        return /Tracked prices/i.test(body) && /Cheapest flight/i.test(body) && /Rabat/i.test(body);
+      };
+      while (Date.now() < stopAt) {
+        if (hasSavedTrackerContent()) return true;
+        await new Promise(resolve => setTimeout(resolve, ${PAGE_READY_POLL_MS}));
+      }
+      return hasSavedTrackerContent();
+    })()`,
+  });
+}
+
+async function evaluateSavedTrackerSnapshots(client: CdpClient): Promise<FlightSnapshot[]> {
+  const result = await client.send("Runtime.evaluate", {
+    returnByValue: true,
+    expression: "document.body?.innerText || ''",
+  });
+  const text = typeof result.result?.value === "string" ? result.result.value : "";
+  return parseSavedTrackerSnapshots(text, GOOGLE_FLIGHTS_SAVED_URL);
 }
 
 function shouldReloadCdpPage(snapshot: FlightSnapshot | null): boolean {
@@ -870,8 +1055,31 @@ async function enrichSnapshotsWithFlightNumbers(snapshots: Map<string, FlightSna
   }
 }
 
-async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
-  const deadline = configuredBrowserDeadline();
+async function readSavedTrackerSnapshots(deadline: RunDeadline): Promise<FlightSnapshot[]> {
+  let target = await waitForSavedTrackerTarget(deadline, 1_000);
+  if (!target) {
+    await openCdpUrl(GOOGLE_FLIGHTS_SAVED_URL, "Google Flights saved trackers");
+    target = await waitForSavedTrackerTarget(deadline, 7_000);
+  }
+  if (!target?.webSocketDebuggerUrl) throw new Error("missing Google Flights saved tracker tab");
+
+  const client = await connectCdp(target.webSocketDebuggerUrl);
+  try {
+    await client.send("Runtime.enable");
+    await client.send("Page.enable");
+    const beforeReload = await evaluateSavedTrackerSnapshots(client);
+    await client.send("Page.reload", { ignoreCache: true });
+    await waitForSavedTrackerContent(client, deadline);
+    const afterReload = await evaluateSavedTrackerSnapshots(client);
+    const snapshots = afterReload.length > 0 ? afterReload : beforeReload;
+    if (snapshots.length === 0) throw new Error("missing parsable saved tracker prices");
+    return snapshots;
+  } finally {
+    client.close();
+  }
+}
+
+async function readSearchTabSnapshots(deadline: RunDeadline): Promise<FlightSnapshot[]> {
   let targets = await fetchCdpTargets();
   const missing = missingGoogleFlightSearches(targets);
   for (const search of missing) {
@@ -926,6 +1134,25 @@ async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
   return GOOGLE_FLIGHT_SEARCHES.map((search) => snapshots.get(search.route)).filter(
     (snapshot): snapshot is FlightSnapshot => Boolean(snapshot),
   );
+}
+
+async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
+  const deadline = configuredBrowserDeadline();
+  const savedSnapshots = await readSavedTrackerSnapshots(deadline);
+  const detailSnapshots = await readSearchTabSnapshots(deadline).catch(() => []);
+  const detailsByRoute = new Map(detailSnapshots.map((snapshot) => [snapshot.route, snapshot]));
+
+  return savedSnapshots.map((snapshot) => {
+    const detail = detailsByRoute.get(snapshot.route);
+    if (!detail) return snapshot;
+    return {
+      ...snapshot,
+      account: detail.account || snapshot.account,
+      trackingEnabled: snapshot.trackingEnabled || detail.trackingEnabled,
+      bestPrice: detail.lowestPrice,
+      bestFlight: detail.bestFlight,
+    };
+  });
 }
 
 function buildSnapshotFailure(error: Error | string): string {

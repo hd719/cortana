@@ -20,20 +20,20 @@ describe("Morocco flight price watch cron contract", () => {
 
     expect(job?.name).toBe("✈️ Morocco Flight Price Watch");
     expect(message).toContain("live browser snapshot so Hamel knows the watcher is healthy");
-    expect(message).toContain("live browser price snapshot on every scheduled run");
+    expect(message).toContain("script emits a snapshot on every scheduled run");
     expect(message).toContain("informational, not a setup action");
     expect(message).toContain("Rabat/RBA");
-    expect(message).toContain("Aug 5-17 and Aug 7-17");
+    expect(message).toContain("Aug 5-17, Aug 6-17, and Aug 7-17");
     expect(message).toContain("FLIGHT_PRICE_WATCH_ALWAYS_SNAPSHOT=1");
     expect(message).toContain("FLIGHT_PRICE_WATCH_BROWSER_BUDGET_MS=30000");
     expect(message).toContain("FLIGHT_PRICE_WATCH_CDP_RELOAD=auto");
     expect(message).toContain("FLIGHT_PRICE_WATCH_FLIGHT_NUMBER_LOOKUP=0");
-    expect(message).toContain("bounded browser price snapshots");
+    expect(message).toContain("saved-tracker cheapest prices");
     expect(message).toContain("continuous browser snapshots");
     expect(message).toContain("visible airline/flight details");
     expect(message).toContain("preserve every configured route line");
     expect(message).toContain("Preserve all route lines exactly");
-    expect(message).toContain("Gmail plus live Google Flights browser tabs");
+    expect(message).toContain("Gmail plus the Google Flights saved tracker page");
     expect(message).toContain("If script outputs alert/snapshot/failure text: send it exactly once");
     expect(message).toContain("telegram target 8171372724 with accountId monitor");
     expect(job?.delivery).toMatchObject({ mode: "none", accountId: "monitor" });
