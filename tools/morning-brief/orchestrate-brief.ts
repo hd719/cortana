@@ -2,6 +2,11 @@
 
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import {
+  buildMorningIntelSections,
+  collectMorningIntelBrief,
+  type IntelBrief,
+} from "../news/morning-intel-brief.js";
 
 const execFileAsync = promisify(execFile);
 
@@ -59,6 +64,7 @@ type BriefParts = {
   schedule: string[];
   reminders: string[];
   specialists: SpecialistResult[];
+  intel?: IntelBrief;
 };
 
 type WttrWeatherPayload = {
@@ -508,16 +514,9 @@ function normalizeBullets(input: string, fallback: string, maxItems: number): st
 }
 
 export function buildBrief(parts: BriefParts): string {
-  const news = normalizeBullets(
-    "",
-    "News unavailable.",
-    2,
-  );
-  const markets = normalizeBullets(
-    "",
-    "Market snapshot unavailable.",
-    2,
-  );
+  const intel = parts.intel ? buildMorningIntelSections(parts.intel) : null;
+  const news = intel?.news ?? normalizeBullets("", "News unavailable.", 2);
+  const markets = intel?.markets ?? normalizeBullets("", "Market snapshot unavailable.", 2);
 
   const renderSection = (title: string, items: string[]) => [
     `${title}:`,
@@ -563,14 +562,20 @@ async function sendTelegram(messageText: string): Promise<void> {
 }
 
 export async function runMorningBrief(options: { dryRun?: boolean } = {}): Promise<string> {
-  const [specialists, weather, schedule, reminders] = await Promise.all([
+  const [specialists, weather, schedule, reminders, intel] = await Promise.all([
     Promise.all(SPECIALIST_TASKS.map((task) => sessionsSend(task))),
     fetchWeather(),
     fetchSchedule(),
     fetchReminders(),
+    collectMorningIntelBrief().catch((error) => ({
+      generatedAt: new Date().toISOString(),
+      status: "degraded" as const,
+      errors: [error instanceof Error ? error.message : String(error)],
+      items: [],
+    })),
   ]);
 
-  const brief = buildBrief({ specialists, weather, schedule, reminders });
+  const brief = buildBrief({ specialists, weather, schedule, reminders, intel });
   if (!options.dryRun) {
     await sendTelegram(brief);
   }

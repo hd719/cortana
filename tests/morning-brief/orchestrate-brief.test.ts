@@ -55,6 +55,42 @@ describe("buildBrief", () => {
     expect(brief).not.toContain("Top 3 priorities");
     expect(brief).not.toContain("career-advancing task");
   });
+
+  it("uses source-linked RSS intel when available", () => {
+    const brief = buildBrief({
+      weather: "Warren+NJ: 54F and Sunny",
+      schedule: ["9:00 AM - Standup"],
+      reminders: ["Call pharmacy"],
+      specialists: [],
+      intel: {
+        generatedAt: "2026-05-13T12:00:00.000Z",
+        status: "ok",
+        errors: [],
+        items: [
+          {
+            title: "Ransomware gang targets hospitals",
+            link: "https://example.test/cyber",
+            source: "BleepingComputer",
+            category: "cyber",
+            score: 30,
+          },
+          {
+            title: "Mortgage rates edge lower",
+            link: "https://example.test/home",
+            source: "HousingWire",
+            category: "housing",
+            score: 25,
+          },
+        ],
+      },
+    });
+
+    expect(brief).toContain("Cyber: Ransomware gang targets hospitals");
+    expect(brief).toContain("https://example.test/cyber");
+    expect(brief).toContain("Housing: Mortgage rates edge lower");
+    expect(brief).not.toContain("News unavailable.");
+    expect(brief).not.toContain("Market snapshot unavailable.");
+  });
 });
 
 describe("fetchWeatherWithRunCommand", () => {
