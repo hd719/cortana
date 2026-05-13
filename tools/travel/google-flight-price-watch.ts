@@ -216,13 +216,53 @@ function todayEt(): string {
   return process.env.FLIGHT_PRICE_WATCH_TODAY ?? formatEtDate(new Date());
 }
 
+function decodeUrlText(value: string): string {
+  try {
+    return decodeURIComponent(value).replace(/\+/g, " ");
+  } catch {
+    return value;
+  }
+}
+
+function decodedTfsText(url: string): string {
+  let encoded: string | null = null;
+  try {
+    encoded = new URL(url).searchParams.get("tfs");
+  } catch {
+    encoded = null;
+  }
+  if (!encoded) return "";
+
+  try {
+    return Buffer.from(encoded.replace(/-/g, "+").replace(/_/g, "/"), "base64")
+      .toString("utf8")
+      .replace(/[^\x20-\x7E]+/g, " ");
+  } catch {
+    return "";
+  }
+}
+
+function searchRouteKey(search: GoogleFlightSearch): { origin: string; departIso: string; returnIso: string } | null {
+  const text = decodeUrlText(search.urlNeedle);
+  const match = text.match(/from\s+([A-Z]{3})\s+to\s+RBA\s+August\s+(\d{1,2})\s+2026\s+to\s+August\s+(\d{1,2})\s+2026/i);
+  if (!match) return null;
+  return {
+    origin: match[1].toUpperCase(),
+    departIso: `2026-08-${match[2].padStart(2, "0")}`,
+    returnIso: `2026-08-${match[3].padStart(2, "0")}`,
+  };
+}
+
+function matchesTfsSearchTarget(url: string, search: GoogleFlightSearch): boolean {
+  const key = searchRouteKey(search);
+  if (!key) return false;
+  const text = decodedTfsText(url);
+  return text.includes(key.origin) && text.includes("RBA") && text.includes(key.departIso) && text.includes(key.returnIso);
+}
+
 export function matchesGoogleFlightSearchTarget(target: CdpTarget, search: GoogleFlightSearch): boolean {
-  return (
-    target.type === "page" &&
-    typeof target.url === "string" &&
-    target.url.includes("google.com/travel/flights") &&
-    target.url.includes(search.urlNeedle)
-  );
+  if (target.type !== "page" || typeof target.url !== "string" || !target.url.includes("google.com/travel/flights")) return false;
+  return target.url.includes(search.urlNeedle) || decodeUrlText(target.url).includes(decodeUrlText(search.urlNeedle)) || matchesTfsSearchTarget(target.url, search);
 }
 
 export function missingGoogleFlightSearches(
@@ -1103,11 +1143,15 @@ async function readSearchTabSnapshots(deadline: RunDeadline): Promise<FlightSnap
   }
 
   if (missingSnapshots.length > 0) {
-    for (const search of missingSnapshots) {
+    targets = await fetchCdpTargets();
+    const missingTargets = missingGoogleFlightSearches(targets, missingSnapshots);
+    for (const search of missingTargets) {
       if (deadline.budgetMs(7_000, 500) <= 0) break;
       await openCdpTab(search);
     }
-    targets = await waitForSearchTargets(missingSnapshots, deadline, 7_000);
+    if (missingTargets.length > 0) {
+      targets = await waitForSearchTargets(missingTargets, deadline, 7_000);
+    }
     await reloadSearchPages(targets, deadline);
     targets = await fetchCdpTargets();
 
