@@ -9,6 +9,7 @@ import {
   extractRoundTripPrices,
   missingGoogleFlightSearches,
   isFlightAlert,
+  parseSavedTrackerSnapshots,
   selectGoogleFlightSearchPages,
   shouldSendSnapshot,
 } from "../../tools/travel/google-flight-price-watch.ts";
@@ -150,22 +151,25 @@ describe("google-flight-price-watch", () => {
   it("builds a non-actionable live browser snapshot message", () => {
     const message = buildSnapshotMessage([
       {
-        route: "New York -> Rabat",
+        route: "New York -> Rabat | Aug 5-17",
         account: "Google Account: Hamel D (hameldesai3@gmail.com)",
         trackLabel: "Track prices from New York to Rabat departing 2026-08-12 and returning 2026-08-20",
         trackingEnabled: true,
         priceInsight: "Prices are currently high",
         lowestPrice: 7377,
+        bestPrice: 8099,
         prices: [7377],
         bestFlight: "5:00 PM-10:45 AM+1, Air France, Delta, KLM, JFK-RBA, 12 hr 45 min, 1 stop, via 2 hr 30 min CDG, flight AF11/AF1458",
         url: "https://www.google.com/travel/flights",
       },
     ]);
 
-    expect(message).toContain("price snapshot");
-    expect(message).toContain("Google has not emailed yet; live browser check is working.");
-    expect(message).toContain("New York -> Rabat: $7,377");
-    expect(message).toContain("top 5:00 PM-10:45 AM+1, Air France/Delta/KLM");
+    expect(message).toContain("saved tracker snapshot");
+    expect(message).toContain("Cheapest comes from saved tracker; best/flight comes from search tabs.");
+    expect(message).toContain("Aug 5 (Wed) - Aug 17 (Mon) - 2 Biz Seats\nJFK");
+    expect(message).toContain("Cheapest: $7,377");
+    expect(message).toContain("Best: $8,099");
+    expect(message).toContain("Flight: Air France/Delta/KLM (5:00 PM -> 10:45 AM+1), 1 stop via CDG");
     expect(message).toContain("AF11/AF1458");
     expect(message).not.toContain("enable Google Flights");
   });
@@ -174,6 +178,8 @@ describe("google-flight-price-watch", () => {
     const snapshots = [
       ["New York -> Rabat | Aug 5-17", 10844, "JFK-RBA"],
       ["Newark -> Rabat | Aug 5-17", 10870, "EWR-RBA"],
+      ["New York -> Rabat | Aug 6-17", 11343, "JFK-RBA"],
+      ["Newark -> Rabat | Aug 6-17", 11372, "EWR-RBA"],
       ["New York -> Rabat | Aug 7-17", 11104, "JFK-RBA"],
       ["Newark -> Rabat | Aug 7-17", 11130, "EWR-RBA"],
     ].map(([route, lowestPrice, airportPair]) => ({
@@ -183,6 +189,7 @@ describe("google-flight-price-watch", () => {
       trackingEnabled: true,
       priceInsight: "Prices are currently typical",
       lowestPrice: Number(lowestPrice),
+      bestPrice: Number(lowestPrice) + 800,
       prices: [Number(lowestPrice)],
       bestFlight: `5:00 PM-10:45 AM+1, Air France, Delta, KLM, ${airportPair}, 12 hr 45 min, 1 stop, via 2 hr 30 min CDG, flight # not shown`,
       url: "https://www.google.com/travel/flights",
@@ -190,16 +197,76 @@ describe("google-flight-price-watch", () => {
 
     const message = buildSnapshotMessage(snapshots);
 
-    expect(message).toContain("JFK Aug5: $10,844");
-    expect(message).toContain("EWR Aug5: $10,870");
-    expect(message).toContain("JFK Aug7: $11,104");
-    expect(message).toContain("EWR Aug7: $11,130");
-    expect(message).toContain("JFK Aug5: $10,844 for 2 biz");
-    expect(message).toContain("\n\nEWR Aug5: $10,870 for 2 biz");
-    expect(message).toContain("\n\nJFK Aug7: $11,104 for 2 biz");
-    expect(message).toContain("\n\nEWR Aug7: $11,130 for 2 biz");
+    expect(message).toContain("Aug 5 (Wed) - Aug 17 (Mon) - 2 Biz Seats\nEWR");
+    expect(message).toContain("Aug 6 (Thu) - Aug 17 (Mon) - 2 Biz Seats\nEWR");
+    expect(message).toContain("Aug 7 (Fri) - Aug 17 (Mon) - 2 Biz Seats\nEWR");
+    expect(message).toContain("Cheapest: $10,844");
+    expect(message).toContain("Best: $11,644");
+    expect(message).toContain("\n\nAug 6 (Thu) - Aug 17 (Mon) - 2 Biz Seats\nEWR\nCheapest: $11,372\nBest: $12,172");
+    expect(message.indexOf("EWR\nCheapest: $10,870")).toBeLessThan(message.indexOf("JFK\nCheapest: $10,844"));
     expect(message).toContain("\n\nVerdict: Watch only; still expensive.");
     expect(message).toContain("Air France/Delta/KLM");
+  });
+
+  it("parses saved tracker prices as the snapshot source of truth", () => {
+    const snapshots = parseSavedTrackerSnapshots([
+      "Tracked prices",
+      "From Newark",
+      "Rabat",
+      "Wed, Aug 5 – Mon, Aug 17",
+      "Cheapest flight",
+      "$10,872",
+      "Round trip",
+      "Business Class",
+      "2",
+      "$10,870",
+      "Thu, Aug 6 – Mon, Aug 17",
+      "Cheapest flight",
+      "$11,372",
+      "Round trip",
+      "Business Class",
+      "2",
+      "$12,172",
+      "Fri, Aug 7 – Mon, Aug 17",
+      "Cheapest flight",
+      "$11,372",
+      "Round trip",
+      "Business Class",
+      "2",
+      "$11,130",
+      "From New York",
+      "Rabat",
+      "Wed, Aug 5 – Mon, Aug 17",
+      "Cheapest flight",
+      "$10,843",
+      "Round trip",
+      "Business Class",
+      "2",
+      "$10,844",
+      "Thu, Aug 6 – Mon, Aug 17",
+      "Cheapest flight",
+      "$11,343",
+      "Round trip",
+      "Business Class",
+      "2",
+      "$12,145",
+      "Fri, Aug 7 – Mon, Aug 17",
+      "Cheapest flight",
+      "$11,343",
+      "Round trip",
+      "Business Class",
+      "2",
+      "$11,104",
+    ].join("\n"));
+
+    expect(snapshots.map((snapshot) => [snapshot.route, snapshot.lowestPrice])).toEqual([
+      ["New York -> Rabat | Aug 5-17", 10843],
+      ["Newark -> Rabat | Aug 5-17", 10872],
+      ["New York -> Rabat | Aug 6-17", 11343],
+      ["Newark -> Rabat | Aug 6-17", 11372],
+      ["New York -> Rabat | Aug 7-17", 11343],
+      ["Newark -> Rabat | Aug 7-17", 11372],
+    ]);
   });
 
   it("extracts top flight airline and connection details from Google Flights text", () => {
@@ -251,6 +318,8 @@ describe("google-flight-price-watch", () => {
 
     expect(missing.map((search) => search.route)).toEqual([
       "Newark -> Rabat | Aug 5-17",
+      "New York -> Rabat | Aug 6-17",
+      "Newark -> Rabat | Aug 6-17",
       "New York -> Rabat | Aug 7-17",
       "Newark -> Rabat | Aug 7-17",
     ]);
@@ -267,6 +336,16 @@ describe("google-flight-price-watch", () => {
         type: "page",
         title: "Newark to Rabat | Google Flights",
         url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RBA%20August%205%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+      },
+      {
+        type: "page",
+        title: "New York to Rabat | Google Flights",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20JFK%20to%20RBA%20August%206%202026%20to%20August%2017%202026%20business%20class%202%20adults",
+      },
+      {
+        type: "page",
+        title: "Newark to Rabat | Google Flights",
+        url: "https://www.google.com/travel/flights?q=Flights%20from%20EWR%20to%20RBA%20August%206%202026%20to%20August%2017%202026%20business%20class%202%20adults",
       },
       {
         type: "page",
