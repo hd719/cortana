@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  buildMorningIntelCategorySections,
   buildMorningIntelSections,
   dedupeAndRank,
   parseFeedXml,
@@ -38,6 +39,15 @@ describe("morning intel RSS parser", () => {
       publishedAt: "2026-05-13T10:00:00.000Z",
     });
     expect(items[0].score).toBeGreaterThan(10);
+  });
+
+  it("decodes common XML entities in titles", () => {
+    const items = parseFeedXml(
+      `<rss><channel><item><title>Cisco&apos;s AI orders &amp; guidance</title><link>https://example.test/a</link></item></channel></rss>`,
+      feed,
+    );
+
+    expect(items[0].title).toBe("Cisco's AI orders & guidance");
   });
 
   it("parses Atom entries with link href", () => {
@@ -105,5 +115,54 @@ describe("morning intel rendering", () => {
     const rendered = renderMorningIntelBrief(brief);
     expect(rendered).toContain("🗞️ Intel - RSS Brief");
     expect(rendered).toContain("Markets / Housing:");
+  });
+
+  it("renders top three items per category for night brief sections", () => {
+    const items: IntelItem[] = [
+      { title: "Cyber 1", link: "https://example.test/c1", source: "S", category: "cyber", score: 5 },
+      { title: "Cyber 2", link: "https://example.test/c2", source: "S", category: "cyber", score: 4 },
+      { title: "Cyber 3", link: "https://example.test/c3", source: "S", category: "cyber", score: 3 },
+      { title: "Cyber 4", link: "https://example.test/c4", source: "S", category: "cyber", score: 2 },
+      { title: "Tech 1", link: "https://example.test/t1", source: "S", category: "tech", score: 5 },
+    ];
+
+    const sections = buildMorningIntelCategorySections(
+      {
+        generatedAt: "2026-05-13T12:00:00.000Z",
+        status: "ok",
+        errors: [],
+        items,
+      },
+      3,
+    );
+
+    expect(sections.cyber).toHaveLength(3);
+    expect(sections.cyber.join("\n")).not.toContain("Cyber 4");
+    expect(sections.tech[0]).toContain("Tech 1");
+    expect(sections.finance[0]).toBe("Finance unavailable.");
+  });
+
+  it("can offset category sections so later briefs repeat fewer headlines", () => {
+    const items: IntelItem[] = Array.from({ length: 6 }, (_, index) => ({
+      title: `Cyber ${index + 1}`,
+      link: `https://example.test/c${index + 1}`,
+      source: "S",
+      category: "cyber",
+      score: 10 - index,
+    }));
+
+    const sections = buildMorningIntelCategorySections(
+      {
+        generatedAt: "2026-05-13T12:00:00.000Z",
+        status: "ok",
+        errors: [],
+        items,
+      },
+      3,
+      { offsetPerCategory: 3 },
+    );
+
+    expect(sections.cyber.join("\n")).toContain("Cyber 4");
+    expect(sections.cyber.join("\n")).not.toContain("Cyber 1");
   });
 });

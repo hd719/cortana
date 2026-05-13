@@ -7,7 +7,7 @@
       "name": "☀️ Morning brief (Hamel)",
       "enabled": true,
       "createdAtMs": 1769550483487,
-      "updatedAtMs": 1773747046172,
+      "updatedAtMs": 1778703817327,
       "schedule": {
         "kind": "cron",
         "expr": "30 7 * * *",
@@ -17,7 +17,7 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRouting owner:\n- Cron-comms owns the morning brief delivery lane.\n- The script is source of truth for content and Telegram delivery.\n\nExecution contract:\n- First action must be one `exec` tool call.\n- Do not read files, search the repo, inspect skills, or use any other tool before that exec call.\n- Use this exact command and settings, non-interactively:\n  command: bash /Users/hd/Developer/cortana/tools/morning-brief/run-morning-brief.sh\n  workdir: /Users/hd/.openclaw/workspaces/cron-comms\n  host: gateway\n  security: full\n  ask: off\n  timeout: 120\n  yieldMs: 20000\n\nPolicy:\n- Morning Brief must be built from real data: Google Calendar schedule, open Apple Reminders in the Cortana list, weather, concise news, and concise market snapshot.\n- Do not invent generic filler such as `Top 3 priorities for today` or `One concrete career-advancing task`.\n- The script already sends the Telegram message. Do not send a second copy from the agent.\n- If exec exits 0: return exactly `Morning brief sent.`\n- If exec fails: return a one-line failure summary only.",
+        "message": "OUTPUT LIMIT: Keep one Telegram message. Do not send multi-part cron messages.\n\nRouting owner:\n- Cron-comms owns the Morning brief delivery lane.\n- The script is source of truth for content and Telegram delivery.\n\nExecution contract:\n- First action must be one `exec` tool call.\n- Do not read files, search the repo, inspect skills, or use any other tool before that exec call.\n- Use this exact command and settings, non-interactively:\n  command: bash /Users/hd/Developer/cortana/tools/morning-brief/run-morning-brief.sh --period morning\n  workdir: /Users/hd/.openclaw/workspaces/cron-comms\n  host: gateway\n  security: full\n  ask: off\n  timeout: 120\n  yieldMs: 20000\n\nPolicy:\n- Morning brief must be built from real data only: Google Calendar schedule, open Apple Reminders in the Cortana list, weather when useful, and RSS intel for cyber, tech, finance, markets, and housing.\n- Do not invent generic filler such as `Top 3 priorities for today` or `One concrete career-advancing task`.\n- The script already sends the Telegram message. Do not send a second copy from the agent.\n- If exec exits 0: return exactly `Morning brief sent.`\n- If exec fails: return a one-line failure summary only.",
         "model": "openai-codex/gpt-5.3-codex",
         "timeoutSeconds": 120,
         "lightContext": true
@@ -32,6 +32,84 @@
         "lastDeliveryStatus": "not-delivered",
         "lastDelivered": false
       },
+      "delivery": {
+        "mode": "none"
+      }
+    },
+    {
+      "id": "0a99c591-42b1-48a8-8a31-c6d59a67e308",
+      "agentId": "cron-comms",
+      "name": "🕛 Noon brief (Hamel)",
+      "enabled": true,
+      "createdAtMs": 1778703817327,
+      "updatedAtMs": 1778703817327,
+      "schedule": {
+        "kind": "cron",
+        "expr": "15 12 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "OUTPUT LIMIT: Keep one Telegram message. Do not send multi-part cron messages.\n\nRouting owner:\n- Cron-comms owns the Noon brief delivery lane.\n- The script is source of truth for content and Telegram delivery.\n\nExecution contract:\n- First action must be one `exec` tool call.\n- Do not read files, search the repo, inspect skills, or use any other tool before that exec call.\n- Use this exact command and settings, non-interactively:\n  command: bash /Users/hd/Developer/cortana/tools/morning-brief/run-morning-brief.sh --period noon\n  workdir: /Users/hd/.openclaw/workspaces/cron-comms\n  host: gateway\n  security: full\n  ask: off\n  timeout: 120\n  yieldMs: 20000\n\nPolicy:\n- Noon brief must be built from real data only: Google Calendar schedule, open Apple Reminders in the Cortana list, weather when useful, and RSS intel for cyber, tech, finance, markets, and housing.\n- Do not invent generic filler such as `Top 3 priorities for today` or `One concrete career-advancing task`.\n- The script already sends the Telegram message. Do not send a second copy from the agent.\n- If exec exits 0: return exactly `Noon brief sent.`\n- If exec fails: return a one-line failure summary only.",
+        "model": "openai-codex/gpt-5.3-codex",
+        "timeoutSeconds": 120,
+        "lightContext": true
+      },
+      "state": {},
+      "delivery": {
+        "mode": "none"
+      }
+    },
+    {
+      "id": "0037d980-cde3-4c67-8276-e29f45380401",
+      "agentId": "cron-comms",
+      "name": "🌆 Evening brief (Hamel)",
+      "enabled": true,
+      "createdAtMs": 1778703817327,
+      "updatedAtMs": 1778703817327,
+      "schedule": {
+        "kind": "cron",
+        "expr": "35 17 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "OUTPUT LIMIT: Keep one Telegram message. Do not send multi-part cron messages.\n\nRouting owner:\n- Cron-comms owns the Evening brief delivery lane.\n- The script is source of truth for content and Telegram delivery.\n\nExecution contract:\n- First action must be one `exec` tool call.\n- Do not read files, search the repo, inspect skills, or use any other tool before that exec call.\n- Use this exact command and settings, non-interactively:\n  command: bash /Users/hd/Developer/cortana/tools/morning-brief/run-morning-brief.sh --period evening\n  workdir: /Users/hd/.openclaw/workspaces/cron-comms\n  host: gateway\n  security: full\n  ask: off\n  timeout: 120\n  yieldMs: 20000\n\nPolicy:\n- Evening brief must be built from real data only: Google Calendar schedule, open Apple Reminders in the Cortana list, weather when useful, and RSS intel for cyber, tech, finance, markets, and housing.\n- Do not invent generic filler such as `Top 3 priorities for today` or `One concrete career-advancing task`.\n- The script already sends the Telegram message. Do not send a second copy from the agent.\n- If exec exits 0: return exactly `Evening brief sent.`\n- If exec fails: return a one-line failure summary only.",
+        "model": "openai-codex/gpt-5.3-codex",
+        "timeoutSeconds": 120,
+        "lightContext": true
+      },
+      "state": {},
+      "delivery": {
+        "mode": "none"
+      }
+    },
+    {
+      "id": "d76d5204-de1f-4d42-84e9-a44aa41d4d2a",
+      "agentId": "cron-comms",
+      "name": "🌙 Night brief (Hamel)",
+      "enabled": true,
+      "createdAtMs": 1778703817327,
+      "updatedAtMs": 1778703817327,
+      "schedule": {
+        "kind": "cron",
+        "expr": "35 21 * * *",
+        "tz": "America/New_York"
+      },
+      "sessionTarget": "isolated",
+      "wakeMode": "now",
+      "payload": {
+        "kind": "agentTurn",
+        "message": "OUTPUT LIMIT: Keep one Telegram message. Do not send multi-part cron messages.\n\nRouting owner:\n- Cron-comms owns the Night brief delivery lane.\n- The script is source of truth for content and Telegram delivery.\n\nExecution contract:\n- First action must be one `exec` tool call.\n- Do not read files, search the repo, inspect skills, or use any other tool before that exec call.\n- Use this exact command and settings, non-interactively:\n  command: bash /Users/hd/Developer/cortana/tools/morning-brief/run-morning-brief.sh --period night\n  workdir: /Users/hd/.openclaw/workspaces/cron-comms\n  host: gateway\n  security: full\n  ask: off\n  timeout: 120\n  yieldMs: 20000\n\nPolicy:\n- Night brief must be built from real data only: Google Calendar schedule, open Apple Reminders in the Cortana list, weather when useful, and RSS intel for cyber, tech, finance, markets, and housing.\n- Keep news simple with at most 3 items per category.\n- Do not invent generic filler such as `Top 3 priorities for today` or `One concrete career-advancing task`.\n- The script already sends the Telegram message. Do not send a second copy from the agent.\n- If exec exits 0: return exactly `Night brief sent.`\n- If exec fails: return a one-line failure summary only.",
+        "model": "openai-codex/gpt-5.3-codex",
+        "timeoutSeconds": 120,
+        "lightContext": true
+      },
+      "state": {},
       "delivery": {
         "mode": "none"
       }
