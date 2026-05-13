@@ -377,6 +377,18 @@ describe("google-flight-price-watch", () => {
     expect(missing).toEqual([]);
   });
 
+  it("treats Google Flights tfs result URLs as existing search tabs", () => {
+    const missing = missingGoogleFlightSearches([
+      {
+        type: "page",
+        title: "New York to Rabat | Google Flights",
+        url: "https://www.google.com/travel/flights/search?tfs=CBwQAhoeEgoyMDI2LTA4LTA1agcIARIDSkZLcgcIARIDUkJBGh4SCjIwMjYtMDgtMTdqBwgBEgNSQkFyBwgBEgNKRktAAUABSANwAYIBCwj___________8BmAEB&tfu=EgoIABAAGAAgASgC",
+      },
+    ]);
+
+    expect(missing.map((search) => search.route)).not.toContain("New York -> Rabat | Aug 5-17");
+  });
+
   it("supports alternate search configs without changing matching logic", () => {
     const missing = missingGoogleFlightSearches(
       [
