@@ -5,12 +5,14 @@ type SpawnResult = { status?: number; stdout?: string; stderr?: string };
 
 const spawnSync = vi.hoisted(() => vi.fn());
 const runGogWithEnv = vi.hoisted(() => vi.fn());
+const reportOperationalIssue = vi.hoisted(() => vi.fn());
 const withPostgresPath = vi.hoisted(() =>
   vi.fn((env: NodeJS.ProcessEnv) => env),
 );
 
 vi.mock("node:child_process", () => ({ spawnSync }));
 vi.mock("../../tools/gog/gog-with-env.ts", () => ({ runGogWithEnv }));
+vi.mock("../../tools/github/issue-reporter.ts", () => ({ reportOperationalIssue }));
 vi.mock("../../tools/lib/db.js", () => ({ withPostgresPath }));
 vi.mock("../../tools/lib/paths.js", () => ({
   PSQL_BIN: "/opt/homebrew/opt/postgresql@17/bin/psql",
@@ -19,6 +21,8 @@ vi.mock("../../tools/lib/paths.js", () => ({
 beforeEach(() => {
   spawnSync.mockReset();
   runGogWithEnv.mockReset();
+  reportOperationalIssue.mockReset();
+  reportOperationalIssue.mockReturnValue({ status: "dry-run", repo: "cortana-foundry/cortana-external", title: "dry-run", body: "", labels: [] });
   withPostgresPath.mockClear();
 });
 
@@ -67,17 +71,8 @@ describe("gog oauth refresh", () => {
     const sqlCalls = spawnSync.mock.calls.map((call) =>
       String(call[1]?.[2] ?? ""),
     );
-    expect(sqlCalls.some((sql) => sql.includes("UPDATE cortana_tasks"))).toBe(
-      true,
-    );
-    expect(sqlCalls.some((sql) => sql.includes("status='completed'"))).toBe(
-      true,
-    );
-    expect(
-      sqlCalls.some((sql) =>
-        sql.includes("gog OAuth requires manual re-auth"),
-      ),
-    ).toBe(true);
+    expect(sqlCalls.some((sql) => sql.includes(["cortana", "tasks"].join("_")))).toBe(false);
+    expect(reportOperationalIssue).not.toHaveBeenCalled();
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
@@ -111,11 +106,12 @@ describe("gog oauth refresh", () => {
     const sqlCalls = spawnSync.mock.calls.map((call) =>
       String(call[1]?.[2] ?? ""),
     );
-    expect(sqlCalls.some((sql) => sql.includes("WITH existing AS"))).toBe(
-      true,
-    );
-    expect(sqlCalls.some((sql) => sql.includes("INSERT INTO cortana_tasks"))).toBe(
-      true,
+    expect(sqlCalls.some((sql) => sql.includes(["cortana", "tasks"].join("_")))).toBe(false);
+    expect(reportOperationalIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: "gog OAuth requires manual re-auth",
+        repoHint: "cortana-external",
+      }),
     );
     expect(consoleCapture.errors.join("\n")).toContain(
       "Manual re-auth required",

@@ -318,23 +318,9 @@ function advisoryFor(item: Record<string, any>, rates: Record<string, any>): Int
   };
 }
 
-function maybeCreateTask(event: IntelEvent, dryRun: boolean): number | null {
-  if (dryRun || event.urgency > 1 || event.impact_score < 0.84) return null;
-  const title = `Mortgage Intel: ${event.title.slice(0, 90)}`;
-  const desc = `${event.what_changed}\n\nWhat to do: ${event.what_to_do}`;
-  const sql =
-    "INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata) VALUES " +
-    `('mortgage_intel','${sqlEscape(title)}','${sqlEscape(desc)}',1,'ready',FALSE,` +
-    "'Draft borrower-facing advisory + lock/float outreach list'," +
-    `'${sqlEscape(JSON.stringify({ topic: event.topic, impact_score: event.impact_score, url: event.url }))}'::jsonb) RETURNING id;`;
-  const raw = runPsqlText(sql);
-  return raw ? Number.parseInt(raw, 10) : null;
-}
-
 function parseArgs(argv: string[]) {
   const args = {
     maxItems: 8,
-    createTasks: false,
     dryRun: false,
     json: false,
   };
@@ -342,7 +328,6 @@ function parseArgs(argv: string[]) {
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
     if (a === "--max-items") args.maxItems = Number.parseInt(argv[++i] ?? "8", 10);
-    else if (a === "--create-tasks") args.createTasks = true;
     else if (a === "--dry-run") args.dryRun = true;
     else if (a === "--json") args.json = true;
   }
@@ -411,7 +396,6 @@ async function main(): Promise<number> {
   const maxItems = Math.max(1, args.maxItems);
   const finalAdvisories = advisories.slice(0, maxItems);
 
-  const createdTasks: number[] = [];
   if (!args.dryRun) {
     logEvent(
       `Mortgage intel run completed: ${finalAdvisories.length} advisories`,
@@ -421,23 +405,11 @@ async function main(): Promise<number> {
     );
   }
 
-  if (args.createTasks) {
-    for (const adv of finalAdvisories) {
-      try {
-        const tid = maybeCreateTask(adv, args.dryRun);
-        if (tid) createdTasks.push(tid);
-      } catch (err) {
-        errors.push(`task-create ${adv.title.slice(0, 30)}: ${err instanceof Error ? err.message : String(err)}`);
-      }
-    }
-  }
-
   const payload = {
     source: SOURCE,
     generated_at: now,
     series: rates,
     advisories: finalAdvisories,
-    tasks_created: createdTasks,
     errors,
   };
 

@@ -25,10 +25,9 @@ export type BriefData = {
     bullets: string[];
     status: "ok" | "degraded";
   };
-  tasks: {
-    ready: Array<{ title: string; priority: number; due_at: string | null }>;
-    overdueCount: number;
-    dueTodayCount: number;
+  followUps: {
+    open: Array<{ title: string; system: string | null; severity: string | null; due_at: string | null }>;
+    openCount: number;
     status: "ok" | "degraded";
   };
 };
@@ -80,10 +79,9 @@ function recommendationFromRecovery(score?: number): string {
   return "Red recovery: prioritize sleep debt recovery and execute only must-win tasks.";
 }
 
-function recommendationFromTasks(overdue: number, dueToday: number): string {
-  if (overdue > 0) return `Clear ${overdue} overdue item(s) first before starting any net-new work.`;
-  if (dueToday > 0) return `Front-load due-today items (${dueToday}) in the first execution block.`;
-  return "No urgent blockers: execute highest-value ready task, then advance strategic work.";
+function recommendationFromFollowUps(openCount: number): string {
+  if (openCount > 0) return `Clear or route ${openCount} human-required item(s), then open GitHub issues for durable engineering work.`;
+  return "No human-required blockers: use GitHub Issues for any durable follow-up discovered today.";
 }
 
 function buildBrief(data: BriefData): string {
@@ -114,14 +112,14 @@ function buildBrief(data: BriefData): string {
         recommendation: "Avoid impulsive positioning at open; make one deliberate check-in after the first hour.",
       },
       {
-        title: "4) ✅ Task Board Execution",
+        title: "4) 🧾 Operational Follow-up",
         items: [
-          ...(data.tasks.ready.length
-            ? data.tasks.ready.slice(0, 3).map((t) => `P${t.priority}: ${t.title}${t.due_at ? ` (due ${t.due_at})` : ""}`)
-            : ["No ready tasks found."]),
-          `Overdue: ${data.tasks.overdueCount} | Due today: ${data.tasks.dueTodayCount}`,
+          ...(data.followUps.open.length
+            ? data.followUps.open.slice(0, 3).map((item) => `${item.severity ?? "attention"}: ${item.title}${item.due_at ? ` (due ${item.due_at})` : ""}`)
+            : ["No open human-required items."]),
+          `Open human-required items: ${data.followUps.openCount}`,
         ],
-        recommendation: recommendationFromTasks(data.tasks.overdueCount, data.tasks.dueTodayCount),
+        recommendation: recommendationFromFollowUps(data.followUps.openCount),
       },
     ],
   });
@@ -164,18 +162,22 @@ function collectData(): BriefData {
     status: marketRun.ok ? ("ok" as const) : ("degraded" as const),
   };
 
-  const tasksRun = run("bash", ["-lc", "export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -t -A -c \"WITH q AS (SELECT title, priority, due_at, CASE WHEN due_at < NOW() THEN 'OVERDUE' WHEN due_at < NOW() + INTERVAL '24 hour' THEN 'DUE_TODAY' ELSE 'UPCOMING' END AS urgency FROM cortana_tasks WHERE status='ready' ORDER BY priority ASC, due_at ASC NULLS LAST LIMIT 8) SELECT COALESCE(json_build_object('ready', COALESCE((SELECT json_agg(json_build_object('title', title, 'priority', priority, 'due_at', to_char(due_at, 'Mon DD HH12:MI AM')) ORDER BY priority ASC) FROM q), '[]'::json), 'overdue', COALESCE((SELECT COUNT(*) FROM q WHERE urgency='OVERDUE'),0), 'due_today', COALESCE((SELECT COUNT(*) FROM q WHERE urgency='DUE_TODAY'),0))::text, '{}'::text);\""]);
+  const followUpsRun = run("bash", ["-lc", "export PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\" && psql cortana -t -A -c \"WITH q AS (SELECT title, system, severity, due_at FROM cortana_human_required_actions WHERE status='open' ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, due_at ASC NULLS LAST, last_seen_at DESC LIMIT 8) SELECT COALESCE(json_build_object('open', COALESCE((SELECT json_agg(json_build_object('title', title, 'system', system, 'severity', severity, 'due_at', CASE WHEN due_at IS NULL THEN NULL ELSE to_char(due_at, 'Mon DD HH12:MI AM') END)) FROM q), '[]'::json), 'open_count', COALESCE((SELECT COUNT(*) FROM cortana_human_required_actions WHERE status='open'),0))::text, '{}'::text);\""]);
 
-  let tasks: BriefData["tasks"] = { ready: [], overdueCount: 0, dueTodayCount: 0, status: "degraded" };
-  if (tasksRun.ok) {
+  let followUps: BriefData["followUps"] = { open: [], openCount: 0, status: "degraded" };
+  if (followUpsRun.ok) {
     try {
-      const parsed = JSON.parse(tasksRun.stdout || "{}");
-      tasks = {
-        ready: Array.isArray(parsed.ready)
-          ? parsed.ready.map((x: any) => ({ title: String(x.title ?? "Untitled"), priority: Number(x.priority ?? 3), due_at: x.due_at ? String(x.due_at) : null }))
+      const parsed = JSON.parse(followUpsRun.stdout || "{}");
+      followUps = {
+        open: Array.isArray(parsed.open)
+          ? parsed.open.map((x: any) => ({
+              title: String(x.title ?? "Untitled"),
+              system: x.system ? String(x.system) : null,
+              severity: x.severity ? String(x.severity) : null,
+              due_at: x.due_at ? String(x.due_at) : null,
+            }))
           : [],
-        overdueCount: Number(parsed.overdue ?? 0),
-        dueTodayCount: Number(parsed.due_today ?? 0),
+        openCount: Number(parsed.open_count ?? 0),
         status: "ok",
       };
     } catch {
@@ -183,7 +185,7 @@ function collectData(): BriefData {
     }
   }
 
-  return { nowEt, calendar, fitness, market, tasks };
+  return { nowEt, calendar, fitness, market, followUps };
 }
 
 function appendLog(line: string, logPath = DEFAULT_LOG): void {
@@ -195,7 +197,7 @@ export function runDailyCommandBrief(opts: { dryRun?: boolean; logPath?: string 
     const data = collectData();
     const brief = buildBrief(data);
     process.stdout.write(`${brief}\n`);
-    appendLog(`status=ok dryRun=${Boolean(opts.dryRun)} calendar=${data.calendar.length} tasks=${data.tasks.ready.length}`, opts.logPath ?? DEFAULT_LOG);
+    appendLog(`status=ok dryRun=${Boolean(opts.dryRun)} calendar=${data.calendar.length} followups=${data.followUps.open.length}`, opts.logPath ?? DEFAULT_LOG);
     return 0;
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
@@ -210,4 +212,4 @@ if (process.argv[1] && (import.meta.url === `file://${process.argv[1]}` || proce
   process.exit(runDailyCommandBrief({ dryRun }));
 }
 
-export { buildBrief, recommendationFromRecovery, recommendationFromTasks, parseCalendar };
+export { buildBrief, recommendationFromRecovery, recommendationFromFollowUps, parseCalendar };

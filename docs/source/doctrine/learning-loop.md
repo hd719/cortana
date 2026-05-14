@@ -46,11 +46,10 @@ Hamel: "Don't use heart emojis, we're not like that"
 ### Review Cycle
 Automated reflection loop now runs daily (heartbeat + cortical-loop):
 ```bash
-npx tsx /Users/hd/Developer/cortana/tools/reflection/reflect.ts --mode sweep --trigger-source heartbeat --window-days 30
+npx tsx /Users/hd/Developer/cortana/tools/reflection/correction-strengthener.ts --window-days 30
 ```
 
 It writes:
-- `cortana_task_reflections` (post-task failures/near-misses)
 - `cortana_reflection_rules` (confidence-scored rule extraction)
 - `cortana_reflection_runs` (includes repeated correction rate KPI)
 - `cortana_reflection_journal` (structured learning log)

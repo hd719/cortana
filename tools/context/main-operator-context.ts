@@ -18,10 +18,10 @@ type ReminderItem = {
   listName?: string;
 };
 
-type TaskItem = {
+type FollowUpItem = {
   title: string;
-  status: string;
-  priority: number;
+  system: string | null;
+  severity: string | null;
   due_at: string | null;
 };
 
@@ -29,11 +29,9 @@ type OperatorContext = {
   generatedAt: string;
   schedule: string[];
   reminders: string[];
-  tasks: {
-    items: TaskItem[];
-    overdueCount: number;
-    dueTodayCount: number;
-    inProgressCount: number;
+  followUps: {
+    items: FollowUpItem[];
+    openCount: number;
   };
   warnings: string[];
 };
@@ -161,45 +159,36 @@ function fetchReminders(): { reminders: string[]; warning?: string } {
   return { reminders };
 }
 
-function fetchTasks(): OperatorContext["tasks"] {
-  const rows = queryJson<OperatorContext["tasks"]>(`
-    WITH task_rows AS (
+function fetchFollowUps(): OperatorContext["followUps"] {
+  const rows = queryJson<OperatorContext["followUps"]>(`
+    WITH followup_rows AS (
       SELECT
         title,
-        status,
-        priority,
+        system,
+        severity,
         CASE
           WHEN due_at IS NULL THEN NULL
           ELSE to_char(due_at AT TIME ZONE '${TIME_ZONE}', 'Mon DD HH12:MI AM')
         END AS due_at
-      FROM cortana_tasks
-      WHERE status IN ('in_progress','ready','scheduled')
+      FROM cortana_human_required_actions
+      WHERE status = 'open'
       ORDER BY
-        CASE
-          WHEN status = 'in_progress' THEN 0
-          WHEN due_at IS NOT NULL AND due_at < NOW() THEN 1
-          WHEN due_at IS NOT NULL AND due_at < NOW() + INTERVAL '24 hour' THEN 2
-          ELSE 3
-        END,
-        priority ASC,
+        CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
         due_at ASC NULLS LAST,
+        last_seen_at DESC,
         title ASC
       LIMIT 5
     )
     SELECT COALESCE(json_build_object(
-      'items', COALESCE((SELECT json_agg(task_rows) FROM task_rows), '[]'::json),
-      'overdueCount', COALESCE((SELECT COUNT(*) FROM cortana_tasks WHERE status IN ('in_progress','ready','scheduled') AND due_at IS NOT NULL AND due_at < NOW()), 0),
-      'dueTodayCount', COALESCE((SELECT COUNT(*) FROM cortana_tasks WHERE status IN ('in_progress','ready','scheduled') AND due_at IS NOT NULL AND due_at >= NOW() AND due_at < NOW() + INTERVAL '24 hour'), 0),
-      'inProgressCount', COALESCE((SELECT COUNT(*) FROM cortana_tasks WHERE status = 'in_progress'), 0)
+      'items', COALESCE((SELECT json_agg(followup_rows) FROM followup_rows), '[]'::json),
+      'openCount', COALESCE((SELECT COUNT(*) FROM cortana_human_required_actions WHERE status = 'open'), 0)
     )::text, '{}'::text) AS context_json;
   `);
 
   const parsed = rows[0];
   return {
     items: Array.isArray(parsed?.items) ? parsed.items : [],
-    overdueCount: Number(parsed?.overdueCount ?? 0),
-    dueTodayCount: Number(parsed?.dueTodayCount ?? 0),
-    inProgressCount: Number(parsed?.inProgressCount ?? 0),
+    openCount: Number(parsed?.openCount ?? 0),
   };
 }
 
@@ -210,11 +199,11 @@ export function buildOperatorContext(ctx: OperatorContext): string {
     ...(ctx.schedule.length ? ctx.schedule.map((line) => `- ${line}`) : ["- No calendar blocks today."]),
     "Reminders:",
     ...(ctx.reminders.length ? ctx.reminders.map((line) => `- ${line}`) : ["- No open Cortana reminders."]),
-    "Tasks:",
-    ...(ctx.tasks.items.length
-      ? ctx.tasks.items.map((task) => `- [${task.status}] P${task.priority} ${task.title}${task.due_at ? ` (due ${task.due_at})` : ""}`)
-      : ["- No active ready/in-progress/scheduled tasks."]),
-    `Task counts: overdue=${ctx.tasks.overdueCount}, due_today=${ctx.tasks.dueTodayCount}, in_progress=${ctx.tasks.inProgressCount}`,
+    "Operational Follow-ups:",
+    ...(ctx.followUps.items.length
+      ? ctx.followUps.items.map((item) => `- [${item.severity ?? "attention"}] ${item.title}${item.due_at ? ` (due ${item.due_at})` : ""}`)
+      : ["- No open human-required items."]),
+    `Open human-required items: ${ctx.followUps.openCount}`,
   ];
 
   if (ctx.warnings.length) {
@@ -237,16 +226,16 @@ export function buildBootstrapContext(ctx: OperatorContext): string {
     "Reminders:",
     ...(ctx.reminders.length ? ctx.reminders.slice(0, 4).map((line) => `- ${line}`) : ["- No open Cortana reminders."]),
     "",
-    "Tasks:",
+    "Operational Follow-ups:",
   ];
 
-  if (ctx.tasks.items.length) {
-    lines.push(...ctx.tasks.items.slice(0, 3).map((task) => `- [${task.status}] P${task.priority} ${task.title}${task.due_at ? ` (due ${task.due_at})` : ""}`));
+  if (ctx.followUps.items.length) {
+    lines.push(...ctx.followUps.items.slice(0, 3).map((item) => `- [${item.severity ?? "attention"}] ${item.title}${item.due_at ? ` (due ${item.due_at})` : ""}`));
   } else {
-    lines.push("- No active ready/in-progress/scheduled tasks.");
+    lines.push("- No open human-required items.");
   }
 
-  lines.push(`- Counts: overdue=${ctx.tasks.overdueCount}, due_today=${ctx.tasks.dueTodayCount}, in_progress=${ctx.tasks.inProgressCount}`);
+  lines.push(`- Open count: ${ctx.followUps.openCount}`);
 
   if (ctx.warnings.length) {
     lines.push("");
@@ -268,12 +257,12 @@ export function collectOperatorContext(): OperatorContext {
   const reminderState = fetchReminders();
   if (reminderState.warning) warnings.push(reminderState.warning);
 
-  let tasks: OperatorContext["tasks"] = { items: [], overdueCount: 0, dueTodayCount: 0, inProgressCount: 0 };
+  let followUps: OperatorContext["followUps"] = { items: [], openCount: 0 };
   try {
-    tasks = fetchTasks();
+    followUps = fetchFollowUps();
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    warnings.push(`tasks:${msg}`);
+    warnings.push(`followups:${msg}`);
   }
 
   return {
@@ -288,7 +277,7 @@ export function collectOperatorContext(): OperatorContext {
     }).format(new Date()),
     schedule: parseCalendarEvents([...primary.events, ...clawdbot.events]),
     reminders: reminderState.reminders,
-    tasks,
+    followUps,
     warnings,
   };
 }

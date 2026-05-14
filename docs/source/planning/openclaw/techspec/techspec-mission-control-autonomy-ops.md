@@ -32,8 +32,8 @@ No required Mission Control database schema change for v1.
 The page may read:
 
 - `cortana_autonomy_incidents` through existing Cortana DB access patterns.
-- `cortana_tasks` for linked follow-ups where available.
-- Human-required queue tables after that initiative lands.
+- `cortana_human_required_actions` for operator-owned blockers.
+- GitHub Issues for durable engineering follow-ups.
 
 ### File / Cache Changes
 

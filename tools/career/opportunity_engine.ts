@@ -219,48 +219,15 @@ function chooseMove(candidates: Opportunity[]): Opportunity | null {
   return sorted[0];
 }
 
-function maybeCreateTask(move: Opportunity, threshold: number, dryRun: boolean): number | null {
-  if (dryRun || move.confidence < threshold) return null;
-  const title = `Career Move of the Week: ${move.title.slice(0, 80)}`;
-  const desc =
-    `Why now: ${move.why_now}\n\n` +
-    `ROI=${move.roi} Effort=${move.effort} Confidence=${move.confidence}\n` +
-    "Execution plan:\n- " +
-    move.execution_plan.join("\n- ");
-
-  const meta = {
-    source: move.source,
-    url: move.url,
-    tags: move.tags,
-    goal_match: move.goal_match,
-    confidence: move.confidence,
-  };
-
-  const sql =
-    "INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata) VALUES " +
-    `('opportunity_engine','${sqlEscape(title)}','${sqlEscape(desc)}',2,'ready',TRUE,` +
-    "'Execute this move in one focused block and capture artifact.'," +
-    `'${sqlEscape(JSON.stringify(meta))}'::jsonb) RETURNING id;`;
-
-  const raw = runPsqlText(sql);
-  return raw ? Number.parseInt(raw, 10) : null;
-}
-
 function parseArgs(argv: string[]) {
   const args = {
-    taskThreshold: 0.82,
-    createTask: false,
     dryRun: false,
     json: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
     const a = argv[i];
-    if (a === "--task-threshold") {
-      args.taskThreshold = Number.parseFloat(argv[++i] ?? "0.82");
-    } else if (a === "--create-task") {
-      args.createTask = true;
-    } else if (a === "--dry-run") {
+    if (a === "--dry-run") {
       args.dryRun = true;
     } else if (a === "--json") {
       args.json = true;
@@ -316,15 +283,6 @@ async function main(): Promise<number> {
   }
 
   const move = chooseMove(opportunities);
-  let createdTask: number | null = null;
-
-  if (move && args.createTask) {
-    try {
-      createdTask = maybeCreateTask(move, args.taskThreshold, args.dryRun);
-    } catch (err) {
-      errors.push(`task-create: ${err instanceof Error ? err.message : String(err)}`);
-    }
-  }
 
   if (move) {
     logEvent(
@@ -335,7 +293,6 @@ async function main(): Promise<number> {
         confidence: move.confidence,
         roi: move.roi,
         effort: move.effort,
-        task_id: createdTask,
         errors: errors.slice(0, 6),
       },
       args.dryRun,
@@ -348,7 +305,6 @@ async function main(): Promise<number> {
     signals_seen: signals.length,
     opportunities_scored: opportunities.length,
     career_move_of_the_week: move ?? null,
-    task_created: createdTask,
     errors,
   };
 
@@ -365,9 +321,6 @@ async function main(): Promise<number> {
       console.log("- execution plan:");
       for (const step of move.execution_plan) {
         console.log(`  - ${step}`);
-      }
-      if (createdTask) {
-        console.log(`- task created: #${createdTask}`);
       }
     }
     if (errors.length) {

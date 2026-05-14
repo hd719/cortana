@@ -21,7 +21,7 @@ type Action = {
   pillar: Pillar;
   text: string;
   minutes: number;
-  source: "task" | "sitrep" | "fallback";
+  source: "signal" | "sitrep" | "fallback";
 };
 
 const PILLARS: Pillar[] = ["time", "health", "wealth", "career"];
@@ -109,7 +109,7 @@ export function buildActions(tasks: TaskRow[], sitrepRows: SitrepRow[]): Action[
       pillar,
       text: shorten(task.title),
       minutes: MINUTES_BY_PILLAR[pillar],
-      source: "task",
+      source: "signal",
     });
   }
 
@@ -163,14 +163,21 @@ export function validateScorecard(output: string): { ok: boolean; errors: string
   return { ok: errors.length === 0, errors };
 }
 
-function fetchTasks(): TaskRow[] {
+function fetchActionCandidates(): TaskRow[] {
   return queryJson<TaskRow>(`
     SELECT COALESCE(json_agg(t), '[]'::json)
     FROM (
-      SELECT id, title, description, priority, status, due_at
-      FROM cortana_tasks
-      WHERE status IN ('ready','in_progress')
-      ORDER BY priority ASC, due_at ASC NULLS LAST, created_at ASC
+      SELECT
+        id,
+        COALESCE(action_suggested, title) AS title,
+        description,
+        priority,
+        CASE WHEN acted_on THEN 'acted' ELSE 'open' END AS status,
+        acted_at AS due_at
+      FROM cortana_insights
+      WHERE action_suggested IS NOT NULL
+        AND acted_on = false
+      ORDER BY priority ASC NULLS LAST, timestamp DESC
       LIMIT 30
     ) t;
   `);
@@ -195,7 +202,7 @@ function pickMit(actions: Action[], tasks: TaskRow[]): string {
 
 export function main(): void {
   const args = new Set(process.argv.slice(2));
-  const tasks = fetchTasks();
+  const tasks = fetchActionCandidates();
   const sitrep = fetchSitrep();
   const actions = buildActions(tasks, sitrep);
   const mit = pickMit(actions, tasks);

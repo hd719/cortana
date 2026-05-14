@@ -4,6 +4,7 @@ import { spawnSync } from "node:child_process";
 import { withPostgresPath } from "../lib/db.js";
 import { PSQL_BIN } from "../lib/paths.js";
 import { runGogWithEnv } from "./gog-with-env.js";
+import { reportOperationalIssue } from "../github/issue-reporter.ts";
 
 function sqlEscape(v: string): string {
   return (v || "").replace(/'/g, "''");
@@ -30,6 +31,15 @@ function isAuthFailure(text: string): boolean {
   return /auth|oauth|token|invalid_grant|unauthori[sz]ed|credential|login|consent|expired|reauth/i.test(
     text,
   );
+}
+
+function parseMetadata(meta: string): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(meta);
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
 }
 
 function runGog(
@@ -83,51 +93,25 @@ async function main(): Promise<void> {
   };
 
   const createAlert = (title: string, desc: string, meta = "{}") => {
-    const sql = `
-      WITH existing AS (
-        SELECT id
-        FROM cortana_tasks
-        WHERE source='${source}'
-          AND title='${sqlEscape(title)}'
-          AND status IN ('ready','in_progress','scheduled')
-        ORDER BY id DESC
-        LIMIT 1
-      ), updated AS (
-        UPDATE cortana_tasks
-        SET
-          description='${sqlEscape(desc)}',
-          priority=1,
-          metadata=COALESCE(metadata, '{}'::jsonb) || '${sqlEscape(meta)}'::jsonb,
-          updated_at=NOW()
-        WHERE id IN (SELECT id FROM existing)
-        RETURNING id
-      )
-      INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata)
-      SELECT '${source}', '${sqlEscape(title)}', '${sqlEscape(desc)}', 1, 'ready', FALSE, 'Investigate gog OAuth auth failure and re-authorize if needed.', '${sqlEscape(meta)}'::jsonb
-      WHERE NOT EXISTS (SELECT 1 FROM updated);
-    `;
-    run(PSQL_BIN, [db, "-c", sql], env);
+    reportOperationalIssue({
+      title,
+      summary: desc,
+      source,
+      category: "auth-expired",
+      severity: "critical",
+      system: "gog",
+      repoHint: "cortana-external",
+      evidence: {
+        account,
+        calendarId,
+        metadata: parseMetadata(meta),
+      },
+      recommendedAction: "Reauthorize Gog locally, then rerun the calendar sync probe.",
+    });
   };
 
-  const resolveAlert = (title: string, meta = "{}") => {
-    const outcome = "Auto-resolved: Gog OAuth probe passed after env-aware calendar read.";
-    const sql = `
-      UPDATE cortana_tasks
-      SET
-        status='completed',
-        completed_at=COALESCE(completed_at, NOW()),
-        outcome=CASE
-          WHEN COALESCE(outcome, '') = '' THEN '${sqlEscape(outcome)}'
-          WHEN POSITION('${sqlEscape(outcome)}' IN outcome) > 0 THEN outcome
-          ELSE outcome || E'\\n${sqlEscape(outcome)}'
-        END,
-        metadata=COALESCE(metadata, '{}'::jsonb) || '${sqlEscape(meta)}'::jsonb,
-        updated_at=NOW()
-      WHERE source='${source}'
-        AND title='${sqlEscape(title)}'
-        AND status IN ('ready','in_progress','scheduled');
-    `;
-    run(PSQL_BIN, [db, "-c", sql], env);
+  const resolveAlert = (_title: string, _meta = "{}") => {
+    // GitHub Issues remain the durable queue; this script only emits health events.
   };
 
   let probe = runCalendarProbe(account, calendarId);
@@ -153,6 +137,7 @@ async function main(): Promise<void> {
     );
     console.log("gog oauth ok");
     process.exit(0);
+    return;
   }
 
   if (!isAuthFailure(probeText)) {
@@ -163,6 +148,7 @@ async function main(): Promise<void> {
     );
     console.error(`gog oauth probe failed (non-auth): ${probeText}`);
     process.exit(1);
+    return;
   }
 
   const authList = runGog(["auth", "list", "--json", "--no-input"]);
@@ -181,6 +167,7 @@ async function main(): Promise<void> {
         );
         console.log("gog oauth recovered via keyring backend switch");
         process.exit(0);
+        return;
       }
       logEvent(
         "error",
@@ -209,6 +196,7 @@ async function main(): Promise<void> {
   );
   console.error(`gog oauth auth-error: ${guidance} ${probeText}`);
   process.exit(1);
+  return;
 }
 
 main();

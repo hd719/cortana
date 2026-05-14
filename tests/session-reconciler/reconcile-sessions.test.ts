@@ -1,60 +1,90 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { flushModuleSideEffects, importFresh, mockExit, resetProcess, setArgv } from "../test-utils";
 
-const spawnSync = vi.hoisted(() => vi.fn());
-const safeJsonParse = vi.hoisted(() => vi.fn());
-
-vi.mock("child_process", () => ({
-  spawnSync,
+const fsMock = vi.hoisted(() => ({
+  existsSync: vi.fn(),
+  readFileSync: vi.fn(),
+  copyFileSync: vi.fn(),
+  writeFileSync: vi.fn(),
+  renameSync: vi.fn(),
 }));
+const runPsql = vi.hoisted(() => vi.fn());
+
+vi.mock("node:fs", () => ({ default: fsMock, ...fsMock }));
 vi.mock("../../tools/lib/db.js", () => ({
-  withPostgresPath: (env: NodeJS.ProcessEnv) => env,
-}));
-vi.mock("../../tools/lib/paths.js", () => ({
-  repoRoot: () => "/repo",
-}));
-vi.mock("../../tools/lib/json-file.js", () => ({
-  safeJsonParse,
+  runPsql,
 }));
 
 beforeEach(() => {
-  spawnSync.mockReset();
-  safeJsonParse.mockReset();
+  fsMock.existsSync.mockReset();
+  fsMock.readFileSync.mockReset();
+  fsMock.copyFileSync.mockReset();
+  fsMock.writeFileSync.mockReset();
+  fsMock.renameSync.mockReset();
+  runPsql.mockReset();
 });
 
 afterEach(() => {
   vi.restoreAllMocks();
-  resetProcess();
+  delete process.env.OPENCLAW_SESSIONS_FILE;
 });
 
 describe("reconcile-sessions", () => {
-  it("exits with child status", async () => {
-    const exitSpy = mockExit();
-    setArgv([]);
-    spawnSync.mockReturnValue({ status: 0 } as any);
+  it("reconciles missing completed session files in dry-run mode", async () => {
+    process.env.OPENCLAW_SESSIONS_FILE = "/tmp/sessions.json";
+    fsMock.existsSync.mockImplementation((filePath: string) => filePath === "/tmp/sessions.json");
+    fsMock.readFileSync.mockReturnValue(JSON.stringify({
+      "session-1": {
+        status: "running",
+        sessionFile: "/tmp/missing.jsonl",
+        result: "done",
+      },
+    }));
+    runPsql.mockReturnValue({ status: 0, stdout: "[]", stderr: "" });
 
-    await importFresh("../../tools/session-reconciler/reconcile-sessions.ts");
-    await flushModuleSideEffects();
-    expect(exitSpy).toHaveBeenCalledWith(0);
+    const { main } = await import("../../tools/session-reconciler/reconcile-sessions.ts");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const originalArgv = process.argv;
+    process.argv = ["node", "reconcile-sessions.ts", "--dry-run"];
+
+    await main();
+
+    process.argv = originalArgv;
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('"sessions_reconciled":1'));
+    expect(fsMock.writeFileSync).not.toHaveBeenCalled();
+    logSpy.mockRestore();
   });
 
-  it("propagates non-zero status", async () => {
-    const exitSpy = mockExit();
-    setArgv([]);
-    spawnSync.mockReturnValue({ status: 5 } as any);
+  it("marks orphaned covenant runs and emits run events", async () => {
+    process.env.OPENCLAW_SESSIONS_FILE = "/tmp/sessions.json";
+    fsMock.existsSync.mockReturnValue(true);
+    fsMock.readFileSync.mockReturnValue(JSON.stringify({ "active-session": { status: "running" } }));
+    runPsql
+      .mockReturnValueOnce({
+        status: 0,
+        stdout: JSON.stringify([{ id: 42, agent: "main", mission: "debug", session_key: "missing-session", started_at: "2026-05-14T00:00:00Z" }]),
+        stderr: "",
+      })
+      .mockReturnValue({ status: 0, stdout: "", stderr: "" });
 
-    await importFresh("../../tools/session-reconciler/reconcile-sessions.ts");
-    await flushModuleSideEffects();
-    expect(exitSpy).toHaveBeenCalledWith(5);
+    const { main } = await import("../../tools/session-reconciler/reconcile-sessions.ts");
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    const originalArgv = process.argv;
+    process.argv = ["node", "reconcile-sessions.ts"];
+
+    await main();
+
+    process.argv = originalArgv;
+    expect(runPsql).toHaveBeenCalledWith(expect.stringContaining("UPDATE cortana_covenant_runs"), { db: "cortana" });
+    expect(runPsql).toHaveBeenCalledWith(expect.stringContaining("INSERT INTO cortana_run_events"), { db: "cortana" });
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('"runs_reconciled_unknown":1'));
+    logSpy.mockRestore();
   });
 
-  it("defaults to exit 1 when status missing", async () => {
-    const exitSpy = mockExit();
-    setArgv([]);
-    spawnSync.mockReturnValue({} as any);
+  it("fails when the OpenClaw sessions file is missing", async () => {
+    process.env.OPENCLAW_SESSIONS_FILE = "/tmp/missing-sessions.json";
+    fsMock.existsSync.mockReturnValue(false);
 
-    await importFresh("../../tools/session-reconciler/reconcile-sessions.ts");
-    await flushModuleSideEffects();
-    expect(exitSpy).toHaveBeenCalledWith(1);
+    const { main } = await import("../../tools/session-reconciler/reconcile-sessions.ts");
+    await expect(main()).rejects.toThrow("sessions file missing");
   });
 });

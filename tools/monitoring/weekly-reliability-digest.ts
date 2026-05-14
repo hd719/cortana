@@ -8,10 +8,10 @@ type Overview = {
   cron_sla_delta: number | null;
   incident_count_7d: number;
   mttr_minutes_7d: number | null;
-  open_risk_count: number;
+  open_human_required_count: number;
 };
 
-type OpenRisk = { id: number; title: string; status: string; priority: number | null; severity: string | null };
+type OpenFollowUp = { id: number; title: string; system: string | null; severity: string | null };
 
 function num(v: unknown): number | null {
   if (v === null || v === undefined || v === "") return null;
@@ -60,12 +60,8 @@ function fetchOverview(windowDays: number): Overview {
     ),
     risks AS (
       SELECT COUNT(*)::int AS c
-      FROM cortana_tasks
-      WHERE status IN ('ready','in_progress')
-        AND (
-          COALESCE(metadata->>'severity','') IN ('P0','P1','P2')
-          OR COALESCE(metadata->>'priority_label','') IN ('P0','P1','P2')
-        )
+      FROM cortana_human_required_actions
+      WHERE status = 'open'
     )
     SELECT json_build_object(
       'window_days', (SELECT wd FROM params),
@@ -74,7 +70,7 @@ function fetchOverview(windowDays: number): Overview {
       'cron_sla_prev_7d', (SELECT v FROM sla_prev),
       'incident_count_7d', (SELECT c FROM incidents),
       'mttr_minutes_7d', (SELECT m FROM mttr),
-      'open_risk_count', (SELECT c FROM risks)
+      'open_human_required_count', (SELECT c FROM risks)
     );
   `);
 
@@ -89,33 +85,30 @@ function fetchOverview(windowDays: number): Overview {
     cron_sla_delta: pct(cronCurr, cronPrev),
     incident_count_7d: Number(row?.incident_count_7d ?? 0),
     mttr_minutes_7d: num(row?.mttr_minutes_7d),
-    open_risk_count: Number(row?.open_risk_count ?? 0),
+    open_human_required_count: Number(row?.open_human_required_count ?? 0),
   };
 }
 
-function fetchOpenRisks(limit: number): OpenRisk[] {
-  return queryJson<OpenRisk>(`
+function fetchOpenFollowUps(limit: number): OpenFollowUp[] {
+  return queryJson<OpenFollowUp>(`
     SELECT COALESCE(json_agg(t), '[]'::json)
     FROM (
       SELECT
         id,
         title,
-        status,
-        priority,
-        COALESCE(metadata->>'severity', metadata->>'priority_label') AS severity
-      FROM cortana_tasks
-      WHERE status IN ('ready','in_progress')
-        AND (
-          COALESCE(metadata->>'severity','') IN ('P0','P1','P2')
-          OR COALESCE(metadata->>'priority_label','') IN ('P0','P1','P2')
-        )
-      ORDER BY priority ASC NULLS LAST, created_at ASC
+        system,
+        severity
+      FROM cortana_human_required_actions
+      WHERE status = 'open'
+      ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+               due_at ASC NULLS LAST,
+               last_seen_at DESC
       LIMIT ${Math.max(1, Math.min(limit, 10))}
     ) t;
   `);
 }
 
-export function renderDigest(overview: Overview, openRisks: OpenRisk[]): string {
+export function renderDigest(overview: Overview, openFollowUps: OpenFollowUp[]): string {
   const trend = overview.cron_sla_delta === null
     ? "n/a"
     : `${overview.cron_sla_delta > 0 ? "+" : ""}${overview.cron_sla_delta.toFixed(2)}pp`;
@@ -127,13 +120,13 @@ export function renderDigest(overview: Overview, openRisks: OpenRisk[]): string 
     `• Cron SLA (7d): ${overview.cron_sla_7d ?? "n/a"}% (prev ${overview.cron_sla_prev_7d ?? "n/a"}%, trend ${trend})`,
     `• Incidents (warn/error/critical, 7d): ${overview.incident_count_7d}`,
     `• MTTR (resolved immune incidents, 7d): ${mttr}`,
-    `• Open risks (P0/P1/P2 ready+in_progress): ${overview.open_risk_count}`,
+    `• Open human-required items: ${overview.open_human_required_count}`,
   ];
 
-  if (openRisks.length > 0) {
-    lines.push("• Top open risks:");
-    for (const r of openRisks) {
-      lines.push(`  - #${r.id} [${r.severity ?? "NA"}] ${r.title}`);
+  if (openFollowUps.length > 0) {
+    lines.push("• Top human-required items:");
+    for (const r of openFollowUps) {
+      lines.push(`  - #${r.id} [${r.severity ?? "NA"}] ${r.title}${r.system ? ` (${r.system})` : ""}`);
     }
   }
 
@@ -146,11 +139,11 @@ export function main(): void {
   const riskLimit = Number(process.env.RELIABILITY_DIGEST_RISK_LIMIT ?? 3);
 
   const overview = fetchOverview(Number.isFinite(windowDays) && windowDays > 0 ? windowDays : 7);
-  const openRisks = fetchOpenRisks(Number.isFinite(riskLimit) && riskLimit > 0 ? riskLimit : 3);
-  const digest = renderDigest(overview, openRisks);
+  const openFollowUps = fetchOpenFollowUps(Number.isFinite(riskLimit) && riskLimit > 0 ? riskLimit : 3);
+  const digest = renderDigest(overview, openFollowUps);
 
   if (args.has("--json")) {
-    process.stdout.write(`${JSON.stringify({ overview, openRisks, digest }, null, 2)}\n`);
+    process.stdout.write(`${JSON.stringify({ overview, openFollowUps, digest }, null, 2)}\n`);
     return;
   }
 

@@ -140,55 +140,6 @@ function logDecision(db: string, dec: GovernorDecision): void {
   runPsqlChecked(db, sql);
 }
 
-function updateTaskQueueState(db: string, dec: GovernorDecision): void {
-  if (dec.task_id === null || dec.decision !== "escalated") return;
-  const rationale = sqlStr(`Queued for human approval by governor: ${dec.rationale}`);
-  const sql = `
-    UPDATE cortana_tasks
-    SET status='ready',
-        assigned_to='governor',
-        outcome='${rationale}',
-        metadata = COALESCE(metadata, '{}'::jsonb)
-            || jsonb_build_object(
-                'governor', jsonb_build_object(
-                    'decision', '${sqlStr(dec.decision)}',
-                    'action_type', '${sqlStr(dec.action_type)}',
-                    'risk_score', ${dec.risk_score},
-                    'threshold', ${dec.threshold},
-                    'queued_for_approval', true,
-                    'evaluated_at', NOW()::text
-                )
-            )
-    WHERE id=${Number(dec.task_id)};
-    `;
-  runPsqlChecked(db, sql);
-}
-
-function updateTaskDeniedState(db: string, dec: GovernorDecision): void {
-  if (dec.task_id === null || dec.decision !== "denied") return;
-  const rationale = sqlStr(`Denied by governor: ${dec.rationale}`);
-  const sql = `
-    UPDATE cortana_tasks
-    SET status='cancelled',
-        assigned_to='governor',
-        outcome='${rationale}',
-        completed_at=NOW(),
-        metadata = COALESCE(metadata, '{}'::jsonb)
-            || jsonb_build_object(
-                'governor', jsonb_build_object(
-                    'decision', '${sqlStr(dec.decision)}',
-                    'action_type', '${sqlStr(dec.action_type)}',
-                    'risk_score', ${dec.risk_score},
-                    'threshold', ${dec.threshold},
-                    'queued_for_approval', false,
-                    'evaluated_at', NOW()::text
-                )
-            )
-    WHERE id=${Number(dec.task_id)};
-    `;
-  runPsqlChecked(db, sql);
-}
-
 function stringifySortedCompact(value: any): string {
   const seen = new WeakSet();
   const render = (val: any): string => {
@@ -217,7 +168,6 @@ function parseArgs(argv: string[]) {
     taskJson: "",
     actor: "auto-executor",
     log: false,
-    applyTaskState: false,
   };
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -232,8 +182,6 @@ function parseArgs(argv: string[]) {
       args.actor = argv[++i] ?? args.actor;
     } else if (a === "--log") {
       args.log = true;
-    } else if (a === "--apply-task-state") {
-      args.applyTaskState = true;
     }
   }
   return args;
@@ -256,11 +204,6 @@ async function main(): Promise<number> {
 
   if (args.log) {
     logDecision(args.db, decision);
-  }
-
-  if (args.applyTaskState) {
-    updateTaskQueueState(args.db, decision);
-    updateTaskDeniedState(args.db, decision);
   }
 
   const payload = {

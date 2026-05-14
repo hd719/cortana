@@ -99,71 +99,6 @@ function writeAnomalyEvent(anomaly: Anomaly): void {
   runPsql(sql);
 }
 
-function detectTaskRetries(days: number): Anomaly[] {
-  const rows = fetchJson(
-    `
-        WITH grouped AS (
-          SELECT date_trunc('day', created_at) AS day,
-                 COALESCE(source,'unknown') AS source,
-                 lower(regexp_replace(COALESCE(title,''), '\\s+', ' ', 'g')) AS launch_key,
-                 COUNT(*) AS c
-          FROM cortana_tasks
-          WHERE created_at >= NOW() - INTERVAL '${days} days'
-          GROUP BY 1,2,3
-          HAVING COUNT(*) >= 2
-        )
-        SELECT day::date AS day, COUNT(*)::int AS duplicate_groups, SUM(c)::int AS duplicate_launches
-        FROM grouped
-        GROUP BY 1
-        ORDER BY 1
-        `
-  );
-  if (!Array.isArray(rows) || rows.length < 3) return [];
-
-  const series = rows.map((r: any) => Number(r.duplicate_groups ?? 0));
-  const latest = series[series.length - 1];
-  const baseline = series.slice(0, -1);
-  const [triggered, mu, sigma, z] = spikeTest("duplicate_launch_groups_per_day", latest, baseline, {
-    hardThreshold: 3,
-    zThreshold: 2.0,
-    ratioThreshold: 1.7,
-  });
-  if (!triggered) return [];
-
-  const topOffenders = fetchJson(
-    `
-        SELECT COALESCE(source,'unknown') AS source,
-               lower(regexp_replace(COALESCE(title,''), '\\s+', ' ', 'g')) AS launch_key,
-               COUNT(*)::int AS launches,
-               MIN(created_at) AS first_seen,
-               MAX(created_at) AS last_seen
-        FROM cortana_tasks
-        WHERE created_at >= NOW() - INTERVAL '48 hours'
-        GROUP BY 1,2
-        HAVING COUNT(*) >= 2
-        ORDER BY launches DESC, last_seen DESC
-        LIMIT 8
-        `
-  );
-
-  const a: Anomaly = {
-    anomaly_class: "task_retry_duplicate_launches",
-    severity: latest < 8 ? "warning" : "error",
-    title: "Repeated task retries / duplicate launches",
-    message: `Duplicate launch groups rose to ${Math.trunc(latest)} today (baseline ${mu.toFixed(2)}).`,
-    fingerprint: "task_retry_duplicate_launches:global",
-    metric_name: "duplicate_launch_groups_per_day",
-    latest_value: latest,
-    baseline_mean: mu,
-    baseline_stddev: sigma,
-    z_score: z,
-    threshold: 3.0,
-    details: { days, series: rows, top_offenders_48h: topOffenders },
-  };
-
-  return [a];
-}
-
 function detectTimeoutRate(days: number): Anomaly[] {
   const rows = fetchJson(
     `
@@ -355,7 +290,7 @@ function runScan(days: number, suppressionHours: number, dryRun = false): Json {
   const anomalies: Anomaly[] = [];
   const detectorErrors: string[] = [];
 
-  for (const detector of [detectTaskRetries, detectTimeoutRate, detectCronFailureClusters, detectTokenBurnSpike]) {
+  for (const detector of [detectTimeoutRate, detectCronFailureClusters, detectTokenBurnSpike]) {
     try {
       anomalies.push(...detector(days));
     } catch (e) {

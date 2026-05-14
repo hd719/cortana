@@ -45,14 +45,13 @@ This is curated long-term memory for `main`. Generated daily/session details bel
 - Sub-agent launches must be real before reporting them; never claim a launch without a returned run id.
 - Scope spawned work tightly; tell workers what not to modify.
 
-## Task Board
+## Durable Follow-up
 
-- Canonical states: `backlog`, `scheduled`, `ready`, `in_progress`, `completed`, `failed`, `cancelled`.
-- "Do all tasks" means `ready` only.
-- Auto-executor uses `status='ready' AND auto_executable=TRUE`.
-- Backlog/future scheduled tasks are not executed early.
-- Spawn tied to a task must set the task `in_progress` atomically.
-- Completion tied to a task must update `status`, `outcome`, and `completed_at` before reporting completion.
+- GitHub Issues are the durable work tracker for real persistent problems.
+- Runtime, Mission Control, external-service, market data, WHOOP, Schwab, and deployed-service issues route to `cortana-external`.
+- Doctrine, cron prompts, agent behavior, memory, OpenClaw policy, and command-brain issues route to `cortana`.
+- Create issues only for high-signal repeated failures, degraded services, auth/human-action-required states, monitor regressions, or QA/test failures after a change.
+- Do not create issues for transient warnings, successful auto-heals, routine summaries, or historical noise.
 
 ## Ops Rules
 

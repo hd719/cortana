@@ -24,11 +24,9 @@ describe("buildOperatorContext", () => {
       generatedAt: "Mon, Apr 6, 8:00 AM",
       schedule: ["9:00 AM - Standup"],
       reminders: ["Submit quiz"],
-      tasks: {
-        items: [{ title: "Finish bug fix", status: "ready", priority: 1, due_at: "Apr 06 05:00 PM" }],
-        overdueCount: 0,
-        dueTodayCount: 1,
-        inProgressCount: 0,
+      followUps: {
+        items: [{ title: "Fix degraded runtime", system: "mission-control", severity: "high", due_at: "Apr 06 05:00 PM" }],
+        openCount: 1,
       },
       warnings: [],
     });
@@ -38,9 +36,9 @@ describe("buildOperatorContext", () => {
     expect(text).toContain("- 9:00 AM - Standup");
     expect(text).toContain("Reminders:");
     expect(text).toContain("- Submit quiz");
-    expect(text).toContain("Tasks:");
-    expect(text).toContain("- [ready] P1 Finish bug fix (due Apr 06 05:00 PM)");
-    expect(text).toContain("Task counts: overdue=0, due_today=1, in_progress=0");
+    expect(text).toContain("Operational Follow-ups:");
+    expect(text).toContain("- [high] Fix degraded runtime (due Apr 06 05:00 PM)");
+    expect(text).toContain("Open human-required items: 1");
   });
 });
 
@@ -50,11 +48,9 @@ describe("buildBootstrapContext", () => {
       generatedAt: "Mon, Apr 6, 8:00 AM",
       schedule: ["9:00 AM - Standup"],
       reminders: ["Submit quiz"],
-      tasks: {
-        items: [{ title: "Finish bug fix", status: "ready", priority: 1, due_at: "Apr 06 05:00 PM" }],
-        overdueCount: 0,
-        dueTodayCount: 1,
-        inProgressCount: 0,
+      followUps: {
+        items: [{ title: "Fix degraded runtime", system: "mission-control", severity: "high", due_at: "Apr 06 05:00 PM" }],
+        openCount: 1,
       },
       warnings: ["calendar:primary:slow"],
     });
@@ -65,9 +61,9 @@ describe("buildBootstrapContext", () => {
     expect(text).toContain("- 9:00 AM - Standup");
     expect(text).toContain("Reminders:");
     expect(text).toContain("- Submit quiz");
-    expect(text).toContain("Tasks:");
-    expect(text).toContain("- [ready] P1 Finish bug fix (due Apr 06 05:00 PM)");
-    expect(text).toContain("- Counts: overdue=0, due_today=1, in_progress=0");
+    expect(text).toContain("Operational Follow-ups:");
+    expect(text).toContain("- [high] Fix degraded runtime (due Apr 06 05:00 PM)");
+    expect(text).toContain("- Open count: 1");
     expect(text).toContain("Warnings:");
   });
 });

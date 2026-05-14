@@ -113,7 +113,7 @@ This system is now explicitly **dispatcher-first**:
 ### 0.2 Live execution rules
 
 1. Cortana does **not** self-author PRs by default.
-2. Code/infra/PR implementation routes to **Huragok** unless Hamel explicitly directs direct execution.
+2. Code/infra/PR implementation routes to **Arbiter** unless Hamel explicitly directs direct execution.
 3. Specialist outputs delivered directly to Hamel are **not re-relayed** by Cortana.
 4. Any status claim must be check-backed (CI/cron/runtime).
 5. Mistakes are corrected fast with verified closure.
@@ -123,14 +123,12 @@ This system is now explicitly **dispatcher-first**:
 ```mermaid
 flowchart LR
   H[Hamel] --> C[Cortana / main\nCommand Deck]
-  C -->|TASK| R[Researcher]
-  C -->|TASK| U[Huragok]
-  C -->|TASK| O[Oracle]
+  C -->|TASK| A[Arbiter]
   C -->|TASK| M[Monitor]
-  R --> T[(Telegram <PRIMARY_TELEGRAM_TARGET>)]
-  U --> T
-  O --> T
+  C -->|TASK| S[Spartan]
+  A --> T[(Telegram <PRIMARY_TELEGRAM_TARGET>)]
   M --> T
+  S --> T
   C -->|coordination/synthesis| T
 ```
 
@@ -143,17 +141,14 @@ flowchart TD
   A -->|No| B{Single low-risk tool call?}
   B -->|Yes| INLINE[Cortana may execute inline]
   B -->|No| C{Implementation / code / PR?}
-  C -->|Yes| H[Route to Huragok]
-  C -->|No| D{Research / news / analysis?}
-  D -->|Yes| R[Route to Researcher]
-  D -->|No| E{Market / portfolio?}
-  E -->|Yes| O[Route to Oracle]
-  E -->|No| F{Health / cron / drift / incidents?}
+  C -->|Yes| A[Route to Arbiter]
+  C -->|No| D{Fitness / recovery / training?}
+  D -->|Yes| S[Route to Spartan]
+  D -->|No| F{Health / cron / drift / incidents?}
   F -->|Yes| M[Route to Monitor]
-  F -->|No| G[Choose safest specialist/subagent path]
-  H --> V[Verify completion + status]
-  R --> V
-  O --> V
+  F -->|No| G[Cortana handles directly or opens a GitHub Issue]
+  A --> V[Verify completion + status]
+  S --> V
   M --> V
   G --> V
   V --> RESP[Respond with verified state only]
@@ -164,10 +159,9 @@ flowchart TD
 | Lane | Session key | Owns | Must not own | Delivery rule |
 |---|---|---|---|---|
 | Cortana | `agent:main:main` | Coordination, decisions, synthesis, escalation | Default implementation/PR authoring | Only high-signal summaries |
-| Huragok | `agent:huragok:main` | Code changes, repo fixes, CI fixes, PR creation | Market/news synthesis ownership | Direct `message` to Telegram target `<PRIMARY_TELEGRAM_TARGET>` |
-| Researcher | `agent:researcher:main` | News, research, evidence gathering | Infra implementation | Direct `message` to Telegram target `<PRIMARY_TELEGRAM_TARGET>` |
-| Oracle | `agent:oracle:main` | Market pulse, portfolio/strategy analysis | Repo/infra implementation | Direct `message` to Telegram target `<PRIMARY_TELEGRAM_TARGET>` |
+| Arbiter | `agent:arbiter:main` | Code changes, repo fixes, CI fixes, PR creation, architecture review | Fitness coaching or routine cron monitoring | Direct `message` to Telegram target `<PRIMARY_TELEGRAM_TARGET>` |
 | Monitor | `agent:monitor:main` | Runtime health, cron delivery, drift, incident checks | Feature implementation | Direct `message` to Telegram target `<PRIMARY_TELEGRAM_TARGET>` |
+| Spartan | `agent:spartan:main` | Fitness, recovery, WHOOP/Tonal analysis, training feedback | Repo/infra implementation | Direct `message` to Telegram target `<PRIMARY_TELEGRAM_TARGET>` |
 
 ### 0.6 TASK-lane payload contract (`sessions_send`)
 
@@ -208,10 +202,9 @@ If someone new opens this repo, they should assume:
    Cortana should route work to specialist lanes and avoid default implementation/PR authoring.
 
 3. **Specialists are first-class execution owners.**
-   - Huragok = implementation/PR/infra
-   - Researcher = research/news synthesis
-   - Oracle = market/portfolio analysis
+   - Arbiter = implementation/PR/infra/architecture review
    - Monitor = runtime/cron/drift/reliability
+   - Spartan = fitness/recovery/training analysis
 
 4. **Delivery path is explicit.**
    Specialist outputs generally deliver directly to Telegram target `<PRIMARY_TELEGRAM_TARGET>` via `message` tool.
@@ -241,10 +234,9 @@ flowchart TB
   end
 
   subgraph Execution Layer
-    U[Huragok\nImplement + PR + Infra]
-    R[Researcher\nResearch + News]
-    O[Oracle\nMarket + Portfolio]
+    A[Arbiter\nImplement + PR + Infra]
     M[Monitor\nHealth + Cron + Drift]
+    SP[Spartan\nFitness + Recovery]
   end
 
   subgraph Control Artifacts
@@ -257,15 +249,13 @@ flowchart TB
   end
 
   H --> C
-  C -->|TASK dispatch| U
-  C -->|TASK dispatch| R
-  C -->|TASK dispatch| O
+  C -->|TASK dispatch| A
   C -->|TASK dispatch| M
+  C -->|TASK dispatch| SP
 
-  U -->|direct delivery| H
-  R -->|direct delivery| H
-  O -->|direct delivery| H
+  A -->|direct delivery| H
   M -->|direct delivery| H
+  SP -->|direct delivery| H
 
   S --> C
   OR --> C
@@ -282,10 +272,9 @@ flowchart TB
 | Agent | Session key | Primary accountId for delivery | Owns (explicit) | Must escalate to |
 |---|---|---:|---|---|
 | Cortana | `agent:main:main` | `default` | triage, routing, synthesis, escalation decisions, final command recommendations | specialist lane or user decision |
-| Huragok | `agent:huragok:main` | `huragok` | implementation, repo operations, CI fixes, PR creation, infra/tooling changes | Cortana for strategic conflicts |
-| Researcher | `agent:researcher:main` | `researcher` | research briefs, source synthesis, fact gathering, external intel scans | Cortana for decision synthesis |
-| Oracle | `agent:oracle:main` | `oracle` | premarket/market pulse, portfolio intelligence, scenario/risk framing | Cortana for final action decision |
+| Arbiter | `agent:arbiter:main` | `arbiter` | implementation, repo operations, CI fixes, PR creation, infra/tooling changes, architecture review | Cortana for strategic conflicts |
 | Monitor | `agent:monitor:main` | `monitor` | runtime checks, cron delivery reliability, drift and watchdog checks, incident verification | Cortana for operator escalation |
+| Spartan | `agent:spartan:main` | `spartan` | fitness, recovery, training, WHOOP/Tonal analysis, behavioral health follow-up | Cortana for broader prioritization |
 
 **Contract:** if task maps cleanly to one specialist lane, Cortana routes there first.
 **Heartbeat routing exception:** routine Monitor maintenance checks already covered by dedicated cron lanes should not be re-dispatched into `agent:monitor:main` on normal heartbeats. Use heartbeat dispatch for Monitor only when a cron is stale/failing or Hamel explicitly asks.
@@ -375,10 +364,10 @@ flowchart TD
 ```mermaid
 graph LR
   CD[Command Deck: Cortana] -->|decide| ROUTE[Route to owner lane]
-  ROUTE --> EXE1[Huragok executes implementation]
-  ROUTE --> EXE2[Researcher executes research]
-  ROUTE --> EXE3[Oracle executes market analysis]
-  ROUTE --> EXE4[Monitor executes health checks]
+  ROUTE --> EXE1[Arbiter executes implementation]
+  ROUTE --> EXE2[Monitor executes health checks]
+  ROUTE --> EXE3[Spartan executes fitness analysis]
+  ROUTE --> EXE4[Cortana handles synthesis or issue filing]
   EXE1 --> OUT[Direct operator delivery]
   EXE2 --> OUT
   EXE3 --> OUT
@@ -401,7 +390,7 @@ If any one is missing, run is partially out-of-policy and should be corrected.
 
 Cortana is Hamel’s **autonomous AI chief-of-staff** built on **OpenClaw**.
 
-- Runs as a **main session (Opus)** plus a **Covenant** of specialized sub‑agents
+- Runs as a **main session** plus scoped specialist identities for implementation, monitoring, and fitness
 - Optimized for one human, one machine – **personal assistant, not a SaaS product**
 - Backed by PostgreSQL, OpenClaw cron, and a fleet of local tools/services
 - Designed to compound four **mission pillars**:
@@ -421,40 +410,34 @@ Everything in this repo exists to make those four vectors compound automatically
 Cortana runs as:
 
 - **Main session ("Command Deck")**
-  - Model: Anthropic Opus (primary)
+  - Model: configured in `config/openclaw.json` / `config/agent-profiles.json`
   - Responsibilities: conversation, triage, routing, approvals
-  - Hard rule: if a task needs more than one tool call → spawn a sub‑agent
+  - Hard rule: route multi-step specialist work to the right active lane unless Hamel asks for direct execution
 
-- **Covenant sub‑agents** (spawned sessions)
-  - Model tiering (current):
-    - **Huragok / Researcher / Oracle → Codex 5.3** (complex execution + reasoning)
-    - **Librarian / Monitor → Codex 5.1** (docs, monitoring, lower-latency ops)
-    - Opus/Sonnet remain available for specialized escalation paths
+- **Active specialist identities**
+  - Current runtime profiles are defined in `config/agent-profiles.json`
+  - Model defaults are defined in `config/openclaw.json`
   - Each sub‑agent runs with **role‑scoped context + memory injection**
 
-### 2.2 The Covenant (agent team)
+### 2.2 Active Agent Team
 
-Core Covenant roles (implemented as sub‑agent profiles + routing rules):
+Active roles:
 
-- **Huragok** – systems engineer
-  - Infra, tools, debugging, performance, reliability
-- **Researcher** – scout
-  - Web research, deep dives, competitive analysis, literature
+- **Arbiter** – implementation and architecture
+  - Repo changes, CI fixes, PR creation, infra/tooling, code review
 - **Monitor** – guardian
   - Patterns, health monitoring, cron health, budget/proprioception
-- **Oracle** – forecaster
-  - Strategy, scenario planning, risk, what‑if analysis
-- **Librarian** – knowledge & docs
-  - READMEs, documentation, schema notes, information architecture
+- **Spartan** – fitness and recovery
+  - WHOOP/Tonal analysis, training response, recovery coaching
 
-Routing lives in `AGENTS.md` + `covenant/` and is enforced by the main session: **Cortana dispatches, Covenant executes.**
+Routing lives in `AGENTS.md`, `docs/source/doctrine/agent-routing.md`, and `config/agent-profiles.json`.
 
 ### 2.3 Governance: council and policy gates
 
 For high-impact decisions, Cortana now runs a formal governance layer:
 
 - **Council deliberation system**
-  - Multi-agent weighted voting across Covenant roles
+  - Multi-agent weighted voting across active roles when enabled
   - Structured member outputs (analysis + vote + confidence + rationale)
   - **Model policy enforcement: council voting/synthesis uses OpenAI `gpt-4o` only**
 
@@ -473,7 +456,7 @@ graph LR
     L --> C[🧬 Semantic Compression Engine<br/>Daily Distillation]
     C --> L
 
-    O[🔮 Precompute Oracle<br/>5:30 AM Prefetch] --> W
+    O[🔮 Precompute<br/>scheduled context refresh] --> W
     L --> O
 ```
 
@@ -562,12 +545,12 @@ graph TD
 ├── tools/              # Internal automation tools (bash/py/ts, etc.)
 ├── skills/             # Installed OpenClaw skills
 ├── memory/             # Curated notes + selected generated summaries
-├── covenant/           # Covenant agent framework + role docs
+├── identities/         # Active specialist identity docs
 ├── cortical-loop/      # Event-driven nervous system (watchers, evaluator, wake rules)
 ├── immune-system/      # Immune/incident/playbook scripts and notes
 ├── proprioception/     # Self-model, budget, throttle logic
 ├── sae/                # Situational awareness engine assets
-├── knowledge/          # Canonical domain pages + Covenant knowledge outputs
+├── knowledge/          # Canonical domain pages + compiled knowledge outputs
 ├── migrations/         # Database migrations for cortana DB
 ├── agents/, canvas/    # Agent harness support + Canvas configs
 └── tmp/, var/, ...     # Scratch + operational state
@@ -580,7 +563,6 @@ Key files:
 - `docs/README.md` – source-doc index and starting points
 - `docs/source/doctrine/operating-rules.md` – behavioral rules, delegation, routing, safety
 - `docs/source/doctrine/heartbeat-ops.md` – heartbeat rotation, quiet hours, proactive checks
-- `docs/source/doctrine/task-board.md` – Postgres-backed task board + auto-executor
 - `docs/source/doctrine/learning-loop.md` – feedback protocol + self-improvement
 - `docs/source/architecture/memory-compression.md` – guardrails and retention policy for memory compression
 - `docs/source/doctrine/agent-routing.md` – routing doctrine plus sub-agent reliability triage
@@ -605,10 +587,9 @@ Internal operator scripts, grouped by domain. Highlights:
   - Preflight checks, lean prompts, scheduling helpers
   - `tools/cron/rotate-cron-artifacts.sh` – rotates cron artifacts/log state
   - `tools/heartbeat/validate-heartbeat-state.sh` – validates `heartbeat-state.json` consistency
-- **Task board & monitoring**
-  - `tools/task-board/` – queue management, stale detection, state enforcement
-  - `tools/task-board/emit-run-event.sh` – lifecycle event emission for run ledgering/audit trails
-  - `tools/auto-chain/` – automatic follow‑up task chaining rules engine
+- **Monitoring & durable follow-up**
+  - `tools/monitoring/` – runtime checks, incident signals, and watchdogs
+  - `tools/github/issue-reporter.ts` – GitHub Issues boundary for durable operational follow-up
 - **Memory & reflection**
   - `tools/memory/` – ingestion, quality gates, consolidation
   - `tools/memory/vector-health-gate.ts` + `tools/memory/safe-memory-search.ts` – safety gates for semantic recall quality
@@ -691,13 +672,12 @@ OpenClaw Dreaming may inspect imported insights and memory-palace pages from the
 The repo post-merge flow now conditionally refreshes the isolated wiki when curated front-door docs changed.
 An `active-memory` experiment is also configured for `main` direct chats only; it is intentionally scoped narrowly while behavior and latency are evaluated.
 
-### 3.6 `covenant/`
+### 3.6 `identities/`
 
-- `covenant/README.md`, `CONTEXT.md`, `CORTANA.md`
-- Role folders: `huragok/`, `librarian/`, `monitor/`, `oracle/`, etc.
-  - Each with its own `AGENTS.md` + `SOUL.md`
+- Active specialist identity folders currently include `arbiter/`, `monitor/`, and `spartan/`.
+- Each identity folder owns its local behavior notes and role-specific context.
 
-Defines the Covenant roles, responsibilities, and routing contracts used by the main session.
+Defines the active roles, responsibilities, and routing contracts used by the main session.
 
 ### 3.7 `tests/`
 
@@ -723,18 +703,15 @@ Heartbeat rules live in `HEARTBEAT.md` and related docs/scripts:
   - SAE Cross-Domain Reasoner re-enabled as a scheduled layer 15 minutes after World State Builder (7:15am, 1:15pm, 9:15pm ET) to connect sleep/work/markets into actionable insights
 - Quiet‑hours aware; only pings when signal clears thresholds
 
-### 4.2 Task board (PostgreSQL‑backed)
+### 4.2 Durable follow-up
 
-Task system lives primarily in the `cortana` Postgres DB, wired via tools in this repo and surfaced in Mission Control (`cortana-external`).
+Durable operational work lives in GitHub Issues, not local queue rows.
 
-- Tables: `cortana_tasks`, `cortana_epics` (+ metadata JSONB)
-- Features:
-  - Autonomous task detection from conversations + heartbeats
-  - Epic/subtask hierarchy, priorities, deadlines
-  - Auto‑executor for safe, auto‑executable tasks
-  - Integrity audits + stale detection + cleanup
-  - Mandatory heartbeat task board hygiene sweep every heartbeat (ghost/stale task detection, zero tolerance for dashboard ghosts; see `HEARTBEAT.md`)
-  - State‑transition enforcement (single source of truth)
+- Runtime, Mission Control, external-service, market data, WHOOP, Schwab, and deployed-service problems route to `cortana-external`.
+- Doctrine, cron prompts, agent behavior, memory, OpenClaw policy, and command-brain problems route to `cortana`.
+- Use `tools/github/issue-reporter.ts` as the boundary instead of scattering direct `gh issue create` calls.
+- Create issues only for high-signal durable problems: repeated cron failures, degraded runtime services, auth/human-action blockers, monitor regressions, or QA/test failures after agent changes.
+- Do not create issues for one-off warnings, successful auto-heals, normal cron summaries, or historical local task rows.
 
 ### 4.3 Memory consolidation & semantic recall
 
@@ -744,7 +721,7 @@ Task system lives primarily in the `cortana` Postgres DB, wired via tools in thi
   - `cortana_memory_semantic`, `cortana_memory_episodic`, `cortana_memory_procedural`
   - `cortana_memory_archive`, `cortana_memory_consolidation`, `cortana_memory_ingest_runs`
   - `cortana_memory_provenance`, `cortana_memory_recall_checks`
-- Precompute Oracle pre‑warms relevant context before the day starts
+- Scheduled precompute refreshes relevant context before the day starts
 
 ### 4.4 Proactive intelligence
 
@@ -753,7 +730,7 @@ Cortana runs **watchlists + pattern detectors** across:
 - Sleep/wake/workout patterns (`cortana_patterns`)
 - Market/portfolio watchlist (`cortana_watchlist`)
 - News, earnings, macro events (via `news-summary`, `market-intel`, `earnings-alert`)
-- Task board state, overdue items, blocked work
+- GitHub issue state for durable operational follow-up
 
 Output flows into:
 
@@ -816,7 +793,6 @@ export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 
 - `cortana_events` – error/system event logging
 - `cortana_patterns` – behavior patterns (sleep, workouts, etc.)
-- `cortana_tasks`, `cortana_epics` – task board
 - `cortana_upgrades` – self‑improvement tracking
 - `cortana_watchlist` – tracked tickers/topics
 
@@ -827,9 +803,9 @@ export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 - `cortana_wake_rules` – proactive wake rules
 - `cortana_chief_model`, `cortana_feedback_signals` – modeling Chief + signal state
 
-### 5.3 Covenant & coordination
+### 5.3 Agent coordination
 
-- `cortana_covenant_runs` – agent runs
+- `cortana_covenant_runs` – legacy agent run lineage
 - `cortana_handoff_artifacts` – structured handoff data
 - `cortana_event_bus_events` – event bus
 - `cortana_trace_spans` – tracing lineage
@@ -853,7 +829,7 @@ export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 
 - `cortana_immune_incidents`, `cortana_immune_playbooks`
 - `cortana_policy_decisions`, `cortana_policy_overrides`, `cortana_policy_budget_usage`, `cortana_action_policies`
-- `cortana_quality_scores`, `cortana_response_evaluations`
+- `cortana_response_evaluations`
 - `cortana_workflow_checkpoints`
 - `cortana_chaos_runs`, `cortana_chaos_events`
 - `cortana_autonomy_incidents`
@@ -924,28 +900,25 @@ Full operator doc: `docs/source/architecture/runtime-deploy-model.md`
 Representative highlights that are already live:
 
 - **[Mar 2026] Cron audit & optimization** – re-enabled SAE Cross-Domain Reasoner + Fitness Morning Brief, disabled redundant/low-ROI jobs, rescheduled bedtime/mission checks earlier in the evening, and relaxed newsletter/immune scan cadence.
-- **[Feb 2026] Task board hygiene enforcement** – mandatory heartbeat sweep for ghost/stale tasks (zero tolerance for dashboard ghosts; see `HEARTBEAT.md`).
-- **[Feb 2026] Task lifecycle ledger hardening** – status enum freeze + run lifecycle ledger migrations (`migrations/001-freeze-status-enum.sql`, `migrations/002-run-lifecycle-ledger.sql`) plus normalized run event emission (`tools/task-board/emit-run-event.sh`).
+- **[May 2026] GitHub Issues durable follow-up** – local queue rows retired; high-signal operational failures now route through a small GitHub Issues reporter boundary.
 - **[Feb 2026] Fitness Service Hybrid Migration epic completed** – Mission Control fitness dashboard + alerting, backed by typed client packages.
 - **[Feb 2026] Council deliberation system shipped** – multi-agent weighted voting with OpenAI `gpt-4o` as the policy model for deliberation + synthesis.
 - **[Feb 2026] Whoop OAuth redirect_uri fix** – standardized `http` vs `https` redirect URIs for consistent token exchange and refresh.
 
 
-- **Auto‑chain rules engine** (`tools/auto-chain/`) for automatic follow‑up task chaining
+- **Auto‑chain rules engine** (`tools/auto-chain/`) for correction-strengthening and feedback verification
 - **Cost breaker** (`tools/alerting/cost-breaker`) runaway‑session circuit breaker
 - **gog OAuth health** cron‑safe refresh health script
-- **Task board stale detector** with auto‑cleanup + audit events
 - **Tools audit** inventory of tool scripts and references
 - **Meta‑monitor + earnings‑alert merge** across heartbeats + alerting
 - **Spawn pre‑flight validator** for sub‑agent launch safety
 - **Doc gardener** automated documentation maintenance workflow
 - **Self‑diagnostic** (`tools/health/self-diagnostic.sh`) for Cortana health
-- **Task board state enforcer** CLI for atomic task transitions
 - **Market-intel helpers** (`tools/market-intel`) combining quote + X sentiment + portfolio overlay
 - **X/Twitter integration hardening** (`bird`, auth health checks, watchdog coverage)
 - **Vector + local embeddings stack** (`pgvector`, fastembed) for semantic memory
 - **Proprioception + immune expansion** (budget/throttle, risk gates, auto‑heal workflows)
-- **Covenant communication upgrades** (handoff bus, lifecycle eventing, identity‑scoped memory injection, fan‑out/fan‑in execution)
+- **Agent communication upgrades** (handoff bus, lifecycle eventing, identity‑scoped memory injection, fan‑out/fan‑in execution)
 
 ---
 
@@ -988,9 +961,9 @@ Last refreshed: **2026-03-01**
 
 | Task class | Primary owner | Required verification artifact | Delivery path | Escalate when |
 |---|---|---|---|---|
-| PR/code fix | Huragok | PR URL + commit hash + passing checks | Specialist direct | blocked by CI/security/policy |
-| Research brief | Researcher | source links + concise synthesis | Specialist direct | conflicting sources/high uncertainty |
-| Market pulse | Oracle | timestamped snapshot + assumptions | Specialist direct | data source outage/stale feed |
+| PR/code fix | Arbiter | PR URL + commit hash + passing checks | Specialist direct | blocked by CI/security/policy |
+| Research brief | Cortana | source links + concise synthesis | Main channel or specialist direct if delegated | conflicting sources/high uncertainty |
+| Fitness/recovery | Spartan | workout/recovery evidence + coaching recommendation | Specialist direct | stale/missing WHOOP or Tonal data |
 | Runtime health | Monitor | command output + status judgment | Specialist direct | P1/P0 impact detected |
 
 ### 11.2 Mandatory output schema (all specialist deliveries)

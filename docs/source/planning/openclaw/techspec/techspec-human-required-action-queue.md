@@ -22,7 +22,7 @@ Implementation spans:
 
 Implementation decision for open PRD questions:
 
-- Storage: use a new `cortana_human_required_actions` table, not `cortana_tasks`. These records have different dedupe, evidence, authority, and verification semantics. Items can link to `cortana_tasks` later.
+- Storage: use a new `cortana_human_required_actions` table. These records have different dedupe, evidence, authority, and verification semantics from durable GitHub Issues.
 - Mission Control v1: read-only display first. Manual close is available through a CLI in v1; Mission Control mutation can be v2 unless needed for operator ergonomics.
 - Reminder cadence: send one immediate state-change alert for new or materially changed items, include non-critical open items in a daily digest, and escalate family-critical items according to their lane threshold. Do not send repeated identical alerts. "Materially changed" must be decided by typed fields, not prompt judgment.
 

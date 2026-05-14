@@ -45,7 +45,7 @@ Scan `~/.openclaw/memory/daily/YYYY-MM-DD.md` for the last 1-3 unconsolidated da
 - `cortana_feedback` (corrections, preferences)
 - `cortana_patterns` (detected routines)
 - `cortana_events` (system events, errors)
-- `cortana_tasks` (completed tasks, outcomes)
+- `cortana_human_required_actions` (open or resolved operator follow-ups)
 
 ### 2. Distill
 Extract from raw daily logs:
@@ -78,7 +78,7 @@ Track pruned items in the consolidation log so nothing is permanently lost witho
 Cross-reference distilled insights with database tables:
 - Query `cortana_feedback` for repeated correction types → strengthen those rules
 - Query `cortana_patterns` for behavioral trends → surface to MEMORY.md if significant
-- Check `cortana_tasks` for overdue/stale tasks → flag for morning brief
+- Check `cortana_human_required_actions` for open/stale human-required items → flag for morning brief
 - Look for feedback clusters (same lesson 3+ times = rule not strong enough)
 
 ### 6. Archive
@@ -139,7 +139,7 @@ You are Cortana running the nightly Memory Consolidation cycle. This is your sle
 1. **Review**: Read daily memory files for unconsolidated days:
    - Check cortana_memory_consolidation for last successful run to know which days are new
    - Read ~/.openclaw/memory/daily/YYYY-MM-DD.md for each unconsolidated day
-   - Query recent cortana_feedback, cortana_patterns, cortana_events, cortana_tasks
+   - Query recent cortana_feedback, cortana_patterns, cortana_events, cortana_human_required_actions
 
 2. **Distill**: From the raw logs, extract:
    - Decisions and their reasoning
@@ -210,7 +210,7 @@ You are Cortana running the nightly Memory Consolidation cycle. This is your sle
 ### → SAE (Situational Awareness Engine)
 - Dream insights are inserted into `cortana_insights` table, surfaced in morning brief
 - Consolidation summary available for SAE's world state builder to reference
-- Stale task detection feeds into morning brief task section
+- Stale human-required follow-up detection feeds into morning brief follow-up section
 
 ### → Cortical Loop (Event-Driven)
 - Strengthened rules in MEMORY.md improve Cortana's wake responses

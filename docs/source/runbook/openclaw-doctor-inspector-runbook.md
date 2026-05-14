@@ -19,7 +19,7 @@ Use the doctor / inspector lane when any of the following happens:
 - Mission Control reflects failures that may already be fixed in source but not healed in runtime state.
 - Cron jobs begin failing due to model drift, runtime deploy drift, auth drift, or downstream service instability.
 - Heartbeat surfaces fail because delegated silent-path contracts, NO_REPLY handling, or routing assumptions changed.
-- Session hygiene, autonomy follow-up tasks, or task-board state becomes noisy or obviously stale.
+- Session hygiene, autonomy follow-up, or GitHub Issue state becomes noisy or obviously stale.
 - A replacement LLM needs a precise description of how to inspect this system and what "good" looks like.
 
 ## Core Mental Model
@@ -32,7 +32,7 @@ The important lesson from this lane is that most meaningful failures were not si
 - Mission Control presentation
 - cron state and retry history
 - model/provider support
-- session/task-board lifecycle state
+- session and durable follow-up lifecycle state
 
 The doctor lane should assume contract drift first, not code defect first.
 
@@ -371,7 +371,7 @@ This doctor lane is broad, but it is not infinite. It should stay focused on Ope
 - cron/job execution and delivery state
 - heartbeat and silent-path contract behavior
 - Mission Control symptoms that reflect runtime truth
-- session hygiene, autonomy noise, and task-board lifecycle issues
+- session hygiene, autonomy noise, and durable follow-up lifecycle issues
 - upstream OpenClaw runtime regressions that affect Hamel's stack
 
 ### Adjacent but still relevant
@@ -694,14 +694,14 @@ Observed lesson:
 - `NO_REPLY` is an in-session suppression token, not a user-visible delivery payload
 - direct heartbeat token behavior like `HEARTBEAT_OK` should not be conflated with delegated specialist silent paths
 
-### Phase 4: stale autonomy and task-board noise
+### Phase 4: stale autonomy and durable follow-up noise
 
 Session hygiene and tomorrow-board noise were partly driven by lifecycle issues rather than fresh user work or genuine active incidents.
 
 Observed lesson:
 
 - a dashboard or scorecard can remain noisy even when the underlying health state has already remediated
-- close healthy follow-ups and ignore closed tasks when calculating active remediation work
+- close healthy follow-ups and ignore closed issues/actions when calculating active remediation work
 
 ### Phase 5: Telegram slash-command regression on `2026.4.14`
 
@@ -819,13 +819,13 @@ Key implication:
 
 - If slash suggestions disappear after an OpenClaw runtime update, inspect native command registration and `getMyCommands` before assuming Telegram client weirdness.
 
-### 5. Session/task-board noise was partly a lifecycle bug
+### 5. Session and follow-up noise was partly a lifecycle bug
 
-The doctor lane fixed stale autonomy follow-up noise by making healthy/remediated systems close their follow-up tasks and by excluding closed tasks from active follow-up counts.
+The doctor lane fixed stale autonomy follow-up noise by making healthy/remediated systems close their follow-ups and by excluding closed items from active follow-up counts.
 
 Key implication:
 
-- If tomorrow's MIT or session hygiene warnings look wrong, inspect whether task lifecycle state is stale before chasing a nonexistent fresh outage.
+- If session hygiene warnings look wrong, inspect whether follow-up lifecycle state is stale before chasing a nonexistent fresh outage.
 
 ## Known Recurring Failure Classes
 
@@ -884,8 +884,8 @@ Interpretation:
 Symptoms:
 
 - oversized sessions
-- task-board hygiene keeps raising tomorrow-MIT issues with no real active work
-- stale follow-up tasks remain open after healthy remediation
+- hygiene keeps raising follow-up issues with no real active work
+- stale follow-ups remain open after healthy remediation
 
 Interpretation:
 
@@ -921,9 +921,9 @@ Use this order unless the user explicitly redirects.
 6. **Check cron/job history**
    - determine whether failures are fresh reruns or old consecutive-error residue
 
-7. **Check session/task-board hygiene**
+7. **Check session/follow-up hygiene**
    - oversized sessions
-   - stale follow-up tasks
+   - stale follow-ups
    - lifecycle cleanup status
 
 8. **Only then decide whether code changes are needed**
@@ -1024,11 +1024,10 @@ openclaw sessions cleanup --all-agents --enforce --json
 find ~/.openclaw/agents -name '*.jsonl' -size +400k -print
 ```
 
-### Task-board and autonomy follow-up noise
+### Autonomy follow-up noise
 
 ```bash
 npx tsx tools/monitoring/autonomy-remediation.ts
-npx tsx tools/task-board/reset-engine.ts
 npx tsx tools/context/main-operator-context.ts
 ```
 
@@ -1249,7 +1248,7 @@ First checks:
 
 - autonomy remediation
 - scorecard active follow-ups
-- task-board reset output
+- GitHub Issue or human-required action follow-up state
 
 ## What To Do Before Changing Code
 

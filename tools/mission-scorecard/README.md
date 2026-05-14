@@ -19,7 +19,7 @@ npx tsx tools/mission-scorecard/daily-mission-scorecard.ts --validate
 
 ## Data sources (current slice)
 
-- `cortana_tasks` (`ready` + `in_progress`) for action candidates
+- `cortana_insights` (`action_suggested`) for action candidates
 - `cortana_sitrep_latest` (`calendar`, `health`, `finance`) for fallback context
 
 ## Validation path

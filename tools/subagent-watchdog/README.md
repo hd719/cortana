@@ -18,9 +18,7 @@ Closes the visibility gap where a sub-agent can fail/timeout silently unless man
    - `severity='warning'`
    - `metadata` includes session key, label, runtime, reason, session id
 5. Sends Telegram failure alerts via `tools/notifications/telegram-delivery-guard.sh` with `alert_type=subagent_failure_alert`.
-6. Runs `tools/task-board/completion-sync.sh` to auto-sync mapped in-progress tasks to `done`/`failed`.
-7. Prints structured JSON summary to stdout so heartbeat/cron can react.
-8. Wrapper post-step: runs `tools/reaper/reaper.sh` to clean stale sub-agent runs (best-effort).
+6. Prints structured JSON summary to stdout so heartbeat/cron can react.
 
 ## Files
 
@@ -39,8 +37,6 @@ Closes the visibility gap where a sub-agent can fail/timeout silently unless man
 # Scan only last 4 hours
 ~/Developer/cortana/tools/subagent-watchdog/check-subagents.sh --active-minutes 240
 
-# Reaper standalone (stale runs >2h)
-~/Developer/cortana/tools/reaper/reaper.sh --max-age-hours 2
 ```
 
 ## Output shape
@@ -85,16 +81,9 @@ Run once per heartbeat and branch on JSON:
 - `failedOrTimedOut == 0` → no action
 - retriable tasks (timeouts/transient failures) → retry once
 - persistent failures across heartbeats → alert Hamel
-- sync task board status for affected delegated work (built in via `completion-sync.sh`)
-
-### Task board auto-sync mapping
-
-`tools/task-board/completion-sync.sh` maps completed/failed sub-agent sessions to `cortana_tasks` rows by:
-- `assigned_to = <subagent label>`
-- `assigned_to = <session key>`
-- `metadata.subagent_label` or `metadata.subagent_session_key`
+- persistent failures should become GitHub Issues only when they are durable operational problems.
 
 Recommended heartbeat hook order:
 1. run `check-subagents.sh`
-2. consume JSON summary (`failedOrTimedOut`, `alertsSent`, `taskBoardSync`)
+2. consume JSON summary (`failedOrTimedOut`, `alertsSent`)
 3. branch retry/escalation logic from one payload

@@ -9,6 +9,7 @@ const spawnSync = vi.hoisted(() => vi.fn());
 const upsertOpenIncident = vi.hoisted(() => vi.fn());
 const resolveIncident = vi.hoisted(() => vi.fn());
 const upsertHumanRequiredAction = vi.hoisted(() => vi.fn());
+const reportOperationalIssue = vi.hoisted(() => vi.fn());
 
 vi.mock("node:fs", () => ({ default: fsMock, ...fsMock }));
 vi.mock("node:child_process", () => ({ spawnSync }));
@@ -19,6 +20,9 @@ vi.mock("../../tools/monitoring/autonomy-incidents.ts", () => ({
 vi.mock("../../tools/human-actions/human-required-actions.ts", () => ({
   upsertHumanRequiredAction,
 }));
+vi.mock("../../tools/github/issue-reporter.ts", () => ({
+  reportOperationalIssue,
+}));
 
 describe("autonomy family-critical failover", () => {
   beforeEach(() => {
@@ -28,6 +32,8 @@ describe("autonomy family-critical failover", () => {
     upsertOpenIncident.mockReset();
     resolveIncident.mockReset();
     upsertHumanRequiredAction.mockReset();
+    reportOperationalIssue.mockReset();
+    reportOperationalIssue.mockResolvedValue({ created: false, skipped: false, dryRun: true, repo: "cortana-foundry/cortana" });
     resetProcess();
   });
 
@@ -77,6 +83,12 @@ describe("autonomy family-critical failover", () => {
     expect(output).toContain('"verificationStatus": "uncertain"');
     expect(output).toContain('"escalationPath": "page Hamel because family-critical delivery is still uncertain after one bounded retry"');
     expect(output).toContain('"policyLesson": "appointments, calendar logistics, pregnancy reminders, and other never-miss reminders escalate after one failed verification path"');
+    expect(reportOperationalIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        title: expect.stringContaining("Family-critical follow-up"),
+        category: "human-action-required",
+      }),
+    );
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 });

@@ -23,22 +23,18 @@ npx tsx /Users/hd/Developer/cortana/tools/heartbeat/validate-heartbeat-state.ts
 
 ## Routing
 
-- Monitor: system health, drift, cron/session reliability, repo sync, inbox/email ops, operational maintenance alerts, trading alert scan ownership.
-- Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.
-- Monitor owns email-triage / inbox-operational summaries and operational cron / maintenance alerts on user-facing paths.
-- Oracle: market/portfolio pulse and X sentiment during market hours.
-- Researcher: research/news gathering when explicitly needed.
-- Huragok: code/infra/tooling maintenance when explicitly requested.
-- Cortana local: state validation, quick calendar/fitness reads, escalation synthesis.
+- Monitor: system health, drift, cron/session reliability, repo sync, operational maintenance alerts, and trading alert scan ownership.
+- Monitor owns operational cron / maintenance alerts on user-facing paths.
+- Spartan: fitness, recovery, readiness, and training analysis.
+- Arbiter: execution command, ambiguity-to-action, and pressure testing.
+- Cortana local: state validation, quick calendar/fitness reads, implementation when requested, and escalation synthesis.
 
 Current Monitor heartbeat entrypoints:
 - tech/news scan: `tools/news/tech-news-check.ts`
-- inbox-operational scan: `tools/email/inbox_to_execution.ts --output-json`
 
 Do not invent or call deprecated heartbeat wrappers.
 
 Routine maintenance checks already covered by cron should not be re-dispatched on normal heartbeats unless stale/failing:
-- task-board hygiene
 - feedback reconciliation
 - session size guard
 - cron delivery monitoring
@@ -48,7 +44,6 @@ Routine maintenance checks already covered by cron should not be re-dispatched o
 
 - Email triage: Monitor-owned, skip if checked within 4h.
 - Calendar lookahead: local, skip if checked within 6h.
-- Market/portfolio and X sentiment: Oracle, weekdays 9:30 AM-4:00 PM ET, skip if checked within 6h.
 - Fitness: local, once daily in the morning.
 - Strategic tech/news scan: Monitor, skip if checked within 4h.
 - System health/drift: full validation daily; lightweight checks only when stale/failing.
