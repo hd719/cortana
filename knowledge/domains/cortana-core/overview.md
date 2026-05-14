@@ -8,7 +8,6 @@ Read in this order:
 2. [Routing](./routing.md)
 3. [Heartbeat](./heartbeat.md)
 4. [Autonomy](./autonomy.md)
-5. [Task board](./task-board.md)
 
 Primary source docs:
 
@@ -16,4 +15,3 @@ Primary source docs:
 - [Agent routing](../../../docs/source/doctrine/agent-routing.md)
 - [Heartbeat ops](../../../docs/source/doctrine/heartbeat-ops.md)
 - [Autonomy policy](../../../docs/source/doctrine/autonomy-policy.md)
-- [Task board](../../../docs/source/doctrine/task-board.md)

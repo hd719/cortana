@@ -10,10 +10,6 @@
         {
           "name": "watchdog retry wrapper",
           "path": "tools/subagent-watchdog/check-subagents-with-retry.ts"
-        },
-        {
-          "name": "reaper stale-run recovery",
-          "path": "tools/reaper/reaper.ts"
         }
       ]
     },
@@ -22,10 +18,6 @@
       "title": "Provider failover/rate-limit escalation behavior",
       "url": "https://github.com/openclaw/openclaw/issues",
       "local_workarounds": [
-        {
-          "name": "task-board retry budget guardrail task",
-          "path": "tools/task-board/auto-executor.ts"
-        },
         {
           "name": "subagent reliability triage",
           "path": "docs/source/doctrine/agent-routing.md"

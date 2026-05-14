@@ -57,8 +57,7 @@ The current operating model is dispatcher-first:
 1. [Cortana core overview](./overview.md)
 2. [Routing](./routing.md)
 3. [Heartbeat](./heartbeat.md)
-4. [Task board](./task-board.md)
-5. [Systems index](../../indexes/systems.md)
+4. [Systems index](../../indexes/systems.md)
 
 ## Primary Source Docs
 
@@ -66,4 +65,3 @@ The current operating model is dispatcher-first:
 - [Operating rules](../../../docs/source/doctrine/operating-rules.md)
 - [Agent routing](../../../docs/source/doctrine/agent-routing.md)
 - [Heartbeat ops](../../../docs/source/doctrine/heartbeat-ops.md)
-- [Task board](../../../docs/source/doctrine/task-board.md)

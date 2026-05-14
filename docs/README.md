@@ -44,7 +44,6 @@ Use `docs/source/` for durable source docs about the command brain.
 - [Heartbeat ops](./source/doctrine/heartbeat-ops.md)
 - [OpenClaw doctor / inspector runbook](./source/runbook/openclaw-doctor-inspector-runbook.md)
 - [Autonomy policy](./source/doctrine/autonomy-policy.md)
-- [Task board](./source/doctrine/task-board.md)
 - [Documentation authoring guide](./source/architecture/documentation-authoring-guide.md)
 - [PRD template](./source/planning/templates/prd-template.md)
 - [Tech spec template](./source/planning/templates/techspec-template.md)

@@ -165,7 +165,7 @@ When evaluating whether autonomy is working well, focus on only a few things:
 Standing epic:
 - `Autonomy Stabilization / Production Tuning`
 
-Use the task board plus the autonomy doctrine pages when logging issues from any agent lane.
+Use GitHub Issues plus the autonomy doctrine pages when logging durable issues from any agent lane.
 
 ## Current intended mode
 

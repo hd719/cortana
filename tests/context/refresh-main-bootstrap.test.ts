@@ -12,11 +12,9 @@ describe("writeMainBootstrap", () => {
       generatedAt: "Mon, Apr 6, 8:00 AM",
       schedule: ["9:00 AM - Standup"],
       reminders: ["Submit quiz"],
-      tasks: {
-        items: [{ title: "Finish bug fix", status: "ready", priority: 1, due_at: "Apr 06 05:00 PM" }],
-        overdueCount: 0,
-        dueTodayCount: 1,
-        inProgressCount: 0,
+      followUps: {
+        items: [{ title: "Fix degraded runtime", system: "mission-control", severity: "high", due_at: "Apr 06 05:00 PM" }],
+        openCount: 1,
       },
       warnings: [],
     });
@@ -28,7 +26,7 @@ describe("writeMainBootstrap", () => {
     expect(content).toContain("# BOOTSTRAP.md");
     expect(content).toContain("- 9:00 AM - Standup");
     expect(content).toContain("- Submit quiz");
-    expect(content).toContain("- [ready] P1 Finish bug fix (due Apr 06 05:00 PM)");
+    expect(content).toContain("- [high] Fix degraded runtime (due Apr 06 05:00 PM)");
   });
 });
 
@@ -38,11 +36,9 @@ describe("writeMainIdentityOverlay", () => {
       generatedAt: "Mon, Apr 6, 8:00 AM",
       schedule: ["9:00 AM - Standup"],
       reminders: ["Submit quiz"],
-      tasks: {
-        items: [{ title: "Finish bug fix", status: "ready", priority: 1, due_at: "Apr 06 05:00 PM" }],
-        overdueCount: 0,
-        dueTodayCount: 1,
-        inProgressCount: 0,
+      followUps: {
+        items: [{ title: "Fix degraded runtime", system: "mission-control", severity: "high", due_at: "Apr 06 05:00 PM" }],
+        openCount: 1,
       },
       warnings: [],
     });

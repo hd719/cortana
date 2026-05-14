@@ -25,10 +25,6 @@ const FAIL_STATUSES = new Set([
   ...Array.from(TERMINAL_FAILED_STATUSES),
 ]);
 const TELEGRAM_GUARD = process.env.TELEGRAM_DELIVERY_GUARD || resolveRepoPath("tools", "notifications", "telegram-delivery-guard.sh");
-const COMPLETION_SYNC =
-  process.env.CORTANA_COMPLETION_SYNC_SCRIPT || resolveRepoPath("tools", "task-board", "completion-sync.sh");
-const AGGRESSIVE_RECONCILE =
-  process.env.CORTANA_AGGRESSIVE_RECONCILE_SCRIPT || resolveRepoPath("tools", "task-board", "aggressive-reconcile.sh");
 const DB_NAME = "cortana";
 const DEFAULT_HEARTBEAT_STATE_FILE = defaultHeartbeatStatePath();
 const DEFAULT_SESSION_ALERT_STATE_FILE = "/tmp/subagent-watchdog-cooldown.json";
@@ -79,8 +75,6 @@ type FailureFinding = {
   logged?: boolean;
   cooldownSkipped?: boolean;
   sessionCooldownSkipped?: boolean;
-  taskId?: number | null;
-  taskUpdated?: boolean;
   alertSent?: boolean;
   terminalEmitted?: boolean;
   terminalMatched?: boolean;
@@ -291,88 +285,12 @@ function logHeartbeatWrite(psqlBin: string, oldHash: string | null, newHash: str
   spawnSync(psqlBin, [DB_NAME, "-c", sql], { encoding: "utf8" });
 }
 
-function findTaskIdForSession(psqlBin: string, sessionKey: string, label: string | null, runId: string | null):
-  | number
-  | null {
-  const runQ = sqlQuote(runId);
-  const labelQ = sqlQuote(label);
-  const keyQ = sqlQuote(sessionKey);
-  const sql =
-    "SELECT id FROM cortana_tasks " +
-    "WHERE status='in_progress' AND ((NULLIF('" +
-    runQ +
-    "','') <> '' AND run_id='" +
-    runQ +
-    "') OR (run_id IS NULL AND (assigned_to='" +
-    labelQ +
-    "' OR assigned_to='" +
-    keyQ +
-    "' OR COALESCE(metadata->>'subagent_label','')='" +
-    labelQ +
-    "' OR COALESCE(metadata->>'subagent_session_key','')='" +
-    keyQ +
-    "'))) " +
-    "ORDER BY CASE WHEN NULLIF('" +
-    runQ +
-    "','') <> '' AND run_id='" +
-    runQ +
-    "' THEN 0 ELSE 1 END, " +
-    "updated_at DESC NULLS LAST, created_at DESC LIMIT 1;";
-
-  const proc = spawnSync(psqlBin, [DB_NAME, "-X", "-t", "-A", "-c", sql], { encoding: "utf8" });
-  if (proc.status !== 0) return null;
-  const raw = (proc.stdout ?? "").trim();
-  if (!raw) return null;
-  const id = Number(raw);
-  return Number.isFinite(id) ? id : null;
-}
-
-function reconcileTaskFailure(reasonItem: FailureFinding, psqlBin: string): [boolean, string | null, number | null] {
-  const taskId = findTaskIdForSession(
-    psqlBin,
-    String(reasonItem.key ?? ""),
-    reasonItem.label ?? null,
-    reasonItem.runId ?? null
-  );
-  if (taskId == null) return [true, null, null];
-
-  const terminalStatus = terminalStatusFromReason(reasonItem);
-  const outcome =
-    `Watchdog marked failed from sub-agent ${reasonItem.label ?? reasonItem.key} ` +
-    `(${terminalStatus}; ${reasonItem.reasonCode}: ${reasonItem.reasonDetail})`;
-  const outcomeSql = sqlQuote(outcome);
-  const runQ = sqlQuote(reasonItem.runId ?? null);
-  const reasonQ = sqlQuote(reasonItem.reasonCode ?? null);
-  const terminalQ = sqlQuote(terminalStatus);
-  const sql =
-    "UPDATE cortana_tasks SET status='failed', outcome='" +
-    outcomeSql +
-    "', run_id=COALESCE(NULLIF('" +
-    runQ +
-    "',''), run_id), metadata=COALESCE(metadata,'{}'::jsonb)||" +
-    "jsonb_build_object('watchdog_synced_at',NOW()::text,'watchdog_reason','" +
-    reasonQ +
-    "','watchdog_terminal_status','" +
-    terminalQ +
-    "','subagent_run_id',NULLIF('" +
-    runQ +
-    "','')) " +
-    `WHERE id=${taskId} AND status='in_progress';`;
-
-  const proc = spawnSync(psqlBin, [DB_NAME, "-X", "-c", sql], { encoding: "utf8" });
-  if (proc.status !== 0) {
-    return [false, (proc.stderr ?? proc.stdout ?? "task update failed").trim(), taskId];
-  }
-  return [true, null, taskId];
-}
-
 function logEvent(reasonItem: FailureFinding, psqlBin: string): [boolean, string | null] {
   const terminalStatus = terminalStatusFromReason(reasonItem);
   const metadata = {
     session_key: reasonItem.key,
     label: reasonItem.label,
     run_id: reasonItem.runId,
-    task_id: reasonItem.taskId,
     runtime_seconds: reasonItem.runtimeSeconds,
     failure_reason: reasonItem.reasonCode,
     detail: reasonItem.reasonDetail,
@@ -429,21 +347,6 @@ function sendFailureAlert(reasonItem: FailureFinding, now = new Date()): [boolea
   if (proc.status !== 0) {
     return [false, (proc.stderr ?? proc.stdout ?? "telegram guard failed").trim()];
   }
-  return [true, null];
-}
-
-function runCompletionSync(): [boolean, string | null] {
-  if (!fs.existsSync(COMPLETION_SYNC)) return [false, `completion sync missing: ${COMPLETION_SYNC}`];
-  const proc = spawnSync(COMPLETION_SYNC, [], { encoding: "utf8" });
-  if (proc.status !== 0) return [false, (proc.stderr ?? proc.stdout ?? "completion sync failed").trim()];
-
-  if (fs.existsSync(AGGRESSIVE_RECONCILE)) {
-    const reconcile = spawnSync(AGGRESSIVE_RECONCILE, ["--apply"], { encoding: "utf8" });
-    if (reconcile.status !== 0) {
-      return [false, (reconcile.stderr ?? reconcile.stdout ?? "aggressive reconcile failed").trim()];
-    }
-  }
-
   return [true, null];
 }
 
@@ -553,7 +456,6 @@ async function main(): Promise<void> {
       failedOrTimedOut: 0,
       loggedEvents: 0,
       alertsSent: 0,
-      tasksUpdated: 0,
       terminalsEmitted: 0,
       staleFailuresSkipped: 0,
       sessionCooldownSkipped: 0,
@@ -695,15 +597,6 @@ async function main(): Promise<void> {
     item.sessionCooldownSkipped = Boolean(inSessionCooldown);
     if (inSessionCooldown) output.summary.sessionCooldownSkipped += 1;
 
-    const [taskOk, taskErr, taskId] = reconcileTaskFailure(item, psqlBin);
-    item.taskId = taskId;
-    item.taskUpdated = taskId != null && taskOk;
-    if (item.taskUpdated) output.summary.tasksUpdated += 1;
-    else if (taskErr) {
-      output.summary.logErrors += 1;
-      output.logErrors.push({ signature: `${signature}|task`, error: `task_update_failed: ${taskErr}` });
-    }
-
     if (inCooldown) {
       item.retryOutcome = inSessionCooldown ? "suppressed_session_cooldown" : "suppressed_reason_cooldown";
       if (args.emitTerminal) {
@@ -801,9 +694,6 @@ async function main(): Promise<void> {
       error: err instanceof Error ? err.message : String(err),
     });
   }
-
-  const [syncOk, syncErr] = runCompletionSync();
-  output.taskBoardSync = { ok: Boolean(syncOk), error: syncErr };
 
   console.log(JSON.stringify(output, null, 2));
   process.exit(0);

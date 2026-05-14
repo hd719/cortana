@@ -163,6 +163,6 @@ The queue should store structured action items with owner, system, reason, requi
 
 ### Implementation Decisions
 
-- Queue storage is a new `cortana_human_required_actions` table, not `cortana_tasks`.
+- Queue storage is a new `cortana_human_required_actions` table.
 - Mission Control v1 is read-only; manual close is available through CLI first.
 - Non-critical open items appear in the daily digest. Immediate re-alerts are reserved for new/materially changed items, overdue items, verification failures, and family-critical lane thresholds.

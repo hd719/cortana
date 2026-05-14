@@ -7,6 +7,7 @@ import { loadAutonomyConfig } from "./autonomy-lanes.ts";
 import { resolveIncident, upsertOpenIncident } from "./autonomy-incidents.ts";
 import { upsertHumanRequiredAction } from "../human-actions/human-required-actions.ts";
 import type { HumanActionCategory, HumanActionSeverity, HumanActionSystem } from "../human-actions/human-required-taxonomy.ts";
+import { reportOperationalIssue } from "../github/issue-reporter.ts";
 
 const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..");
 const STATE_FILE = process.env.AUTONOMY_REMEDIATION_STATE_FILE ?? path.join(os.tmpdir(), "cortana-autonomy-remediation-state.json");
@@ -27,7 +28,7 @@ type RemediationItem = {
   verificationStatus?: "verified" | "uncertain";
   escalationPath?: string;
   policyLesson?: string;
-  followUpTaskId?: number | null;
+  followUpIssueUrl?: string | null;
   freshnessSuppressed?: boolean;
 };
 
@@ -599,43 +600,27 @@ function remediateCriticalCron(): RemediationItem {
   };
 }
 
-function createOrReuseFollowUp(item: RemediationItem): number | null {
-  if (!['escalate', 'skipped'].includes(item.status)) return null;
-  const system = sqlEscape(item.system);
-  const detail = sqlEscape(item.detail);
-  const action = sqlEscape(item.action ?? 'manual review');
+function createFollowUpIssue(item: RemediationItem): string | null {
+  if (item.status !== "escalate") return null;
   const urgency = item.familyCritical ? 'Family-critical' : 'Autonomy';
-  const title = sqlEscape(`${urgency} follow-up: ${item.system} - ${item.detail}`.slice(0, 180));
-  const description = sqlEscape(`${item.detail}\nLane: ${item.laneLabel ?? (item.familyCritical ? 'family-critical' : 'routine')}\nLatest verification: ${(item.verification ?? 'n/a').slice(0, 1200)}\nVerification status: ${item.verificationStatus ?? 'uncertain'}\nNext action: ${item.action ?? 'manual review'}\nEscalation path: ${item.escalationPath ?? 'review locally'}\nPolicy lesson: ${item.policyLesson ?? 'n/a'}`);
-  const existing = psql(`
-SELECT id::text
-FROM cortana_tasks
-WHERE status IN ('ready','in_progress')
-  AND source = 'autonomy-remediation'
-  AND metadata->>'followup_system' = '${system}'
-ORDER BY created_at DESC
-LIMIT 1;
-`);
-  if (existing) return Number(existing);
-  const created = psql(`
-INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata)
-VALUES (
-  'autonomy-remediation',
-  '${title}',
-  '${description}',
-  ${item.familyCritical ? 1 : 2},
-  'ready',
-  FALSE,
-  '${action}',
-  jsonb_build_object(
-    'followup_system', '${system}',
-    'followup_status', '${item.status}',
-    'family_critical', ${item.familyCritical ? 'true' : 'false'}
-  )
-)
-RETURNING id::text;
-`);
-  return created ? Number(created) : null;
+  const result = reportOperationalIssue({
+    title: `${urgency} follow-up: ${item.system} - ${item.detail}`,
+    summary: item.detail,
+    source: "autonomy-remediation",
+    category: item.familyCritical ? "human-action-required" : "runtime-service-degraded",
+    severity: item.familyCritical ? "critical" : "warning",
+    system: item.system,
+    evidence: {
+      laneLabel: item.laneLabel ?? (item.familyCritical ? "family-critical" : "routine"),
+      verification: (item.verification ?? "n/a").slice(0, 1200),
+      verificationStatus: item.verificationStatus ?? "uncertain",
+      status: item.status,
+    },
+    recommendedAction: item.escalationPath ?? item.action ?? "Review the autonomy follow-up and perform the required local operator action.",
+  });
+  if (result.status === "created") return result.url;
+  if (result.status === "dry-run") return `dry-run:${result.repo}:${result.title}`;
+  return null;
 }
 
 function humanActionSystemFor(item: RemediationItem): HumanActionSystem {
@@ -655,7 +640,7 @@ function humanActionSeverityFor(item: RemediationItem): HumanActionSeverity {
   return item.status === "escalate" ? "warning" : "info";
 }
 
-function queueHumanRequiredAction(item: RemediationItem, followUpTaskId: number | null): void {
+function queueHumanRequiredAction(item: RemediationItem, followUpIssueUrl: string | null): void {
   if (!["escalate", "skipped"].includes(item.status)) return;
   const system = humanActionSystemFor(item);
   try {
@@ -676,64 +661,13 @@ function queueHumanRequiredAction(item: RemediationItem, followUpTaskId: number 
         verificationStatus: item.verificationStatus ?? "uncertain",
       },
       metadata: {
-        followUpTaskId,
+        followUpIssueUrl,
         familyCritical: item.familyCritical ?? false,
         laneLabel: item.laneLabel ?? null,
       },
     });
   } catch (error) {
     process.stderr.write(`human-required queue write failed: ${error instanceof Error ? error.message : String(error)}\n`);
-  }
-}
-
-function resolveOpenFollowUps(item: RemediationItem): number[] {
-  const system = sqlEscape(item.system);
-  const resolutionStatus = sqlEscape(item.status);
-  const detail = sqlEscape(item.detail);
-  const action = sqlEscape(item.action ?? "none");
-  const ids = psql(`
-WITH open_followups AS (
-  SELECT id
-  FROM cortana_tasks
-  WHERE status IN ('ready', 'in_progress')
-    AND source = 'autonomy-remediation'
-    AND metadata->>'followup_system' = '${system}'
-), closed AS (
-  UPDATE cortana_tasks t
-  SET status = 'completed',
-      completed_at = COALESCE(t.completed_at, NOW()),
-      outcome = CASE
-        WHEN COALESCE(t.outcome, '') = '' THEN format(
-          'Auto-resolved by autonomy remediation after %s verification.\\nDetail: %s\\nAction: %s',
-          ${sqlQuote(item.status)},
-          ${sqlQuote(item.detail)},
-          ${sqlQuote(item.action ?? "none")}
-        )
-        WHEN POSITION('Auto-resolved by autonomy remediation' IN t.outcome) > 0 THEN t.outcome
-        ELSE t.outcome || E'\\nAuto-resolved by autonomy remediation after ${item.status} verification.\\nDetail: ${detail}\\nAction: ${action}'
-      END,
-      metadata = COALESCE(t.metadata, '{}'::jsonb)
-        || jsonb_build_object(
-          'followup_resolved',
-          jsonb_build_object(
-            'at', NOW(),
-            'status', '${resolutionStatus}',
-            'detail', '${detail}',
-            'action', '${action}'
-          )
-        ),
-      updated_at = CURRENT_TIMESTAMP
-  WHERE t.id IN (SELECT id FROM open_followups)
-  RETURNING t.id
-)
-SELECT COALESCE(json_agg(id), '[]'::json)::text
-FROM closed;
-`);
-  try {
-    const parsed = JSON.parse(ids) as number[];
-    return Array.isArray(parsed) ? parsed.map((id) => Number(id)).filter(Number.isFinite) : [];
-  } catch {
-    return [];
   }
 }
 
@@ -751,15 +685,14 @@ LIMIT 1;
 }
 
 function logActionResult(item: RemediationItem): RemediationItem {
-  const resolvedFollowUpTaskIds =
-    item.status === "healthy" || item.status === "remediated" ? resolveOpenFollowUps(item) : [];
+  const resolvedFollowUpIssueUrls: string[] = [];
 
   const verification = sqlEscape((item.verification ?? '').slice(0, 2000));
   const action = sqlEscape(item.action ?? 'none');
   const escalationPath = sqlEscape(item.escalationPath ?? 'review locally');
   const policyLesson = sqlEscape(item.policyLesson ?? 'n/a');
   const laneLabel = sqlEscape(item.laneLabel ?? (item.familyCritical ? 'family-critical' : 'routine'));
-  const resolvedIdsJson = sqlEscape(JSON.stringify(resolvedFollowUpTaskIds));
+  const resolvedIssuesJson = sqlEscape(JSON.stringify(resolvedFollowUpIssueUrls));
 
   if (item.status === 'healthy') {
     psql(`
@@ -780,7 +713,7 @@ VALUES (
     'policy_lesson', '${policyLesson}',
     'family_critical', ${item.familyCritical ? 'true' : 'false'},
     'lane_label', '${laneLabel}',
-    'resolved_followup_task_ids', '${resolvedIdsJson}'::jsonb
+    'resolved_followup_issue_urls', '${resolvedIssuesJson}'::jsonb
   )
 );
 `);
@@ -821,9 +754,9 @@ VALUES (
     item.freshnessSuppressed = true;
   }
 
-  const followUpTaskId = createOrReuseFollowUp(item);
-  item.followUpTaskId = followUpTaskId;
-  queueHumanRequiredAction(item, followUpTaskId);
+  const followUpIssueUrl = createFollowUpIssue(item);
+  item.followUpIssueUrl = followUpIssueUrl;
+  queueHumanRequiredAction(item, followUpIssueUrl);
   const severity = item.status === 'remediated' ? 'info' : item.familyCritical ? 'error' : 'warning';
   psql(`
 INSERT INTO cortana_events (event_type, source, severity, message, metadata)
@@ -843,8 +776,8 @@ VALUES (
     'policy_lesson', '${policyLesson}',
     'family_critical', ${item.familyCritical ? 'true' : 'false'},
     'lane_label', '${laneLabel}',
-    'followup_task_id', ${followUpTaskId ?? 'NULL'},
-    'resolved_followup_task_ids', '${resolvedIdsJson}'::jsonb
+    'followup_issue_url', ${followUpIssueUrl ? sqlQuote(followUpIssueUrl) : 'NULL'},
+    'resolved_followup_issue_urls', '${resolvedIssuesJson}'::jsonb
   )
 );
 `);
@@ -864,7 +797,7 @@ VALUES (
         family_critical: item.familyCritical ?? false,
         lane_label: item.laneLabel ?? null,
         verification_status: item.verificationStatus ?? "uncertain",
-        followup_task_id: followUpTaskId,
+        followup_issue_url: followUpIssueUrl,
       },
       observedAt: new Date().toISOString(),
       freshUntil: new Date(Date.now() + 60 * 60 * 1000).toISOString(),

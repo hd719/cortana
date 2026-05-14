@@ -56,14 +56,14 @@ cd ~/Developer/cortana/skills/stock-analysis && npx tsx src/stock_analysis/main.
 ```
 Insert: domain=`finance`, key=`stock_TSLA`, `stock_NVDA`, `stock_QQQ`, `stock_GLD` (price, change%, signal).
 
-### F) Tasks
+### F) Operational Follow-ups
 ```bash
-TASKS_JSON=$(psql cortana -t -A -c "SELECT COALESCE(json_agg(t), '[]'::json)::text FROM (SELECT id, title, priority, due_at, remind_at FROM cortana_tasks WHERE status='pending' ORDER BY priority ASC LIMIT 10) t;")
-TASKS_COUNT=$(python3 -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$TASKS_JSON" 2>/dev/null || echo 0)
+FOLLOWUPS_JSON=$(psql cortana -t -A -c "SELECT COALESCE(json_agg(t), '[]'::json)::text FROM (SELECT id, title, system, severity, due_at FROM cortana_human_required_actions WHERE status='open' ORDER BY CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END, due_at ASC NULLS LAST, last_seen_at DESC LIMIT 10) t;")
+FOLLOWUPS_COUNT=$(python3 -c 'import json,sys; print(len(json.loads(sys.argv[1])))' "$FOLLOWUPS_JSON" 2>/dev/null || echo 0)
 ```
 Insert:
-- domain=`tasks`, key=`pending`, value=`$TASKS_JSON`
-- domain=`tasks`, key=`pending_summary`, value=`{"count": <TASKS_COUNT>}`
+- domain=`followups`, key=`open`, value=`$FOLLOWUPS_JSON`
+- domain=`followups`, key=`open_summary`, value=`{"count": <FOLLOWUPS_COUNT>}`
 
 ### G) Patterns
 ```bash

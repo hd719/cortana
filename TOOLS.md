@@ -67,9 +67,9 @@ psql cortana
 ```
 
 Core tables:
-- `cortana_tasks`, `cortana_epics`
 - `cortana_events`, `cortana_feedback`
 - `cortana_patterns`
+- `cortana_human_required_actions`
 - `cortana_cron_health`, `cortana_tool_health`
 - `cortana_immune_incidents`
 - `cortana_self_model`, `cortana_budget_log`

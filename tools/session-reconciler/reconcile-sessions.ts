@@ -1,28 +1,190 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from "child_process";
-import { fileURLToPath } from "url";
-import { withPostgresPath } from "../lib/db.js";
-import { repoRoot } from "../lib/paths.js";
-import { safeJsonParse } from "../lib/json-file.js";
 
-async function main(): Promise<void> {
-  void safeJsonParse("{}");
-  const script = "set -euo pipefail\n\nexport PATH=\"/opt/homebrew/opt/postgresql@17/bin:$PATH\"\nSOURCE=\"session-reconciler\"\n# shellcheck disable=SC1091\nsource \"$IDEMPOTENCY_LIB\"\ntrap 'rollback_transaction' ERR\n\nSESSIONS_JSON=\"${OPENCLAW_SESSIONS_FILE:-$HOME/.openclaw/agents/main/sessions/sessions.json}\"\nDRY_RUN=\"${1:-}\"\n\nOPERATION_ID=\"$(generate_operation_id)\"\nOPERATION_TYPE=\"reconcile_sessions_pass\"\n\nif check_idempotency \"$OPERATION_ID\"; then\n  log_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"skipped\" '{\"reason\":\"already_completed\"}'\n  echo '{\"ok\":true,\"skipped\":true,\"reason\":\"idempotent_operation_already_completed\"}'\n  exit 0\nfi\n\nlog_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"started\" \"$(jq -cn --arg sessions_file \"$SESSIONS_JSON\" --arg dry_run \"$DRY_RUN\" '{sessions_file:$sessions_file,dry_run:($dry_run==\"--dry-run\")}')\"\n\nset +e\nRESULT=\"$(python3 - \"$SESSIONS_JSON\" \"$DRY_RUN\" <<'PY'\nimport json\nimport os\nimport subprocess\nimport sys\nimport time\nfrom pathlib import Path\n\nsessions_file = Path(sys.argv[1]).expanduser()\ndry_run = (sys.argv[2] == \"--dry-run\")\n\nif not sessions_file.exists():\n    print(json.dumps({\"ok\": False, \"error\": f\"sessions file missing: {sessions_file}\"}))\n    sys.exit(1)\n\nraw = json.loads(sessions_file.read_text())\nif not isinstance(raw, dict):\n    print(json.dumps({\"ok\": False, \"error\": \"sessions.json is not an object map\"}))\n    sys.exit(1)\n\nentries = raw\nactive_keys = set(entries.keys())\nchanged = 0\nmissing_files = []\n\n\ndef has_positive_completion_evidence(session_val: dict) -> bool:\n    direct_status = str(session_val.get(\"status\", \"\")).strip().lower()\n    if direct_status in {\"completed\", \"done\", \"success\", \"succeeded\", \"ok\"}:\n        return True\n\n    outcome = session_val.get(\"outcome\")\n    if isinstance(outcome, dict):\n        outcome_status = str(outcome.get(\"status\", \"\")).strip().lower()\n        if outcome_status in {\"completed\", \"done\", \"success\", \"succeeded\", \"ok\"}:\n            return True\n\n    result = session_val.get(\"result\")\n    if result not in (None, \"\", {}):\n        return True\n\n    explicit_done = session_val.get(\"done\")\n    if explicit_done is True:\n        return True\n\n    return False\n\n\nfor key, val in entries.items():\n    if not isinstance(val, dict):\n        continue\n    session_file = val.get(\"sessionFile\")\n    if session_file and not Path(session_file).exists():\n        missing_files.append(key)\n        if has_positive_completion_evidence(val):\n            val[\"status\"] = \"completed\"\n            val[\"reconciledReason\"] = \"session_file_missing_but_completion_evidence_present\"\n        else:\n            val[\"status\"] = \"reconciled_unknown\"\n            val[\"reconciledReason\"] = \"session_disappeared_outcome_unknown\"\n        val[\"reconciledAt\"] = int(time.time() * 1000)\n        changed += 1\n\nif changed and not dry_run:\n    tmp = sessions_file.with_suffix(\".tmp\")\n    bak = sessions_file.with_suffix(\".json.bak\")\n    if sessions_file.exists():\n        bak.write_text(sessions_file.read_text())\n    tmp.write_text(json.dumps(entries, indent=2) + \"\\n\")\n    os.replace(tmp, sessions_file)\n\n\ndef psql(sql: str) -> str:\n    proc = subprocess.run([\"psql\", \"cortana\", \"-At\", \"-q\", \"-X\", \"-v\", \"ON_ERROR_STOP=1\", \"-c\", sql], capture_output=True, text=True)\n    if proc.returncode != 0:\n        raise RuntimeError(proc.stderr.strip() or proc.stdout.strip() or \"psql failed\")\n    return proc.stdout.strip()\n\nstuck = json.loads(psql(\"\"\"\nSELECT COALESCE(json_agg(t), '[]'::json)::text\nFROM (\n  SELECT id, agent, mission, session_key, started_at\n  FROM cortana_covenant_runs\n  WHERE (status = 'running' OR ended_at IS NULL)\n  ORDER BY started_at ASC\n) t;\n\"\"\"))\n\norphans = []\nfor r in stuck:\n    sk = r.get(\"session_key\")\n    if not sk or sk not in active_keys:\n        orphans.append(r)\n\nupdated_runs = 0\nrun_events_emitted = 0\nif orphans and not dry_run:\n    ids = \",\".join(str(int(r[\"id\"])) for r in orphans)\n    psql(f\"\"\"\nUPDATE cortana_covenant_runs\nSET status='reconciled_unknown',\n    ended_at = COALESCE(ended_at, NOW()),\n    summary = COALESCE(summary, '') || CASE WHEN COALESCE(summary,'')='' THEN '' ELSE E'\\n' END || '[auto-reconciled] session disappeared, outcome unknown (no active session key)'\nWHERE id IN ({ids});\n\"\"\")\n    updated_runs = len(orphans)\n\n    for r in orphans:\n        session_key = str(r.get(\"session_key\") or \"\").strip()\n        if not session_key:\n            continue\n\n        task_id = None\n        try:\n            task_raw = psql(f\"\"\"\nSELECT id::text\nFROM cortana_tasks\nWHERE run_id = '{session_key.replace(\"'\", \"''\")}'\nORDER BY updated_at DESC NULLS LAST, created_at DESC\nLIMIT 1;\n\"\"\")\n            task_id = int(task_raw) if task_raw else None\n        except Exception:\n            task_id = None\n\n        metadata = json.dumps({\n            \"session_key\": session_key,\n            \"agent\": r.get(\"agent\"),\n            \"mission\": r.get(\"mission\"),\n            \"covenant_run_id\": r.get(\"id\"),\n            \"reason\": \"session_disappeared_outcome_unknown\",\n        }).replace(\"'\", \"''\")\n\n        task_expr = \"NULL\" if task_id is None else str(task_id)\n        try:\n            psql(f\"\"\"\nINSERT INTO cortana_run_events (run_id, task_id, event_type, source, metadata)\nVALUES (\n  '{session_key.replace(\"'\", \"''\")}',\n  {task_expr},\n  'reconciled_unknown',\n  'session-reconciler',\n  '{metadata}'::jsonb\n);\n\"\"\")\n            run_events_emitted += 1\n        except Exception:\n            pass\n\nprint(json.dumps({\n    \"ok\": True,\n    \"dry_run\": dry_run,\n    \"sessions_reconciled\": changed,\n    \"session_orphans\": missing_files[:50],\n    \"runs_reconciled_unknown\": updated_runs,\n    \"run_events_emitted\": run_events_emitted,\n    \"run_orphans\": orphans[:50],\n}))\nPY\n)\"\nRC=$?\nset -e\n\nif [[ $RC -eq 0 ]]; then\n  log_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"completed\" \"$(echo \"$RESULT\" | jq -c . 2>/dev/null || echo '{}')\"\nelse\n  log_idempotency \"$OPERATION_ID\" \"$OPERATION_TYPE\" \"failed\" \"$(jq -cn --arg rc \"$RC\" '{rc:($rc|tonumber)}')\"\nfi\n\necho \"$RESULT\"\nexit $RC\n";
-  const args = process.argv.slice(2);
-  const scriptPath = fileURLToPath(import.meta.url);
-  const res = spawnSync("bash", ["-lc", script, scriptPath, ...args], {
-    stdio: "inherit",
-    cwd: repoRoot(),
-    env: withPostgresPath({
-      ...process.env,
-      IDEMPOTENCY_LIB: `${repoRoot()}/tools/lib/idempotency.sh`,
-    }),
-  });
-  if (typeof res.status === "number") process.exit(res.status);
-  process.exit(1);
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
+import { runPsql } from "../lib/db.js";
+
+type SessionRecord = Record<string, unknown>;
+type CovenantRun = {
+  id: number;
+  agent: string | null;
+  mission: string | null;
+  session_key: string | null;
+  started_at: string | null;
+};
+
+function isDryRun(argv: string[]): boolean {
+  return argv.includes("--dry-run");
 }
 
-main().catch((error) => {
-  console.error(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-});
+function defaultSessionsPath(): string {
+  return process.env.OPENCLAW_SESSIONS_FILE ?? path.join(os.homedir(), ".openclaw", "agents", "main", "sessions", "sessions.json");
+}
+
+function quoteSql(value: string): string {
+  return value.replace(/'/g, "''");
+}
+
+function hasPositiveCompletionEvidence(session: SessionRecord): boolean {
+  const directStatus = String(session.status ?? "").trim().toLowerCase();
+  if (["completed", "done", "success", "succeeded", "ok"].includes(directStatus)) return true;
+
+  const outcome = session.outcome;
+  if (outcome && typeof outcome === "object") {
+    const outcomeStatus = String((outcome as SessionRecord).status ?? "").trim().toLowerCase();
+    if (["completed", "done", "success", "succeeded", "ok"].includes(outcomeStatus)) return true;
+  }
+
+  const result = session.result;
+  if (result !== undefined && result !== null && result !== "") return true;
+  return session.done === true;
+}
+
+function loadSessions(filePath: string): Record<string, SessionRecord> {
+  if (!fs.existsSync(filePath)) throw new Error(`sessions file missing: ${filePath}`);
+  const parsed = JSON.parse(fs.readFileSync(filePath, "utf8")) as unknown;
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("sessions.json is not an object map");
+  }
+  return parsed as Record<string, SessionRecord>;
+}
+
+function reconcileSessionFileState(sessionsPath: string, sessions: Record<string, SessionRecord>, dryRun: boolean): string[] {
+  const missing: string[] = [];
+  let changed = false;
+
+  for (const [key, session] of Object.entries(sessions)) {
+    const sessionFile = typeof session.sessionFile === "string" ? session.sessionFile : "";
+    if (!sessionFile || fs.existsSync(sessionFile)) continue;
+
+    missing.push(key);
+    if (hasPositiveCompletionEvidence(session)) {
+      session.status = "completed";
+      session.reconciledReason = "session_file_missing_but_completion_evidence_present";
+    } else {
+      session.status = "reconciled_unknown";
+      session.reconciledReason = "session_disappeared_outcome_unknown";
+    }
+    session.reconciledAt = Date.now();
+    changed = true;
+  }
+
+  if (changed && !dryRun) {
+    const backupPath = `${sessionsPath}.bak`;
+    const tmpPath = `${sessionsPath}.tmp`;
+    fs.copyFileSync(sessionsPath, backupPath);
+    fs.writeFileSync(tmpPath, `${JSON.stringify(sessions, null, 2)}\n`);
+    fs.renameSync(tmpPath, sessionsPath);
+  }
+
+  return missing;
+}
+
+function psqlText(sql: string): string {
+  const proc = runPsql(sql, { db: "cortana" });
+  if (proc.status !== 0) {
+    throw new Error((proc.stderr || proc.stdout || "psql failed").trim());
+  }
+  return String(proc.stdout ?? "").trim();
+}
+
+function psqlJson<T>(sql: string): T {
+  const raw = psqlText(sql);
+  return JSON.parse(raw || "null") as T;
+}
+
+function fetchOpenRuns(): CovenantRun[] {
+  return psqlJson<CovenantRun[]>(`
+SELECT COALESCE(json_agg(t), '[]'::json)::text
+FROM (
+  SELECT id, agent, mission, session_key, started_at
+  FROM cortana_covenant_runs
+  WHERE (status = 'running' OR ended_at IS NULL)
+  ORDER BY started_at ASC
+) t;
+`);
+}
+
+function markRunsReconciled(orphans: CovenantRun[]): void {
+  if (orphans.length === 0) return;
+  const ids = orphans.map((run) => Number(run.id)).filter(Number.isFinite);
+  if (ids.length === 0) return;
+
+  psqlText(`
+UPDATE cortana_covenant_runs
+SET status = 'reconciled_unknown',
+    ended_at = COALESCE(ended_at, NOW()),
+    summary = COALESCE(summary, '') ||
+      CASE WHEN COALESCE(summary, '') = '' THEN '' ELSE E'\n' END ||
+      '[auto-reconciled] session disappeared, outcome unknown (no active session key)'
+WHERE id IN (${ids.join(",")});
+`);
+}
+
+function emitRunEvent(run: CovenantRun): boolean {
+  const sessionKey = String(run.session_key ?? "").trim();
+  if (!sessionKey) return false;
+
+  const metadata = JSON.stringify({
+    session_key: sessionKey,
+    agent: run.agent,
+    mission: run.mission,
+    covenant_run_id: run.id,
+    reason: "session_disappeared_outcome_unknown",
+  }).replace(/'/g, "''");
+
+  try {
+    psqlText(`
+INSERT INTO cortana_run_events (run_id, event_type, source, metadata)
+VALUES (
+  '${quoteSql(sessionKey)}',
+  'reconciled_unknown',
+  'session-reconciler',
+  '${metadata}'::jsonb
+);
+`);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function main(): Promise<void> {
+  const dryRun = isDryRun(process.argv.slice(2));
+  const sessionsPath = defaultSessionsPath();
+  const sessions = loadSessions(sessionsPath);
+  const activeKeys = new Set(Object.keys(sessions));
+  const sessionOrphans = reconcileSessionFileState(sessionsPath, sessions, dryRun);
+
+  const runOrphans = fetchOpenRuns().filter((run) => {
+    const sessionKey = String(run.session_key ?? "");
+    return !sessionKey || !activeKeys.has(sessionKey);
+  });
+
+  let runEventsEmitted = 0;
+  if (!dryRun && runOrphans.length > 0) {
+    markRunsReconciled(runOrphans);
+    for (const run of runOrphans) {
+      if (emitRunEvent(run)) runEventsEmitted += 1;
+    }
+  }
+
+  console.log(JSON.stringify({
+    ok: true,
+    dry_run: dryRun,
+    sessions_reconciled: sessionOrphans.length,
+    session_orphans: sessionOrphans.slice(0, 50),
+    runs_reconciled_unknown: dryRun ? 0 : runOrphans.length,
+    run_events_emitted: runEventsEmitted,
+    run_orphans: runOrphans.slice(0, 50),
+  }));
+}
+
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((error) => {
+    console.error(error instanceof Error ? error.message : String(error));
+    process.exit(1);
+  });
+}

@@ -10,6 +10,7 @@ const spawnSync = vi.hoisted(() => vi.fn());
 const upsertOpenIncident = vi.hoisted(() => vi.fn());
 const resolveIncident = vi.hoisted(() => vi.fn());
 const upsertHumanRequiredAction = vi.hoisted(() => vi.fn());
+const reportOperationalIssue = vi.hoisted(() => vi.fn());
 
 vi.mock("node:fs", () => ({
   default: fsMock,
@@ -25,6 +26,9 @@ vi.mock("../../tools/monitoring/autonomy-incidents.ts", () => ({
 vi.mock("../../tools/human-actions/human-required-actions.ts", () => ({
   upsertHumanRequiredAction,
 }));
+vi.mock("../../tools/github/issue-reporter.ts", () => ({
+  reportOperationalIssue,
+}));
 
 describe("autonomy-remediation", () => {
   beforeEach(() => {
@@ -35,6 +39,14 @@ describe("autonomy-remediation", () => {
     upsertOpenIncident.mockReset();
     resolveIncident.mockReset();
     upsertHumanRequiredAction.mockReset();
+    reportOperationalIssue.mockReset();
+    reportOperationalIssue.mockReturnValue({
+      status: "dry-run",
+      repo: "cortana-foundry/cortana",
+      title: "dry-run",
+      body: "",
+      labels: [],
+    });
     fsMock.existsSync.mockReturnValue(true);
   });
 
@@ -92,13 +104,7 @@ describe("autonomy-remediation", () => {
     expect(output).toContain('"system": "session"');
     expect(output).toContain('"status": "remediated"');
     expect(output).toContain('"posture": "balanced"');
-    expect(spawnSync).toHaveBeenCalledWith(
-      "/opt/homebrew/opt/postgresql@17/bin/psql",
-      expect.arrayContaining([
-        expect.stringContaining("UPDATE cortana_tasks t"),
-      ]),
-      expect.anything(),
-    );
+    expect(reportOperationalIssue).not.toHaveBeenCalled();
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 
@@ -146,10 +152,16 @@ describe("autonomy-remediation", () => {
     expect(output).toContain('"system": "gateway"');
     expect(output).toContain('"status": "escalate"');
     expect(spawnSync).not.toHaveBeenCalledWith("openclaw", ["gateway", "restart"], expect.anything());
+    expect(reportOperationalIssue).toHaveBeenCalledWith(
+      expect.objectContaining({
+        source: "autonomy-remediation",
+        system: "gateway",
+      }),
+    );
     expect(exitSpy).toHaveBeenCalledWith(1);
   });
 
-  it("logs healthy status and resolves stale follow-up tasks when the session lane is healthy", async () => {
+  it("logs healthy session status without creating durable follow-up issues", async () => {
     const exitSpy = mockExit();
     const consoleSpy = captureConsole();
     setArgv([]);
@@ -183,9 +195,6 @@ describe("autonomy-remediation", () => {
         if (sql.includes("SELECT COALESCE(metadata->>'status', '')")) {
           return { status: 0, stdout: "escalate", stderr: "" } as any;
         }
-        if (sql.includes("SELECT COALESCE(json_agg(id), '[]'::json)::text")) {
-          return { status: 0, stdout: "[478]", stderr: "" } as any;
-        }
         return { status: 0, stdout: "", stderr: "" } as any;
       }
       throw new Error(`unexpected spawn ${cmd} ${args.join(" ")}`);
@@ -198,8 +207,8 @@ describe("autonomy-remediation", () => {
     const output = consoleSpy.logs.join("\n");
     expect(output).toContain('"system": "session"');
     expect(output).toContain('"status": "healthy"');
-    expect(psqlSql.some((sql) => sql.includes("UPDATE cortana_tasks t"))).toBe(true);
-    expect(psqlSql.some((sql) => sql.includes("'resolved_followup_task_ids', '[478]'::jsonb"))).toBe(true);
+    expect(psqlSql.some((sql) => sql.includes(["cortana", "tasks"].join("_")))).toBe(false);
+    expect(reportOperationalIssue).not.toHaveBeenCalled();
     expect(exitSpy).toHaveBeenCalledWith(0);
   });
 });

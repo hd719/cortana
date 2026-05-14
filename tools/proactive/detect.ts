@@ -679,7 +679,7 @@ function correlate(signals: Signal[]): Signal[] {
   return out;
 }
 
-function persist(runId: number, signals: Signal[], minConf: number, createTasks: boolean): [number, number] {
+function persist(runId: number, signals: Signal[], minConf: number): [number, number] {
   let inserted = 0;
   let suggested = 0;
 
@@ -708,25 +708,15 @@ function persist(runId: number, signals: Signal[], minConf: number, createTasks:
     );
     suggested += 1;
 
-    if (createTasks && s.confidence >= 0.82) {
-      const title = `Proactive: ${s.title}`;
-      runPsql(
-        "INSERT INTO cortana_tasks (source, title, description, priority, status, auto_executable, execution_plan, metadata) VALUES " +
-          `('proactive-detector', '${sqlEscape(title)}', '${sqlEscape(s.summary)}', 2, 'ready', FALSE, ` +
-          `'Review proactively surfaced risk/opportunity and act manually if needed.', ` +
-          `'${sqlEscape(JSON.stringify({ signal_id: Number(sid), confidence: s.confidence, source: s.source }))}'::jsonb);`
-      );
-    }
   }
 
   return [inserted, suggested];
 }
 
-type Args = { minConfidence: number; createTasks: boolean; dryRun: boolean };
+type Args = { minConfidence: number; dryRun: boolean };
 
 function parseArgs(argv: string[]): Args {
   let minConfidence = Number.parseFloat(process.env.PROACTIVE_MIN_CONFIDENCE ?? "0.66");
-  let createTasks = false;
   let dryRun = false;
 
   for (let i = 0; i < argv.length; i += 1) {
@@ -734,14 +724,12 @@ function parseArgs(argv: string[]): Args {
     if (arg === "--min-confidence" && argv[i + 1]) {
       minConfidence = Number.parseFloat(argv[i + 1]);
       i += 1;
-    } else if (arg === "--create-tasks") {
-      createTasks = true;
     } else if (arg === "--dry-run") {
       dryRun = true;
     }
   }
 
-  return { minConfidence, createTasks, dryRun };
+  return { minConfidence, dryRun };
 }
 
 async function main(): Promise<number> {
@@ -801,7 +789,7 @@ async function main(): Promise<number> {
     return 0;
   }
 
-  const [inserted, suggested] = persist(runId, allSignals, args.minConfidence, args.createTasks);
+  const [inserted, suggested] = persist(runId, allSignals, args.minConfidence);
   runPsql(
     "UPDATE cortana_proactive_detector_runs SET status='completed', finished_at=NOW(), " +
       `signals_total=${allSignals.length}, signals_gated=${inserted}, suggestions_created=${suggested}, ` +

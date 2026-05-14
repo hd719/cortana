@@ -179,16 +179,6 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "tools/reaper/reaper",
-    candidates: ["tools/reaper/reaper.sh", "tools/reaper/reaper.ts"],
-    commandFor: (target) => `\"${target}\"`,
-    validate: (rc, output) => {
-      if (rc !== 0) return { ok: false, reason: `unexpected_exit_code=${rc}` };
-      if (!output.includes("reaper:")) return { ok: false, reason: "missing_reaper_summary" };
-      return { ok: true };
-    },
-  },
-  {
     name: "tools/subagent-watchdog/check-subagents",
     candidates: ["tools/subagent-watchdog/check-subagents.sh", "tools/subagent-watchdog/check-subagents.ts"],
     commandFor: (target) => `\"${target}\" --all --json`,

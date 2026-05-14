@@ -14,8 +14,7 @@
     "ops:routing-drift": "pnpm exec tsx tools/monitoring/ops-routing-drift-check.ts",
     "release:done-gates": "pnpm exec tsx tools/release/done-gates.ts",
     "session:lifecycle": "pnpm exec tsx tools/session/session-lifecycle-policy.ts",
-    "deploy:drift-warning": "bash tools/release/deploy-drift-warning.sh",
-    "taskboard:integrity-guard": "pnpm exec tsx tools/task-board/integrity-guard.ts --pretty"
+    "deploy:drift-warning": "bash tools/release/deploy-drift-warning.sh"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",

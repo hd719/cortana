@@ -8,23 +8,23 @@ This system runs multiple agents, each with its own workspace, model, and sessio
 
 | Agent | Purpose | Workspace | Model | Accepts DMs? |
 |-------|---------|-----------|-------|-------------|
-| **main** (Cortana) | Primary assistant, conversation, coordination | `/Users/hd/Developer/cortana` | opus | Yes (Telegram, webchat) |
-| cron-health | Health checks (X session, fitness service, etc.) | `~/.openclaw/workspaces/cron-health` | gpt-5.4 | No — cron only |
-| cron-comms | Communication checks | `~/.openclaw/workspaces/cron-comms` | gpt-5.3-codex | No — cron only |
-| cron-fitness | Fitness data | `~/.openclaw/workspaces/cron-fitness` | gpt-5.3-codex | No — cron only |
-| cron-market | Market analysis | `~/.openclaw/workspaces/cron-market` | gpt-5.3-codex | No — cron only |
-| cron-maintenance | System updates | `~/.openclaw/workspaces/cron-maintenance` | gpt-5.4 | No — cron only |
-| **huragok** | Standalone Huragok identity (dedicated Telegram-bound lane + spawn target) | `/Users/hd/Developer/cortana/identities/huragok` | gpt-5.3-codex | Yes (bound group/channel) |
-| **researcher** | Dedicated investigation/research execution lane for Cortana delegation | `/Users/hd/Developer/cortana/identities/researcher` | gpt-5.3-codex | No — spawn target only |
-| **oracle** | Strategic judgment / foresight lane | `/Users/hd/Developer/cortana/identities/oracle` | gpt-5.3-codex | Yes (bound group/channel) |
+| **main** (Cortana) | Primary assistant, conversation, coordination | `/Users/hd/Developer/cortana` | see `config/openclaw.json` | Yes (Telegram, webchat) |
+| cron-health | Health checks (X session, fitness service, etc.) | `~/.openclaw/workspaces/cron-health` | see `config/openclaw.json` | No — cron only |
+| cron-comms | Communication checks | `~/.openclaw/workspaces/cron-comms` | see `config/openclaw.json` | No — cron only |
+| cron-fitness | Fitness data | `~/.openclaw/workspaces/cron-fitness` | see `config/openclaw.json` | No — cron only |
+| cron-market | Market analysis | `~/.openclaw/workspaces/cron-market` | see `config/openclaw.json` | No — cron only |
+| cron-maintenance | System updates | `~/.openclaw/workspaces/cron-maintenance` | see `config/openclaw.json` | No — cron only |
+| **monitor** | Runtime health, cron delivery, drift, incident checks | `/Users/hd/Developer/cortana/identities/monitor` | see `config/openclaw.json` | Yes (bound group/channel) |
+| **arbiter** | Implementation, CI fixes, PR creation, architecture review | `/Users/hd/Developer/cortana/identities/arbiter` | see `config/openclaw.json` | Yes (bound group/channel) |
+| **spartan** | Fitness, recovery, training, WHOOP/Tonal analysis | `/Users/hd/Developer/cortana/identities/spartan` | see `config/openclaw.json` | Yes (bound group/channel) |
 
 ## Channel Routing
 
 - **Telegram DMs** → `main` agent (Cortana)
 - **Webchat** → `main` agent (Cortana)
-- **Telegram group `-5229462108`** → `huragok` (dedicated standalone Huragok Telegram identity)
-- **Huragok spawned work** → `huragok` (`agentId: "huragok"`; no separate worker lane)
-- **Code and infra work** → `huragok`
+- **Code and infra work** → `arbiter`
+- **Runtime health / cron drift** → `monitor`
+- **Fitness / recovery / training** → `spartan`
 - **Cron jobs** → respective cron/specialist agent (deliver results via `message` tool using mapped `accountId`; keep Cortana lane clean)
 
 ## Stable Ops Owner Lane
@@ -43,7 +43,7 @@ Owner-labeled Telegram alerts must send with the matching `accountId`; do not le
 ## Cortana Protocol (Routing)
 
 - Cortana is orchestrator/command deck, not default implementer.
-- Code implementation and PR creation route to Huragok unless Hamel explicitly asks Cortana to execute directly.
+- Code implementation and PR creation route to Arbiter unless Hamel explicitly asks Cortana to execute directly.
 - Inter-agent `sessions_send` is **TASK-only**. No FYI/status chatter over agent lanes.
 - TASK lane message contract: objective, owner, constraints, delivery target, done condition — nothing else.
 - If a specialist already delivered directly to Hamel, Cortana should not echo duplicate output.
@@ -51,11 +51,9 @@ Owner-labeled Telegram alerts must send with the matching `accountId`; do not le
 - Status claims must be check-backed (CI/cron/runtime verification before declaring green).
 - If wrong, correct quickly and post the verified state.
 
-For Researcher lane identity and operating details, see `identities/researcher/`.
+## Monitor / Group Telegram Troubleshooting
 
-## Monitor/Covenant Telegram troubleshooting
-
-If Monitor cannot see Covenant group messages, use:
+If Monitor cannot see expected group messages, use:
 - `docs/archive/runbook/monitor-covenant-telegram-troubleshooting.md`
 
 This covers routing keys, account bindings, group mention policy, and Telegram privacy/admin checks.
@@ -102,7 +100,7 @@ When a cron agent sends a message to Telegram (e.g., a health alert), **replying
 
 **Future fix:** Cron delivery messages should include a footer indicating they're automated, or OpenClaw should route all Telegram DM replies to the main agent regardless of which agent sent the original message.
 
-## Identity Namespace Wiring (Covenant Slice 2)
+## Identity Namespace Wiring
 
 Runtime now supports per-agent identity namespace selection via a local internal hook.
 
@@ -150,19 +148,14 @@ openclaw gateway restart
 
 This rollback preserves all existing agent routing and reverts bootstrap identity loading to workspace defaults.
 
-## Durable Memory Write Isolation (Covenant Slice 3)
+## Durable Memory Write Isolation
 
 Durable memory write destinations are now namespace-aware for identity agents.
 
 - `main` writes to:
   - `/Users/hd/Developer/cortana/MEMORY.md`
   - `/Users/hd/Developer/cortana/memory/*.md`
-- `researcher` writes to:
-  - `/Users/hd/Developer/cortana/identities/researcher/MEMORY.md`
-  - `/Users/hd/Developer/cortana/identities/researcher/memory/*.md`
-- `huragok` writes to:
-  - `/Users/hd/Developer/cortana/identities/huragok/MEMORY.md`
-  - `/Users/hd/Developer/cortana/identities/huragok/memory/*.md`
+- `monitor`, `arbiter`, and `spartan` write to their matching identity namespace paths under `/Users/hd/Developer/cortana/identities/<agent>/`.
 
 ### Fallback behavior (non-breaking)
 

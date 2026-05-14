@@ -1,24 +1,324 @@
 #!/usr/bin/env npx tsx
-import { spawnSync } from 'node:child_process';
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 
-async function main(): Promise<void> {
-  const py = "#!/usr/bin/env python3\nfrom __future__ import annotations\n\nimport argparse\nimport json\nimport os\nimport subprocess\nfrom dataclasses import dataclass, asdict\nfrom datetime import datetime, timezone\nfrom pathlib import Path\nfrom typing import Any\n\nROOT = Path(__file__).resolve().parents[2]\nDEFAULT_PATHS = [ROOT / \"tmp\", ROOT / \"logs\", ROOT / \"cortical-loop\" / \"logs\"]\nDEFAULT_MIGRATIONS_DIR = ROOT / \"migrations\"\n\nSEVERITY_WEIGHT = {\"info\": 1, \"warn\": 4, \"critical\": 10}\n\n\n@dataclass\nclass Finding:\n    check: str\n    severity: str  # info|warn|critical\n    title: str\n    message: str\n    metadata: dict[str, Any]\n    recoverable: bool = False\n    cleaned: bool = False\n\n\n@dataclass\nclass SweepSummary:\n    mode: str\n    safe: bool\n    dry_run: bool\n    risk_score: int\n    counts: dict[str, int]\n    cleaned_items: int\n    findings: list[Finding]\n\n\nclass HygieneSweep:\n    def __init__(\n        self,\n        stale_session_minutes: int,\n        stale_file_days: int,\n        oversized_log_mb: int,\n        paths: list[Path],\n        migrations_dir: Path,\n        db: str,\n        verbose: bool = False,\n    ):\n        self.stale_session_minutes = stale_session_minutes\n        self.stale_file_days = stale_file_days\n        self.oversized_log_bytes = oversized_log_mb * 1024 * 1024\n        self.paths = paths\n        self.migrations_dir = migrations_dir\n        self.db = db\n        self.verbose = verbose\n\n    def run(self, mode: str, safe: bool, dry_run: bool) -> SweepSummary:\n        findings: list[Finding] = []\n        findings.extend(self._check_subagent_sessions())\n        findings.extend(self._check_stale_files(mode=mode, safe=safe, dry_run=dry_run))\n        findings.extend(self._check_duplicate_migration_prefixes())\n        findings.extend(self._check_oversized_session_logs(mode=mode, safe=safe, dry_run=dry_run))\n\n        counts = {\"info\": 0, \"warn\": 0, \"critical\": 0}\n        cleaned_items = 0\n        weighted = 0\n        for f in findings:\n            counts[f.severity] = counts.get(f.severity, 0) + 1\n            weighted += SEVERITY_WEIGHT.get(f.severity, 1)\n            if f.cleaned:\n                cleaned_items += 1\n\n        max_possible = max(1, len(findings) * SEVERITY_WEIGHT[\"critical\"])\n        risk_score = min(100, round((weighted / max_possible) * 100))\n\n        return SweepSummary(\n            mode=mode,\n            safe=safe,\n            dry_run=dry_run,\n            risk_score=risk_score,\n            counts=counts,\n            cleaned_items=cleaned_items,\n            findings=findings,\n        )\n\n    def _check_subagent_sessions(self) -> list[Finding]:\n        findings: list[Finding] = []\n        stale_ms = self.stale_session_minutes * 60 * 1000\n\n        data = self._read_subagent_runtime_data()\n        if data is None:\n            # Fallback: infer stale/orphaned work from task queue state.\n            stale_minutes = int(self.stale_session_minutes)\n            stale_in_progress = self._psql_json(\n                f\"\"\"\n                SELECT COALESCE(json_agg(t), '[]'::json)\n                FROM (\n                  SELECT id, title, status, assigned_to, created_at,\n                         EXTRACT(EPOCH FROM (NOW() - created_at)) * 1000 AS runtime_ms\n                  FROM cortana_tasks\n                  WHERE status='in_progress'\n                    AND created_at < NOW() - INTERVAL '{stale_minutes} minutes'\n                  ORDER BY created_at ASC\n                  LIMIT 25\n                ) t;\n                \"\"\"\n            )\n            stale_in_progress = stale_in_progress if isinstance(stale_in_progress, list) else []\n\n            if stale_in_progress:\n                findings.append(\n                    Finding(\n                        check=\"subagent_sessions\",\n                        severity=\"warn\",\n                        title=\"Potentially orphaned in-progress tasks\",\n                        message=f\"Detected {len(stale_in_progress)} long-running in_progress task(s) beyond stale threshold.\",\n                        metadata={\"threshold_minutes\": stale_minutes, \"tasks\": stale_in_progress},\n                    )\n                )\n            else:\n                findings.append(\n                    Finding(\n                        check=\"subagent_sessions\",\n                        severity=\"info\",\n                        title=\"No stale in-progress tasks\",\n                        message=\"Fallback queue scan found no likely orphaned/stale tasks.\",\n                        metadata={\"threshold_minutes\": stale_minutes},\n                    )\n                )\n            return findings\n\n        active = data.get(\"active\") or []\n        recent = data.get(\"recent\") or []\n\n        stale_active = [s for s in active if int(s.get(\"runtimeMs\") or 0) > stale_ms]\n        if stale_active:\n            findings.append(\n                Finding(\n                    check=\"subagent_sessions\",\n                    severity=\"critical\",\n                    title=\"Stale active subagent sessions\",\n                    message=f\"{len(stale_active)} running subagent session(s) exceeded stale threshold.\",\n                    metadata={\n                        \"threshold_minutes\": self.stale_session_minutes,\n                        \"sessions\": [\n                            {\n                                \"runId\": s.get(\"runId\"),\n                                \"label\": s.get(\"label\"),\n                                \"runtimeMs\": s.get(\"runtimeMs\"),\n                                \"status\": s.get(\"status\"),\n                            }\n                            for s in stale_active\n                        ],\n                    },\n                )\n            )\n        else:\n            findings.append(\n                Finding(\n                    check=\"subagent_sessions\",\n                    severity=\"info\",\n                    title=\"No stale active subagent sessions\",\n                    message=\"All active subagent sessions are within freshness threshold.\",\n                    metadata={\"active_count\": len(active), \"threshold_minutes\": self.stale_session_minutes},\n                )\n            )\n\n        problematic_recent = [s for s in recent if str(s.get(\"status\")) in {\"failed\", \"timeout\"}]\n        if problematic_recent:\n            findings.append(\n                Finding(\n                    check=\"subagent_sessions\",\n                    severity=\"warn\",\n                    title=\"Recent failed/timed-out subagent sessions\",\n                    message=f\"Detected {len(problematic_recent)} recent subagent failures/timeouts.\",\n                    metadata={\n                        \"sessions\": [\n                            {\n                                \"runId\": s.get(\"runId\"),\n                                \"label\": s.get(\"label\"),\n                                \"status\": s.get(\"status\"),\n                                \"runtimeMs\": s.get(\"runtimeMs\"),\n                            }\n                            for s in problematic_recent\n                        ]\n                    },\n                )\n            )\n        return findings\n\n    def _read_subagent_runtime_data(self) -> dict[str, Any] | None:\n        try:\n            proc = subprocess.run(\n                [\"openclaw\", \"subagents\", \"list\", \"--json\"],\n                capture_output=True,\n                text=True,\n                cwd=str(ROOT),\n            )\n            if proc.returncode != 0:\n                return None\n            data = json.loads(proc.stdout)\n            if isinstance(data, dict):\n                return data\n        except Exception:  # noqa: BLE001\n            return None\n        return None\n\n    def _psql_json(self, sql: str) -> Any:\n        env = os.environ.copy()\n        env[\"PATH\"] = f\"/opt/homebrew/opt/postgresql@17/bin:{env.get('PATH', '')}\"\n        proc = subprocess.run(\n            [\"psql\", self.db, \"-v\", \"ON_ERROR_STOP=1\", \"-At\", \"-c\", sql],\n            text=True,\n            capture_output=True,\n            env=env,\n        )\n        if proc.returncode != 0:\n            return None\n        raw = (proc.stdout or \"\").strip()\n        if not raw:\n            return None\n        try:\n            return json.loads(raw)\n        except json.JSONDecodeError:\n            return None\n\n    def _all_candidate_files(self) -> list[Path]:\n        files: list[Path] = []\n        for base in self.paths:\n            if not base.exists() or not base.is_dir():\n                continue\n            for p in base.rglob(\"*\"):\n                if p.is_file():\n                    files.append(p)\n        return files\n\n    def _check_stale_files(self, mode: str, safe: bool, dry_run: bool) -> list[Finding]:\n        findings: list[Finding] = []\n        now = datetime.now(timezone.utc).timestamp()\n        stale_seconds = self.stale_file_days * 86400\n\n        stale_files: list[Path] = []\n        for p in self._all_candidate_files():\n            try:\n                age = now - p.stat().st_mtime\n            except FileNotFoundError:\n                continue\n            if age >= stale_seconds:\n                stale_files.append(p)\n\n        if not stale_files:\n            findings.append(\n                Finding(\n                    check=\"stale_files\",\n                    severity=\"info\",\n                    title=\"No stale temp/log files\",\n                    message=\"No stale files found under configured temp/log paths.\",\n                    metadata={\"paths\": [str(p) for p in self.paths], \"stale_file_days\": self.stale_file_days},\n                    recoverable=True,\n                )\n            )\n            return findings\n\n        sample = [str(p.relative_to(ROOT)) for p in stale_files[:25]]\n        total_bytes = sum(p.stat().st_size for p in stale_files if p.exists())\n        finding = Finding(\n            check=\"stale_files\",\n            severity=\"warn\",\n            title=\"Stale temp/log files detected\",\n            message=f\"Found {len(stale_files)} stale files ({_human_size(total_bytes)}).\",\n            metadata={\n                \"count\": len(stale_files),\n                \"total_bytes\": total_bytes,\n                \"sample\": sample,\n                \"stale_file_days\": self.stale_file_days,\n            },\n            recoverable=True,\n        )\n\n        if mode == \"clean\" and safe:\n            deleted = 0\n            for p in stale_files:\n                if dry_run:\n                    deleted += 1\n                    continue\n                try:\n                    p.unlink(missing_ok=True)\n                    deleted += 1\n                except Exception:  # noqa: BLE001\n                    pass\n            finding.cleaned = deleted > 0\n            finding.message += f\" {'Would remove' if dry_run else 'Removed'} {deleted} file(s).\"\n            finding.metadata[\"deleted\"] = deleted\n            finding.metadata[\"dry_run\"] = dry_run\n\n        findings.append(finding)\n        return findings\n\n    def _check_duplicate_migration_prefixes(self) -> list[Finding]:\n        findings: list[Finding] = []\n        if not self.migrations_dir.exists() or not self.migrations_dir.is_dir():\n            return [\n                Finding(\n                    check=\"migration_prefixes\",\n                    severity=\"info\",\n                    title=\"Migration directory missing\",\n                    message=\"No migrations directory found; skipping duplicate prefix scan.\",\n                    metadata={\"path\": str(self.migrations_dir)},\n                )\n            ]\n\n        buckets: dict[str, list[str]] = {}\n        for p in self.migrations_dir.glob(\"*.sql\"):\n            parts = p.name.split(\"_\", 1)\n            if not parts or not parts[0].isdigit():\n                continue\n            buckets.setdefault(parts[0], []).append(p.name)\n\n        duplicates = {k: v for k, v in buckets.items() if len(v) > 1}\n        if duplicates:\n            findings.append(\n                Finding(\n                    check=\"migration_prefixes\",\n                    severity=\"critical\",\n                    title=\"Duplicate migration prefixes detected\",\n                    message=f\"Detected {len(duplicates)} duplicate migration prefix group(s).\",\n                    metadata={\"duplicates\": duplicates},\n                )\n            )\n        else:\n            findings.append(\n                Finding(\n                    check=\"migration_prefixes\",\n                    severity=\"info\",\n                    title=\"Migration prefixes are unique\",\n                    message=\"No duplicate numeric migration prefixes found.\",\n                    metadata={\"scanned_files\": sum(len(v) for v in buckets.values())},\n                )\n            )\n        return findings\n\n    def _check_oversized_session_logs(self, mode: str, safe: bool, dry_run: bool) -> list[Finding]:\n        findings: list[Finding] = []\n\n        def is_session_log(p: Path) -> bool:\n            n = p.name.lower()\n            if not n.endswith(\".log\"):\n                return False\n            return \"session\" in n or \"subagent\" in n or \"agent\" in n\n\n        candidates = [p for p in self._all_candidate_files() if is_session_log(p)]\n        oversized = [p for p in candidates if p.exists() and p.stat().st_size > self.oversized_log_bytes]\n\n        if not oversized:\n            findings.append(\n                Finding(\n                    check=\"oversized_session_logs\",\n                    severity=\"info\",\n                    title=\"No oversized session logs\",\n                    message=\"No session log exceeded configured size threshold.\",\n                    metadata={\n                        \"threshold_bytes\": self.oversized_log_bytes,\n                        \"threshold_mb\": round(self.oversized_log_bytes / (1024 * 1024), 2),\n                        \"candidates\": len(candidates),\n                    },\n                    recoverable=True,\n                )\n            )\n            return findings\n\n        max_bytes = max(p.stat().st_size for p in oversized)\n        severity = \"critical\" if max_bytes > (self.oversized_log_bytes * 2) else \"warn\"\n        finding = Finding(\n            check=\"oversized_session_logs\",\n            severity=severity,\n            title=\"Oversized session logs detected\",\n            message=f\"Found {len(oversized)} oversized session logs.\",\n            metadata={\n                \"threshold_bytes\": self.oversized_log_bytes,\n                \"logs\": [\n                    {\n                        \"path\": str(p.relative_to(ROOT)),\n                        \"bytes\": p.stat().st_size,\n                    }\n                    for p in oversized[:50]\n                ],\n            },\n            recoverable=True,\n        )\n\n        if mode == \"clean\" and safe:\n            processed = 0\n            for p in oversized:\n                if dry_run:\n                    processed += 1\n                    continue\n                try:\n                    # Truncate in-place to preserve log handles.\n                    with p.open(\"w\", encoding=\"utf-8\"):\n                        pass\n                    processed += 1\n                except Exception:  # noqa: BLE001\n                    pass\n            finding.cleaned = processed > 0\n            finding.message += f\" {'Would truncate' if dry_run else 'Truncated'} {processed} log file(s).\"\n            finding.metadata[\"processed\"] = processed\n            finding.metadata[\"dry_run\"] = dry_run\n\n        findings.append(finding)\n        return findings\n\n    def log_event(self, summary: SweepSummary) -> None:\n        payload = {\n            \"mode\": summary.mode,\n            \"safe\": summary.safe,\n            \"dry_run\": summary.dry_run,\n            \"risk_score\": summary.risk_score,\n            \"counts\": summary.counts,\n            \"cleaned_items\": summary.cleaned_items,\n            \"findings\": [asdict(f) for f in summary.findings],\n            \"timestamp\": datetime.now(timezone.utc).isoformat(),\n        }\n\n        metadata = json.dumps(payload, separators=(\",\", \":\")).replace(\"'\", \"''\")\n        message = f\"System hygiene sweep {summary.mode}: risk={summary.risk_score}\".replace(\"'\", \"''\")\n\n        sql = f\"\"\"\n        INSERT INTO cortana_events (event_type, source, severity, message, metadata)\n        VALUES (\n            'system_hygiene',\n            'tools/hygiene/sweep.ts',\n            '{self._overall_severity(summary)}',\n            '{message}',\n            '{metadata}'::jsonb\n        );\n        \"\"\"\n\n        env = os.environ.copy()\n        env[\"PATH\"] = f\"/opt/homebrew/opt/postgresql@17/bin:{env.get('PATH', '')}\"\n        proc = subprocess.run([\"psql\", self.db, \"-v\", \"ON_ERROR_STOP=1\", \"-c\", sql], text=True, capture_output=True, env=env)\n        if proc.returncode != 0 and self.verbose:\n            print(f\"[warn] failed to write cortana_events: {proc.stderr.strip() or proc.stdout.strip()}\")\n\n    @staticmethod\n    def _overall_severity(summary: SweepSummary) -> str:\n        if summary.counts.get(\"critical\", 0) > 0:\n            return \"critical\"\n        if summary.counts.get(\"warn\", 0) > 0:\n            return \"warning\"\n        return \"info\"\n\n\ndef _human_size(size: int) -> str:\n    units = [\"B\", \"KB\", \"MB\", \"GB\", \"TB\"]\n    val = float(size)\n    idx = 0\n    while val >= 1024 and idx < len(units) - 1:\n        val /= 1024\n        idx += 1\n    if idx == 0:\n        return f\"{int(val)} {units[idx]}\"\n    return f\"{val:.1f} {units[idx]}\"\n\n\ndef _print_human(summary: SweepSummary) -> None:\n    print(f\"mode={summary.mode} safe={summary.safe} dry_run={summary.dry_run}\")\n    print(\n        \"risk_score={} info={} warn={} critical={} cleaned={}\".format(\n            summary.risk_score,\n            summary.counts.get(\"info\", 0),\n            summary.counts.get(\"warn\", 0),\n            summary.counts.get(\"critical\", 0),\n            summary.cleaned_items,\n        )\n    )\n    for f in summary.findings:\n        cleaned = \" cleaned\" if f.cleaned else \"\"\n        print(f\"- [{f.severity}] {f.check}: {f.title}{cleaned}\")\n        print(f\"  {f.message}\")\n\n\ndef _summary_to_json(summary: SweepSummary) -> str:\n    payload = {\n        \"mode\": summary.mode,\n        \"safe\": summary.safe,\n        \"dry_run\": summary.dry_run,\n        \"risk_score\": summary.risk_score,\n        \"counts\": summary.counts,\n        \"cleaned_items\": summary.cleaned_items,\n        \"findings\": [asdict(f) for f in summary.findings],\n    }\n    return json.dumps(payload, indent=2, sort_keys=True)\n\n\ndef parse_args() -> argparse.Namespace:\n    parser = argparse.ArgumentParser(description=\"System hygiene sweep\")\n    sub = parser.add_subparsers(dest=\"command\")\n\n    audit = sub.add_parser(\"audit\", help=\"Detect hygiene issues only\")\n    clean = sub.add_parser(\"clean\", help=\"Cleanup recoverable low-risk items\")\n    report = sub.add_parser(\"report\", help=\"Generate hygiene report\")\n\n    for p in (parser, audit, clean, report):\n        p.add_argument(\"--stale-session-minutes\", type=int, default=180)\n        p.add_argument(\"--stale-file-days\", type=int, default=7)\n        p.add_argument(\"--oversized-log-mb\", type=int, default=25)\n        p.add_argument(\"--migrations-dir\", default=str(DEFAULT_MIGRATIONS_DIR))\n        p.add_argument(\"--db\", default=\"cortana\")\n        p.add_argument(\n            \"--paths\",\n            nargs=\"*\",\n            default=[str(p) for p in DEFAULT_PATHS],\n            help=\"Temp/log paths to scan\",\n        )\n        p.add_argument(\"--no-log-event\", action=\"store_true\", help=\"Skip cortana_events insert\")\n        p.add_argument(\"--verbose\", action=\"store_true\")\n\n    clean.add_argument(\"--safe\", action=\"store_true\", help=\"Required safety gate for cleanup\")\n    clean.add_argument(\"--dry-run\", action=\"store_true\", help=\"Show cleanup actions without changing files\")\n    report.add_argument(\"--json\", action=\"store_true\", help=\"Emit machine-readable JSON\")\n\n    args = parser.parse_args()\n    if args.command is None:\n        args.command = \"audit\"\n    return args\n\n\ndef main() -> int:\n    args = parse_args()\n\n    if args.command == \"clean\" and not args.safe:\n        print(\"error: clean requires --safe\")\n        return 2\n\n    paths = [Path(p).expanduser().resolve() for p in args.paths]\n    sweep = HygieneSweep(\n        stale_session_minutes=args.stale_session_minutes,\n        stale_file_days=args.stale_file_days,\n        oversized_log_mb=args.oversized_log_mb,\n        paths=paths,\n        migrations_dir=Path(args.migrations_dir).expanduser().resolve(),\n        db=args.db,\n        verbose=args.verbose,\n    )\n\n    summary = sweep.run(\n        mode=args.command,\n        safe=bool(getattr(args, \"safe\", False)),\n        dry_run=bool(getattr(args, \"dry_run\", False)),\n    )\n\n    if args.command == \"report\" and args.json:\n        print(_summary_to_json(summary))\n    else:\n        _print_human(summary)\n\n    if not args.no_log_event:\n        sweep.log_event(summary)\n\n    return 0\n\n\nif __name__ == \"__main__\":\n    raise SystemExit(main())\n";
-  const dir = mkdtempSync(join(tmpdir(), 'pywrap-'));
-  const script = join(dir, 'script.py');
-  writeFileSync(script, py, 'utf8');
-  const proc = spawnSync('python3', [script, ...process.argv.slice(2)], { stdio: 'inherit' });
-  rmSync(dir, { recursive: true, force: true });
-  if (proc.error) {
-    console.error(String(proc.error));
-    process.exit(1);
+import fs from "node:fs";
+import path from "node:path";
+import { spawnSync } from "node:child_process";
+import { runPsql } from "../lib/db.js";
+
+type Severity = "info" | "warn" | "critical";
+
+type Finding = {
+  check: string;
+  severity: Severity;
+  title: string;
+  message: string;
+  metadata: Record<string, unknown>;
+  recoverable?: boolean;
+  cleaned?: boolean;
+};
+
+type Args = {
+  command: "audit" | "clean" | "report";
+  safe: boolean;
+  dryRun: boolean;
+  json: boolean;
+  noLogEvent: boolean;
+  verbose: boolean;
+  staleSessionMinutes: number;
+  staleFileDays: number;
+  oversizedLogMb: number;
+  migrationsDir: string;
+  db: string;
+  paths: string[];
+};
+
+const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..", "..");
+const DEFAULT_PATHS = [path.join(ROOT, "tmp"), path.join(ROOT, "logs"), path.join(ROOT, "cortical-loop", "logs")];
+const DEFAULT_MIGRATIONS_DIR = path.join(ROOT, "migrations");
+const SEVERITY_WEIGHT: Record<Severity, number> = { info: 1, warn: 4, critical: 10 };
+
+function parseArgs(argv: string[]): Args {
+  const args: Args = {
+    command: "audit",
+    safe: false,
+    dryRun: false,
+    json: false,
+    noLogEvent: false,
+    verbose: false,
+    staleSessionMinutes: 180,
+    staleFileDays: 7,
+    oversizedLogMb: 25,
+    migrationsDir: DEFAULT_MIGRATIONS_DIR,
+    db: "cortana",
+    paths: [...DEFAULT_PATHS],
+  };
+
+  if (argv[0] === "audit" || argv[0] === "clean" || argv[0] === "report") {
+    args.command = argv.shift() as Args["command"];
   }
-  process.exit(proc.status ?? 1);
+
+  for (let i = 0; i < argv.length; i += 1) {
+    const arg = argv[i];
+    if (arg === "--safe") args.safe = true;
+    else if (arg === "--dry-run") args.dryRun = true;
+    else if (arg === "--json") args.json = true;
+    else if (arg === "--no-log-event") args.noLogEvent = true;
+    else if (arg === "--verbose") args.verbose = true;
+    else if (arg === "--stale-session-minutes") args.staleSessionMinutes = Number(argv[++i] ?? args.staleSessionMinutes);
+    else if (arg === "--stale-file-days") args.staleFileDays = Number(argv[++i] ?? args.staleFileDays);
+    else if (arg === "--oversized-log-mb") args.oversizedLogMb = Number(argv[++i] ?? args.oversizedLogMb);
+    else if (arg === "--migrations-dir") args.migrationsDir = path.resolve(argv[++i] ?? args.migrationsDir);
+    else if (arg === "--db") args.db = argv[++i] ?? args.db;
+    else if (arg === "--paths") {
+      const values: string[] = [];
+      while (argv[i + 1] && !argv[i + 1].startsWith("--")) values.push(path.resolve(argv[++i]));
+      if (values.length > 0) args.paths = values;
+    }
+  }
+
+  return args;
 }
 
-main().catch((err) => {
-  console.error(err instanceof Error ? err.message : String(err));
-  process.exit(1);
-});
+function readOpenClawSubagents(): Record<string, unknown> | null {
+  const proc = spawnSync("openclaw", ["subagents", "list", "--json"], {
+    cwd: ROOT,
+    encoding: "utf8",
+    stdio: ["ignore", "pipe", "pipe"],
+  });
+  if (proc.status !== 0) return null;
+  try {
+    const parsed = JSON.parse(proc.stdout || "{}");
+    return parsed && typeof parsed === "object" && !Array.isArray(parsed) ? parsed as Record<string, unknown> : null;
+  } catch {
+    return null;
+  }
+}
+
+function checkSubagents(args: Args): Finding[] {
+  const data = readOpenClawSubagents();
+  if (!data) {
+    return [{
+      check: "subagent_sessions",
+      severity: "info",
+      title: "Subagent runtime data unavailable",
+      message: "openclaw subagents list --json was unavailable; no queue fallback is used.",
+      metadata: { threshold_minutes: args.staleSessionMinutes },
+    }];
+  }
+
+  const staleMs = args.staleSessionMinutes * 60 * 1000;
+  const active = Array.isArray(data.active) ? data.active as Array<Record<string, unknown>> : [];
+  const recent = Array.isArray(data.recent) ? data.recent as Array<Record<string, unknown>> : [];
+  const findings: Finding[] = [];
+  const stale = active.filter((session) => Number(session.runtimeMs ?? 0) > staleMs);
+
+  findings.push(stale.length > 0 ? {
+    check: "subagent_sessions",
+    severity: "critical",
+    title: "Stale active subagent sessions",
+    message: `${stale.length} running subagent session(s) exceeded stale threshold.`,
+    metadata: { threshold_minutes: args.staleSessionMinutes, sessions: stale.slice(0, 25) },
+  } : {
+    check: "subagent_sessions",
+    severity: "info",
+    title: "No stale active subagent sessions",
+    message: "All active subagent sessions are within freshness threshold.",
+    metadata: { active_count: active.length, threshold_minutes: args.staleSessionMinutes },
+  });
+
+  const failed = recent.filter((session) => ["failed", "timeout"].includes(String(session.status ?? "")));
+  if (failed.length > 0) {
+    findings.push({
+      check: "subagent_sessions",
+      severity: "warn",
+      title: "Recent failed or timed-out subagent sessions",
+      message: `Detected ${failed.length} recent subagent failure(s).`,
+      metadata: { sessions: failed.slice(0, 25) },
+    });
+  }
+
+  return findings;
+}
+
+function listFiles(basePaths: string[]): string[] {
+  const files: string[] = [];
+  const walk = (filePath: string) => {
+    if (!fs.existsSync(filePath)) return;
+    const stat = fs.statSync(filePath);
+    if (stat.isFile()) {
+      files.push(filePath);
+      return;
+    }
+    if (!stat.isDirectory()) return;
+    for (const child of fs.readdirSync(filePath)) walk(path.join(filePath, child));
+  };
+  for (const base of basePaths) walk(base);
+  return files;
+}
+
+function checkStaleFiles(args: Args): Finding {
+  const now = Date.now();
+  const staleMs = args.staleFileDays * 24 * 60 * 60 * 1000;
+  const stale = listFiles(args.paths).filter((filePath) => now - fs.statSync(filePath).mtimeMs >= staleMs);
+
+  if (stale.length === 0) {
+    return {
+      check: "stale_files",
+      severity: "info",
+      title: "No stale temp or log files",
+      message: "No stale files found under configured temp/log paths.",
+      metadata: { paths: args.paths, stale_file_days: args.staleFileDays },
+      recoverable: true,
+    };
+  }
+
+  let deleted = 0;
+  if (args.command === "clean" && args.safe) {
+    for (const filePath of stale) {
+      if (!args.dryRun) fs.rmSync(filePath, { force: true });
+      deleted += 1;
+    }
+  }
+
+  return {
+    check: "stale_files",
+    severity: "warn",
+    title: "Stale temp or log files detected",
+    message: `Found ${stale.length} stale file(s).${deleted ? ` ${args.dryRun ? "Would remove" : "Removed"} ${deleted}.` : ""}`,
+    metadata: { count: stale.length, sample: stale.slice(0, 25).map((filePath) => path.relative(ROOT, filePath)), deleted, dry_run: args.dryRun },
+    recoverable: true,
+    cleaned: deleted > 0,
+  };
+}
+
+function checkMigrationPrefixes(args: Args): Finding {
+  if (!fs.existsSync(args.migrationsDir)) {
+    return {
+      check: "migration_prefixes",
+      severity: "info",
+      title: "Migration directory missing",
+      message: "No migrations directory found; skipping duplicate prefix scan.",
+      metadata: { path: args.migrationsDir },
+    };
+  }
+
+  const buckets = new Map<string, string[]>();
+  for (const name of fs.readdirSync(args.migrationsDir)) {
+    if (!name.endsWith(".sql")) continue;
+    const prefix = name.split("_", 1)[0];
+    if (!/^\d+$/.test(prefix)) continue;
+    buckets.set(prefix, [...(buckets.get(prefix) ?? []), name]);
+  }
+  const duplicates = [...buckets.entries()].filter(([, names]) => names.length > 1);
+
+  return duplicates.length > 0 ? {
+    check: "migration_prefixes",
+    severity: "critical",
+    title: "Duplicate migration prefixes detected",
+    message: `Detected ${duplicates.length} duplicate migration prefix group(s).`,
+    metadata: { duplicates: Object.fromEntries(duplicates) },
+  } : {
+    check: "migration_prefixes",
+    severity: "info",
+    title: "Migration prefixes are unique",
+    message: "No duplicate numeric migration prefixes found.",
+    metadata: { scanned_files: [...buckets.values()].flat().length },
+  };
+}
+
+function checkOversizedLogs(args: Args): Finding {
+  const maxBytes = args.oversizedLogMb * 1024 * 1024;
+  const logs = listFiles(args.paths).filter((filePath) => {
+    const name = path.basename(filePath).toLowerCase();
+    return name.endsWith(".log") && (name.includes("session") || name.includes("subagent") || name.includes("agent"));
+  });
+  const oversized = logs.filter((filePath) => fs.statSync(filePath).size > maxBytes);
+
+  if (oversized.length === 0) {
+    return {
+      check: "oversized_session_logs",
+      severity: "info",
+      title: "No oversized session logs",
+      message: "No session log exceeded configured size threshold.",
+      metadata: { threshold_mb: args.oversizedLogMb, candidates: logs.length },
+      recoverable: true,
+    };
+  }
+
+  let processed = 0;
+  if (args.command === "clean" && args.safe) {
+    for (const filePath of oversized) {
+      if (!args.dryRun) fs.writeFileSync(filePath, "");
+      processed += 1;
+    }
+  }
+
+  return {
+    check: "oversized_session_logs",
+    severity: "warn",
+    title: "Oversized session logs detected",
+    message: `Found ${oversized.length} oversized session log(s).${processed ? ` ${args.dryRun ? "Would truncate" : "Truncated"} ${processed}.` : ""}`,
+    metadata: { threshold_mb: args.oversizedLogMb, logs: oversized.slice(0, 25).map((filePath) => path.relative(ROOT, filePath)), processed, dry_run: args.dryRun },
+    recoverable: true,
+    cleaned: processed > 0,
+  };
+}
+
+function summarize(args: Args, findings: Finding[]) {
+  const counts: Record<Severity, number> = { info: 0, warn: 0, critical: 0 };
+  let weighted = 0;
+  let cleanedItems = 0;
+  for (const finding of findings) {
+    counts[finding.severity] += 1;
+    weighted += SEVERITY_WEIGHT[finding.severity];
+    if (finding.cleaned) cleanedItems += 1;
+  }
+  const riskScore = findings.length === 0 ? 0 : Math.min(100, Math.round((weighted / (findings.length * SEVERITY_WEIGHT.critical)) * 100));
+  return { mode: args.command, safe: args.safe, dry_run: args.dryRun, risk_score: riskScore, counts, cleaned_items: cleanedItems, findings };
+}
+
+function logEvent(args: Args, summary: ReturnType<typeof summarize>): void {
+  const severity = summary.counts.critical > 0 ? "critical" : summary.counts.warn > 0 ? "warning" : "info";
+  const metadata = JSON.stringify({ ...summary, timestamp: new Date().toISOString() }).replace(/'/g, "''");
+  const message = `System hygiene sweep ${summary.mode}: risk=${summary.risk_score}`.replace(/'/g, "''");
+  const proc = runPsql(`
+INSERT INTO cortana_events (event_type, source, severity, message, metadata)
+VALUES ('system_hygiene', 'tools/hygiene/sweep.ts', '${severity}', '${message}', '${metadata}'::jsonb);
+`, { db: args.db });
+  if (proc.status !== 0 && args.verbose) {
+    console.error(`[warn] failed to write cortana_events: ${(proc.stderr || proc.stdout || "").trim()}`);
+  }
+}
+
+function printHuman(summary: ReturnType<typeof summarize>): void {
+  console.log(`mode=${summary.mode} safe=${summary.safe} dry_run=${summary.dry_run}`);
+  console.log(`risk_score=${summary.risk_score} info=${summary.counts.info} warn=${summary.counts.warn} critical=${summary.counts.critical} cleaned=${summary.cleaned_items}`);
+  for (const finding of summary.findings) {
+    console.log(`- [${finding.severity}] ${finding.check}: ${finding.title}`);
+    console.log(`  ${finding.message}`);
+  }
+}
+
+function main(): number {
+  const args = parseArgs(process.argv.slice(2));
+  if (args.command === "clean" && !args.safe) {
+    console.error("error: clean requires --safe");
+    return 2;
+  }
+
+  const findings = [
+    ...checkSubagents(args),
+    checkStaleFiles(args),
+    checkMigrationPrefixes(args),
+    checkOversizedLogs(args),
+  ];
+  const summary = summarize(args, findings);
+
+  if (args.command === "report" && args.json) console.log(JSON.stringify(summary, null, 2));
+  else printHuman(summary);
+
+  if (!args.noLogEvent) logEvent(args, summary);
+  return 0;
+}
+
+process.exit(main());

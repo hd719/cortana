@@ -7,7 +7,6 @@
 - [Routing](../domains/cortana-core/routing.md)
 - [Heartbeat](../domains/cortana-core/heartbeat.md)
 - [Autonomy](../domains/cortana-core/autonomy.md)
-- [Task Board](../domains/cortana-core/task-board.md)
 - [Memory System Overview](../domains/memory-system/overview.md)
 - [OpenClaw Overview](../domains/openclaw/overview.md)
 - [Spartan Overview](../domains/spartan/overview.md)

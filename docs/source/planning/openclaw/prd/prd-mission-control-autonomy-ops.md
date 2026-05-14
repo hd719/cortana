@@ -13,7 +13,7 @@
 
 ## Problem / Opportunity
 
-Autonomy status is spread across CLI tools, watchdog state, cron state, OpenClaw status, Mission Control health, and task-board follow-ups. The system has the right ingredients, but there is no single operator surface that answers: “Is Cortana self-managing correctly right now?”
+Autonomy status is spread across CLI tools, watchdog state, cron state, OpenClaw status, Mission Control health, human-required items, and GitHub Issue follow-ups. The system has the right ingredients, but there is no single operator surface that answers: “Is Cortana self-managing correctly right now?”
 
 The opportunity is to add a Mission Control Autonomy Ops page that aggregates bounded autonomy state, stale/noisy signals, human-required items, and recent self-healing actions into one trusted view.
 
@@ -23,7 +23,7 @@ The opportunity is to add a Mission Control Autonomy Ops page that aggregates bo
 
 - `autonomy-ops`, `autonomy-rollout`, `autonomy-status`, `autonomy-scorecard`, and `autonomy-drill` already exist.
 - Watchdog and OpenClaw status provide separate runtime truth.
-- Mission Control is already the operator UI for agents, runs, task board, feedback, and Trading Ops.
+- Mission Control is already the operator UI for agents, runs, human-required items, feedback, and Trading Ops.
 - Current operator interpretation still requires running multiple commands manually.
 
 Problems this project is not intended to solve:

@@ -11,7 +11,6 @@ type Outcome = {
   signal_type: string;
   confidence: number;
   bucket: string;
-  task_created: boolean;
   outcome: string;
 };
 
@@ -105,45 +104,18 @@ function loadSuggestion(days: number): Map<number, Json> {
   return out;
 }
 
-function loadTasks(days: number): [Set<number>, Map<number, string>] {
-  if (!exists("cortana_tasks")) return [new Set(), new Map()];
-  const tsCol = hasCol("cortana_tasks", "created_at")
-    ? "created_at"
-    : hasCol("cortana_tasks", "timestamp")
-    ? "timestamp"
-    : null;
-  const where = tsCol ? `${tsCol}>=NOW()-INTERVAL '${Math.trunc(days)} days' AND ` : "";
-  const rows = fetchJson(
-    `SELECT status,metadata FROM cortana_tasks WHERE ${where} source='proactive-detector'`
-  );
-  const created = new Set<number>();
-  const outcomes = new Map<number, string>();
-  for (const r of rows) {
-    const md = r.metadata && typeof r.metadata === "object" ? r.metadata : {};
-    const sid = Number(md.signal_id || -1);
-    if (sid <= 0) continue;
-    created.add(sid);
-    const st = String(r.status || "").toLowerCase();
-    if (st === "completed") outcomes.set(sid, "acted");
-    else if (st === "cancelled" || st === "dismissed" || st === "rejected") outcomes.set(sid, "dismissed");
-    else if (!outcomes.has(sid)) outcomes.set(sid, "ready");
-  }
-  return [created, outcomes];
-}
-
 function build(days: number): Outcome[] {
   const sigs = loadSignals(days);
   const smap = loadSuggestion(days);
-  const [created, outcomes] = loadTasks(days);
 
   const out: Outcome[] = [];
   for (const s of sigs) {
     const sid = Number(s.signal_id || 0);
     if (sid <= 0) continue;
     const conf = Number(s.confidence || 0.0);
-    let state = outcomes.get(sid) || "unknown";
+    let state = "unknown";
     const sg = smap.get(sid);
-    if (sg && (state === "unknown" || state === "ready")) {
+    if (sg) {
       const ss = String(sg.status || "").toLowerCase();
       if (ACTED.has(ss)) state = "acted";
       else if (DISMISSED.has(ss)) state = "dismissed";
@@ -154,7 +126,6 @@ function build(days: number): Outcome[] {
       signal_type: String(s.signal_type || "unknown"),
       confidence: conf,
       bucket: bucket(conf),
-      task_created: created.has(sid),
       outcome: state,
     });
   }
@@ -183,7 +154,6 @@ function summarize(items: Outcome[], target: number, minSupport: number): Json {
       acted,
       dismissed,
       pending_or_unknown: pending,
-      task_created: rows.filter((r) => r.task_created).length,
       precision: prec != null ? Number(prec.toFixed(3)) : null,
     });
   }

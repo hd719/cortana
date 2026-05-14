@@ -23,10 +23,10 @@ describe("daily mission scorecard", () => {
 
   it("renders telegram output under word limit with validation", () => {
     const actions = [
-      { pillar: "time", text: "Set first deep work block.", minutes: 30, source: "task" as const },
-      { pillar: "health", text: "Train to readiness and lock bedtime.", minutes: 45, source: "task" as const },
-      { pillar: "wealth", text: "Run portfolio risk pulse.", minutes: 20, source: "task" as const },
-      { pillar: "career", text: "Ship one visible artifact before noon.", minutes: 50, source: "task" as const },
+      { pillar: "time", text: "Set first deep work block.", minutes: 30, source: "signal" as const },
+      { pillar: "health", text: "Train to readiness and lock bedtime.", minutes: 45, source: "signal" as const },
+      { pillar: "wealth", text: "Run portfolio risk pulse.", minutes: 20, source: "signal" as const },
+      { pillar: "career", text: "Ship one visible artifact before noon.", minutes: 50, source: "signal" as const },
     ];
 
     const output = renderScorecard(actions, "Finish the highest-leverage deliverable first.");

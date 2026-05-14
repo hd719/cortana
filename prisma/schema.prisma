@@ -34,12 +34,10 @@ model cortana_agent_feedback {
   agent_role         String
   feedback_text      String
   source_feedback_id Int?
-  source_task_id     Int?
   confidence         Decimal           @default(0.80) @db.Decimal(3, 2)
   active             Boolean           @default(true)
   created_at         DateTime          @default(now()) @db.Timestamptz(6)
   updated_at         DateTime          @default(now()) @db.Timestamptz(6)
-  cortana_tasks      cortana_tasks?    @relation(fields: [source_task_id], references: [id], onUpdate: NoAction)
 
   @@index([active], map: "idx_cortana_agent_feedback_active")
   @@index([agent_role], map: "idx_cortana_agent_feedback_role")
@@ -156,11 +154,9 @@ model cortana_council_sessions {
   decision               Json?
   decided_at             DateTime?                @db.Timestamptz(6)
   expires_at             DateTime                 @db.Timestamptz(6)
-  related_task_id        Int?
   model_policy           Json?                    @default("{\"voter_model\": \"openai/gpt-4o-mini\", \"synthesis_model\": \"anthropic/claude-sonnet-4-20250514\", \"session_budget_usd\": 0.05, \"max_tokens_per_vote\": 500}")
   metadata               Json?                    @default("{}")
   cortana_council_events cortana_council_events[]
-  cortana_tasks          cortana_tasks?           @relation(fields: [related_task_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
   cortana_council_votes  cortana_council_votes[]
 
   @@index([expires_at], map: "idx_council_sessions_expires", where: raw("(status = 'open'::text)"))
@@ -210,21 +206,6 @@ model cortana_cron_health {
   metadata             Json?    @default("{}")
 
   @@index([cron_name, timestamp(sort: Desc)], map: "idx_cron_health_name")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model cortana_epics {
-  id            Int             @id @default(autoincrement())
-  title         String
-  source        String?
-  status        String?         @default("active")
-  deadline      DateTime?       @db.Timestamptz(6)
-  created_at    DateTime?       @default(now()) @db.Timestamptz(6)
-  completed_at  DateTime?       @db.Timestamptz(6)
-  metadata      Json?           @default("{}")
-  cortana_tasks cortana_tasks[]
-
-  @@index([status], map: "idx_cortana_epics_status")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -679,9 +660,7 @@ model cortana_proactive_signals {
   starts_at                       DateTime?                        @db.Timestamptz(6)
   fingerprint                     String                           @unique(map: "idx_proactive_signals_fingerprint")
   status                          String                           @default("new")
-  related_task_id                 Int?
   metadata                        Json                             @default("{}")
-  cortana_tasks                   cortana_tasks?                   @relation(fields: [related_task_id], references: [id], onUpdate: NoAction)
   cortana_proactive_detector_runs cortana_proactive_detector_runs? @relation(fields: [run_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
 
   @@index([confidence(sort: Desc), created_at(sort: Desc)], map: "idx_proactive_signals_conf")
@@ -696,27 +675,10 @@ model cortana_proactive_suggestions {
   source          String?
   suggestion      String
   status          String         @default("pending")
-  related_task_id Int?
   metadata        Json           @default("{}")
-  cortana_tasks   cortana_tasks? @relation(fields: [related_task_id], references: [id], onUpdate: NoAction)
 
   @@index([status], map: "idx_proactive_suggestions_status")
   @@index([timestamp(sort: Desc)], map: "idx_proactive_suggestions_ts")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model cortana_quality_scores {
-  id               BigInt        @id @default(autoincrement())
-  task_id          Int
-  agent_role       String
-  score            Int
-  criteria_results Json          @default("{}")
-  scored_at        DateTime      @default(now()) @db.Timestamptz(6)
-  cortana_tasks    cortana_tasks @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([agent_role, scored_at(sort: Desc)], map: "idx_cortana_quality_scores_agent_role_scored_at")
-  @@index([scored_at(sort: Desc)], map: "idx_cortana_quality_scores_scored_at")
-  @@index([task_id], map: "idx_cortana_quality_scores_task_id")
 }
 
 model cortana_reflection_journal {
@@ -779,13 +741,11 @@ model cortana_reflection_runs {
 model cortana_response_evaluations {
   id            BigInt         @id @default(autoincrement())
   timestamp     DateTime       @default(now()) @db.Timestamptz(6)
-  task_id       Int?
   source        String?
   evaluator     String         @default("system")
   outcome       String
   notes         String?
   metadata      Json           @default("{}")
-  cortana_tasks cortana_tasks? @relation(fields: [task_id], references: [id], onUpdate: NoAction)
 
   @@index([outcome], map: "idx_response_evals_outcome")
   @@index([timestamp(sort: Desc)], map: "idx_response_evals_ts")
@@ -795,15 +755,12 @@ model cortana_response_evaluations {
 model cortana_run_events {
   id            Int            @id @default(autoincrement())
   run_id        String
-  task_id       Int?
   event_type    String
   source        String?
   metadata      Json?
   created_at    DateTime?      @default(now()) @db.Timestamptz(6)
-  cortana_tasks cortana_tasks? @relation(fields: [task_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
 
   @@index([run_id], map: "idx_run_events_run_id")
-  @@index([task_id], map: "idx_run_events_task_id")
 }
 
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
@@ -842,62 +799,6 @@ model cortana_sitrep {
   @@index([domain], map: "idx_sitrep_domain")
   @@index([run_id], map: "idx_sitrep_run_id")
   @@index([timestamp(sort: Desc)], map: "idx_sitrep_timestamp")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model cortana_task_reflections {
-  id            Int            @id @default(autoincrement())
-  task_id       Int?           @unique
-  reflected_at  DateTime       @default(now()) @db.Timestamptz(6)
-  outcome_type  String
-  signal_score  Decimal        @default(0) @db.Decimal(5, 2)
-  lesson        String?
-  evidence      Json           @default("{}")
-  cortana_tasks cortana_tasks? @relation(fields: [task_id], references: [id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@index([reflected_at(sort: Desc)], map: "idx_task_reflections_reflected_at")
-}
-
-/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
-model cortana_tasks {
-  id                            Int                             @id @default(autoincrement())
-  created_at                    DateTime?                       @default(now()) @db.Timestamp(6)
-  source                        String?                         @db.VarChar(50)
-  title                         String
-  description                   String?
-  priority                      Int?                            @default(3)
-  status                        String?                         @default("pending") @db.VarChar(20)
-  due_at                        DateTime?                       @db.Timestamp(6)
-  remind_at                     DateTime?                       @db.Timestamp(6)
-  execute_at                    DateTime?                       @db.Timestamp(6)
-  auto_executable               Boolean?                        @default(false)
-  execution_plan                String?
-  depends_on                    Int[]
-  completed_at                  DateTime?                       @db.Timestamp(6)
-  outcome                       String?
-  metadata                      Json?                           @default("{}")
-  epic_id                       Int?
-  parent_id                     Int?
-  assigned_to                   String?
-  updated_at                    DateTime                        @default(now())
-  run_id                        String?
-  cortana_agent_feedback        cortana_agent_feedback[]
-  cortana_council_sessions      cortana_council_sessions[]
-  cortana_proactive_signals     cortana_proactive_signals[]
-  cortana_proactive_suggestions cortana_proactive_suggestions[]
-  cortana_quality_scores        cortana_quality_scores[]
-  cortana_response_evaluations  cortana_response_evaluations[]
-  cortana_run_events            cortana_run_events[]
-  cortana_task_reflections      cortana_task_reflections?
-  cortana_epics                 cortana_epics?                  @relation(fields: [epic_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  cortana_tasks                 cortana_tasks?                  @relation("cortana_tasksTocortana_tasks", fields: [parent_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  other_cortana_tasks           cortana_tasks[]                 @relation("cortana_tasksTocortana_tasks")
-  cortana_trace_spans           cortana_trace_spans[]
-
-  @@index([auto_executable], map: "idx_cortana_tasks_auto_executable")
-  @@index([epic_id], map: "idx_cortana_tasks_epic_id")
-  @@index([parent_id], map: "idx_cortana_tasks_parent_id")
-  @@index([status], map: "idx_cortana_tasks_status")
 }
 
 model cortana_throttle_log {
@@ -948,7 +849,6 @@ model cortana_trace_spans {
   trace_id        String         @db.Uuid
   span_name       String
   agent_role      String?
-  task_id         Int?
   chain_id        String?        @db.Uuid
   started_at      DateTime       @db.Timestamptz(6)
   ended_at        DateTime       @db.Timestamptz(6)
@@ -956,10 +856,8 @@ model cortana_trace_spans {
   token_count_in  Int?
   token_count_out Int?
   metadata        Json           @default("{}")
-  cortana_tasks   cortana_tasks? @relation(fields: [task_id], references: [id], onUpdate: NoAction)
 
   @@index([agent_role], map: "idx_cortana_trace_spans_agent_role")
-  @@index([task_id], map: "idx_cortana_trace_spans_task_id")
   @@index([trace_id], map: "idx_cortana_trace_spans_trace_id")
 }
 

@@ -28,8 +28,6 @@ const MEMORY_FILES = ["MEMORY.md", "SOUL.md", "USER.md", "IDENTITY.md"];
 
 const REQUIRED_DB_TABLES = [
   "cortana_events",
-  "cortana_tasks",
-  "cortana_epics",
   "cortana_patterns",
   "cortana_self_model",
 ];
@@ -43,8 +41,6 @@ const REQUIRED_TOOLS = [
 ];
 
 const OPTIONAL_TOOLS = [
-  "tools/task-board/completion-sync.sh",
-  "tools/reaper/reaper.sh",
   "tools/notifications/telegram-delivery-guard.ts",
   "tools/deploy/ensure-deploy-worktree.sh",
   "tools/openclaw/runtime-integrity-check.ts",

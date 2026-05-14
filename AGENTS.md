@@ -1,6 +1,6 @@
 # AGENTS.md - Cortana/OpenClaw Bootstrap
 
-Last reviewed: 2026-04-30
+Last reviewed: 2026-05-14
 
 Fresh-session rule: read this file first, then rebuild context from live machine truth. Do not rely on stale chat summaries.
 
@@ -72,8 +72,10 @@ Assume contract drift before isolated code defects.
 4. Check the user-facing surface if visible to Hamel.
 5. Check model/provider drift.
 6. Check cron/job history.
-7. Check session/task-board hygiene.
+7. Check session hygiene and durable follow-up state.
 8. Only then decide whether source changes are required.
+
+Durable follow-up now means GitHub Issues. Do not recreate local Task Board rows or task-table workflows; persistent operational problems should route through the repo-appropriate GitHub issue path.
 
 Default commands:
 

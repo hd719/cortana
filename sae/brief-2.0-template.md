@@ -11,7 +11,7 @@ Use this skeleton for both AM and PM brief cron jobs.
 - Fitness snapshot (Whoop/Tonal)
 - Calendar next 48h via gog
 - Portfolio snapshot + top movers
-- Tasks: top priorities, overdue, dependency-ready auto-exec count
+- Operational follow-ups: open human-required items and durable GitHub Issue links when present
 - Breaking tech/tool news (OpenAI, Anthropic, OpenClaw, key infra)
 
 ## 2) Delta since last brief
@@ -19,7 +19,7 @@ Persist previous brief summary in `memory/brief-last.json` and show:
 - What changed in fitness/recovery
 - New calendar events or schedule shifts
 - Portfolio movers vs prior brief
-- Task board deltas (new done/new overdue/new ready)
+- Operational follow-up deltas (new open/new resolved/new human-action-required)
 - New breaking items
 
 ## 3) Output sections
@@ -27,33 +27,21 @@ Persist previous brief summary in `memory/brief-last.json` and show:
 2. 💪 Fitness
 3. 📅 Calendar
 4. 📈 Portfolio (snapshot + movers)
-5. ✅ Task Board (top tasks, overdue, ready)
+5. 🧾 Operational Follow-ups
 6. 📰 Breaking Tech/Tools
 7. 🔄 Delta since last brief
 
 ## 4) SQL snippets
 ```sql
--- Top active tasks
-SELECT id, title, priority, due_at
-FROM cortana_tasks
-WHERE status IN ('pending','in_progress')
-ORDER BY priority ASC, due_at ASC NULLS LAST, created_at ASC
+-- Open human-required follow-ups
+SELECT id, title, system, severity, due_at
+FROM cortana_human_required_actions
+WHERE status='open'
+ORDER BY
+  CASE severity WHEN 'critical' THEN 0 WHEN 'high' THEN 1 WHEN 'medium' THEN 2 ELSE 3 END,
+  due_at ASC NULLS LAST,
+  last_seen_at DESC
 LIMIT 7;
-
--- Overdue
-SELECT id, title, priority, due_at
-FROM cortana_tasks
-WHERE status='pending' AND due_at IS NOT NULL AND due_at < NOW()
-ORDER BY due_at ASC;
-
--- Ready auto-executable
-SELECT COUNT(*)
-FROM cortana_tasks
-WHERE status='pending' AND auto_executable=TRUE
-  AND (depends_on IS NULL OR NOT EXISTS (
-    SELECT 1 FROM cortana_tasks t2
-    WHERE t2.id = ANY(cortana_tasks.depends_on) AND t2.status != 'done'
-  ));
 ```
 
 ## 5) AM/PM mode

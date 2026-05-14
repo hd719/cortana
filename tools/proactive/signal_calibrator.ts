@@ -17,8 +17,6 @@ type AlertRecord = {
   metadata: AnyObj;
   noise_flagged: boolean;
   led_to_action: boolean;
-  task_id: number | null;
-  task_status: string | null;
   user_response_within_30m: boolean;
 };
 
@@ -27,8 +25,6 @@ const THRESHOLD_PATH = path.join(WORKSPACE, "config", "alert-thresholds.json");
 const LATEST_AUDIT_PATH = path.join(WORKSPACE, "reports", "proactive-signal-audit.json");
 const VALID_CATEGORIES = ["portfolio", "email", "calendar", "weather", "health", "tech_news"];
 const NOISE_TOKENS = ["noise", "noisy", "too many alerts", "spam", "alert fatigue", "irrelevant"];
-const ACTION_TASK_STATUSES = new Set(["completed", "in_progress"]);
-
 function runPsql(sql: string): string {
   return query(sql).trim();
 }
@@ -42,15 +38,6 @@ function fetchJson(sql: string): AnyObj[] {
 function exists(table: string): boolean {
   const safe = table.replace(/'/g, "''");
   return (runPsql(`SELECT to_regclass('${safe}') IS NOT NULL;`) || "").trim().toLowerCase() === "t";
-}
-
-function hasCol(table: string, col: string): boolean {
-  const t = table.replace(/'/g, "''");
-  const c = col.replace(/'/g, "''");
-  const q =
-    "SELECT EXISTS (SELECT 1 FROM information_schema.columns " +
-    `WHERE table_schema='public' AND table_name='${t}' AND column_name='${c}');`;
-  return (runPsql(q) || "").trim().toLowerCase() === "t";
 }
 
 function parseTs(ts?: string | null): Date | null {
@@ -144,8 +131,6 @@ function loadAlerts(days: number): AlertRecord[] {
       metadata,
       noise_flagged: false,
       led_to_action: false,
-      task_id: null,
-      task_status: null,
       user_response_within_30m: false,
     });
   }
@@ -175,23 +160,6 @@ function markNoiseFlags(alerts: AlertRecord[], feedbackRows: AnyObj[]): void {
   }
 }
 
-function loadTasks(days: number): AnyObj[] {
-  if (!exists("cortana_tasks")) return [];
-
-  const whereParts = [`created_at >= NOW() - INTERVAL '${Math.trunc(days)} days'`];
-  if (hasCol("cortana_tasks", "source")) {
-    whereParts.push("(source ILIKE '%proactive%' OR source ILIKE '%heartbeat%' OR source ILIKE '%watchlist%')");
-  }
-
-  const q = `
-    SELECT id, created_at, status, source, title, description, metadata
-    FROM cortana_tasks
-    WHERE ${whereParts.join(" AND ")}
-    ORDER BY created_at ASC
-  `;
-  return fetchJson(q);
-}
-
 function loadUserResponseEvents(days: number): AnyObj[] {
   if (!exists("cortana_events")) return [];
   const q = `
@@ -203,37 +171,17 @@ function loadUserResponseEvents(days: number): AnyObj[] {
         OR event_type ILIKE '%reply%'
         OR source ILIKE '%telegram%'
         OR source ILIKE '%chat%'
-        OR message ILIKE '%task done%'
+        OR message ILIKE '%done%'
       )
     ORDER BY timestamp ASC
   `;
   return fetchJson(q);
 }
 
-function correlateActions(alerts: AlertRecord[], tasks: AnyObj[], userEvents: AnyObj[]): void {
+function correlateActions(alerts: AlertRecord[], userEvents: AnyObj[]): void {
   for (const alert of alerts) {
     const ats = parseTs(alert.timestamp);
     if (!ats) continue;
-
-    for (const t of tasks) {
-      const tts = parseTs(String(t.created_at || ""));
-      if (!tts) continue;
-      const dt = (tts.getTime() - ats.getTime()) / 1000;
-      if (dt < 0 || dt > 1800) continue;
-
-      const searchable = [
-        String(t.title || "").toLowerCase(),
-        String(t.description || "").toLowerCase(),
-        JSON.stringify((typeof t.metadata === "object" && t.metadata) || {}).toLowerCase(),
-      ].join(" ");
-
-      if (searchable.includes(alert.category) || searchable.includes("proactive") || searchable.includes("alert")) {
-        alert.task_id = Number(t.id || 0);
-        alert.task_status = String(t.status || "");
-        if (ACTION_TASK_STATUSES.has(alert.task_status.toLowerCase())) alert.led_to_action = true;
-        break;
-      }
-    }
 
     for (const ue of userEvents) {
       const uts = parseTs(String(ue.timestamp || ""));
@@ -248,7 +196,7 @@ function correlateActions(alerts: AlertRecord[], tasks: AnyObj[], userEvents: An
         JSON.stringify((typeof ue.metadata === "object" && ue.metadata) || {}).toLowerCase(),
       ].join(" ");
 
-      if (["telegram", "reply", "message", "task done", "mark task"].some((k) => payload.includes(k))) {
+      if (["telegram", "reply", "message", "done", "resolved"].some((k) => payload.includes(k))) {
         alert.user_response_within_30m = true;
         alert.led_to_action = true;
         break;
@@ -353,8 +301,6 @@ function summarize(alerts: AlertRecord[], days: number): AnyObj {
       message: a.message.slice(0, 140),
       noise_flagged: a.noise_flagged,
       led_to_action: a.led_to_action,
-      task_id: a.task_id,
-      task_status: a.task_status,
       user_response_within_30m: a.user_response_within_30m,
     })),
   };
@@ -364,9 +310,8 @@ function cmdAudit(days: number): number {
   const alerts = loadAlerts(days);
   const feedback = findNoiseFeedback(days);
   markNoiseFlags(alerts, feedback);
-  const tasks = loadTasks(days);
   const userEvents = loadUserResponseEvents(days);
-  correlateActions(alerts, tasks, userEvents);
+  correlateActions(alerts, userEvents);
 
   const result = summarize(alerts, days);
   fs.mkdirSync(path.dirname(LATEST_AUDIT_PATH), { recursive: true });
