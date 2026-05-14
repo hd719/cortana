@@ -449,7 +449,7 @@ Core Covenant roles (implemented as sub‑agent profiles + routing rules):
 
 Routing lives in `AGENTS.md` + `covenant/` and is enforced by the main session: **Cortana dispatches, Covenant executes.**
 
-### 2.3 Governance: council, approvals, and policy gates
+### 2.3 Governance: council and policy gates
 
 For high-impact decisions, Cortana now runs a formal governance layer:
 
@@ -458,20 +458,7 @@ For high-impact decisions, Cortana now runs a formal governance layer:
   - Structured member outputs (analysis + vote + confidence + rationale)
   - **Model policy enforcement: council voting/synthesis uses OpenAI `gpt-4o` only**
 
-- **Approval gates (P0–P3 risk tiers)**
-  - Risk-scored actions route through explicit approval requirements
-  - Telegram inline buttons support approve/reject with operator-in-the-loop flow
-  - Resume workflow + CLI operators:
-    - `tools/approvals/check-approval.ts`
-    - `tools/approvals/poll-approval.ts`
-    - `tools/approvals/resume-approval.ts`
-
-- **Feedback loop hardening**
-  - Corrections are tracked, remediations are attached, and recurrence is detected
-  - Operator tooling:
-    - `tools/feedback/log-feedback.ts`
-    - `tools/feedback/add-feedback-action.ts`
-    - `tools/feedback/sync-feedback.ts`
+- Mission Control approvals, feedback inboxes, autonomy pages, and decision trace timelines have been retired.
 
 ### 2.4 Memory & cognition
 
@@ -618,24 +605,15 @@ Internal operator scripts, grouped by domain. Highlights:
   - Preflight checks, lean prompts, scheduling helpers
   - `tools/cron/rotate-cron-artifacts.sh` – rotates cron artifacts/log state
   - `tools/heartbeat/validate-heartbeat-state.sh` – validates `heartbeat-state.json` consistency
-- **Task board & autonomy**
+- **Task board & monitoring**
   - `tools/task-board/` – queue management, stale detection, state enforcement
   - `tools/task-board/emit-run-event.sh` – lifecycle event emission for run ledgering/audit trails
   - `tools/auto-chain/` – automatic follow‑up task chaining rules engine
-  - `tools/approvals/` – P0–P3 approval gate operators (`check-approval.sh`, `poll-approval.sh`, `resume-approval.sh`)
-  - `tools/monitoring/autonomy-status.ts` – raw autonomy health/status summary
-  - `tools/monitoring/autonomy-ops.ts` – single operator surface across status, rollout, blocked items, and family-critical state
-  - `tools/monitoring/autonomy-drill.ts` – bounded live-fire drill/readiness surface for gateway/channel/cron/repo-handoff/family-critical scenarios
-  - `tools/monitoring/autonomy-rollout.ts` – rollout/live-ops status gate
-  - `tools/monitoring/autonomy-daily-digest.ts` – compact executive autonomy digest
-  - `tools/monitoring/autonomy-scorecard.ts` – trust metrics, active follow-ups, and autonomy incident review view
 - **Memory & reflection**
   - `tools/memory/` – ingestion, quality gates, consolidation
   - `tools/memory/vector-health-gate.ts` + `tools/memory/safe-memory-search.ts` – safety gates for semantic recall quality
   - `tools/memory/compact-memory.ts` – controlled memory compaction workflow
   - `tools/reflection/` – repeated‑correction analysis, learning loops
-  - `tools/feedback/` – correction logging, remediation actions, recurrence sync (`log-feedback.ts`, `add-feedback-action.ts`, `sync-feedback.ts`)
-  - `tools/feedback/pipeline-reconciliation.ts` – feedback pipeline consistency check/reconcile
 - **Proactive intelligence**
   - `tools/proactive/` – cross‑signal detection & calibration
   - `tools/briefing/` – daily brief / news / market intel wiring
@@ -783,12 +761,10 @@ Output flows into:
 - `cortana_wake_rules` (when to proactively ping)
 - Morning/evening briefs + Mission Control dashboards
 
-### 4.5 Governance, approvals, and feedback remediation
+### 4.5 Governance
 
 - Council deliberation for consequential decisions (weighted multi-agent voting)
-- Risk-tiered approval gates (P0–P3) with Telegram inline approvals/rejections
-- Resume-capable approval flow for deferred/paused actions
-- Feedback lifecycle: correction intake → remediation actions → recurrence detection
+- Runtime policy gates still exist where needed, but Mission Control no longer stores approval, feedback, autonomy, or decision-trace inbox state.
 
 ### 4.6 Fitness / finance / calendar integrations
 
@@ -839,7 +815,6 @@ export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 ### 5.1 Core ops
 
 - `cortana_events` – error/system event logging
-- `cortana_feedback` – feedback + corrections
 - `cortana_patterns` – behavior patterns (sleep, workouts, etc.)
 - `cortana_tasks`, `cortana_epics` – task board
 - `cortana_upgrades` – self‑improvement tracking
@@ -850,14 +825,14 @@ export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 - `cortana_sitrep` – situation reports
 - `cortana_insights` – generated insights
 - `cortana_wake_rules` – proactive wake rules
-- `cortana_chief_model`, `cortana_feedback_signals` – modeling Chief + feedback
+- `cortana_chief_model`, `cortana_feedback_signals` – modeling Chief + signal state
 
 ### 5.3 Covenant & coordination
 
 - `cortana_covenant_runs` – agent runs
 - `cortana_handoff_artifacts` – structured handoff data
 - `cortana_event_bus_events` – event bus
-- `cortana_trace_spans`, `cortana_decision_traces` – tracing and decision lineage
+- `cortana_trace_spans` – tracing lineage
 
 ### 5.4 Memory system
 
@@ -881,18 +856,11 @@ export PATH="/opt/homebrew/opt/postgresql@17/bin:$PATH"
 - `cortana_quality_scores`, `cortana_response_evaluations`
 - `cortana_workflow_checkpoints`
 - `cortana_chaos_runs`, `cortana_chaos_events`
-- `cortana_autonomy_incidents`, `cortana_autonomy_scorecard_snapshots`
+- `cortana_autonomy_incidents`
 
-#### Autonomy stabilization stack (specific)
+#### Reliability stabilization stack (specific)
 
-The current autonomy stabilization work gives Cortana:
-- bounded auto-remediation for gateway/channel/critical-cron/session issues
-- one operator surface for current state (`tools/monitoring/autonomy-ops.ts`)
-- one raw status surface (`tools/monitoring/autonomy-status.ts`)
-- one drill/readiness surface (`tools/monitoring/autonomy-drill.ts`)
-- one daily digest surface (`tools/monitoring/autonomy-daily-digest.ts`)
-- one trust/incident scorecard surface (`tools/monitoring/autonomy-scorecard.ts`)
-- family-critical / never-miss lane handling with stricter escalation
+The retained reliability layer keeps bounded auto-remediation for gateway/channel/critical-cron/session issues and family-critical / never-miss lane escalation. The old Mission Control autonomy operator surface has been removed.
 - freshness suppression for stale follow-up chatter
 - follow-up task creation/reuse for meaningful autonomy incidents
 - an incident review loop via scorecard incident reviews
@@ -907,8 +875,8 @@ The current autonomy stabilization work gives Cortana:
 - `IDENTITY.md` – short identity summary
 - `MEMORY.md` – curated long‑term memory (MAIN session only)
 - `HEARTBEAT.md` – heartbeat rotation + proactive ops
-- `docs/source/doctrine/autonomy-policy.md` – autonomy doctrine, boundaries, remediation model, rollout/drill entrypoints
-- `docs/source/architecture/autonomy-stabilization-overview.md` – plain-English map of the autonomy stack built across Steps 1–11
+- `docs/source/doctrine/autonomy-policy.md` – reliability boundaries and retained remediation model
+- `docs/source/architecture/autonomy-stabilization-overview.md` – historical map of the retired autonomy stack
 - `TOOLS.md` – environment‑specific notes and deploy paths
 - `config/cron/jobs.json` – OpenClaw cron definitions
 - `config/autonomy-lanes.json` – posture + family-critical / never-miss lane configuration

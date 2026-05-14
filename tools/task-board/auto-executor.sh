@@ -12,7 +12,6 @@ export PATH="/opt/homebrew/bin:/opt/homebrew/opt/postgresql@17/bin:/usr/local/bi
 DB="${CORTANA_DB:-cortana}"
 ALLOW_PREFIX_1="$SOURCE_REPO"
 ALLOW_PREFIX_2="$EXTERNAL_REPO"
-LOG_DECISION_SCRIPT="$SOURCE_REPO/tools/log-decision.sh"
 SOURCE="task-board-auto-executor"
 # shellcheck disable=SC1091
 source "$SOURCE_REPO/tools/lib/idempotency.sh"
@@ -24,20 +23,7 @@ PSQL_BIN="${PSQL_BIN:-/opt/homebrew/opt/postgresql@17/bin/psql}"
 DB_NAME="${CORTANA_DB:-cortana}"
 
 log_task_decision() {
-  local action_name="$1"
-  local outcome="$2"
-  local reasoning="$3"
-  local confidence="${4:-0.9}"
-  local task_id="${5:-}"
-  local data_inputs='{}'
-
-  if [[ -n "$task_id" ]]; then
-    data_inputs="{\"task_id\":$task_id}"
-  fi
-
-  if [[ -x "$LOG_DECISION_SCRIPT" ]]; then
-    "$LOG_DECISION_SCRIPT" "auto_executor" "task_execution" "$action_name" "$outcome" "$reasoning" "$confidence" "" "$task_id" "$data_inputs" >/dev/null 2>&1 || true
-  fi
+  return 0
 }
 
 query_one() {

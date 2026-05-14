@@ -9,7 +9,6 @@ const readFileSync = vi.hoisted(() => vi.fn(() => {
 }));
 const writeFileSync = vi.hoisted(() => vi.fn());
 const mkdirSync = vi.hoisted(() => vi.fn());
-const reconcileMissionControlFeedbackSignal = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
 
 vi.mock("node:child_process", () => ({ execSync }));
 vi.mock("node:fs", () => ({
@@ -20,9 +19,6 @@ vi.mock("node:fs", () => ({
     writeFileSync,
     mkdirSync,
   },
-}));
-vi.mock("../../tools/feedback/mission-control-feedback-signal.js", () => ({
-  reconcileMissionControlFeedbackSignal,
 }));
 
 type RepoMockState = {
@@ -43,8 +39,6 @@ describe("runtime-repo-drift-monitor", () => {
     readFileSync.mockReset();
     writeFileSync.mockReset();
     mkdirSync.mockReset();
-    reconcileMissionControlFeedbackSignal.mockReset();
-    reconcileMissionControlFeedbackSignal.mockResolvedValue({ ok: true });
     existsSync.mockImplementation((filePath: string) => {
       const value = String(filePath);
       return !value.includes("/Users/hd/Developer/cortana-deploy/.git") &&
@@ -119,12 +113,6 @@ describe("runtime-repo-drift-monitor", () => {
 
     const output = await runMonitor(["--source-repo", "/source", "--runtime-repo", "/runtime"]);
     expect(output).toContain("NO_REPLY");
-    expect(reconcileMissionControlFeedbackSignal).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recurrenceKey: "ops:runtime-repo-drift",
-        signalState: "cleared",
-      }),
-    );
     expect(writeFileSync).toHaveBeenCalledWith(
       expect.stringContaining("runtime-repo-drift-monitor-state.json"),
       expect.stringContaining('"active": false'),
@@ -215,12 +203,6 @@ describe("runtime-repo-drift-monitor", () => {
           reason: "runtime repo is behind the source deploy commit",
         }),
       ]),
-    );
-    expect(reconcileMissionControlFeedbackSignal).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recurrenceKey: "ops:runtime-repo-drift",
-        signalState: "active",
-      }),
     );
   });
 
