@@ -795,20 +795,19 @@ function flightSearchPages(
 async function reloadSearchPages(targets: CdpTarget[], deadline: RunDeadline): Promise<void> {
   if (!shouldReloadCdpPage() || deadline.expired()) return;
 
-  const pages = new Map<string, CdpTarget & { webSocketDebuggerUrl: string }>();
+  const pages = new Map<string, { search: GoogleFlightSearch; page: CdpTarget & { webSocketDebuggerUrl: string } }>();
   for (const search of GOOGLE_FLIGHT_SEARCHES) {
-    for (const page of flightSearchPages(targets, search)) {
-      pages.set(page.id ?? page.webSocketDebuggerUrl, page);
-    }
+    const page = flightSearchPages(targets, search)[0];
+    if (page) pages.set(search.route, { search, page });
   }
   if (pages.size === 0) return;
 
   await Promise.allSettled(
-    [...pages.values()].map(async (page) => {
+    [...pages.values()].map(async ({ search, page }) => {
       const client = await connectCdp(page.webSocketDebuggerUrl);
       try {
         await client.send("Page.enable");
-        await client.send("Page.reload", { ignoreCache: true });
+        await client.send("Page.navigate", { url: search.url });
       } finally {
         client.close();
       }
@@ -1170,10 +1169,6 @@ async function readSearchTabSnapshots(deadline: RunDeadline): Promise<FlightSnap
     missingSnapshots = stillMissing;
   }
 
-  if (missingSnapshots.length > 0) {
-    throw new Error(`missing parsable Google Flights snapshots: ${missingSnapshots.map((search) => search.route).join("; ")}`);
-  }
-
   await enrichSnapshotsWithFlightNumbers(snapshots, deadline);
 
   return GOOGLE_FLIGHT_SEARCHES.map((search) => snapshots.get(search.route)).filter(
@@ -1181,12 +1176,11 @@ async function readSearchTabSnapshots(deadline: RunDeadline): Promise<FlightSnap
   );
 }
 
-async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
-  const deadline = configuredBrowserDeadline();
-  const savedSnapshots = await readSavedTrackerSnapshots(deadline);
-  const detailSnapshots = await readSearchTabSnapshots(deadline).catch(() => []);
+export function mergeSavedAndDetailSnapshots(
+  savedSnapshots: FlightSnapshot[],
+  detailSnapshots: FlightSnapshot[],
+): FlightSnapshot[] {
   const detailsByRoute = new Map(detailSnapshots.map((snapshot) => [snapshot.route, snapshot]));
-
   return savedSnapshots.map((snapshot) => {
     const detail = detailsByRoute.get(snapshot.route);
     if (!detail) return snapshot;
@@ -1198,6 +1192,13 @@ async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
       bestFlight: detail.bestFlight,
     };
   });
+}
+
+async function readBrowserSnapshots(): Promise<FlightSnapshot[]> {
+  const deadline = configuredBrowserDeadline();
+  const savedSnapshots = await readSavedTrackerSnapshots(deadline);
+  const detailSnapshots = await readSearchTabSnapshots(deadline).catch(() => []);
+  return mergeSavedAndDetailSnapshots(savedSnapshots, detailSnapshots);
 }
 
 function buildSnapshotFailure(error: Error | string): string {

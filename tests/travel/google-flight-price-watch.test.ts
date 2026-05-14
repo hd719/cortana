@@ -9,6 +9,7 @@ import {
   extractRoundTripPrices,
   missingGoogleFlightSearches,
   isFlightAlert,
+  mergeSavedAndDetailSnapshots,
   parseSavedTrackerSnapshots,
   selectGoogleFlightSearchPages,
   shouldReloadCdpPage,
@@ -207,6 +208,53 @@ describe("google-flight-price-watch", () => {
     expect(message.indexOf("EWR\nCheapest: $10,870")).toBeLessThan(message.indexOf("JFK\nCheapest: $10,844"));
     expect(message).toContain("\n\nVerdict: Watch only; still expensive.");
     expect(message).toContain("Air France/Delta/KLM");
+  });
+
+  it("keeps available detail snapshots when one route cannot be enriched", () => {
+    const merged = mergeSavedAndDetailSnapshots(
+      [
+        {
+          route: "Newark -> Rabat | Aug 5-17",
+          account: "",
+          trackLabel: "saved",
+          trackingEnabled: true,
+          priceInsight: "saved tracker",
+          lowestPrice: 10872,
+          prices: [10872],
+          bestFlight: "",
+          url: "https://www.google.com/travel/flights/saves",
+        },
+        {
+          route: "New York -> Rabat | Aug 5-17",
+          account: "",
+          trackLabel: "saved",
+          trackingEnabled: true,
+          priceInsight: "saved tracker",
+          lowestPrice: 11644,
+          prices: [11644],
+          bestFlight: "",
+          url: "https://www.google.com/travel/flights/saves",
+        },
+      ],
+      [
+        {
+          route: "Newark -> Rabat | Aug 5-17",
+          account: "Google Account: Hamel D (hameldesai3@gmail.com)",
+          trackLabel: "detail",
+          trackingEnabled: true,
+          priceInsight: "Prices are currently high",
+          lowestPrice: 11672,
+          prices: [11672],
+          bestFlight: "5:00 PM-10:45 AM+1, Air France, Delta, KLM, EWR-RBA, 12 hr 45 min, 1 stop, via 2 hr 30 min CDG, flight # not shown",
+          url: "https://www.google.com/travel/flights",
+        },
+      ],
+    );
+
+    expect(merged[0].bestPrice).toBe(11672);
+    expect(merged[0].bestFlight).toContain("Air France");
+    expect(merged[1].bestPrice).toBeUndefined();
+    expect(merged[1].bestFlight).toBe("");
   });
 
   it("reloads search tabs by default so best-flight values are fresh", () => {
