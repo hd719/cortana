@@ -3,7 +3,6 @@
 import fs from "node:fs";
 import path from "node:path";
 import { resolveRepoPath } from "../lib/paths.js";
-import { reconcileMissionControlFeedbackSignal } from "../feedback/mission-control-feedback-signal.js";
 
 type RequiredDoc = {
   path: string;
@@ -251,21 +250,6 @@ async function main(): Promise<void> {
           other.jobId === finding.jobId,
       ) === index,
   );
-
-  await reconcileMissionControlFeedbackSignal({
-    category: "ops.routing_drift",
-    severity: deduped.length ? "medium" : "low",
-    summary: deduped.length
-      ? `Ops routing drift: ${deduped.length} finding${deduped.length === 1 ? "" : "s"} need attention.`
-      : "Ops routing drift cleared.",
-    recurrenceKey: "ops:routing-drift",
-    signalState: deduped.length ? "active" : "cleared",
-    actor: "ops-routing-drift-check",
-    owner: "monitor",
-    details: {
-      findings: deduped,
-    },
-  });
 
   if (args.json) {
     console.log(

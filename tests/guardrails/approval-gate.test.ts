@@ -2,22 +2,21 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureConsole, importFresh, resetProcess, setArgv } from "../test-utils";
 
 const readJsonFile = vi.hoisted(() => vi.fn());
-const createApprovalRequest = vi.hoisted(() => vi.fn());
-const recordApprovalDecision = vi.hoisted(() => vi.fn());
+const randomUUID = vi.hoisted(() => vi.fn(() => "11111111-1111-1111-1111-111111111111"));
 
 vi.mock("../../tools/lib/json-file.js", () => ({
   readJsonFile,
 }));
-vi.mock("../../tools/lib/mission-control-ledger.js", () => ({
-  createApprovalRequest,
-  recordApprovalDecision,
+vi.mock("node:crypto", () => ({
+  default: {
+    randomUUID,
+  },
 }));
 
 beforeEach(() => {
   readJsonFile.mockReset();
-  createApprovalRequest.mockReset();
-  recordApprovalDecision.mockReset();
-  createApprovalRequest.mockReturnValue("11111111-1111-1111-1111-111111111111");
+  randomUUID.mockReset();
+  randomUUID.mockReturnValue("11111111-1111-1111-1111-111111111111");
   readJsonFile.mockImplementation((filePath?: string) => {
     if (String(filePath).endsWith("/state/system-routing.json")) return null;
     return { channels: { telegram: {} } };
@@ -40,7 +39,7 @@ describe("approval-gate", () => {
     expect(code).toBe(2);
   });
 
-  it("auto-approves low risk without fetch or ledger writes", async () => {
+  it("auto-approves low risk without fetch or approval request ids", async () => {
     const consoleCapture = captureConsole();
     const fetchSpy = vi.fn();
     vi.stubGlobal("fetch", fetchSpy as any);
@@ -50,7 +49,7 @@ describe("approval-gate", () => {
     const code = await module.main();
     expect(consoleCapture.logs.join(" ")).toContain("APPROVED");
     expect(fetchSpy).not.toHaveBeenCalled();
-    expect(createApprovalRequest).not.toHaveBeenCalled();
+    expect(randomUUID).not.toHaveBeenCalled();
     expect(code).toBe(0);
   });
 
@@ -71,17 +70,11 @@ describe("approval-gate", () => {
 
     const module = await importFresh("../../tools/guardrails/approval-gate.ts");
     const code = await module.main();
-    expect(createApprovalRequest).toHaveBeenCalledTimes(1);
-    expect(recordApprovalDecision).toHaveBeenCalledWith(
-      "11111111-1111-1111-1111-111111111111",
-      "rejected",
-      "system",
-      "chat_lookup_failed",
-    );
+    expect(randomUUID).toHaveBeenCalledTimes(1);
     expect(consoleCapture.logs.join(" ")).toContain("DENIED (chat_lookup_failed)");
     expect(code).toBe(1);
   });
-  it("creates and rejects an approval when no chat id is available", async () => {
+  it("rejects an approval when no chat id is available", async () => {
     const consoleCapture = captureConsole();
     process.env.TELEGRAM_BOT_TOKEN = "token";
     readJsonFile.mockImplementation((filePath?: string) => {
@@ -98,13 +91,7 @@ describe("approval-gate", () => {
 
     const module = await importFresh("../../tools/guardrails/approval-gate.ts");
     const code = await module.main();
-    expect(createApprovalRequest).toHaveBeenCalledTimes(1);
-    expect(recordApprovalDecision).toHaveBeenCalledWith(
-      "11111111-1111-1111-1111-111111111111",
-      "rejected",
-      "system",
-      "no_chat_id",
-    );
+    expect(randomUUID).toHaveBeenCalledTimes(1);
     expect(consoleCapture.logs.join(" ")).toContain("DENIED (no_chat_id)");
     expect(code).toBe(1);
   });

@@ -1657,50 +1657,6 @@
         "channel": "last",
         "accountId": "monitor"
       }
-    },
-    {
-      "id": "autonomy-ops-artifact-refresh-20260505",
-      "agentId": "cron-maintenance",
-      "name": "🧭 Autonomy Ops Artifact Refresh (5m)",
-      "enabled": true,
-      "schedule": {
-        "kind": "cron",
-        "expr": "*/5 * * * *",
-        "tz": "America/New_York"
-      },
-      "sessionTarget": "isolated",
-      "wakeMode": "now",
-      "payload": {
-        "kind": "agentTurn",
-        "model": "openai-codex/gpt-5.4",
-        "timeoutSeconds": 90,
-        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id autonomy-ops-artifact-refresh-20260505 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
-        "lightContext": true
-      },
-      "metadata": {
-        "commandJobSpec": {
-          "command": "npx",
-          "args": [
-            "tsx",
-            "/Users/hd/Developer/cortana/tools/monitoring/write-autonomy-ops-artifact.ts"
-          ],
-          "cwd": "/Users/hd/.openclaw/workspaces/cron-maintenance",
-          "timeoutMs": 90000,
-          "quietSuccess": "NO_REPLY",
-          "owner": "monitor",
-          "alertType": "cron_command_actionable",
-          "severity": "P2",
-          "system": "OpenClaw",
-          "actionNeeded": "soon"
-        },
-        "legacyAgentTurn": {
-          "message": "Refresh the Mission Control Autonomy Ops artifact by running `npx tsx /Users/hd/Developer/cortana/tools/monitoring/write-autonomy-ops-artifact.ts`. Return `NO_REPLY` on success."
-        }
-      },
-      "delivery": {
-        "mode": "none",
-        "accountId": "monitor"
-      }
     }
   ]
 }

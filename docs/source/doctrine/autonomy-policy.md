@@ -85,18 +85,8 @@ Triggers:
   - Goal: one DB-backed incident lifecycle (`open` -> `resolved`) instead of scattered script-local state.
   - Repeated unchanged failures should not keep paging; state-change and verified recovery are the meaningful operator signals.
 - Browser/CDP bounded recovery is active through `tools/monitoring/browser-cdp-watchdog.ts` and `tools/monitoring/autonomy-remediation.ts` (one `openclaw node restart`, then verify endpoint health, then escalate).
-- Operator visibility: run `npx tsx tools/monitoring/autonomy-status.ts` for a compact executive summary of what was auto-fixed, what failed then recovered, what still needs Hamel, and what exceeded authority or was deferred.
-- Operator surface: run `npx tsx tools/monitoring/autonomy-ops.ts` for one clean operator view across status, rollout state, family-critical handling, and blocked/deferred attention items. It suppresses unchanged repeat chatter so stale copies do not keep paging.
-- Daily executive digest: run `npx tsx tools/monitoring/autonomy-daily-digest.ts` for the compact once-daily operator digest covering auto-fixes, recovered degradation, human-needed items, authority blocks, and family-critical lane status.
-- Live drill support: run `npx tsx tools/monitoring/autonomy-drill.ts` for bounded live-fire readiness across gateway, channel, critical cron, repo handoff, and family-critical scenarios.
-- Live rollout gate: run `npx tsx tools/monitoring/autonomy-rollout.ts`.
-  - Healthy live state stays quiet.
-  - Bounded auto-remediation without open operator work reports `watch`.
-  - Any escalations, actionable drift, or missing required inputs return explicit `attention` output and non-zero exit.
-- Steady-state cadence: autonomy rollout should be checked every 4 hours. Healthy paths stay quiet; operator summaries should fire only when rollout is in `attention` and the state changed.
-- Daily cadence: send one executive autonomy digest each evening with the compact operator summary; healthy/no-action days degrade to digest-only instead of paging.
-- Drill cadence: run a bounded autonomy drill/readiness sweep once weekly to keep gateway, delivery, critical cron, repo handoff, and family-critical lanes exercised without noisy constant probing.
-- Validation coverage lives in `tests/session/session-lifecycle-policy.test.ts`, `tests/monitoring/runtime-repo-drift-monitor.test.ts`, `tests/monitoring/autonomy-status.test.ts`, `tests/monitoring/autonomy-rollout.test.ts`, `tests/monitoring/autonomy-drill.test.ts`, `tests/monitoring/autonomy-ops.test.ts`, `tests/monitoring/autonomy-remediation.test.ts`, and `tests/alerting/cron-auto-retry.test.ts`.
+- Mission Control's autonomy operator page, artifact writer, scorecard, rollout, drill, and digest surfaces have been retired. Current escalation should flow through the retained probes, remediation tool, cron SLO monitor, and Telegram alerts.
+- Validation coverage lives in `tests/session/session-lifecycle-policy.test.ts`, `tests/monitoring/runtime-repo-drift-monitor.test.ts`, `tests/monitoring/autonomy-remediation.test.ts`, and `tests/alerting/cron-auto-retry.test.ts`.
 
 ## Guardrails
 

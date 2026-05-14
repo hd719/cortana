@@ -179,18 +179,6 @@ const tests: TestCase[] = [
     },
   },
   {
-    name: "tools/feedback/pipeline-reconciliation",
-    candidates: ["tools/feedback/pipeline-reconciliation.sh", "tools/feedback/pipeline-reconciliation.ts"],
-    commandFor: (target) => `\"${target}\" --help`,
-    validate: (rc, output) => {
-      if (rc === 0 || rc === 2) return { ok: true };
-      if (output.includes("PrismaClientInitializationError")) {
-        return { ok: true, reason: "runtime_guarded_prisma_init_error" };
-      }
-      return { ok: false, reason: `unexpected_exit_code=${rc}` };
-    },
-  },
-  {
     name: "tools/reaper/reaper",
     candidates: ["tools/reaper/reaper.sh", "tools/reaper/reaper.ts"],
     commandFor: (target) => `\"${target}\"`,
@@ -221,16 +209,6 @@ const tests: TestCase[] = [
         return { ok: true, reason: "runtime_guarded_prisma_init_error" };
       }
       return { ok: false, reason: `unexpected_exit_code=${rc}` };
-    },
-  },
-  {
-    name: "tools/tracing/log_decision.ts",
-    candidates: ["tools/tracing/log_decision.ts"],
-    commandFor: (target) => `\"${target}\" --help`,
-    validate: (rc, output) => {
-      if (rc !== 2) return { ok: false, reason: `unexpected_exit_code=${rc}` };
-      if (!output.toLowerCase().includes("usage")) return { ok: false, reason: "missing_usage" };
-      return { ok: true };
     },
   },
 ];

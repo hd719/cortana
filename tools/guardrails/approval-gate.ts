@@ -2,9 +2,9 @@
 
 import path from "node:path";
 import os from "node:os";
+import crypto from "node:crypto";
 import { pathToFileURL } from "node:url";
 import { readJsonFile } from "../lib/json-file.js";
-import { createApprovalRequest, recordApprovalDecision } from "../lib/mission-control-ledger.js";
 
 const DEFAULT_CONFIG = path.join(os.homedir(), ".openclaw", "openclaw.json");
 const DEFAULT_ROUTING = path.join(os.homedir(), ".openclaw", "state", "system-routing.json");
@@ -203,21 +203,7 @@ export async function requestApproval(
     return { approved: true, reason: "not_high_risk" };
   }
 
-  const approvalId = createApprovalRequest({
-    agentId: process.env.OPENCLAW_AGENT_ID ?? process.env.AGENT_ID ?? "cortana",
-    actionType: "high_risk_action",
-    proposal: {
-      action: actionDesc,
-      risk,
-      source: "approval-gate",
-    },
-    rationale: "High-risk action requires explicit Telegram approval before execution.",
-    riskLevel: risk || "high",
-    autoApprovable: false,
-    status: "pending",
-    expiresAtHours: Math.max(1, Math.ceil(timeoutS / 3600)),
-    resumePayload: { action: actionDesc, risk },
-  });
+  const approvalId = crypto.randomUUID();
 
   const tok = token ?? telegramToken(configPath);
   let resolvedChat: string | null = chatId ?? configuredChatId(configPath);
@@ -225,12 +211,10 @@ export async function requestApproval(
     try {
       resolvedChat = await inferChatId(tok);
     } catch {
-      recordApprovalDecision(approvalId, "rejected", "system", "chat_lookup_failed");
       return { approved: false, reason: "chat_lookup_failed", approvalId };
     }
   }
   if (!resolvedChat) {
-    recordApprovalDecision(approvalId, "rejected", "system", "no_chat_id");
     return { approved: false, reason: "no_chat_id", approvalId };
   }
 
@@ -238,25 +222,21 @@ export async function requestApproval(
   try {
     msgId = await sendApprovalMessage(tok, resolvedChat, actionDesc, risk, approvalId);
   } catch {
-    recordApprovalDecision(approvalId, "rejected", "system", "telegram_send_failed");
     return { approved: false, reason: "telegram_send_failed", approvalId };
   }
 
   const [decided] = await pollDecision(tok, approvalId, timeoutS);
 
   if (decided === true) {
-    recordApprovalDecision(approvalId, "approved", "user", "telegram_approve");
     await stripKeyboard(tok, resolvedChat, msgId, `✅ Approved: ${actionDesc}`);
     return { approved: true, reason: "approved", approvalId };
   }
 
   if (decided === false) {
-    recordApprovalDecision(approvalId, "rejected", "user", "telegram_reject");
     await stripKeyboard(tok, resolvedChat, msgId, `❌ Rejected: ${actionDesc}`);
     return { approved: false, reason: "rejected", approvalId };
   }
 
-  recordApprovalDecision(approvalId, "expired", "system", "timeout");
   await stripKeyboard(tok, resolvedChat, msgId, `⏱️ Approval timed out: ${actionDesc}`);
   return { approved: false, reason: "timeout", approvalId };
 }

@@ -1009,15 +1009,9 @@ Do not run apply mode unless you are prepared for the tool to back up runtime st
 
 The daily cron digest and delivery monitor consume the reconciler report at `~/.openclaw/reports/cron-state-reconciler/latest.json`. Post-merge sync refreshes that report after runtime deploy.
 
-### Autonomy Ops read model
+### Retired Autonomy Ops read model
 
-Mission Control `/autonomy` reads the cached artifact at `~/.openclaw/reports/autonomy-ops/latest.json`. Refresh it manually with:
-
-```bash
-npx tsx tools/monitoring/write-autonomy-ops-artifact.ts --json
-```
-
-The source cron job `autonomy-ops-artifact-refresh-20260505` refreshes this artifact every five minutes through the deterministic command runner. The Mission Control refresh endpoint may run only that artifact writer and should return stale data instead of triggering remediation.
+Mission Control `/autonomy`, the cached `~/.openclaw/reports/autonomy-ops/latest.json` artifact, and the five-minute autonomy artifact refresh cron have been retired. Use the retained watchdog probes, runtime remediation, cron SLO monitor, and Telegram alerts for live operator signal.
 
 ### Session hygiene
 
@@ -1034,7 +1028,6 @@ find ~/.openclaw/agents -name '*.jsonl' -size +400k -print
 
 ```bash
 npx tsx tools/monitoring/autonomy-remediation.ts
-npx tsx tools/monitoring/autonomy-scorecard.ts
 npx tsx tools/task-board/reset-engine.ts
 npx tsx tools/context/main-operator-context.ts
 ```

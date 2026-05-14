@@ -2,7 +2,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { captureConsole, flushModuleSideEffects, importFresh, resetProcess } from "../test-utils";
 
 const readFileSync = vi.hoisted(() => vi.fn());
-const reconcileMissionControlFeedbackSignal = vi.hoisted(() => vi.fn(async () => ({ ok: true })));
 
 vi.mock("node:fs", () => ({
   default: {
@@ -10,15 +9,9 @@ vi.mock("node:fs", () => ({
   },
 }));
 
-vi.mock("../../tools/feedback/mission-control-feedback-signal.js", () => ({
-  reconcileMissionControlFeedbackSignal,
-}));
-
 describe("cron-slo-monitor", () => {
   beforeEach(() => {
     readFileSync.mockReset();
-    reconcileMissionControlFeedbackSignal.mockReset();
-    reconcileMissionControlFeedbackSignal.mockResolvedValue({ ok: true });
   });
 
   afterEach(() => {
@@ -26,7 +19,7 @@ describe("cron-slo-monitor", () => {
     resetProcess();
   });
 
-  it("returns NO_REPLY and clears feedback when runtime jobs are healthy", async () => {
+  it("returns NO_REPLY when runtime jobs are healthy", async () => {
     readFileSync.mockReturnValue(JSON.stringify({
       jobs: [
         {
@@ -50,15 +43,9 @@ describe("cron-slo-monitor", () => {
     consoleSpy.restore();
 
     expect(consoleSpy.logs.join("\n").trim()).toBe("NO_REPLY");
-    expect(reconcileMissionControlFeedbackSignal).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recurrenceKey: "ops:cron-slo-monitor",
-        signalState: "cleared",
-      }),
-    );
   });
 
-  it("emits actionable output and activates feedback when thresholds are exceeded", async () => {
+  it("emits actionable output when thresholds are exceeded", async () => {
     readFileSync.mockReturnValue(JSON.stringify({
       jobs: [
         {
@@ -84,12 +71,6 @@ describe("cron-slo-monitor", () => {
     const output = consoleSpy.logs.join("\n");
     expect(output).toContain("📏 Cron SLO Monitor");
     expect(output).toContain("Actionable thresholds exceeded:");
-    expect(reconcileMissionControlFeedbackSignal).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recurrenceKey: "ops:cron-slo-monitor",
-        signalState: "active",
-      }),
-    );
   });
 
   it("suppresses stale unsupported-model failures that are already fixed in payload config until rerun", async () => {
@@ -117,15 +98,5 @@ describe("cron-slo-monitor", () => {
     consoleSpy.restore();
 
     expect(consoleSpy.logs.join("\n").trim()).toBe("NO_REPLY");
-    expect(reconcileMissionControlFeedbackSignal).toHaveBeenCalledWith(
-      expect.objectContaining({
-        recurrenceKey: "ops:cron-slo-monitor",
-        signalState: "cleared",
-        details: expect.objectContaining({
-          awaiting_post_fix_rerun: ["🐦 X session healthcheck (bird)"],
-          actionable_erroring: [],
-        }),
-      }),
-    );
   });
 });
