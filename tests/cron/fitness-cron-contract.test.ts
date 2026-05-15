@@ -139,15 +139,17 @@ describe("fitness cron contract", () => {
     expect(weeklyMessage).toContain("do not fail the cron");
   });
 
-  it("keeps freshness guard active and retires fixed recovery/overreach alert crons", () => {
+  it("retires standalone freshness/recovery/overreach alert crons", () => {
     const jobs = loadJobs();
     const freshness = jobs.find((job) => job.id === "whoop-data-freshness-guard-20260318");
     const recoveryRisk = jobs.find((job) => job.id === "whoop-recovery-risk-alert-20260318");
     const overreach = jobs.find((job) => job.id === "whoop-overreach-guard-20260318");
 
-    expect(freshness?.enabled).toBe(true);
+    expect(freshness?.enabled).toBe(false);
     expect(recoveryRisk?.enabled).toBe(false);
     expect(overreach?.enabled).toBe(false);
+    expect(freshness?.state?.retiredReason).toContain("Spartan morning brief");
+    expect(freshness?.state?.retiredReason).toContain("event-driven WHOOP coaching");
     expect(recoveryRisk?.state?.retiredReason).toContain("webhook-driven");
     expect(overreach?.state?.retiredReason).toContain("Evening Recap");
 

@@ -1327,9 +1327,9 @@
       "id": "whoop-data-freshness-guard-20260318",
       "agentId": "cron-fitness",
       "name": "🫀 Whoop Data Freshness Guard",
-      "enabled": true,
+      "enabled": false,
       "createdAtMs": 1773870846864,
-      "updatedAtMs": 1773870846864,
+      "updatedAtMs": 1778842800000,
       "schedule": {
         "kind": "cron",
         "expr": "20 6,12,18 * * *",
@@ -1347,6 +1347,9 @@
       "delivery": {
         "mode": "none",
         "accountId": "spartan"
+      },
+      "state": {
+        "retiredReason": "Retired as a standalone Telegram alert; freshness remains enforced inside Spartan morning brief and event-driven WHOOP coaching."
       }
     },
     {
