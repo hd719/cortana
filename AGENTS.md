@@ -13,6 +13,11 @@ Fresh-session rule: read this file first, then rebuild context from live machine
 - `/Users/hd/openclaw` is only a compatibility shim, not an independent source checkout.
 - Source code is not proof of live behavior. Verify runtime state before claiming a runtime-visible issue is fixed.
 
+Mission Control environment map:
+- prod: `http://127.0.0.1:3000` and `http://100.120.198.12:3000`, launchd `com.cortana.mission-control`, `MARKET_LAB_ENV=prod`
+- dev: `http://127.0.0.1:3001` and `http://100.120.198.12:3001`, launchd `com.cortana.mission-control-dev`, `MARKET_LAB_ENV=dev`
+- `3002` is not a supported Mission Control environment; if it serves prod, remove stale Tailscale Serve forwarding.
+
 ## Fresh Bootstrap
 
 Read first:

@@ -13,6 +13,15 @@ Documentation placement and authoring rules live in [`docs/source/architecture/d
 - If work crosses both repos, update the source docs here and the runtime implementation there together.
 - Start with [`docs/source/architecture/repo-split-map.md`](docs/source/architecture/repo-split-map.md) when the ownership boundary is unclear.
 
+Current Mission Control runtime environments live in `cortana-external`:
+
+| Environment | Tailscale URL | Local URL | LaunchAgent | Market Lab data |
+|---|---|---|---|---|
+| prod | `http://100.120.198.12:3000` | `http://127.0.0.1:3000` | `com.cortana.mission-control` | `prod` |
+| dev | `http://100.120.198.12:3001` | `http://127.0.0.1:3001` | `com.cortana.mission-control-dev` | `dev` |
+
+`3002` is intentionally unused.
+
 Documentation follows a Karpathy-style LLM wiki split:
 - exploratory research lives in `research/`
 - raw source material lives in `docs/source/` plus the repo's live doctrine/memory files
