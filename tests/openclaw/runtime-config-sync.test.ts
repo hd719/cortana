@@ -5,14 +5,23 @@ import { describe, expect, it } from "vitest";
 import { buildRuntimeConfig, syncRuntimeConfig } from "../../tools/openclaw/runtime-config-sync";
 
 describe("runtime-config-sync", () => {
-  it("keeps cron agents on supported configured models", () => {
+  it("keeps all agents pinned to GPT-5.5 with high thinking", () => {
     const configPath = path.resolve(__dirname, "../../config/openclaw.json");
     const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    const cronAgents = config.agents.list.filter((agent: any) => String(agent.id).startsWith("cron-"));
+    const agents = config.agents.list;
 
-    expect(cronAgents.length).toBeGreaterThan(0);
-    expect(cronAgents.map((agent: any) => agent.model)).not.toContain("openai-codex/gpt-5.3-codex-spark");
-    expect(new Set(cronAgents.map((agent: any) => agent.model))).toEqual(new Set(["openai-codex/gpt-5.3-codex"]));
+    expect(config.agents.defaults.thinkingDefault).toBe("high");
+    expect(config.agents.defaults.model.primary).toBe("openai-codex/gpt-5.5");
+    expect(config.agents.defaults.models["openai-codex/gpt-5.5"]).toEqual({});
+    expect(config.agents.defaults.heartbeat.model).toBe("openai-codex/gpt-5.5");
+    expect(config.agents.defaults.subagents.model).toBe("openai-codex/gpt-5.5");
+    expect(agents.length).toBeGreaterThan(0);
+
+    for (const agent of agents) {
+      const model = typeof agent.model === "string" ? agent.model : agent.model?.primary;
+      expect(model).toBe("openai-codex/gpt-5.5");
+      expect(agent.thinkingDefault).toBe("high");
+    }
   });
 
   it("tracks OpenClaw doctor config migrations without dropping enabled plugins", () => {
