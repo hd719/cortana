@@ -17,9 +17,10 @@ describe("runtime-config-sync", () => {
       "cron-maintenance",
     ]);
 
-    expect(config.agents.defaults.thinkingDefault).toBe("high");
+    expect(config.agents.defaults.thinkingDefault).toBeUndefined();
     expect(config.agents.defaults.model.primary).toBe("openai-codex/gpt-5.5");
-    expect(config.agents.defaults.models["openai-codex/gpt-5.5"]).toEqual({});
+    expect(config.agents.defaults.models["openai-codex/gpt-5.4"].params.thinking).toBe("medium");
+    expect(config.agents.defaults.models["openai-codex/gpt-5.5"].params.thinking).toBe("high");
     expect(config.agents.defaults.heartbeat.model).toBe("openai-codex/gpt-5.5");
     expect(config.agents.defaults.subagents.model).toBe("openai-codex/gpt-5.5");
     expect(agents.length).toBeGreaterThan(0);

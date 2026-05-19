@@ -57,8 +57,16 @@
       "models": {
         "openai-codex/gpt-5.3": {},
         "openai-codex/gpt-5.3-codex": {},
-        "openai-codex/gpt-5.4": {},
-        "openai-codex/gpt-5.5": {}
+        "openai-codex/gpt-5.4": {
+          "params": {
+            "thinking": "medium"
+          }
+        },
+        "openai-codex/gpt-5.5": {
+          "params": {
+            "thinking": "high"
+          }
+        }
       },
       "workspace": "/Users/hd/Developer/cortana",
       "bootstrapMaxChars": 12000,
@@ -98,7 +106,6 @@
           "enabled": true
         }
       },
-      "thinkingDefault": "high",
       "verboseDefault": "off",
       "heartbeat": {
         "activeHours": {
