@@ -49,15 +49,16 @@
   "agents": {
     "defaults": {
       "model": {
-        "primary": "openai-codex/gpt-5.3-codex",
+        "primary": "openai-codex/gpt-5.5",
         "fallbacks": [
-          "openai-codex/gpt-5.3-codex"
+          "openai-codex/gpt-5.5"
         ]
       },
       "models": {
         "openai-codex/gpt-5.3": {},
         "openai-codex/gpt-5.3-codex": {},
-        "openai-codex/gpt-5.4": {}
+        "openai-codex/gpt-5.4": {},
+        "openai-codex/gpt-5.5": {}
       },
       "workspace": "/Users/hd/Developer/cortana",
       "bootstrapMaxChars": 12000,
@@ -97,7 +98,7 @@
           "enabled": true
         }
       },
-      "thinkingDefault": "low",
+      "thinkingDefault": "high",
       "verboseDefault": "off",
       "heartbeat": {
         "activeHours": {
@@ -105,14 +106,14 @@
           "end": "23:00"
         },
         "every": "30m",
-        "model": "openai-codex/gpt-5.4",
+        "model": "openai-codex/gpt-5.5",
         "includeReasoning": false
       },
       "maxConcurrent": 4,
       "subagents": {
         "maxConcurrent": 8,
         "archiveAfterMinutes": 5,
-        "model": "openai-codex/gpt-5.3-codex"
+        "model": "openai-codex/gpt-5.5"
       },
       "sandbox": {
         "mode": "off"
@@ -123,51 +124,60 @@
         "id": "main",
         "workspace": "/Users/hd/Developer/cortana",
         "model": {
-          "primary": "openai-codex/gpt-5.4",
+          "primary": "openai-codex/gpt-5.5",
           "fallbacks": [
-            "openai-codex/gpt-5.3-codex"
+            "openai-codex/gpt-5.5"
           ]
-        }
+        },
+        "thinkingDefault": "high"
       },
       {
         "id": "cron-health",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-health",
-        "model": "openai-codex/gpt-5.3-codex"
+        "model": "openai-codex/gpt-5.5",
+        "thinkingDefault": "high"
       },
       {
         "id": "cron-fitness",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-fitness",
-        "model": "openai-codex/gpt-5.3-codex"
+        "model": "openai-codex/gpt-5.5",
+        "thinkingDefault": "high"
       },
       {
         "id": "cron-market",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-market",
-        "model": "openai-codex/gpt-5.3-codex"
+        "model": "openai-codex/gpt-5.5",
+        "thinkingDefault": "high"
       },
       {
         "id": "cron-comms",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-comms",
-        "model": "openai-codex/gpt-5.3-codex"
+        "model": "openai-codex/gpt-5.5",
+        "thinkingDefault": "high"
       },
       {
         "id": "cron-maintenance",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-maintenance",
-        "model": "openai-codex/gpt-5.3-codex"
+        "model": "openai-codex/gpt-5.5",
+        "thinkingDefault": "high"
       },
       {
         "id": "monitor",
         "workspace": "/Users/hd/Developer/cortana/identities/monitor",
-        "model": "openai-codex/gpt-5.4"
+        "model": "openai-codex/gpt-5.5",
+        "thinkingDefault": "high"
       },
       {
         "id": "arbiter",
         "workspace": "/Users/hd/Developer/cortana/identities/arbiter",
-        "model": "openai-codex/gpt-5.3-codex"
+        "model": "openai-codex/gpt-5.5",
+        "thinkingDefault": "high"
       },
       {
         "id": "spartan",
         "workspace": "/Users/hd/Developer/cortana/identities/spartan",
-        "model": "openai-codex/gpt-5.3-codex"
+        "model": "openai-codex/gpt-5.5",
+        "thinkingDefault": "high"
       }
     ]
   },

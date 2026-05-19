@@ -1,5 +1,5 @@
 {
-  "Cortana": "openai-codex/gpt-5.4",
-  "Librarian": "openai-codex/gpt-5.4",
-  "Monitor": "openai-codex/gpt-5.4"
+  "Cortana": "openai-codex/gpt-5.5",
+  "Librarian": "openai-codex/gpt-5.5",
+  "Monitor": "openai-codex/gpt-5.5"
 }
