@@ -134,32 +134,32 @@
       {
         "id": "cron-health",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-health",
-        "model": "openai-codex/gpt-5.5",
-        "thinkingDefault": "high"
+        "model": "openai-codex/gpt-5.4",
+        "thinkingDefault": "medium"
       },
       {
         "id": "cron-fitness",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-fitness",
-        "model": "openai-codex/gpt-5.5",
-        "thinkingDefault": "high"
+        "model": "openai-codex/gpt-5.4",
+        "thinkingDefault": "medium"
       },
       {
         "id": "cron-market",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-market",
-        "model": "openai-codex/gpt-5.5",
-        "thinkingDefault": "high"
+        "model": "openai-codex/gpt-5.4",
+        "thinkingDefault": "medium"
       },
       {
         "id": "cron-comms",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-comms",
-        "model": "openai-codex/gpt-5.5",
-        "thinkingDefault": "high"
+        "model": "openai-codex/gpt-5.4",
+        "thinkingDefault": "medium"
       },
       {
         "id": "cron-maintenance",
         "workspace": "/Users/hd/.openclaw/workspaces/cron-maintenance",
-        "model": "openai-codex/gpt-5.5",
-        "thinkingDefault": "high"
+        "model": "openai-codex/gpt-5.4",
+        "thinkingDefault": "medium"
       },
       {
         "id": "monitor",
