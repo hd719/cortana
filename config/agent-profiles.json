@@ -8,27 +8,27 @@
   {
     "id": "cron-health",
     "workspace": "/Users/hd/.openclaw/workspaces/cron-health",
-    "model": "openai-codex/gpt-5.5"
+    "model": "openai-codex/gpt-5.4"
   },
   {
     "id": "cron-fitness",
     "workspace": "/Users/hd/.openclaw/workspaces/cron-fitness",
-    "model": "openai-codex/gpt-5.5"
+    "model": "openai-codex/gpt-5.4"
   },
   {
     "id": "cron-market",
     "workspace": "/Users/hd/.openclaw/workspaces/cron-market",
-    "model": "openai-codex/gpt-5.5"
+    "model": "openai-codex/gpt-5.4"
   },
   {
     "id": "cron-comms",
     "workspace": "/Users/hd/.openclaw/workspaces/cron-comms",
-    "model": "openai-codex/gpt-5.5"
+    "model": "openai-codex/gpt-5.4"
   },
   {
     "id": "cron-maintenance",
     "workspace": "/Users/hd/.openclaw/workspaces/cron-maintenance",
-    "model": "openai-codex/gpt-5.5"
+    "model": "openai-codex/gpt-5.4"
   },
   {
     "id": "monitor",
