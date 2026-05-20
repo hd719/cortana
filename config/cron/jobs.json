@@ -165,10 +165,27 @@
       "wakeMode": "now",
       "payload": {
         "kind": "agentTurn",
-        "message": "OUTPUT LIMIT: Any user-visible message or summary must be 150 words or less. If it would be longer, compress it. Do not send multi-part cron messages.\n\nRouting owner:\n- Monitor is the user-facing owner lane for inbox/email ops and operational maintenance alerts.\n- Healthy/no-reminder path must stay silent as NO_REPLY.\n\nPREFIX: ⏰ Calendar - Event Reminder\nDELIVERY: send via message tool (action=send, channel=telegram, target=8171372724).\nTimezone: America/New_York.\n\nRun exactly:\nnpx tsx /Users/hd/Developer/cortana/tools/gog/calendar-events-json.ts --account hameldesai3@gmail.com calendar events \"60e1d0b7ca7586249ee94341d65076f28d9b9f3ec67d89b0709371c0ff82d517@group.calendar.google.com\" --from today --to tomorrow --json\n\nRules:\n- The helper inherits GOG_KEYRING_PASSWORD from the durable OpenClaw gateway env state or the gateway plist when the cron environment is headless.\n- Use only events that start TODAY (ET). Skip tomorrow/later and all-day events.\n- Compute minutes-until-start from now.\n- Send only when in reminder windows: 55-65 (60-min) or 25-35 (30-min).\n- Deduplicate using memory/calendar-reminders-sent.json.\n- If that file does not exist yet, treat it as an empty list and create it on first successful reminder write.\n- Format: ⏰ [Event Title] in [X] minutes\nWhen: HH:MM AM/PM ET\n- If no reminders are due: return exactly NO_REPLY and do not send a message.\n- If the calendar read fails: return exactly NO_REPLY unless there is an actionable Monitor-owned maintenance alert.\n\nAfter generating output, send it with message tool. If nothing to report, return NO_REPLY and do not send.",
-        "model": "openai-codex/gpt-5.3-codex",
-        "timeoutSeconds": 90,
+        "message": "Quiet command-runner maintenance job.\n\nFirst action: exec exactly `npx tsx /Users/hd/Developer/cortana/tools/cron/command-job-runner.ts --job-id 9401d91c-5fa0-43a6-a18e-01030f9e5ba5 --alert` with workdir `/Users/hd/.openclaw/workspaces/cron-maintenance`, host `gateway`, security `full`, ask `off`, timeout 150, yieldMs 20000.\n\nIf exec exits 0, return exactly `NO_REPLY`. If exec exits non-zero, return stderr/stdout only; the runner already handles Monitor-owned alerts.",
+        "model": "openai-codex/gpt-5.4",
+        "timeoutSeconds": 120,
         "lightContext": true
+      },
+      "metadata": {
+        "commandJobSpec": {
+          "command": "npx",
+          "args": [
+            "tsx",
+            "/Users/hd/Developer/cortana/tools/gog/calendar-reminders-telegram.ts"
+          ],
+          "cwd": "/Users/hd/.openclaw/workspaces/cron-comms",
+          "timeoutMs": 90000,
+          "quietSuccess": "NO_REPLY",
+          "owner": "monitor",
+          "alertType": "calendar_reminders_cron_failure",
+          "severity": "P2",
+          "system": "OpenClaw",
+          "actionNeeded": "soon"
+        }
       },
       "state": {
         "nextRunAtMs": 1773763620000,
