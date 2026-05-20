@@ -1,9 +1,23 @@
 import * as path from "node:path";
 import * as os from "node:os";
+import * as fs from "node:fs";
 import { fileURLToPath } from "url";
 
 export const POSTGRES_PATH = "/opt/homebrew/opt/postgresql@17/bin";
-export const PSQL_BIN = process.env.PSQL_BIN ?? path.join(POSTGRES_PATH, "psql");
+
+export function resolvePsqlBin(env: NodeJS.ProcessEnv = process.env): string {
+  if (env.PSQL_BIN) return env.PSQL_BIN;
+  const preferred = path.join(POSTGRES_PATH, "psql");
+  try {
+    const existsSync = (fs as { existsSync?: unknown }).existsSync;
+    if (typeof existsSync === "function" && existsSync(preferred)) return preferred;
+  } catch {
+    // Some tests mock fs narrowly; falling back keeps path resolution harmless.
+  }
+  return "psql";
+}
+
+export const PSQL_BIN = resolvePsqlBin();
 
 export function getScriptDir(importMetaUrl: string): string {
   return path.dirname(fileURLToPath(importMetaUrl));

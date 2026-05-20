@@ -1,23 +1,8 @@
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { spawnSync } from "node:child_process";
+import { afterEach, beforeEach, expect, it } from "vitest";
 import { evaluateFreshnessGate } from "../../tools/sae/cdr-freshness-gate";
+import { describeWithPostgres, probePostgres, psql } from "./db-test-utils";
 
-const PSQL_BIN = process.env.PSQL_BIN || "/opt/homebrew/opt/postgresql@17/bin/psql";
-const DB_NAME = process.env.DB_NAME || "cortana";
-
-function psql(sql: string): string {
-  const proc = spawnSync(PSQL_BIN, [DB_NAME, "-X", "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", sql], {
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      PATH: `/opt/homebrew/opt/postgresql@17/bin:${process.env.PATH ?? ""}`,
-    },
-  });
-  if ((proc.status ?? 1) !== 0) {
-    throw new Error((proc.stderr || proc.stdout || "psql failed").trim());
-  }
-  return (proc.stdout || "").trim();
-}
+const postgres = probePostgres();
 
 function seedRun(args: {
   runId: string;
@@ -42,18 +27,18 @@ function seedRun(args: {
   `);
 }
 
-// Hide all production completed runs before each test, restore after
-beforeEach(() => {
-  psql("UPDATE cortana_sitrep_runs SET status = '_test_hidden' WHERE status = 'completed' AND run_id NOT LIKE 'gate-test-%';");
-  psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'gate-test-%';");
-});
+describeWithPostgres(postgres)("cdr-freshness-gate", () => {
+  beforeEach(() => {
+    if (!postgres.ok) throw new Error(postgres.reason);
+    psql("UPDATE cortana_sitrep_runs SET status = '_test_hidden' WHERE status = 'completed' AND run_id NOT LIKE 'gate-test-%';");
+    psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'gate-test-%';");
+  });
 
-afterEach(() => {
-  psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'gate-test-%';");
-  psql("UPDATE cortana_sitrep_runs SET status = 'completed' WHERE status = '_test_hidden';");
-});
+  afterEach(() => {
+    psql("DELETE FROM cortana_sitrep_runs WHERE run_id LIKE 'gate-test-%';");
+    psql("UPDATE cortana_sitrep_runs SET status = 'completed' WHERE status = '_test_hidden';");
+  });
 
-describe("cdr-freshness-gate", () => {
   it("fails when no completed runs exist", () => {
     const result = evaluateFreshnessGate(new Date());
     expect(result.shouldProceed).toBe(false);

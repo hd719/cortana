@@ -1,61 +1,27 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import { spawnSync } from "node:child_process";
 import { complete, start } from "../tools/sae/wsb-run-tracker";
 import { evaluateFreshnessGate as evaluateGate } from "../tools/sae/cdr-freshness-gate";
+import { applySqlFile, describeWithPostgres, probePostgres, psql } from "./sae/db-test-utils";
 
-const PSQL_BIN = process.env.PSQL_BIN || "/opt/homebrew/opt/postgresql@17/bin/psql";
-const DB_NAME = process.env.DB_NAME || "cortana";
-
-function psql(sql: string): string {
-  const proc = spawnSync(PSQL_BIN, [DB_NAME, "-X", "-v", "ON_ERROR_STOP=1", "-t", "-A", "-c", sql], {
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      PATH: `/opt/homebrew/opt/postgresql@17/bin:${process.env.PATH ?? ""}`,
-    },
-  });
-  if ((proc.status ?? 1) !== 0) {
-    throw new Error((proc.stderr || proc.stdout || "psql failed").trim());
-  }
-  return (proc.stdout || "").trim();
-}
+const postgres = probePostgres();
 
 function applyMigration(): void {
   const path = require("node:path");
   const migrationsDir = path.resolve(__dirname, "../migrations");
-
-  // Apply base table first
-  const base = path.join(migrationsDir, "000_cortana_sitrep.sql");
-  const baseProc = spawnSync(PSQL_BIN, [DB_NAME, "-X", "-v", "ON_ERROR_STOP=1", "-f", base], {
-    encoding: "utf8",
-    env: { ...process.env, PATH: `/opt/homebrew/opt/postgresql@17/bin:${process.env.PATH ?? ""}` },
-  });
-  if ((baseProc.status ?? 1) !== 0) {
-    throw new Error((baseProc.stderr || baseProc.stdout || "base migration failed").trim());
-  }
-
-  const migration = path.join(migrationsDir, "001_sae_sitrep_run_consistency.sql");
-  const proc = spawnSync(PSQL_BIN, [DB_NAME, "-X", "-v", "ON_ERROR_STOP=1", "-f", migration], {
-    encoding: "utf8",
-    env: {
-      ...process.env,
-      PATH: `/opt/homebrew/opt/postgresql@17/bin:${process.env.PATH ?? ""}`,
-    },
-  });
-  if ((proc.status ?? 1) !== 0) {
-    throw new Error((proc.stderr || proc.stdout || "migration apply failed").trim());
-  }
+  applySqlFile(path.join(migrationsDir, "000_cortana_sitrep.sql"), "base migration");
+  applySqlFile(path.join(migrationsDir, "001_sae_sitrep_run_consistency.sql"), "migration apply");
 }
 
 function esc(v: string): string {
   return v.replace(/'/g, "''");
 }
 
-beforeAll(() => {
-  applyMigration();
-});
+describeWithPostgres(postgres)("SAE pipeline hardening", () => {
+  beforeAll(() => {
+    if (!postgres.ok) throw new Error(postgres.reason);
+    applyMigration();
+  });
 
-describe("SAE pipeline hardening", () => {
   it("WSB run tracker start/complete stores run stats", () => {
     const suffix = Date.now().toString().slice(-12);
     const runId = `11111111-1111-4111-8111-${suffix}`;
