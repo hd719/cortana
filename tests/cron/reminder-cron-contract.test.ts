@@ -6,7 +6,7 @@ type CronJob = {
   id?: string;
   payload?: { message?: string; timeoutSeconds?: number };
   metadata?: {
-    commandJobSpec?: { command?: string; args?: string[]; cwd?: string; owner?: string };
+    commandJobSpec?: { command?: string; args?: string[]; cwd?: string; owner?: string; quietSuccess?: string };
     legacyAgentTurn?: { message?: string };
   };
 };
@@ -19,13 +19,21 @@ function loadJobs(): CronJob[] {
 }
 
 describe("reminder cron contract", () => {
-  it("keeps calendar reminders on the Gog helper with durable gateway env fallback wording", () => {
+  it("keeps calendar reminders on the deterministic command runner instead of prompt-owned calendar math", () => {
     const jobs = loadJobs();
     const calendar = jobs.find((job) => job.id === "9401d91c-5fa0-43a6-a18e-01030f9e5ba5");
     const message = String(calendar?.payload?.message ?? "");
 
-    expect(message).toContain("tools/gog/calendar-events-json.ts");
-    expect(message).toContain("durable OpenClaw gateway env state");
+    expect(calendar?.payload?.timeoutSeconds).toBe(120);
+    expect(message).toContain("command-job-runner.ts --job-id 9401d91c-5fa0-43a6-a18e-01030f9e5ba5 --alert");
+    expect(message).not.toContain("Compute minutes-until-start");
+    expect(calendar?.metadata?.commandJobSpec).toMatchObject({
+      command: "npx",
+      args: ["tsx", "/Users/hd/Developer/cortana/tools/gog/calendar-reminders-telegram.ts"],
+      cwd: "/Users/hd/.openclaw/workspaces/cron-comms",
+      quietSuccess: "NO_REPLY",
+      owner: "monitor",
+    });
   });
 
   it("forces Apple Reminders cron to exec the wrapper first with no pre-read drift", () => {
